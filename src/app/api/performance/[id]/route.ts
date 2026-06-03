@@ -1,0 +1,50 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders() });
+}
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    const body = await request.json();
+    const review = await prisma.performanceReview.update({
+      where: { id },
+      data: {
+        ...(body.reviewCycle && { reviewCycle: body.reviewCycle }),
+        ...(body.reviewPeriod && { reviewPeriod: body.reviewPeriod }),
+        ...(body.rating !== undefined && { rating: body.rating }),
+        ...(body.goalsRating !== undefined && { goalsRating: body.goalsRating }),
+        ...(body.skillsRating !== undefined && { skillsRating: body.skillsRating }),
+        ...(body.behaviorRating !== undefined && { behaviorRating: body.behaviorRating }),
+        ...(body.overallRating !== undefined && { overallRating: body.overallRating }),
+        ...(body.comments !== undefined && { comments: body.comments }),
+        ...(body.strengths !== undefined && { strengths: body.strengths }),
+        ...(body.improvements !== undefined && { improvements: body.improvements }),
+        ...(body.status && { status: body.status }),
+        ...(body.reviewDate && { reviewDate: new Date(body.reviewDate) }),
+      },
+      include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    return NextResponse.json({ review }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Update performance review error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}

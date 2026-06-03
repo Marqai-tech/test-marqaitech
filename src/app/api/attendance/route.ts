@@ -1,0 +1,215 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders() });
+}
+
+export async function GET(request: Request) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No token provided' },
+        { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const employeeId = searchParams.get('employeeId');
+    const date = searchParams.get('date');
+    const status = searchParams.get('status');
+
+    const where: Record<string, unknown> = {};
+    if (employeeId) where.employeeId = employeeId;
+    if (date) where.date = new Date(date);
+    if (status) where.status = status;
+
+    const [attendance, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              avatar: true,
+            },
+          },
+        },
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.attendance.count({ where }),
+    ]);
+
+    return NextResponse.json(
+      {
+        attendance,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+      { headers: corsHeaders() }
+    );
+  } catch (error) {
+    console.error('Get attendance error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No token provided' },
+        { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    const body = await request.json();
+    const { employeeId, action, location } = body;
+
+    if (!employeeId || !action) {
+      return NextResponse.json(
+        { error: 'Missing required fields: employeeId, action (checkin/checkout)' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingRecord = await prisma.attendance.findUnique({
+      where: {
+        employeeId_date: {
+          employeeId,
+          date: today,
+        },
+      },
+    });
+
+    if (action === 'checkin') {
+      if (existingRecord && existingRecord.checkIn) {
+        return NextResponse.json(
+          { error: 'Already checked in today' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      const now = new Date();
+      const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+
+      const attendance = await prisma.attendance.upsert({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: today,
+          },
+        },
+        create: {
+          employeeId,
+          date: today,
+          checkIn: now,
+          status: isLate ? 'late' : 'present',
+          location,
+        },
+        update: {
+          checkIn: now,
+          status: isLate ? 'late' : 'present',
+          location,
+        },
+      });
+
+      return NextResponse.json(
+        { attendance, message: 'Checked in successfully' },
+        { status: 201, headers: corsHeaders() }
+      );
+    } else if (action === 'checkout') {
+      if (!existingRecord || !existingRecord.checkIn) {
+        return NextResponse.json(
+          { error: 'Must check in before checking out' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      if (existingRecord.checkOut) {
+        return NextResponse.json(
+          { error: 'Already checked out today' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      const now = new Date();
+      const workHours = (now.getTime() - existingRecord.checkIn.getTime()) / (1000 * 60 * 60);
+      const overtime = Math.max(0, workHours - 9);
+
+      const attendance = await prisma.attendance.update({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: today,
+          },
+        },
+        data: {
+          checkOut: now,
+          workHours: parseFloat(workHours.toFixed(2)),
+          overtime: parseFloat(overtime.toFixed(2)),
+        },
+      });
+
+      return NextResponse.json(
+        { attendance, message: 'Checked out successfully' },
+        { headers: corsHeaders() }
+      );
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid action. Use checkin or checkout' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+  } catch (error) {
+    console.error('Attendance check-in/out error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
