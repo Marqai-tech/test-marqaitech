@@ -184,3 +184,45 @@ export async function PUT(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const { id } = await params;
+
+    const existing = await prisma.ticket.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Delete comments first, then the ticket
+    await prisma.ticketComment.deleteMany({ where: { ticketId: id } });
+    await prisma.ticket.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'DELETE_TICKET',
+        module: 'tickets',
+        details: `Deleted ticket ${existing.ticketId}`,
+      },
+    });
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete ticket error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}

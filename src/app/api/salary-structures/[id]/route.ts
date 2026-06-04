@@ -174,10 +174,45 @@ export async function PATCH(
         where: { id: component.id },
       });
     } else {
-      return NextResponse.json(
-        { error: 'Invalid action. Use add_component, update_component, or remove_component with component data.' },
-        { status: 400, headers: corsHeaders() }
-      );
+      // Support field-level updates (name, country, currency, description, status, components)
+      const updateData: Record<string, unknown> = {};
+      const fields = ['name', 'country', 'currency', 'description', 'status'];
+      for (const field of fields) {
+        if (body[field] !== undefined) updateData[field] = body[field];
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.salaryStructure.update({
+          where: { id },
+          data: updateData,
+        });
+      }
+
+      // Handle components array replacement
+      if (body.components && Array.isArray(body.components)) {
+        // Delete existing components and recreate
+        await prisma.salaryComponent.deleteMany({ where: { salaryStructureId: id } });
+        for (let i = 0; i < body.components.length; i++) {
+          const comp = body.components[i];
+          await prisma.salaryComponent.create({
+            data: {
+              salaryStructureId: id,
+              name: comp.name || '',
+              type: comp.type || 'earning',
+              category: comp.category || 'other',
+              calculationType: comp.calculationType || 'fixed',
+              value: comp.value ?? 0,
+              percentageOf: comp.percentageOf || null,
+              formula: comp.formula || null,
+              isTaxable: comp.isTaxable ?? true,
+              isStatutory: comp.isStatutory ?? false,
+              maxLimit: comp.maxLimit || null,
+              sortOrder: i,
+              status: 'active',
+            },
+          });
+        }
+      }
     }
 
     const salaryStructure = await prisma.salaryStructure.findUnique({
@@ -193,13 +228,49 @@ export async function PATCH(
         userId: decoded.userId as string,
         action: 'UPDATE_SALARY_STRUCTURE_COMPONENTS',
         module: 'salary-structures',
-        details: `${action} on salary structure ${id}`,
+        details: `${action || 'field_update'} on salary structure ${id}`,
       },
     });
 
     return NextResponse.json({ salaryStructure }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Patch salary structure error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    const { id } = await params;
+
+    const existing = await prisma.salaryStructure.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: 'Salary structure not found' }, { status: 404, headers: corsHeaders() });
+
+    // Delete components first
+    await prisma.salaryComponent.deleteMany({ where: { salaryStructureId: id } });
+    // Delete the structure
+    await prisma.salaryStructure.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'DELETE_SALARY_STRUCTURE',
+        module: 'salary-structures',
+        details: `Deleted salary structure ${id}`,
+      },
+    });
+
+    return NextResponse.json({ message: 'Salary structure deleted successfully' }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete salary structure error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

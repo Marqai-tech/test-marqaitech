@@ -61,46 +61,56 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, responseNotes } = body;
+    const { status, responseNotes, candidateName, candidateEmail, position, department, offeredSalary, offeredCurrency, joiningDate, probationPeriod } = body;
 
     const existing = await prisma.offer.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    const validStatuses = ['draft', 'pending_approval', 'approved', 'sent', 'accepted', 'rejected', 'withdrawn'];
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
-        { status: 400, headers: corsHeaders() }
-      );
-    }
-
     const updateData: Record<string, unknown> = {};
-    if (status) updateData.status = status;
+
+    // Handle status changes
+    if (status) {
+      const validStatuses = ['draft', 'pending_approval', 'approved', 'sent', 'accepted', 'rejected', 'withdrawn'];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      updateData.status = status;
+
+      // Handle status-specific timestamps
+      if (status === 'approved') {
+        updateData.approvedBy = decoded.userId as string;
+        updateData.approvedAt = new Date();
+      }
+      if (status === 'sent') {
+        updateData.sentAt = new Date();
+      }
+      if (status === 'accepted' || status === 'rejected') {
+        updateData.respondedAt = new Date();
+      }
+    }
     if (responseNotes) updateData.responseNotes = responseNotes;
 
-    // Handle status-specific timestamps
-    if (status === 'pending_approval') {
-      // Offer submitted for approval
-    }
-    if (status === 'approved') {
-      updateData.approvedBy = decoded.userId as string;
-      updateData.approvedAt = new Date();
-    }
-    if (status === 'sent') {
-      updateData.sentAt = new Date();
-    }
-    if (status === 'accepted' || status === 'rejected') {
-      updateData.respondedAt = new Date();
-    }
+    // Handle field editing
+    if (candidateName !== undefined) updateData.candidateName = candidateName;
+    if (candidateEmail !== undefined) updateData.candidateEmail = candidateEmail;
+    if (position !== undefined) updateData.position = position;
+    if (department !== undefined) updateData.department = department || null;
+    if (offeredSalary !== undefined) updateData.offeredSalary = offeredSalary;
+    if (offeredCurrency !== undefined) updateData.offeredCurrency = offeredCurrency;
+    if (joiningDate !== undefined) updateData.joiningDate = joiningDate ? new Date(joiningDate) : null;
+    if (probationPeriod !== undefined) updateData.probationPeriod = probationPeriod;
 
     const offer = await prisma.offer.update({
       where: { id },
       data: updateData,
     });
 
-    // Notify relevant users on status changes
+    // Notify relevant users on status changes only
     if (status && status !== existing.status) {
       const notificationMap: Record<string, { title: string; message: string; type: 'info' | 'success' | 'warning' | 'error' }> = {
         pending_approval: {
@@ -168,6 +178,46 @@ export async function PATCH(
     return NextResponse.json({ offer }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Patch offer error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const { id } = await params;
+
+    const existing = await prisma.offer.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    await prisma.offer.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'DELETE_OFFER',
+        module: 'offers',
+        details: `Deleted offer for ${existing.candidateName} - ${existing.position}`,
+      },
+    });
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete offer error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

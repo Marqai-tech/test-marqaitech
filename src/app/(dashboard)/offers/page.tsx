@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiCheck,
-  FiFileText,
+  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -16,48 +15,110 @@ interface Offer {
   id: string; candidateName: string; candidateEmail: string; position: string; department: string | null; offeredSalary: number; offeredCurrency: string; joiningDate: string; probationPeriod: number; status: string; createdAt: string;
 }
 
-const statusConfig: Record<string, { bg: string; text: string }> = {
-  draft: { bg: 'bg-slate-100', text: 'text-slate-600' },
-  pending_approval: { bg: 'bg-amber-100', text: 'text-amber-700' },
-  approved: { bg: 'bg-blue-100', text: 'text-blue-700' },
-  sent: { bg: 'bg-purple-100', text: 'text-purple-700' },
-  accepted: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  rejected: { bg: 'bg-red-100', text: 'text-red-700' },
+const initialForm = {
+  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'USD', joiningDate: '', probationPeriod: 90,
 };
+
+function getStatusBadge(status: string) {
+  const map: Record<string, string> = {
+    draft: 'nexus-badge nexus-badge-primary',
+    pending_approval: 'nexus-badge nexus-badge-warning',
+    approved: 'nexus-badge nexus-badge-info',
+    sent: 'nexus-badge nexus-badge-purple',
+    accepted: 'nexus-badge nexus-badge-success',
+    rejected: 'nexus-badge nexus-badge-error',
+    withdrawn: 'nexus-badge nexus-badge-error',
+  };
+  return map[status] || 'nexus-badge nexus-badge-info';
+}
+
+function formatStatus(status: string) {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
 
 export default function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'USD', joiningDate: '', probationPeriod: 90,
-  });
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [form, setForm] = useState(initialForm);
 
   const fetchOffers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/offers', { headers: getAuthHeaders() });
+      const res = await fetch('/api/offers?limit=100', { headers: getAuthHeaders() });
       if (res.ok) { const data = await res.json(); setOffers(Array.isArray(data) ? data : data.offers || []); }
     } catch { toast.error('Failed to load offers'); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchOffers(); }, [fetchOffers]);
+  useEffect(() => { queueMicrotask(() => fetchOffers()); }, [fetchOffers]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddNew = () => {
+    setForm(initialForm);
+    setEditingId(null);
+    setShowForm(true);
+    setViewingId(null);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
+  const handleEdit = (item: Offer) => {
+    setForm({
+      candidateName: item.candidateName || '',
+      candidateEmail: item.candidateEmail || '',
+      position: item.position || '',
+      department: item.department || '',
+      offeredSalary: item.offeredSalary || 0,
+      offeredCurrency: item.offeredCurrency || 'USD',
+      joiningDate: item.joiningDate ? new Date(item.joiningDate).toISOString().split('T')[0] : '',
+      probationPeriod: item.probationPeriod || 90,
+    });
+    setEditingId(item.id);
+    setShowForm(true);
+    setViewingId(null);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(initialForm);
+  };
+
+  const handleSubmit = async () => {
     if (!form.candidateName || !form.position) { toast.error('Name and position are required'); return; }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...form, candidateId: `candidate-${Date.now()}` }) });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Offer created');
-      setShowCreateModal(false);
-      setForm({ candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'USD', joiningDate: '', probationPeriod: 90 });
+      if (editingId) {
+        const res = await fetch(`/api/offers/${editingId}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(form) });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+        toast.success('Offer updated');
+      } else {
+        const res = await fetch('/api/offers', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...form, candidateId: `candidate-${Date.now()}` }) });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+        toast.success('Offer created');
+      }
+      handleCancelForm();
       fetchOffers();
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed'); }
     finally { setSubmitting(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/offers/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      toast.success('Offer deleted');
+      setDeleteConfirmId(null);
+      if (viewingId === id) setViewingId(null);
+      fetchOffers();
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete'); }
+    finally { setDeleting(false); }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
@@ -76,78 +137,190 @@ export default function OffersPage() {
     return '';
   };
 
+  const colCount = 7;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h1 className="text-2xl font-bold text-slate-900">Offer Management</h1><p className="text-slate-500 mt-1">Create and manage job offers</p></div>
-        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Create Offer</button>
+        <div>
+          <h1 className="text-2xl font-bold text-nexus-text-primary">Offer Management</h1>
+          <p className="text-nexus-text-secondary mt-1">Create and manage job offers</p>
+        </div>
+        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <FiPlus className="w-4 h-4" /> Create Offer
+        </button>
       </div>
 
-      {loading ? (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />))}</div></div>
-      ) : offers.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center"><FiFileText className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500">No offers found</p></div>
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>{['Candidate', 'Position', 'Salary', 'Joining Date', 'Status', 'Actions'].map((h) => (<th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>))}</tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {offers.map((o) => (
-                  <tr key={o.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3"><div><p className="text-sm font-medium text-slate-900">{o.candidateName}</p><p className="text-xs text-slate-400">{o.candidateEmail}</p></div></td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{o.position}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{o.offeredCurrency} {o.offeredSalary?.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{new Date(o.joiningDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[o.status]?.bg || ''} ${statusConfig[o.status]?.text || ''}`}>{o.status.replace('_', ' ')}</span></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {nextStatus(o.status) && (
-                          <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />Advance</button>
-                        )}
-                        {(o.status === 'sent' || o.status === 'approved') && (
-                          <>
-                            <button onClick={() => handleStatusChange(o.id, 'accepted')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">Accept</button>
-                            <button onClick={() => handleStatusChange(o.id, 'rejected')} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100">Reject</button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* View Panel */}
+      {viewingId && (() => {
+        const item = offers.find(i => i.id === viewingId);
+        if (!item) return null;
+        return (
+          <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-nexus-text-primary">Offer Details</h2>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleEdit(item)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Candidate Name</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.candidateName || '—'}</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Candidate Email</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.candidateEmail || '—'}</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Position</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.position || '—'}</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Department</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.department || '—'}</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Offered Salary</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.offeredCurrency} {item.offeredSalary?.toLocaleString()}</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Joining Date</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.joiningDate ? new Date(item.joiningDate).toLocaleDateString() : '—'}</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Probation Period</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.probationPeriod} days</p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(item.status)}>{formatStatus(item.status)}</span></p></div>
+                <div><span className="text-xs font-medium text-nexus-text-secondary">Created</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{new Date(item.createdAt).toLocaleDateString()}</p></div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Embedded Form */}
+      {showForm && (
+        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary">
+                {editingId ? 'Edit Offer' : 'Create New Offer'}
+              </h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Name *</label>
+                <input required value={form.candidateName} onChange={(e) => setForm({ ...form, candidateName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Full name" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Email</label>
+                <input type="email" value={form.candidateEmail} onChange={(e) => setForm({ ...form, candidateEmail: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="email@example.com" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Position *</label>
+                <input required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Job title" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department</label>
+                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Department" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary *</label>
+                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                <select value={form.offeredCurrency} onChange={(e) => setForm({ ...form, offeredCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="INR">INR</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Joining Date *</label>
+                <input type="date" required value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Probation (days)</label>
+                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-slate-200"><h2 className="text-lg font-semibold text-slate-900">Create Offer</h2><button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-slate-100 rounded-lg"><FiX className="w-5 h-5 text-slate-500" /></button></div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Candidate Name *</label><input required value={form.candidateName} onChange={(e) => setForm({ ...form, candidateName: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Candidate Email</label><input type="email" value={form.candidateEmail} onChange={(e) => setForm({ ...form, candidateEmail: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Position *</label><input required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Department</label><input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Salary *</label><input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Currency</label><select value={form.offeredCurrency} onChange={(e) => setForm({ ...form, offeredCurrency: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="USD">USD</option><option value="EUR">EUR</option><option value="INR">INR</option></select></div>
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Joining Date *</label><input type="date" required value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-              </div>
-              <div><label className="block text-sm font-medium text-slate-700 mb-1">Probation (days)</label><input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-              <div className="flex justify-end gap-3 pt-4"><button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button><button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">{submitting ? 'Creating...' : 'Create'}</button></div>
-            </form>
-          </div>
+      {/* Table */}
+      <div className="nexus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-nexus-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Candidate</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Position</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Salary</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Joining Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Workflow</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                    {Array.from({ length: colCount }).map((_, j) => (
+                      <td key={j} className="px-4 py-3"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : offers.length === 0 ? (
+                <tr>
+                  <td colSpan={colCount} className="px-4 py-12 text-center">
+                    <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                    <p className="text-nexus-text-secondary font-medium">No offers found</p>
+                    <p className="text-sm text-nexus-text-muted mt-1">Create your first offer to get started</p>
+                  </td>
+                </tr>
+              ) : (
+                offers.map((o) => (
+                  <tr key={o.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                    {deleteConfirmId === o.id ? (
+                      <td colSpan={colCount} className="px-4 py-3 bg-red-50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this offer?</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleDelete(o.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                          </div>
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3">
+                          <div><p className="text-sm font-medium text-nexus-text-primary">{o.candidateName}</p><p className="text-xs text-nexus-text-muted">{o.candidateEmail}</p></div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-primary">{o.position}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{o.offeredCurrency} {o.offeredSalary?.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{o.joiningDate ? new Date(o.joiningDate).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-3"><span className={getStatusBadge(o.status)}>{formatStatus(o.status)}</span></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {nextStatus(o.status) && (
+                              <button onClick={() => handleStatusChange(o.id, nextStatus(o.status))} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100 flex items-center gap-1"><FiCheck className="w-3 h-3" />Advance</button>
+                            )}
+                            {(o.status === 'sent' || o.status === 'approved') && (
+                              <>
+                                <button onClick={() => handleStatusChange(o.id, 'accepted')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">Accept</button>
+                                <button onClick={() => handleStatusChange(o.id, 'rejected')} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100">Reject</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => { setViewingId(o.id); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(o)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteConfirmId(o.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }

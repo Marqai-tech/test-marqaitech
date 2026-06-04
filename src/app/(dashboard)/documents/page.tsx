@@ -9,6 +9,7 @@ import {
   FiTrash2,
   FiSearch,
   FiFilter,
+  FiEye,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -118,6 +119,7 @@ export default function DocumentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -164,11 +166,15 @@ export default function DocumentsPage() {
     return d.name.toLowerCase().includes(s);
   });
 
+  /* View document */
+  const viewingDocument = viewingId ? documents.find(d => d.id === viewingId) : null;
+
   /* Form handlers */
   const handleAddNew = () => {
     setForm(initialForm);
     setEditingId(null);
     setShowForm(true);
+    setViewingId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -184,6 +190,7 @@ export default function DocumentsPage() {
     });
     setEditingId(doc.id);
     setShowForm(true);
+    setViewingId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -250,6 +257,7 @@ export default function DocumentsPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Document deleted successfully');
       setDeleteConfirmId(null);
+      if (viewingId === id) setViewingId(null);
       fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete document');
@@ -311,6 +319,60 @@ export default function DocumentsPage() {
           </div>
         </div>
       </div>
+
+      {/* View-Only Panel */}
+      {viewingId && viewingDocument && (
+        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <FiFileText className="w-5 h-5 text-amber-500" />
+                Document Details
+              </h2>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleEdit(viewingDocument)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <span className="text-xs font-medium text-nexus-text-secondary">Document Name</span>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingDocument.name}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-nexus-text-secondary">Type</span>
+                <p className="mt-0.5"><span className={getTypeBadge(viewingDocument.type)}>{getTypeLabel(viewingDocument.type)}</span></p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-nexus-text-secondary">Employee</span>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingDocument.employee ? `${viewingDocument.employee.firstName} ${viewingDocument.employee.lastName}` : '—'}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-nexus-text-secondary">Status</span>
+                <p className="mt-0.5"><span className={getStatusBadge(viewingDocument.status)}>{formatStatus(viewingDocument.status)}</span></p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-nexus-text-secondary">Expiry Date</span>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{formatDate(viewingDocument.expiryDate)}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-nexus-text-secondary">Upload Date</span>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{formatDate(viewingDocument.uploadedAt)}</p>
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <span className="text-xs font-medium text-nexus-text-secondary">File URL</span>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 break-all">{viewingDocument.fileUrl || '—'}</p>
+              </div>
+              {viewingDocument.description && (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <span className="text-xs font-medium text-nexus-text-secondary">Description</span>
+                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingDocument.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Embedded Form */}
       {showForm && (
@@ -450,6 +512,7 @@ export default function DocumentsPage() {
                         {isAdmin && (
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => { setViewingId(doc.id); setShowForm(false); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
                               <button onClick={() => handleEdit(doc)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                                 <FiEdit2 className="w-4 h-4" />
                               </button>

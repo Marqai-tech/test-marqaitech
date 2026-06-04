@@ -69,28 +69,28 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { approvalStatus, rejectionReason } = body;
+    const { approvalStatus, rejectionReason, departmentId, designationId, positionType, numberOfOpenings, employmentType, skillsRequired, experienceRequired, qualification, salaryBudget, priority, expectedJoiningDate } = body;
 
     const existing = await prisma.requisition.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Requisition not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    const validStatuses = ['pending', 'manager_approved', 'hr_approved', 'budget_approved', 'rejected'];
-    if (approvalStatus && !validStatuses.includes(approvalStatus)) {
-      return NextResponse.json(
-        { error: `Invalid approval status. Must be one of: ${validStatuses.join(', ')}` },
-        { status: 400, headers: corsHeaders() }
-      );
-    }
-
     const updateData: Record<string, unknown> = {};
+
+    // Handle approval status changes
     if (approvalStatus) {
+      const validStatuses = ['pending', 'manager_approved', 'hr_approved', 'budget_approved', 'rejected'];
+      if (!validStatuses.includes(approvalStatus)) {
+        return NextResponse.json(
+          { error: `Invalid approval status. Must be one of: ${validStatuses.join(', ')}` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
       updateData.approvalStatus = approvalStatus;
       updateData.approvedBy = decoded.userId as string;
       updateData.approvedAt = new Date();
 
-      // Map approval status to requisition status
       if (approvalStatus === 'rejected') {
         updateData.status = 'cancelled';
         updateData.rejectionReason = rejectionReason;
@@ -99,6 +99,19 @@ export async function PATCH(
       }
     }
     if (rejectionReason) updateData.rejectionReason = rejectionReason;
+
+    // Handle field editing
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
+    if (designationId !== undefined) updateData.designationId = designationId || null;
+    if (positionType !== undefined) updateData.positionType = positionType;
+    if (numberOfOpenings !== undefined) updateData.numberOfOpenings = numberOfOpenings;
+    if (employmentType !== undefined) updateData.employmentType = employmentType;
+    if (skillsRequired !== undefined) updateData.skillsRequired = skillsRequired || null;
+    if (experienceRequired !== undefined) updateData.experienceRequired = experienceRequired || null;
+    if (qualification !== undefined) updateData.qualification = qualification || null;
+    if (salaryBudget !== undefined) updateData.salaryBudget = salaryBudget || null;
+    if (priority !== undefined) updateData.priority = priority;
+    if (expectedJoiningDate !== undefined) updateData.expectedJoiningDate = expectedJoiningDate ? new Date(expectedJoiningDate) : null;
 
     const requisition = await prisma.requisition.update({
       where: { id },
@@ -109,8 +122,8 @@ export async function PATCH(
       },
     });
 
-    // Notify the hiring manager or requester
-    if (existing.hiringManagerId) {
+    // Notify the hiring manager or requester (only for approval changes)
+    if (approvalStatus && existing.hiringManagerId) {
       await createNotification({
         tenantId: decoded.tenantId as string,
         userId: existing.hiringManagerId,
@@ -127,13 +140,53 @@ export async function PATCH(
         userId: decoded.userId as string,
         action: 'UPDATE_REQUISITION',
         module: 'requisitions',
-        details: `Updated requisition ${existing.requisitionId} approval status to ${approvalStatus}`,
+        details: `Updated requisition ${existing.requisitionId}${approvalStatus ? ` approval status to ${approvalStatus}` : ''}`,
       },
     });
 
     return NextResponse.json({ requisition }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Patch requisition error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const { id } = await params;
+
+    const existing = await prisma.requisition.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Requisition not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    await prisma.requisition.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'DELETE_REQUISITION',
+        module: 'requisitions',
+        details: `Deleted requisition ${existing.requisitionId}`,
+      },
+    });
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete requisition error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

@@ -146,7 +146,6 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, progress } = body;
 
     const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) {
@@ -154,16 +153,29 @@ export async function PATCH(
     }
 
     const updateData: Record<string, unknown> = {};
-    if (status !== undefined) updateData.status = status;
-    if (progress !== undefined) updateData.progress = progress;
+    const fields = [
+      'name', 'code', 'clientId', 'departmentId', 'projectManagerId',
+      'deliveryManagerId', 'projectType', 'billingType', 'currency',
+      'budgetAmount', 'estimatedHours', 'actualHours', 'billingRate', 'costRate',
+      'description', 'progress', 'status',
+    ];
+    for (const field of fields) {
+      if (body[field] !== undefined) updateData[field] = body[field];
+    }
+    if (body.startDate !== undefined) updateData.startDate = new Date(body.startDate);
+    if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null;
 
     const project = await prisma.project.update({
       where: { id },
       data: updateData,
+      include: {
+        client: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+      },
     });
 
     // Notify relevant users on status change
-    if (status && status !== existing.status) {
+    if (body.status && body.status !== existing.status) {
       const allocations = await prisma.projectAllocation.findMany({
         where: { projectId: id, status: 'active' },
         include: { employee: { include: { user: true } } },
@@ -175,8 +187,8 @@ export async function PATCH(
             tenantId: decoded.tenantId as string,
             userId: allocation.employee.user.id,
             title: 'Project Status Updated',
-            message: `Project "${existing.name}" status changed to ${status}.`,
-            type: status === 'active' ? 'success' : status === 'on_hold' ? 'warning' : 'info',
+            message: `Project "${existing.name}" status changed to ${body.status}.`,
+            type: body.status === 'active' ? 'success' : body.status === 'on_hold' ? 'warning' : 'info',
             category: 'system',
             link: `/projects/${id}`,
           });
@@ -187,15 +199,61 @@ export async function PATCH(
     await prisma.auditLog.create({
       data: {
         userId: decoded.userId as string,
-        action: 'UPDATE_PROJECT_STATUS',
+        action: 'UPDATE_PROJECT',
         module: 'projects',
-        details: `Updated project ${id} status to ${status || existing.status}`,
+        details: `Updated project ${id}`,
       },
     });
 
     return NextResponse.json({ project }, { headers: corsHeaders() });
   } catch (error) {
-    console.error('Patch project status error:', error);
+    console.error('Patch project error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const { id } = await params;
+
+    const existing = await prisma.project.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Delete related records first (tasks, allocations, milestones)
+    await prisma.projectTask.deleteMany({ where: { projectId: id } });
+    await prisma.projectAllocation.deleteMany({ where: { projectId: id } });
+    await prisma.projectMilestone.deleteMany({ where: { projectId: id } });
+
+    // Delete the project
+    await prisma.project.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'DELETE_PROJECT',
+        module: 'projects',
+        details: `Deleted project ${existing.name} (${id})`,
+      },
+    });
+
+    return NextResponse.json({ message: 'Project deleted successfully' }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete project error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

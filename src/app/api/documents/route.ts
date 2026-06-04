@@ -72,10 +72,12 @@ export async function POST(request: Request) {
         employeeId,
         name,
         type,
+        status: body.status || 'active',
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         fileUrl: body.fileUrl || null,
+        description: body.description || null,
       },
-      include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
+      include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
     });
 
     return NextResponse.json({ document }, { status: 201, headers: corsHeaders() });
