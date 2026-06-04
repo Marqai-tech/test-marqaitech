@@ -1,0 +1,92 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders() });
+}
+
+export async function GET(request: Request) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const employeeId = searchParams.get('employeeId');
+    const type = searchParams.get('type');
+    const status = searchParams.get('status');
+
+    const where: Record<string, unknown> = {};
+    if (employeeId) where.employeeId = employeeId;
+    if (type) where.type = type;
+    if (status) where.status = status;
+
+    const [documents, total] = await Promise.all([
+      prisma.document.findMany({
+        where,
+        include: {
+          employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+        },
+        orderBy: { uploadedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.document.count({ where }),
+    ]);
+
+    return NextResponse.json({ documents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Get documents error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    const body = await request.json();
+    const { name, type } = body;
+
+    if (!name || !type) {
+      return NextResponse.json({ error: 'Missing required fields: name, type' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const employeeId = body.employeeId;
+    if (!employeeId) {
+      return NextResponse.json({ error: 'Please select an employee for this document' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const document = await prisma.document.create({
+      data: {
+        employeeId,
+        name,
+        type,
+        status: body.status || 'active',
+        expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
+        fileUrl: body.fileUrl || null,
+      },
+      include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    return NextResponse.json({ document }, { status: 201, headers: corsHeaders() });
+  } catch (error) {
+    console.error('Create document error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
