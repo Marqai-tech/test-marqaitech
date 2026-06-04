@@ -1129,6 +1129,120 @@ export async function GET() {
       });
     }
 
+    // ============ SUBSCRIPTION PLANS ============
+    const plans = [
+      { id: 'plan-starter', name: 'Starter', planType: 'starter', monthlyPrice: 49, annualPrice: 470, employeeLimit: 50, companyLimit: 1, branchLimit: 5, supportLevel: 'email' },
+      { id: 'plan-professional', name: 'Professional', planType: 'professional', monthlyPrice: 149, annualPrice: 1430, employeeLimit: 500, companyLimit: 5, branchLimit: 20, payrollEnabled: true, recruitmentEnabled: true, projectEnabled: true, supportLevel: 'chat' },
+      { id: 'plan-enterprise', name: 'Enterprise', planType: 'enterprise', monthlyPrice: 399, annualPrice: 3830, employeeLimit: 5000, companyLimit: 50, branchLimit: 200, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, supportLevel: 'priority' },
+      { id: 'plan-global', name: 'Global Enterprise', planType: 'global_enterprise', monthlyPrice: 799, annualPrice: 7670, employeeLimit: 50000, companyLimit: 200, branchLimit: 1000, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, whiteLabelEnabled: true, supportLevel: 'dedicated' },
+      { id: 'plan-staffing', name: 'Staffing Suite', planType: 'staffing', monthlyPrice: 299, annualPrice: 2870, employeeLimit: 2000, companyLimit: 20, branchLimit: 100, payrollEnabled: true, recruitmentEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, supportLevel: 'priority' },
+    ];
+    for (const plan of plans) { await prisma.subscriptionPlan.upsert({ where: { id: plan.id }, update: {}, create: plan }); }
+
+    await prisma.subscription.upsert({ where: { id: 'sub-1' }, update: {}, create: { id: 'sub-1', tenantId: tenant.id, planId: 'plan-enterprise', startDate: new Date('2024-01-01'), endDate: new Date('2025-12-31'), billingCycle: 'annual', amount: 3830, currency: 'USD', paymentStatus: 'paid', status: 'active' } });
+
+    // ============ CLIENTS ============
+    const clientData = [
+      { id: 'client-1', name: 'Acme Corporation', code: 'ACME', companyId: usaCompany.id, industry: 'Technology', website: 'https://acme.com', contactName: 'Robert Smith', contactEmail: 'robert@acme.com', contactPhone: '+1-555-3001', country: 'US', billingCurrency: 'USD', paymentTerms: 'net_30', contractValue: 500000 },
+      { id: 'client-2', name: 'Global Retail Ltd', code: 'GRL', companyId: usaCompany.id, industry: 'Retail', contactName: 'Patricia Jones', contactEmail: 'patricia@globalretail.com', contactPhone: '+44-555-3002', country: 'GB', billingCurrency: 'GBP', paymentTerms: 'net_45', contractValue: 350000 },
+      { id: 'client-3', name: 'TechVentures India', code: 'TVI', companyId: indiaCompany.id, industry: 'IT Services', contactName: 'Vikram Reddy', contactEmail: 'vikram@techventures.in', contactPhone: '+91-555-3003', country: 'IN', billingCurrency: 'INR', paymentTerms: 'net_15', contractValue: 20000000 },
+    ];
+    for (const cl of clientData) { await prisma.client.upsert({ where: { id: cl.id }, update: {}, create: cl }); }
+
+    // ============ VENDORS ============
+    const vendorData = [
+      { id: 'vendor-1', name: 'TalentFind Inc', code: 'TF', companyId: usaCompany.id, type: 'vendor', industry: 'Recruitment', contactName: 'Mike Johnson', contactEmail: 'mike@talentfind.com', specialization: 'IT Recruitment', rating: 4.5 },
+      { id: 'vendor-2', name: 'StaffPro Solutions', code: 'SPS', companyId: usaCompany.id, type: 'vendor', industry: 'Staffing', contactName: 'Linda Chen', contactEmail: 'linda@staffpro.com', specialization: 'Engineering Staffing', rating: 4.2 },
+      { id: 'vendor-3', name: 'QuickHire India', code: 'QHI', companyId: indiaCompany.id, type: 'vendor', industry: 'Recruitment', contactName: 'Suresh Kumar', contactEmail: 'suresh@quickhire.in', specialization: 'BPO & IT Hiring', rating: 3.8 },
+      { id: 'vendor-4', name: 'SubStaff Partners', code: 'SSP', companyId: usaCompany.id, type: 'sub_vendor', parentVendorId: 'vendor-1', industry: 'Recruitment', contactName: 'Amy Wilson', contactEmail: 'amy@substaff.com', specialization: 'Junior Developer Sourcing', rating: 3.5 },
+    ];
+    for (const v of vendorData) { await prisma.vendor.upsert({ where: { id: v.id }, update: {}, create: v }); }
+
+    // ============ PROJECTS ============
+    const projectData = [
+      { id: 'proj-1', name: 'Nexus Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
+      { id: 'proj-2', name: 'Mobile App Development', code: 'MAD', companyId: usaCompany.id, clientId: 'client-2', departmentId: 'dept-eng', projectType: 'client', billingType: 'fixed', currency: 'GBP', budgetAmount: 200000, estimatedHours: 3000, startDate: new Date('2025-03-01'), endDate: new Date('2025-09-30'), status: 'active', description: 'Cross-platform mobile app', progress: 20 },
+      { id: 'proj-3', name: 'Internal HR Portal', code: 'IHRP', companyId: indiaCompany.id, departmentId: 'dept-eng', projectType: 'internal', billingType: 'non_billable', currency: 'INR', budgetAmount: 5000000, estimatedHours: 2000, startDate: new Date('2025-02-01'), status: 'active', description: 'Internal HR portal', progress: 50 },
+    ];
+    for (const proj of projectData) { await prisma.project.upsert({ where: { id: proj.id }, update: {}, create: proj }); }
+
+    // ============ PROJECT TASKS ============
+    const projectTasks = [
+      { id: 'ptask-1', projectId: 'proj-1', name: 'API Design', estimatedHours: 200, priority: 'high', status: 'done', isBillable: true },
+      { id: 'ptask-2', projectId: 'proj-1', name: 'Frontend Dashboard', estimatedHours: 300, priority: 'high', status: 'in_progress', isBillable: true },
+      { id: 'ptask-3', projectId: 'proj-1', name: 'Database Migration', estimatedHours: 100, priority: 'medium', status: 'review', isBillable: true },
+      { id: 'ptask-4', projectId: 'proj-1', name: 'Unit Testing', estimatedHours: 150, priority: 'medium', status: 'todo', isBillable: true },
+      { id: 'ptask-5', projectId: 'proj-2', name: 'UI/UX Design', estimatedHours: 250, priority: 'high', status: 'done', isBillable: true },
+      { id: 'ptask-6', projectId: 'proj-2', name: 'React Native Dev', estimatedHours: 400, priority: 'high', status: 'in_progress', isBillable: true },
+    ];
+    for (const pt of projectTasks) { await prisma.projectTask.upsert({ where: { id: pt.id }, update: {}, create: pt }); }
+
+    // ============ PROJECT ALLOCATIONS ============
+    const allocationData = [
+      { id: 'alloc-1', projectId: 'proj-1', employeeId: 'emp-john', role: 'Project Manager', allocationPct: 50, startDate: new Date('2025-01-15'), billingStatus: 'billable', billingRate: 200, internalCostRate: 120 },
+      { id: 'alloc-2', projectId: 'proj-1', employeeId: 'emp-alice', role: 'Tech Lead', allocationPct: 80, startDate: new Date('2025-01-15'), billingStatus: 'billable', billingRate: 150, internalCostRate: 85 },
+      { id: 'alloc-3', projectId: 'proj-2', employeeId: 'emp-carol', role: 'Design Lead', allocationPct: 60, startDate: new Date('2025-03-01'), billingStatus: 'billable', billingRate: 140, internalCostRate: 75 },
+    ];
+    for (const alloc of allocationData) { await prisma.projectAllocation.upsert({ where: { id: alloc.id }, update: {}, create: alloc }); }
+
+    // ============ TICKET CATEGORIES & TICKETS ============
+    const ticketCategories = [
+      { id: 'tc-hr', name: 'HR Query', type: 'hr', slaHours: 48 },
+      { id: 'tc-it', name: 'IT Support', type: 'it', slaHours: 24 },
+      { id: 'tc-payroll', name: 'Payroll Issue', type: 'payroll', slaHours: 72 },
+      { id: 'tc-admin', name: 'Admin Request', type: 'admin', slaHours: 48 },
+      { id: 'tc-general', name: 'General', type: 'general', slaHours: 96 },
+    ];
+    for (const tc of ticketCategories) { await prisma.ticketCategory.upsert({ where: { id: tc.id }, update: {}, create: tc }); }
+
+    const ticketData = [
+      { id: 'ticket-1', ticketId: 'TK-0001', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-alice', requesterName: 'Alice Chen', subject: 'Laptop not connecting to VPN', description: 'My laptop cannot connect to the company VPN since Monday.', priority: 'high', status: 'in_progress', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez' },
+      { id: 'ticket-2', ticketId: 'TK-0002', categoryId: 'tc-hr', requesterType: 'employee', requesterId: 'emp-bob', requesterName: 'Bob Martinez', subject: 'Payslip missing for last month', description: 'Did not receive payslip via email.', priority: 'medium', status: 'open' },
+      { id: 'ticket-3', ticketId: 'TK-0003', categoryId: 'tc-payroll', requesterType: 'employee', requesterId: 'emp-david', requesterName: 'David Kim', subject: 'Overtime not reflected in salary', description: 'Overtime hours from last month missing from salary slip.', priority: 'high', status: 'open' },
+      { id: 'ticket-4', ticketId: 'TK-0004', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-grace', requesterName: 'Grace Liu', subject: 'Access request for Jira project', description: 'Need access to NEXUS-PROJ Jira project.', priority: 'low', status: 'resolved', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez', resolutionNotes: 'Access granted.', resolvedAt: new Date('2025-03-10') },
+      { id: 'ticket-5', ticketId: 'TK-0005', categoryId: 'tc-general', requesterType: 'employee', requesterId: 'emp-emma', requesterName: 'Emma Thompson', subject: 'Parking space allocation', description: 'Requesting reserved parking space.', priority: 'low', status: 'closed', resolvedAt: new Date('2025-03-08'), closedAt: new Date('2025-03-09') },
+    ];
+    for (const tk of ticketData) { await prisma.ticket.upsert({ where: { id: tk.id }, update: {}, create: tk }); }
+
+    // ============ REQUISITIONS ============
+    const requisitionData = [
+      { id: 'req-1', requisitionId: 'REQ-0001', companyId: usaCompany.id, departmentId: 'dept-eng', designationId: 'des-eng', positionType: 'new', numberOfOpenings: 2, employmentType: 'full-time', skillsRequired: 'React, Node.js, TypeScript', experienceRequired: '3-5 years', salaryBudget: '$90,000 - $130,000', priority: 'high', expectedJoiningDate: new Date('2025-05-01'), approvalStatus: 'hr_approved', status: 'approved' },
+      { id: 'req-2', requisitionId: 'REQ-0002', companyId: usaCompany.id, departmentId: 'dept-sales', designationId: 'des-sales-exec', positionType: 'new', numberOfOpenings: 3, employmentType: 'full-time', skillsRequired: 'CRM, Lead Generation', experienceRequired: '1-2 years', salaryBudget: '$60,000 - $80,000', priority: 'medium', expectedJoiningDate: new Date('2025-06-01'), approvalStatus: 'pending', status: 'open' },
+    ];
+    for (const req of requisitionData) { await prisma.requisition.upsert({ where: { id: req.id }, update: {}, create: req }); }
+
+    // ============ OFFERS ============
+    const offerData = [
+      { id: 'offer-1', candidateId: 'ja-4', candidateName: 'Nina Patel', candidateEmail: 'nina@example.com', position: 'Product Designer', department: 'Design', offeredSalary: 125000, offeredCurrency: 'USD', joiningDate: new Date('2025-04-01'), probationPeriod: 90, status: 'sent' },
+      { id: 'offer-2', candidateId: 'ja-1', candidateName: 'Alex Turner', candidateEmail: 'alex@example.com', position: 'Senior Full-Stack Developer', department: 'Engineering', offeredSalary: 155000, offeredCurrency: 'USD', joiningDate: new Date('2025-05-01'), probationPeriod: 90, status: 'pending_approval' },
+    ];
+    for (const off of offerData) { await prisma.offer.upsert({ where: { id: off.id }, update: {}, create: off }); }
+
+    // ============ SALARY STRUCTURES & COMPONENTS ============
+    await prisma.salaryStructure.upsert({ where: { id: 'ss-usa' }, update: {}, create: { id: 'ss-usa', name: 'USA Standard Structure', companyId: usaCompany.id, country: 'US', currency: 'USD', description: 'Standard salary structure for US employees' } });
+    await prisma.salaryStructure.upsert({ where: { id: 'ss-india' }, update: {}, create: { id: 'ss-india', name: 'India Standard Structure', companyId: indiaCompany.id, country: 'IN', currency: 'INR', description: 'Standard salary structure for India employees' } });
+
+    const salaryComponentData = [
+      { id: 'sc-1', salaryStructureId: 'ss-usa', name: 'Basic Salary', type: 'earning', category: 'basic', calculationType: 'percentage', value: 40, percentageOf: 'CTC', isTaxable: true, sortOrder: 1 },
+      { id: 'sc-2', salaryStructureId: 'ss-usa', name: 'HRA', type: 'earning', category: 'hra', calculationType: 'percentage', value: 50, percentageOf: 'Basic Salary', isTaxable: false, sortOrder: 2 },
+      { id: 'sc-3', salaryStructureId: 'ss-usa', name: 'Federal Tax', type: 'deduction', category: 'tax', calculationType: 'formula', formula: 'IF(Basic > 10000, Basic * 0.22, Basic * 0.12)', isTaxable: true, isStatutory: true, sortOrder: 10 },
+      { id: 'sc-4', salaryStructureId: 'ss-india', name: 'Basic Salary', type: 'earning', category: 'basic', calculationType: 'percentage', value: 40, percentageOf: 'CTC', isTaxable: true, sortOrder: 1 },
+      { id: 'sc-5', salaryStructureId: 'ss-india', name: 'HRA', type: 'earning', category: 'hra', calculationType: 'percentage', value: 40, percentageOf: 'Basic Salary', isTaxable: false, sortOrder: 2 },
+      { id: 'sc-6', salaryStructureId: 'ss-india', name: 'Provident Fund', type: 'deduction', category: 'pf', calculationType: 'percentage', value: 12, percentageOf: 'Basic Salary', isTaxable: true, isStatutory: true, maxLimit: 1800, sortOrder: 10 },
+      { id: 'sc-7', salaryStructureId: 'ss-india', name: 'Professional Tax', type: 'deduction', category: 'tax', calculationType: 'fixed', value: 200, isTaxable: true, isStatutory: true, sortOrder: 12 },
+    ];
+    for (const sc of salaryComponentData) { await prisma.salaryComponent.upsert({ where: { id: sc.id }, update: {}, create: sc }); }
+
+    // ============ WORKFLOW DEFINITIONS ============
+    const workflowData = [
+      { id: 'wf-leave', name: 'Leave Approval', module: 'leave', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: 'hr_admin', isRequired: true }]), version: 1 },
+      { id: 'wf-requisition', name: 'Requisition Approval', module: 'recruitment', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: 'hr_admin', isRequired: true }, { stepNumber: 3, approverRole: 'tenant_admin', isRequired: false }]), version: 1 },
+    ];
+    for (const wf of workflowData) { await prisma.workflowDefinition.upsert({ where: { id: wf.id }, update: {}, create: wf }); }
+
+    // ============ FNF ============
+    await prisma.fNFCalculation.upsert({ where: { id: 'fnf-1' }, update: {}, create: { id: 'fnf-1', employeeId: 'emp-admin', pendingSalary: 10416.67, leaveEncashment: 3472.22, bonus: 2000, totalEarnings: 15888.89, taxDeduction: 2383.33, totalDeductions: 2383.33, netAmount: 13505.56, currency: 'USD', status: 'pending' } });
+
     return NextResponse.json(
       {
         message: 'Database seeded successfully',

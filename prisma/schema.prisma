@@ -26,6 +26,7 @@ model Tenant {
   companyGroups CompanyGroup[]
   users         User[]
   notifications Notification[]
+  subscriptions Subscription[]
 }
 
 model CompanyGroup {
@@ -64,8 +65,13 @@ model Company {
   logo           String?
   status         String @default("active")
 
-  branches   Branch[]
-  departments Department[]
+  branches        Branch[]
+  departments     Department[]
+  clients         Client[]
+  vendors         Vendor[]
+  projects        Project[]
+  salaryStructures SalaryStructure[]
+  requisitions    Requisition[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -117,6 +123,8 @@ model Department {
   designations Designation[]
   employees    Employee[]
   jobPostings  JobPosting[]
+  projects     Project[]
+  requisitions Requisition[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -137,6 +145,7 @@ model Designation {
   status       String @default("active")
 
   employees Employee[]
+  requisitions Requisition[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -247,6 +256,8 @@ model Employee {
   separations       Separation[]
   onboardingTasks   OnboardingTask[]
   reimbursements    Reimbursement[]
+  projectAllocations ProjectAllocation[]
+  fnfCalculations   FNFCalculation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1032,4 +1043,563 @@ model Reimbursement {
   updatedAt DateTime @updatedAt
 
   @@index([employeeId])
+}
+
+// ============ SUBSCRIPTION & BILLING ============
+
+model SubscriptionPlan {
+  id              String @id @default(cuid())
+  name            String
+  planType        String // starter, professional, enterprise, global_enterprise, staffing, white_label
+  monthlyPrice    Float @default(0)
+  annualPrice     Float @default(0)
+  employeeLimit   Int @default(50)
+  companyLimit    Int @default(1)
+  branchLimit     Int @default(5)
+  storageLimit    Int @default(1000) // MB
+  aiInterviewLimit Int @default(10)
+  aiChatbotLimit  Int @default(100)
+  payrollEnabled  Boolean @default(true)
+  recruitmentEnabled Boolean @default(true)
+  attendanceEnabled Boolean @default(true)
+  projectEnabled  Boolean @default(false)
+  clientPortalEnabled Boolean @default(false)
+  vendorPortalEnabled Boolean @default(false)
+  mobileAppEnabled Boolean @default(false)
+  apiAccessEnabled Boolean @default(false)
+  whiteLabelEnabled Boolean @default(false)
+  supportLevel    String @default("email") // email, chat, priority, dedicated
+  status          String @default("active")
+  description     String?
+
+  subscriptions   Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Subscription {
+  id              String @id @default(cuid())
+  tenantId        String
+  tenant          Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  startDate       DateTime
+  endDate         DateTime
+  trialStart      DateTime?
+  trialEnd        DateTime?
+  billingCycle    String @default("monthly") // monthly, annual
+  amount          Float @default(0)
+  currency        String @default("USD")
+  paymentStatus   String @default("pending") // pending, paid, overdue, cancelled
+  status          String @default("active") // active, expired, suspended, cancelled
+  autoRenew       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+// ============ CLIENT MANAGEMENT ============
+
+model Client {
+  id          String @id @default(cuid())
+  name        String
+  code        String?
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  industry    String?
+  website     String?
+  contactName String?
+  contactEmail String?
+  contactPhone String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  zipCode     String?
+
+  billingCurrency String @default("USD")
+  paymentTerms String @default("net_30")
+  contractStart DateTime?
+  contractEnd   DateTime?
+  contractValue Float?
+
+  status      String @default("active") // active, inactive, suspended
+
+  projects    Project[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// ============ VENDOR MANAGEMENT ============
+
+model Vendor {
+  id            String @id @default(cuid())
+  name          String
+  code          String?
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  type          String @default("vendor") // vendor, sub_vendor
+  parentVendorId String?
+  parentVendor  Vendor? @relation("VendorHierarchy", fields: [parentVendorId], references: [id], onDelete: SetNull)
+  childVendors  Vendor[] @relation("VendorHierarchy")
+
+  industry      String?
+  website       String?
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+  address       String?
+  city          String?
+  state         String?
+  country       String?
+  zipCode       String?
+
+  specialization String?
+  candidateCount Int @default(0)
+  rating        Float @default(0)
+
+  status        String @default("active") // active, inactive, suspended
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([type])
+}
+
+// ============ PROJECT MANAGEMENT ============
+
+model Project {
+  id            String @id @default(cuid())
+  name          String
+  code          String?
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  clientId      String?
+  client        Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  projectManagerId String?
+  deliveryManagerId String?
+
+  projectType   String @default("internal") // internal, client, r_and_d, support
+  billingType   String @default("non_billable") // fixed, time_and_material, retainer, non_billable, hourly, daily
+  currency      String @default("USD")
+  budgetAmount  Float @default(0)
+  estimatedHours Float @default(0)
+  actualHours   Float @default(0)
+  billingRate   Float @default(0)
+  costRate      Float @default(0)
+
+  startDate     DateTime
+  endDate       DateTime?
+  status        String @default("draft") // draft, active, on_hold, completed, cancelled
+  description   String?
+  progress      Int @default(0)
+
+  tasks         ProjectTask[]
+  milestones    ProjectMilestone[]
+  allocations   ProjectAllocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model ProjectTask {
+  id            String @id @default(cuid())
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  milestoneId   String?
+  milestone     ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  name          String
+  category      String?
+  assignedToId  String?
+  plannedStart  DateTime?
+  plannedEnd    DateTime?
+  estimatedHours Float @default(0)
+  actualHours   Float @default(0)
+  priority      String @default("medium") // low, medium, high, critical
+  status        String @default("todo") // todo, in_progress, review, done, cancelled
+  isBillable    Boolean @default(true)
+  description   String?
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model ProjectMilestone {
+  id              String @id @default(cuid())
+  projectId       String
+  project         Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  plannedDate     DateTime
+  actualDate      DateTime?
+  billingAmount   Float?
+  completionPct   Int @default(0)
+  approvalStatus  String @default("pending") // pending, approved, rejected
+  invoiceStatus   String @default("not_invoiced") // not_invoiced, invoiced, paid
+  tasks           ProjectTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model ProjectAllocation {
+  id            String @id @default(cuid())
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  role          String?
+  allocationPct Int @default(100)
+  startDate     DateTime
+  endDate       DateTime?
+  billingStatus String @default("billable") // billable, non_billable
+  billingRate   Float @default(0)
+  internalCostRate Float @default(0)
+  timesheetApprover String?
+  clientApprover    String?
+  status        String @default("active") // active, ended, cancelled
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([employeeId])
+}
+
+// ============ HELPDESK / TICKET SYSTEM ============
+
+model TicketCategory {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  type        String @default("hr") // hr, it, payroll, admin, general
+  companyId   String?
+  status      String @default("active")
+  slaHours    Int @default(24)
+
+  tickets     Ticket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Ticket {
+  id              String @id @default(cuid())
+  ticketId        String @unique
+  categoryId      String?
+  category        TicketCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  requesterType   String @default("employee") // employee, client, vendor, candidate
+  requesterId     String
+  requesterName   String
+
+  subject         String
+  description     String
+  priority        String @default("medium") // low, medium, high, critical
+  status          String @default("open") // open, in_progress, resolved, closed, cancelled
+
+  assignedAgentId String?
+  assignedAgentName String?
+  slaDeadline     DateTime?
+  resolutionNotes String?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+
+  attachments     String?
+  tags            String?
+
+  comments        TicketComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([priority])
+}
+
+model TicketComment {
+  id        String @id @default(cuid())
+  ticketId  String
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorId   String
+  authorName String
+  content    String
+  isInternal Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ticketId])
+}
+
+// ============ MANPOWER REQUISITION ============
+
+model Requisition {
+  id                String @id @default(cuid())
+  requisitionId     String @unique
+  companyId         String
+  company           Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId          String?
+  departmentId      String
+  department        Department @relation(fields: [departmentId], references: [id])
+  designationId     String?
+  designation       Designation? @relation(fields: [designationId], references: [id])
+  hiringManagerId   String?
+
+  positionType      String @default("new") // new, replacement
+  replacementEmployeeId String?
+  numberOfOpenings  Int @default(1)
+  employmentType    String @default("full-time") // full-time, part-time, contract, internship
+  skillsRequired    String?
+  experienceRequired String?
+  qualification     String?
+  salaryBudget      String?
+  projectId         String?
+  clientId          String?
+  priority          String @default("medium") // low, medium, high, critical
+  expectedJoiningDate DateTime?
+
+  approvalStatus    String @default("pending") // pending, manager_approved, hr_approved, budget_approved, rejected
+  approvedBy        String?
+  approvedAt        DateTime?
+  rejectionReason   String?
+
+  status            String @default("open") // open, approved, in_progress, filled, cancelled
+
+  jobPostingId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([approvalStatus])
+  @@index([status])
+}
+
+// ============ OFFER MANAGEMENT ============
+
+model Offer {
+  id                String @id @default(cuid())
+  candidateId       String
+  jobPostingId      String?
+
+  candidateName     String
+  candidateEmail    String
+  position          String
+  department        String?
+
+  offeredSalary     Float
+  offeredCurrency   String @default("USD")
+  offeredCTC        Float?
+  salaryBreakdown   String? // JSON string of salary components
+
+  joiningDate       DateTime
+  probationPeriod   Int @default(90) // days
+  reportingTo       String?
+
+  status            String @default("draft") // draft, pending_approval, approved, sent, accepted, rejected, withdrawn
+
+  approvedBy        String?
+  approvedAt        DateTime?
+  sentAt            DateTime?
+  respondedAt       DateTime?
+  responseNotes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([candidateId])
+  @@index([status])
+}
+
+// ============ SALARY STRUCTURE ENGINE ============
+
+model SalaryStructure {
+  id          String @id @default(cuid())
+  name        String
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  country     String?
+  currency    String @default("USD")
+  description String?
+  status      String @default("active") // active, inactive
+
+  components  SalaryComponent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model SalaryComponent {
+  id                String @id @default(cuid())
+  salaryStructureId String
+  salaryStructure   SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
+
+  name              String
+  type              String // earning, deduction
+  category          String // basic, hra, allowance, pf, esi, tax, bonus, reimbursement, other
+  calculationType   String @default("fixed") // fixed, percentage, formula
+  value             Float @default(0)
+  percentageOf      String? // component name this is a percentage of
+  formula           String? // custom formula
+  isTaxable         Boolean @default(true)
+  isStatutory       Boolean @default(false)
+  maxLimit          Float?
+  sortOrder         Int @default(0)
+  status            String @default("active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([salaryStructureId])
+}
+
+// ============ FNF SETTLEMENT ============
+
+model FNFCalculation {
+  id                String @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  separationId      String?
+
+  pendingSalary     Float @default(0)
+  leaveEncashment   Float @default(0)
+  bonus             Float @default(0)
+  incentives        Float @default(0)
+  reimbursements    Float @default(0)
+  noticeRecovery    Float @default(0)
+  assetRecovery     Float @default(0)
+  loanRecovery      Float @default(0)
+  taxDeduction      Float @default(0)
+  otherRecoveries   Float @default(0)
+  totalEarnings     Float @default(0)
+  totalDeductions   Float @default(0)
+  netAmount         Float @default(0)
+  currency          String @default("USD")
+
+  status            String @default("pending") // pending, approved, paid, cancelled
+  approvedBy        String?
+  approvedAt        DateTime?
+  paidAt            DateTime?
+  remarks           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ============ WORKFLOW ENGINE ============
+
+model WorkflowDefinition {
+  id          String @id @default(cuid())
+  name        String
+  module      String // leave, attendance, payroll, recruitment, timesheet, etc.
+  companyId   String?
+  description String?
+  steps       String // JSON array of approval steps
+  isActive    Boolean @default(true)
+  version     Int @default(1)
+
+  instances   WorkflowInstance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([module])
+  @@index([companyId])
+}
+
+model WorkflowInstance {
+  id              String @id @default(cuid())
+  workflowDefinitionId String
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+
+  entityType      String // leave_request, requisition, payroll, etc.
+  entityId        String
+  currentStep     Int @default(0)
+  status          String @default("pending") // pending, approved, rejected, cancelled
+
+  approvals       WorkflowApproval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([status])
+}
+
+model WorkflowApproval {
+  id              String @id @default(cuid())
+  workflowInstanceId String
+  workflowInstance WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+
+  stepNumber      Int
+  approverId      String
+  approverName    String
+  approverRole    String
+  action          String? // approved, rejected
+  comments        String?
+  actedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowInstanceId])
+  @@index([approverId])
+}
+
+// ============ AI CHAT LOGS ============
+
+model AIChatLog {
+  id          String @id @default(cuid())
+  userId      String?
+  sessionId   String
+  role        String // user, assistant
+  message     String
+  intent      String?
+  confidence  Float?
+  source      String @default("chatbot") // chatbot, interview, copilot
+  metadata    String? // JSON
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([userId])
 }
