@@ -62,21 +62,56 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ assignment }, { headers: corsHeaders() });
     }
 
-    // Update asset
+    // Update asset - support all fields
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.status !== undefined) data.status = body.status;
+    if (body.condition !== undefined) data.condition = body.condition;
+    if (body.brand !== undefined) data.brand = body.brand;
+    if (body.model !== undefined) data.model = body.model;
+    if (body.serialNumber !== undefined) data.serialNumber = body.serialNumber;
+    if (body.category !== undefined) data.category = body.category;
+    if (body.purchaseDate !== undefined) data.purchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : null;
+    if (body.purchaseCost !== undefined) data.purchaseCost = body.purchaseCost;
+    if (body.location !== undefined) data.location = body.location;
+    if (body.warrantyExpiry !== undefined) data.warrantyExpiry = body.warrantyExpiry ? new Date(body.warrantyExpiry) : null;
+    if (body.notes !== undefined) data.notes = body.notes;
+
     const asset = await prisma.asset.update({
       where: { id },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(body.status && { status: body.status }),
-        ...(body.condition && { condition: body.condition }),
-        ...(body.brand !== undefined && { brand: body.brand }),
-        ...(body.model !== undefined && { model: body.model }),
+      data,
+      include: {
+        assignments: {
+          where: { status: 'assigned' },
+          include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
+        },
       },
     });
 
     return NextResponse.json({ asset }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update asset error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    // Delete asset assignments first
+    await prisma.assetAssignment.deleteMany({ where: { assetId: id } });
+
+    // Delete the asset
+    await prisma.asset.delete({ where: { id } });
+
+    return NextResponse.json({ message: 'Asset deleted successfully' }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete asset error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

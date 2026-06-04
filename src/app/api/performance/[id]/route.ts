@@ -27,7 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       where: { id },
       data: {
         ...(body.reviewCycle && { reviewCycle: body.reviewCycle }),
-        ...(body.reviewPeriod && { reviewPeriod: body.reviewPeriod }),
+        ...(body.reviewPeriod !== undefined && { reviewPeriod: body.reviewPeriod }),
         ...(body.rating !== undefined && { rating: body.rating }),
         ...(body.goalsRating !== undefined && { goalsRating: body.goalsRating }),
         ...(body.skillsRating !== undefined && { skillsRating: body.skillsRating }),
@@ -45,6 +45,66 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ review }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update performance review error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    const body = await request.json();
+    const data: Record<string, unknown> = {};
+    if (body.reviewCycle !== undefined) data.reviewCycle = body.reviewCycle;
+    if (body.reviewPeriod !== undefined) data.reviewPeriod = body.reviewPeriod;
+    if (body.reviewerId !== undefined) data.reviewerId = body.reviewerId;
+    if (body.rating !== undefined) data.rating = body.rating;
+    if (body.goalsRating !== undefined) data.goalsRating = body.goalsRating;
+    if (body.skillsRating !== undefined) data.skillsRating = body.skillsRating;
+    if (body.behaviorRating !== undefined) data.behaviorRating = body.behaviorRating;
+    if (body.overallRating !== undefined) data.overallRating = body.overallRating;
+    if (body.comments !== undefined) data.comments = body.comments;
+    if (body.strengths !== undefined) data.strengths = body.strengths;
+    if (body.improvements !== undefined) data.improvements = body.improvements;
+    if (body.status !== undefined) data.status = body.status;
+    if (body.reviewDate !== undefined) data.reviewDate = body.reviewDate ? new Date(body.reviewDate) : null;
+
+    const review = await prisma.performanceReview.update({
+      where: { id },
+      data,
+      include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
+    });
+
+    return NextResponse.json({ review }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Update performance review error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    if (!user || !['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
+    }
+
+    await prisma.performanceReview.delete({ where: { id } });
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete performance review error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

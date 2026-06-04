@@ -63,9 +63,24 @@ export async function GET(request: Request) {
       prisma.performanceReview.count({ where }),
     ]);
 
+    // Fetch reviewer info for reviews that have a reviewerId
+    const reviewerIds = reviews.map(r => r.reviewerId).filter(Boolean) as string[];
+    const reviewers = reviewerIds.length > 0
+      ? await prisma.employee.findMany({
+          where: { id: { in: reviewerIds } },
+          select: { id: true, firstName: true, lastName: true, employeeId: true },
+        })
+      : [];
+    const reviewerMap = new Map(reviewers.map(r => [r.id, r]));
+
+    const reviewsWithReviewer = reviews.map(r => ({
+      ...r,
+      reviewer: r.reviewerId ? reviewerMap.get(r.reviewerId) || null : null,
+    }));
+
     return NextResponse.json(
       {
-        reviews,
+        reviews: reviewsWithReviewer,
         pagination: {
           page,
           limit,

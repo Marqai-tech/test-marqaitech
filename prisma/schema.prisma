@@ -661,6 +661,9 @@ model Asset {
   purchaseCost Float?
   status       String @default("available") // available, assigned, maintenance, retired
   condition    String @default("new") // new, good, fair, poor
+  location     String?
+  warrantyExpiry DateTime?
+  notes        String?
 
   assignments AssetAssignment[]
 
@@ -702,6 +705,7 @@ model Document {
   status     String @default("active")
   uploadedAt DateTime @default(now())
   expiryDate DateTime?
+  description String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

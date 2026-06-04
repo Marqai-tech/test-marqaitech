@@ -7,11 +7,10 @@ import {
   FiCheckCircle,
   FiInfo,
   FiAlertTriangle,
-  FiShield,
-  FiCalendar,
-  FiDollarSign,
-  FiBriefcase,
+  FiAlertCircle,
   FiClock,
+  FiSearch,
+  FiFilter,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -45,77 +44,63 @@ function formatTimeAgo(dateString: string) {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function getTypeIcon(type: string) {
   switch (type) {
-    case 'success': return <FiCheckCircle className="w-4 h-4 text-emerald-500" />;
-    case 'warning': return <FiAlertTriangle className="w-4 h-4 text-amber-500" />;
-    case 'error': return <FiAlertTriangle className="w-4 h-4 text-red-500" />;
-    case 'login': case 'logout': return <FiShield className="w-4 h-4 text-blue-500" />;
-    default: return <FiInfo className="w-4 h-4 text-blue-500" />;
+    case 'success': return <FiCheckCircle className="w-5 h-5 text-emerald-500" />;
+    case 'warning': return <FiAlertTriangle className="w-5 h-5 text-amber-500" />;
+    case 'error': return <FiAlertCircle className="w-5 h-5 text-red-500" />;
+    case 'reminder': return <FiClock className="w-5 h-5 text-purple-500" />;
+    default: return <FiInfo className="w-5 h-5 text-blue-500" />;
   }
 }
 
-function getCategoryIcon(category: string) {
-  switch (category) {
-    case 'auth': return <FiShield className="w-4 h-4" />;
-    case 'leave': return <FiCalendar className="w-4 h-4" />;
-    case 'payroll': return <FiDollarSign className="w-4 h-4" />;
-    case 'recruitment': return <FiBriefcase className="w-4 h-4" />;
-    case 'workflow': return <FiClock className="w-4 h-4" />;
-    default: return <FiBell className="w-4 h-4" />;
-  }
-}
-
-function getCategoryColor(category: string) {
+function getBorderColor(type: string) {
   const map: Record<string, string> = {
-    auth: 'bg-blue-50 text-blue-600',
-    leave: 'bg-amber-50 text-amber-600',
-    payroll: 'bg-emerald-50 text-emerald-600',
-    recruitment: 'bg-violet-50 text-violet-600',
-    workflow: 'bg-cyan-50 text-cyan-600',
-    system: 'bg-slate-50 text-slate-600',
-    performance: 'bg-rose-50 text-rose-600',
-    alert: 'bg-red-50 text-red-600',
+    info: 'border-l-blue-500',
+    warning: 'border-l-amber-500',
+    success: 'border-l-emerald-500',
+    error: 'border-l-red-500',
+    reminder: 'border-l-purple-500',
+    login: 'border-l-blue-500',
+    logout: 'border-l-blue-500',
+    workflow: 'border-l-cyan-500',
   };
-  return map[category] || 'bg-slate-50 text-slate-600';
+  return map[type] || 'border-l-slate-400';
 }
 
 /* ── Component ── */
 export default function NotificationsPage() {
-  const _user = useAuthStore();
-  void _user;
+  const { user } = useAuthStore();
+  void user;
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
   const [markingRead, setMarkingRead] = useState<string | null>(null);
-
-  const filterTabs = [
-    { key: 'all', label: 'All' },
-    { key: 'unread', label: 'Unread' },
-    { key: 'auth', label: 'Auth' },
-    { key: 'leave', label: 'Leave' },
-    { key: 'payroll', label: 'Payroll' },
-    { key: 'recruitment', label: 'Recruitment' },
-    { key: 'workflow', label: 'Workflow' },
-  ];
 
   /* Fetch */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
-      const res = await fetch('/api/notifications?limit=100', { headers });
-      if (res.ok) { const d = await res.json(); setNotifications(d.notifications || []); }
+      const params = new URLSearchParams({ limit: '100' });
+      if (filterRead === 'unread') params.set('unread', 'true');
+      const res = await fetch(`/api/notifications?${params.toString()}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+      }
     } catch {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterRead]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -123,10 +108,10 @@ export default function NotificationsPage() {
   const handleMarkRead = async (id: string) => {
     try {
       setMarkingRead(id);
-      const res = await fetch(`/api/notifications/${id}`, {
+      const res = await fetch('/api/notifications', {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ isRead: true }),
+        body: JSON.stringify({ id }),
       });
       if (!res.ok) throw new Error('Failed');
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -140,14 +125,12 @@ export default function NotificationsPage() {
   /* Mark All Read */
   const handleMarkAllRead = async () => {
     try {
-      const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
-      await Promise.all(unreadIds.map(id =>
-        fetch(`/api/notifications/${id}`, {
-          method: 'PATCH',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ isRead: true }),
-        })
-      ));
+      const res = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ markAll: true }),
+      });
+      if (!res.ok) throw new Error('Failed');
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       toast.success('All notifications marked as read');
     } catch {
@@ -157,9 +140,14 @@ export default function NotificationsPage() {
 
   /* Filter */
   const filteredNotifications = notifications.filter(n => {
-    if (activeFilter === 'all') return true;
-    if (activeFilter === 'unread') return !n.isRead;
-    return n.category === activeFilter;
+    const matchSearch = !search ||
+      n.title.toLowerCase().includes(search.toLowerCase()) ||
+      n.message.toLowerCase().includes(search.toLowerCase());
+    const matchType = !filterType || n.type === filterType;
+    const matchRead = filterRead === 'all' ||
+      (filterRead === 'unread' && !n.isRead) ||
+      (filterRead === 'read' && n.isRead);
+    return matchSearch && matchType && matchRead;
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -169,88 +157,138 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold gradient-text flex items-center gap-2">
-            <FiBell className="w-6 h-6" />
+          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <FiBell className="w-6 h-6 text-blue-500" />
             Notifications
           </h1>
-          <p className="text-nexus-text-secondary mt-1">{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</p>
+          <p className="text-nexus-text-secondary mt-1">
+            {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'You\'re all caught up!'}
+          </p>
         </div>
         {unreadCount > 0 && (
           <button onClick={handleMarkAllRead} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
-            <FiCheck className="w-4 h-4" /> Mark All Read
+            <FiCheck className="w-4 h-4" />
+            Mark All as Read
           </button>
         )}
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit overflow-x-auto">
-        {filterTabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveFilter(tab.key)} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeFilter === tab.key ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
-            {tab.label}
-            {tab.key === 'unread' && unreadCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-blue-500 text-white rounded-full">{unreadCount}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Notifications List */}
-      <div className="nexus-card overflow-hidden">
-        <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
-          {loading ? (
-            <div className="divide-y divide-nexus-border/50">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 animate-pulse">
-                  <div className="w-10 h-10 bg-slate-200 rounded-full flex-shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 w-48 bg-slate-200 rounded" />
-                    <div className="h-2.5 w-64 bg-slate-200 rounded" />
-                  </div>
-                  <div className="h-3 w-12 bg-slate-200 rounded" />
-                </div>
+      {/* Filters */}
+      <div className="nexus-card p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              placeholder="Search notifications..."
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative">
+              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+                <option value="">All Types</option>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="success">Success</option>
+                <option value="error">Error</option>
+                <option value="reminder">Reminder</option>
+              </select>
+            </div>
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+              {(['all', 'unread', 'read'] as const).map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => setFilterRead(opt)}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors capitalize ${filterRead === opt ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}
+                >
+                  {opt}
+                  {opt === 'unread' && unreadCount > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-blue-500 text-white rounded-full">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  )}
+                </button>
               ))}
             </div>
-          ) : filteredNotifications.length === 0 ? (
-            <div className="py-12 text-center">
-              <FiBell className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">No notifications found</p>
-              <p className="text-sm text-nexus-text-muted mt-1">You&apos;re all caught up!</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Notifications List - Card-based */}
+      <div className="space-y-3">
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="nexus-card p-4 animate-pulse border-l-4 border-l-slate-200">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-slate-200 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-48 bg-slate-200 rounded" />
+                  <div className="h-3 w-64 bg-slate-200 rounded" />
+                  <div className="h-3 w-20 bg-slate-200 rounded" />
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="divide-y divide-nexus-border/50">
-              {filteredNotifications.map(n => (
-                <div
-                  key={n.id}
-                  onClick={() => !n.isRead && handleMarkRead(n.id)}
-                  className={`flex items-start gap-4 p-4 transition-colors cursor-pointer ${!n.isRead ? 'bg-blue-50/50 hover:bg-blue-50/80' : 'hover:bg-slate-50'}`}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor(n.category)}`}>
-                    {getCategoryIcon(n.category)}
+          ))
+        ) : filteredNotifications.length === 0 ? (
+          <div className="nexus-card py-12 text-center">
+            <FiBell className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
+            <p className="text-nexus-text-secondary font-medium text-lg">No notifications found</p>
+            <p className="text-sm text-nexus-text-muted mt-1">
+              {search || filterType ? 'Try adjusting your filters' : 'You\'re all caught up!'}
+            </p>
+          </div>
+        ) : (
+          filteredNotifications.map(n => (
+            <div
+              key={n.id}
+              onClick={() => !n.isRead && handleMarkRead(n.id)}
+              className={`nexus-card border-l-4 ${getBorderColor(n.type)} transition-all cursor-pointer hover:shadow-md ${!n.isRead ? 'bg-blue-50/40 border-l-4' : 'bg-white'}`}
+            >
+              <div className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${!n.isRead ? 'bg-white shadow-sm' : 'bg-slate-50'}`}>
+                    {getTypeIcon(n.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-1">
                       <p className={`text-sm font-medium ${!n.isRead ? 'text-nexus-text-primary' : 'text-nexus-text-secondary'}`}>{n.title}</p>
                       {!n.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
                     </div>
-                    <p className="text-xs text-nexus-text-muted mt-0.5 line-clamp-2">{n.message}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-nexus-text-muted">{formatTimeAgo(n.createdAt)}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getCategoryColor(n.category)}`}>{n.category}</span>
+                    <p className={`text-sm mt-0.5 ${!n.isRead ? 'text-nexus-text-secondary' : 'text-nexus-text-muted'}`}>{n.message}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-xs text-nexus-text-muted">{formatTimeAgo(n.createdAt)}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        n.type === 'info' ? 'bg-blue-50 text-blue-600' :
+                        n.type === 'warning' ? 'bg-amber-50 text-amber-600' :
+                        n.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
+                        n.type === 'error' ? 'bg-red-50 text-red-600' :
+                        n.type === 'reminder' ? 'bg-purple-50 text-purple-600' :
+                        'bg-slate-50 text-slate-600'
+                      }`}>
+                        {n.type}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                        {n.category}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {getTypeIcon(n.type)}
-                    {!n.isRead && (
-                      <button onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }} disabled={markingRead === n.id} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Mark as read">
-                        <FiCheck className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+                  {!n.isRead && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }}
+                      disabled={markingRead === n.id}
+                      className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
+                      title="Mark as read"
+                    >
+                      <FiCheck className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </div>
+          ))
+        )}
       </div>
     </div>
   );

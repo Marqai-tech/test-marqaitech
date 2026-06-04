@@ -99,11 +99,12 @@ export default function LeavePage() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [showModal, setShowModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
 
-  const [actionModal, setActionModal] = useState<{ id: string; action: 'approved' | 'rejected' } | null>(null);
+  const [actionRowId, setActionRowId] = useState<string | null>(null);
+  const [actionType, setActionType] = useState<'approved' | 'rejected' | null>(null);
   const [actionComment, setActionComment] = useState('');
   const [actioning, setActioning] = useState(false);
 
@@ -165,6 +166,18 @@ export default function LeavePage() {
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
   /* Apply Leave */
+  const handleOpenApplyForm = () => {
+    setForm(initialForm);
+    setShowForm(true);
+    setActionRowId(null);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setForm(initialForm);
+  };
+
   const handleApply = async () => {
     if (!form.leaveTypeId || !form.startDate || !form.endDate) {
       toast.error('Please fill in all required fields');
@@ -190,8 +203,7 @@ export default function LeavePage() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Leave request submitted successfully');
-      setShowModal(false);
-      setForm(initialForm);
+      handleCancelForm();
       fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to submit leave request');
@@ -200,20 +212,32 @@ export default function LeavePage() {
     }
   };
 
-  /* Approve / Reject */
+  /* Approve / Reject inline */
+  const handleOpenAction = (id: string, action: 'approved' | 'rejected') => {
+    setActionRowId(id);
+    setActionType(action);
+    setActionComment('');
+    setShowForm(false);
+  };
+
+  const handleCancelAction = () => {
+    setActionRowId(null);
+    setActionType(null);
+    setActionComment('');
+  };
+
   const handleAction = async () => {
-    if (!actionModal) return;
+    if (!actionRowId || !actionType) return;
     try {
       setActioning(true);
-      const res = await fetch(`/api/leave/${actionModal.id}`, {
+      const res = await fetch(`/api/leave/${actionRowId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status: actionModal.action, comments: actionComment }),
+        body: JSON.stringify({ status: actionType, comments: actionComment }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success(`Leave ${actionModal.action === 'approved' ? 'approved' : 'rejected'} successfully`);
-      setActionModal(null);
-      setActionComment('');
+      toast.success(`Leave ${actionType === 'approved' ? 'approved' : 'rejected'} successfully`);
+      handleCancelAction();
       fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Action failed');
@@ -277,38 +301,89 @@ export default function LeavePage() {
               </td>
             </tr>
           ) : (
-            leaves.map(lr => (
-              <tr key={lr.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">
-                  {lr.leaveType?.name || 'Leave'}
-                  {lr.halfDay && <span className="text-xs text-nexus-text-muted ml-1">(Half Day)</span>}
-                </td>
-                <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(lr.startDate)}</td>
-                <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(lr.endDate)}</td>
-                <td className="px-4 py-3 text-sm text-nexus-text-secondary">{getDaysBetween(lr.startDate, lr.endDate)}</td>
-                <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
-                <td className="px-4 py-3"><span className={getStatusBadge(lr.status)}>{lr.status}</span></td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    {showActions === 'cancel' && lr.status === 'pending' && (
-                      <button onClick={() => handleCancel(lr.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel">
-                        <FiX className="w-4 h-4" />
-                      </button>
-                    )}
-                    {showActions === 'approve' && lr.status === 'pending' && (
+            leaves.map(lr => {
+              const isActionRow = actionRowId === lr.id;
+              return (
+                <>
+                  <tr key={lr.id} className={`border-b border-nexus-border/50 transition-colors ${isActionRow ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
+                    {isActionRow && actionType ? (
+                      <td colSpan={7} className="px-4 py-3">
+                        <div className={`rounded-lg border p-4 ${actionType === 'approved' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                          <div className="flex items-start gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${actionType === 'approved' ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                              {actionType === 'approved' ? <FiCheck className="w-4 h-4 text-emerald-500" /> : <FiX className="w-4 h-4 text-red-500" />}
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-nexus-text-primary">
+                                {actionType === 'approved' ? 'Approve Leave' : 'Reject Leave'}
+                              </h4>
+                              <p className="text-xs text-nexus-text-secondary mt-0.5">
+                                {lr.leaveType?.name || 'Leave'} · {formatDate(lr.startDate)} – {formatDate(lr.endDate)}
+                              </p>
+                              <div className="mt-3">
+                                <label className="flex items-center gap-2 text-xs text-nexus-text-secondary mb-1.5">
+                                  <FiMessageSquare className="w-3.5 h-3.5" />Comment (optional)
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  value={actionComment}
+                                  onChange={e => setActionComment(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                                  placeholder="Add your comment here..."
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 mt-3">
+                                <button
+                                  onClick={handleAction}
+                                  disabled={actioning}
+                                  className={`px-3 py-1.5 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors ${actionType === 'approved' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}
+                                >
+                                  {actioning ? 'Processing...' : actionType === 'approved' ? 'Confirm Approve' : 'Confirm Reject'}
+                                </button>
+                                <button onClick={handleCancelAction} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    ) : (
                       <>
-                        <button onClick={() => setActionModal({ id: lr.id, action: 'approved' })} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
-                          <FiCheck className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => setActionModal({ id: lr.id, action: 'rejected' })} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Reject">
-                          <FiX className="w-4 h-4" />
-                        </button>
+                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">
+                          {lr.leaveType?.name || 'Leave'}
+                          {lr.halfDay && <span className="text-xs text-nexus-text-muted ml-1">(Half Day)</span>}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(lr.startDate)}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(lr.endDate)}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{getDaysBetween(lr.startDate, lr.endDate)}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
+                        <td className="px-4 py-3"><span className={getStatusBadge(lr.status)}>{lr.status}</span></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            {showActions === 'cancel' && lr.status === 'pending' && (
+                              <button onClick={() => handleCancel(lr.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel">
+                                <FiX className="w-4 h-4" />
+                              </button>
+                            )}
+                            {showActions === 'approve' && lr.status === 'pending' && (
+                              <>
+                                <button onClick={() => handleOpenAction(lr.id, 'approved')} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
+                                  <FiCheck className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleOpenAction(lr.id, 'rejected')} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Reject">
+                                  <FiX className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </>
                     )}
-                  </div>
-                </td>
-              </tr>
-            ))
+                  </tr>
+                </>
+              );
+            })
           )}
         </tbody>
       </table>
@@ -326,11 +401,66 @@ export default function LeavePage() {
           </h1>
           <p className="text-nexus-text-secondary mt-1">Manage your leaves and approvals</p>
         </div>
-        <button onClick={() => { setForm(initialForm); setShowModal(true); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+        <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
           Apply Leave
         </button>
       </div>
+
+      {/* Embedded Apply Leave Form */}
+      {showForm && (
+        <div id="crud-form" className="nexus-card border-l-4 border-l-amber-500 transition-all duration-300 ease-in-out">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary">Apply Leave</h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Leave Type *</label>
+                <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="">Select Leave Type</option>
+                  {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.defaultDays} days)</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Date *</label>
+                  <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">End Date *</label>
+                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                </div>
+              </div>
+              {form.startDate && form.endDate && (
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                  <p className="text-sm text-blue-700 font-medium">
+                    <FiClock className="w-4 h-4 inline mr-1" />
+                    Duration: {getDaysBetween(form.startDate, form.endDate)} day(s){form.halfDay ? ' (0.5 for half day)' : ''}
+                  </p>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason</label>
+                <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Provide a reason for your leave..." />
+              </div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border text-blue-500 focus:ring-blue-500/20" />
+                <span className="text-sm text-nexus-text-primary">Half Day Leave</span>
+              </label>
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+                <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                  {submitting ? 'Submitting...' : 'Submit Leave'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
@@ -408,90 +538,6 @@ export default function LeavePage() {
               );
             })
           )}
-        </div>
-      )}
-
-      {/* Apply Leave Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full animate-slide-in-down" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-nexus-border">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">Apply Leave</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Leave Type *</label>
-                <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                  <option value="">Select Leave Type</option>
-                  {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.defaultDays} days)</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Date *</label>
-                  <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">End Date *</label>
-                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                </div>
-              </div>
-              {form.startDate && form.endDate && (
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                  <p className="text-sm text-blue-700 font-medium">
-                    <FiClock className="w-4 h-4 inline mr-1" />
-                    Duration: {getDaysBetween(form.startDate, form.endDate)} day(s){form.halfDay ? ' (0.5 for half day)' : ''}
-                  </p>
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason</label>
-                <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Provide a reason for your leave..." />
-              </div>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border text-blue-500 focus:ring-blue-500/20" />
-                <span className="text-sm text-nexus-text-primary">Half Day Leave</span>
-              </label>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-nexus-border">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
-                {submitting ? 'Submitting...' : 'Submit Leave'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Approve/Reject Modal */}
-      {actionModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setActionModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full animate-slide-in-down" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${actionModal.action === 'approved' ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                  {actionModal.action === 'approved' ? <FiCheck className="w-5 h-5 text-emerald-500" /> : <FiX className="w-5 h-5 text-red-500" />}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-nexus-text-primary">{actionModal.action === 'approved' ? 'Approve Leave' : 'Reject Leave'}</h3>
-                  <p className="text-sm text-nexus-text-secondary">Add a comment (optional)</p>
-                </div>
-              </div>
-              <div className="mb-4">
-                <label className="flex items-center gap-2 text-sm text-nexus-text-secondary mb-2"><FiMessageSquare className="w-4 h-4" />Comment</label>
-                <textarea rows={3} value={actionComment} onChange={e => setActionComment(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Add your comment here..." />
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setActionModal(null)} className="flex-1 px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleAction} disabled={actioning} className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-colors ${actionModal.action === 'approved' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
-                  {actioning ? 'Processing...' : actionModal.action === 'approved' ? 'Approve' : 'Reject'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>

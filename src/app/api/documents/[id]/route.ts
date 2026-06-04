@@ -23,18 +23,40 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.status !== undefined) data.status = body.status;
+    if (body.expiryDate !== undefined) data.expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
+    if (body.type !== undefined) data.type = body.type;
+    if (body.fileUrl !== undefined) data.fileUrl = body.fileUrl;
+    if (body.description !== undefined) data.description = body.description;
+
     const document = await prisma.document.update({
       where: { id },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(body.status && { status: body.status }),
-        ...(body.expiryDate && { expiryDate: new Date(body.expiryDate) }),
-      },
+      data,
+      include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
     });
 
     return NextResponse.json({ document }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update document error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    await prisma.document.delete({ where: { id } });
+
+    return NextResponse.json({ message: 'Document deleted successfully' }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete document error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }

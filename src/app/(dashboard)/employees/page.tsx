@@ -122,7 +122,7 @@ export default function EmployeesPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const [showModal, setShowModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -131,7 +131,7 @@ export default function EmployeesPage() {
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
 
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   /* Fetch employees */
@@ -189,16 +189,18 @@ export default function EmployeesPage() {
   }, [fetchDropdowns]);
 
   /* Form handlers */
-  const openAddModal = () => {
+  const handleOpenAddForm = () => {
     setEditingId(null);
     setForm({
       ...initialForm,
       employeeId: `EMP${String(Date.now()).slice(-6)}`,
     });
-    setShowModal(true);
+    setShowForm(true);
+    setDeleteConfirmId(null);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  const openEditModal = (emp: Employee) => {
+  const handleOpenEditForm = (emp: Employee) => {
     setEditingId(emp.id);
     setForm({
       employeeId: emp.employeeId,
@@ -229,7 +231,15 @@ export default function EmployeesPage() {
       emergencyContactName: emp.emergencyContactName || '',
       emergencyContactPhone: emp.emergencyContactPhone || '',
     });
-    setShowModal(true);
+    setShowForm(true);
+    setDeleteConfirmId(null);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(initialForm);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -262,7 +272,7 @@ export default function EmployeesPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Create failed'); }
         toast.success('Employee created successfully');
       }
-      setShowModal(false);
+      handleCancelForm();
       fetchEmployees(pagination.page);
       fetchDropdowns();
     } catch (err: unknown) {
@@ -281,7 +291,7 @@ export default function EmployeesPage() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Delete failed'); }
       toast.success('Employee terminated successfully');
-      setDeleteConfirm(null);
+      setDeleteConfirmId(null);
       fetchEmployees(pagination.page);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
@@ -305,200 +315,27 @@ export default function EmployeesPage() {
           <p className="text-nexus-text-secondary mt-1">Manage your organization&apos;s workforce</p>
         </div>
         {isAdmin && (
-          <button onClick={openAddModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
             <FiPlus className="w-4 h-4" />
             Add Employee
           </button>
         )}
       </div>
 
-      {/* Search & Filters */}
-      <div className="nexus-card p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, email, or employee ID..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${showFilters ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-nexus-border text-nexus-text-secondary hover:bg-slate-50'}`}
-          >
-            <FiFilter className="w-4 h-4" />
-            Filters
-          </button>
-        </div>
-
-        {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-3 border-t border-nexus-border">
-            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-              <option value="">All Departments</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="on_leave">On Leave</option>
-              <option value="terminated">Terminated</option>
-              <option value="resigned">Resigned</option>
-            </select>
-            <button onClick={() => { setFilterDept(''); setFilterStatus(''); setSearch(''); }} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm text-nexus-text-secondary hover:bg-slate-50 transition-colors">
-              Clear Filters
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="nexus-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Department</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Designation</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Date of Joining</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
-                    <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-slate-200 rounded-full" /><div className="space-y-1"><div className="h-3 w-28 bg-slate-200 rounded" /><div className="h-2 w-20 bg-slate-200 rounded" /></div></div></td>
-                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded ml-auto" /></td>
-                  </tr>
-                ))
-              ) : employees.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
-                    <FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No employees found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Try adjusting your search or filters</p>
-                  </td>
-                </tr>
-              ) : (
-                employees.map(emp => {
-                  const badge = getStatusBadge(emp.status);
-                  const initials = `${emp.firstName[0]}${emp.lastName[0]}`;
-                  return (
-                    <tr key={emp.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {emp.avatar ? (
-                            <img src={emp.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                              {initials}
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-sm font-medium text-nexus-text-primary">{emp.firstName} {emp.lastName}</p>
-                            <p className="text-xs text-nexus-text-muted">{emp.employeeId} · {emp.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{emp.department?.name || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{emp.designation?.title || '—'}</td>
-                      <td className="px-4 py-3"><span className={badge.className}>{badge.label}</span></td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(emp.dateOfJoining)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => router.push(`/employees/${emp.id}`)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View">
-                            <FiEye className="w-4 h-4" />
-                          </button>
-                          {isAdmin && (
-                            <>
-                              <button onClick={() => openEditModal(emp)} className="p-2 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
-                                <FiEdit2 className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => setDeleteConfirm(emp.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-nexus-border">
-            <p className="text-sm text-nexus-text-muted">
-              Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-            </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => fetchEmployees(pagination.page - 1)} disabled={pagination.page <= 1} className="p-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <FiChevronLeft className="w-4 h-4" />
-              </button>
-              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
-                const p = i + 1;
-                return (
-                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white' : 'text-nexus-text-secondary hover:bg-slate-50'}`}>
-                    {p}
-                  </button>
-                );
-              })}
-              <button onClick={() => fetchEmployees(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <FiChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setDeleteConfirm(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-slide-in-down" onClick={e => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                <FiTrash2 className="w-6 h-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-nexus-text-primary">Terminate Employee</h3>
-              <p className="text-sm text-nexus-text-secondary mt-2">This will mark the employee as terminated. This action can be reversed by editing the employee.</p>
-            </div>
-            <div className="flex items-center gap-3 mt-6">
-              <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} disabled={deleting} className="flex-1 px-4 py-2.5 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors">
-                {deleting ? 'Terminating...' : 'Terminate'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Employee Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto animate-fade-in" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full my-8 animate-slide-in-down" onClick={e => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-nexus-border">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit Employee' : 'Add Employee'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+      {/* Embedded Add/Edit Employee Form */}
+      {showForm && (
+        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500 transition-all duration-300 ease-in-out">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary">
+                {editingId ? 'Edit Employee' : 'Add Employee'}
+              </h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-8 max-h-[70vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="space-y-8">
               {/* Personal Information */}
               <div>
                 <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -693,20 +530,196 @@ export default function EmployeesPage() {
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-nexus-border">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
-                Cancel
-              </button>
-              <button onClick={() => handleSubmit()} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
-                {submitting ? 'Saving...' : editingId ? 'Update Employee' : 'Create Employee'}
-              </button>
-            </div>
+              {/* Form Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+                <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                  {submitting ? 'Saving...' : editingId ? 'Update Employee' : 'Add Employee'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* Search & Filters */}
+      <div className="nexus-card p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, email, or employee ID..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${showFilters ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-nexus-border text-nexus-text-secondary hover:bg-slate-50'}`}
+          >
+            <FiFilter className="w-4 h-4" />
+            Filters
+          </button>
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-3 border-t border-nexus-border">
+            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              <option value="">All Departments</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="on_leave">On Leave</option>
+              <option value="terminated">Terminated</option>
+              <option value="resigned">Resigned</option>
+            </select>
+            <button onClick={() => { setFilterDept(''); setFilterStatus(''); setSearch(''); }} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+              Clear Filters
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="nexus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-nexus-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Department</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Designation</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Date of Joining</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                    <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-slate-200 rounded-full" /><div className="space-y-1"><div className="h-3 w-28 bg-slate-200 rounded" /><div className="h-2 w-20 bg-slate-200 rounded" /></div></div></td>
+                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded ml-auto" /></td>
+                  </tr>
+                ))
+              ) : employees.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center">
+                    <FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                    <p className="text-nexus-text-secondary font-medium">No employees found</p>
+                    <p className="text-sm text-nexus-text-muted mt-1">Try adjusting your search or filters</p>
+                  </td>
+                </tr>
+              ) : (
+                employees.map(emp => {
+                  const badge = getStatusBadge(emp.status);
+                  const initials = `${emp.firstName[0]}${emp.lastName[0]}`;
+                  const isDeleting = deleteConfirmId === emp.id;
+                  return (
+                    <tr key={emp.id} className={`border-b border-nexus-border/50 transition-colors ${isDeleting ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                      {isDeleting ? (
+                        <td colSpan={6} className="px-4 py-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <FiTrash2 className="w-4 h-4 text-red-500" />
+                              </div>
+                              <span className="text-sm text-red-700 font-medium">Are you sure you want to terminate {emp.firstName} {emp.lastName}? This action can be reversed by editing the employee.</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleDelete(emp.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
+                                {deleting ? 'Terminating...' : 'Confirm Terminate'}
+                              </button>
+                              <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {emp.avatar ? (
+                                <img src={emp.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                  {initials}
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-nexus-text-primary">{emp.firstName} {emp.lastName}</p>
+                                <p className="text-xs text-nexus-text-muted">{emp.employeeId} · {emp.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">{emp.department?.name || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">{emp.designation?.title || '—'}</td>
+                          <td className="px-4 py-3"><span className={badge.className}>{badge.label}</span></td>
+                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(emp.dateOfJoining)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => router.push(`/employees/${emp.id}`)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View">
+                                <FiEye className="w-4 h-4" />
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button onClick={() => handleOpenEditForm(emp)} className="p-2 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
+                                    <FiEdit2 className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setDeleteConfirmId(emp.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                    <FiTrash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-nexus-border">
+            <p className="text-sm text-nexus-text-muted">
+              Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+            </p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => fetchEmployees(pagination.page - 1)} disabled={pagination.page <= 1} className="p-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <FiChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                const p = i + 1;
+                return (
+                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white' : 'text-nexus-text-secondary hover:bg-slate-50'}`}>
+                    {p}
+                  </button>
+                );
+              })}
+              <button onClick={() => fetchEmployees(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <FiChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

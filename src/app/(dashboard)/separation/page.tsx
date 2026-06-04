@@ -5,7 +5,13 @@ import {
   FiLogOut,
   FiPlus,
   FiX,
+  FiEdit2,
+  FiTrash2,
+  FiSearch,
+  FiFilter,
   FiCalendar,
+  FiAlertTriangle,
+  FiUserCheck,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -19,9 +25,11 @@ interface Separation {
   noticePeriod: number;
   lastWorkingDate: string;
   status: string;
-  exitInterview: string | null;
-  settlementAmount: number | null;
-  employee?: { id: string; firstName: string; lastName: string; employeeId: string };
+  exitInterview?: string | null;
+  settlementAmount?: number | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  employee?: { id: string; firstName: string; lastName: string; employeeId: string; avatar?: string | null };
 }
 
 interface Employee {
@@ -29,6 +37,7 @@ interface Employee {
   employeeId: string;
   firstName: string;
   lastName: string;
+  email: string;
 }
 
 /* ── Helpers ── */
@@ -44,8 +53,11 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
+    initiated: 'nexus-badge nexus-badge-warning',
     pending: 'nexus-badge nexus-badge-warning',
     notice_period: 'nexus-badge nexus-badge-info',
+    exit_interview: 'nexus-badge nexus-badge-info',
+    fnf_pending: 'nexus-badge nexus-badge-warning',
     completed: 'nexus-badge nexus-badge-success',
     cancelled: 'nexus-badge nexus-badge-error',
   };
@@ -58,106 +70,415 @@ function getTypeBadge(type: string) {
     termination: 'nexus-badge nexus-badge-error',
     retirement: 'nexus-badge nexus-badge-info',
     layoff: 'nexus-badge nexus-badge-warning',
+    contract_end: 'nexus-badge nexus-badge-purple',
   };
   return map[type] || 'nexus-badge nexus-badge-info';
 }
 
+const initialForm = {
+  employeeId: '',
+  type: 'resignation',
+  reason: '',
+  noticePeriodStartDate: '',
+  noticePeriodEndDate: '',
+  lastWorkingDate: '',
+  status: 'initiated',
+  exitInterviewNotes: '',
+  fnfAmount: '',
+};
+
 /* ── Component ── */
 export default function SeparationPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
   const [separations, setSeparations] = useState<Separation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
-  const [form, setForm] = useState({
-    employeeId: '', type: 'resignation', reason: '', noticePeriod: '30', lastWorkingDate: '',
-  });
-
-  /* Fetch */
+  /* Fetch data */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
-      const [sepRes, empRes] = await Promise.all([
-        fetch('/api/separation?limit=50', { headers }),
-        fetch('/api/employees?limit=500', { headers }),
-      ]);
-      if (sepRes.ok) { const d = await sepRes.json(); setSeparations(d.separations || []); }
-      if (empRes.ok) { const d = await empRes.json(); setEmployees(d.employees || []); }
-    } catch {
+
+      const params = new URLSearchParams({ limit: '100' });
+      if (filterStatus) params.set('status', filterStatus);
+      const res = await fetch(`/api/separation?${params.toString()}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setSeparations(data.separations || []);
+      }
+
+      if (employees.length === 0) {
+        const empRes = await fetch('/api/employees?limit=500', { headers });
+        if (empRes.ok) {
+          const empData = await empRes.json();
+          setEmployees(empData.employees || []);
+        }
+      }
+    } catch (err) {
+      console.error(err);
       toast.error('Failed to load separation data');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterStatus, employees.length]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
-  /* Submit Separation */
+  /* Filter separations */
+  const filteredSeparations = separations.filter(s => {
+    const matchSearch = !search ||
+      s.reason.toLowerCase().includes(search.toLowerCase()) ||
+      s.type.toLowerCase().includes(search.toLowerCase()) ||
+      (s.employee ? `${s.employee.firstName} ${s.employee.lastName}`.toLowerCase().includes(search.toLowerCase()) : false);
+    const matchType = !filterType || s.type === filterType;
+    return matchSearch && matchType;
+  });
+
+  /* Summary stats */
+  const initiatedCount = separations.filter(s => ['initiated', 'pending'].includes(s.status)).length;
+  const noticePeriodCount = separations.filter(s => s.status === 'notice_period').length;
+  const completedCount = separations.filter(s => s.status === 'completed').length;
+  const resignationCount = separations.filter(s => s.type === 'resignation').length;
+
+  /* Form handlers */
+  const handleShowForm = () => {
+    setForm(initialForm);
+    setEditingId(null);
+    setShowForm(true);
+    setTimeout(() => {
+      document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleEdit = (s: Separation) => {
+    setForm({
+      employeeId: s.employeeId,
+      type: s.type,
+      reason: s.reason,
+      noticePeriodStartDate: '',
+      noticePeriodEndDate: '',
+      lastWorkingDate: s.lastWorkingDate ? new Date(s.lastWorkingDate).toISOString().split('T')[0] : '',
+      status: s.status,
+      exitInterviewNotes: s.exitInterview || '',
+      fnfAmount: s.settlementAmount?.toString() || '',
+    });
+    setEditingId(s.id);
+    setShowForm(true);
+    setTimeout(() => {
+      document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(initialForm);
+  };
+
   const handleSubmit = async () => {
-    if (!form.employeeId || !form.reason || !form.lastWorkingDate) { toast.error('Please fill all required fields'); return; }
+    if (!form.type || !form.reason || !form.lastWorkingDate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
     try {
       setSubmitting(true);
-      const res = await fetch('/api/separation', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...form, noticePeriod: parseInt(form.noticePeriod), status: 'pending' }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Separation initiated successfully');
-      setShowModal(false);
-      setForm({ employeeId: '', type: 'resignation', reason: '', noticePeriod: '30', lastWorkingDate: '' });
+      const payload = {
+        employeeId: form.employeeId,
+        type: form.type,
+        reason: form.reason,
+        noticePeriod: 30,
+        lastWorkingDate: form.lastWorkingDate,
+        status: form.status,
+        exitInterview: form.exitInterviewNotes || null,
+        settlementAmount: form.fnfAmount ? parseFloat(form.fnfAmount) : null,
+      };
+
+      if (!payload.employeeId) {
+        toast.error('Please select an employee');
+        return;
+      }
+
+      let res;
+      if (editingId) {
+        res = await fetch(`/api/separation/${editingId}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/separation', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed');
+      }
+
+      toast.success(editingId ? 'Separation updated successfully' : 'Separation initiated successfully');
+      handleCancelForm();
       fetchData();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to initiate separation');
+      toast.error(err instanceof Error ? err.message : 'Failed to save separation');
     } finally {
       setSubmitting(false);
     }
   };
+
+  /* Delete */
+  const handleDelete = async (id: string) => {
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/separation/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed');
+      }
+      toast.success('Separation record deleted successfully');
+      setDeleteConfirmId(null);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete separation');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  /* Update status */
+  const handleStatusUpdate = async (id: string, status: string) => {
+    try {
+      const res = await fetch(`/api/separation/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed');
+      }
+      toast.success(`Status updated to ${status.replace('_', ' ')}`);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
+
+  /* Access restriction */
+  if (!isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div className="nexus-card p-12 text-center">
+          <FiAlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-nexus-text-primary mb-2">Access Restricted</h2>
+          <p className="text-nexus-text-secondary">Only administrators can access the Separation module.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold gradient-text flex items-center gap-2">
-            <FiLogOut className="w-6 h-6" />
-            Employee Separation
+          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <FiLogOut className="w-6 h-6 text-orange-500" />
+            Separation
           </h1>
           <p className="text-nexus-text-secondary mt-1">Manage employee exits and offboarding</p>
         </div>
-        {isAdmin && (
-          <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" /> Initiate Separation
-          </button>
-        )}
+        <button onClick={handleShowForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <FiPlus className="w-4 h-4" />
+          Initiate Separation
+        </button>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Pending</p>
-          <p className="text-xl font-bold text-amber-600 mt-1">{separations.filter(s => s.status === 'pending').length}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+              <FiAlertTriangle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-nexus-text-muted">Initiated</p>
+              <p className="text-xl font-bold text-amber-600">{initiatedCount}</p>
+            </div>
+          </div>
         </div>
         <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Notice Period</p>
-          <p className="text-xl font-bold text-blue-600 mt-1">{separations.filter(s => s.status === 'notice_period').length}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100">
+              <FiCalendar className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-nexus-text-muted">Notice Period</p>
+              <p className="text-xl font-bold text-blue-600">{noticePeriodCount}</p>
+            </div>
+          </div>
         </div>
         <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Completed</p>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{separations.filter(s => s.status === 'completed').length}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
+              <FiUserCheck className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-nexus-text-muted">Completed</p>
+              <p className="text-xl font-bold text-emerald-600">{completedCount}</p>
+            </div>
+          </div>
         </div>
         <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Resignations</p>
-          <p className="text-xl font-bold text-orange-600 mt-1">{separations.filter(s => s.type === 'resignation').length}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-orange-50 border border-orange-100">
+              <FiLogOut className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-nexus-text-muted">Resignations</p>
+              <p className="text-xl font-bold text-orange-600">{resignationCount}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Embedded Form */}
+      {showForm && (
+        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary">
+                {editingId ? 'Edit Separation' : 'Initiate Separation'}
+              </h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="">Select Employee</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.employeeId})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Type *</label>
+                <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="resignation">Resignation</option>
+                  <option value="termination">Termination</option>
+                  <option value="retirement">Retirement</option>
+                  <option value="layoff">Layoff</option>
+                  <option value="contract_end">Contract End</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Last Working Date *</label>
+                <input type="date" value={form.lastWorkingDate} onChange={e => setForm(p => ({ ...p, lastWorkingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason *</label>
+                <textarea rows={2} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Reason for separation..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notice Period Start</label>
+                <input type="date" value={form.noticePeriodStartDate} onChange={e => setForm(p => ({ ...p, noticePeriodStartDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notice Period End</label>
+                <input type="date" value={form.noticePeriodEndDate} onChange={e => setForm(p => ({ ...p, noticePeriodEndDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="initiated">Initiated</option>
+                  <option value="notice_period">Notice Period</option>
+                  <option value="exit_interview">Exit Interview</option>
+                  <option value="fnf_pending">FnF Pending</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              {editingId && (
+                <>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Exit Interview Notes</label>
+                    <textarea rows={2} value={form.exitInterviewNotes} onChange={e => setForm(p => ({ ...p, exitInterviewNotes: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Exit interview notes..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">FnF Amount</label>
+                    <input type="number" step="0.01" min="0" value={form.fnfAmount} onChange={e => setForm(p => ({ ...p, fnfAmount: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25">
+                {submitting ? 'Saving...' : editingId ? 'Update' : 'Initiate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Search */}
+      <div className="nexus-card p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              placeholder="Search separations..."
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+              <option value="">All Types</option>
+              <option value="resignation">Resignation</option>
+              <option value="termination">Termination</option>
+              <option value="retirement">Retirement</option>
+              <option value="layoff">Layoff</option>
+              <option value="contract_end">Contract End</option>
+            </select>
+            <div className="relative">
+              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+                <option value="">All Status</option>
+                <option value="initiated">Initiated</option>
+                <option value="pending">Pending</option>
+                <option value="notice_period">Notice Period</option>
+                <option value="exit_interview">Exit Interview</option>
+                <option value="fnf_pending">FnF Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Separations Table */}
       <div className="nexus-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -166,14 +487,15 @@ export default function SeparationPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Type</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Reason</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Notice Period</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Notice Period</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Last Working Date</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
+                Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-5 w-20 bg-slate-200 rounded-full" /></td>
@@ -181,26 +503,62 @@ export default function SeparationPage() {
                     <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded ml-auto" /></td>
                   </tr>
                 ))
-              ) : separations.length === 0 ? (
+              ) : filteredSeparations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
+                  <td colSpan={7} className="px-4 py-12 text-center">
                     <FiLogOut className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
                     <p className="text-nexus-text-secondary font-medium">No separation records found</p>
+                    <p className="text-sm text-nexus-text-muted mt-1">Click &quot;Initiate Separation&quot; to start a new exit process</p>
                   </td>
                 </tr>
               ) : (
-                separations.map(s => (
+                filteredSeparations.map(s => (
                   <tr key={s.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{s.employee ? `${s.employee.firstName} ${s.employee.lastName}` : 'Unknown'}</td>
-                    <td className="px-4 py-3"><span className={getTypeBadge(s.type)}>{s.type}</span></td>
-                    <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{s.reason}</td>
-                    <td className="px-4 py-3 text-sm text-nexus-text-secondary text-right">{s.noticePeriod} days</td>
-                    <td className="px-4 py-3 text-sm text-nexus-text-secondary">
-                      <div className="flex items-center gap-1"><FiCalendar className="w-3 h-3" />{formatDate(s.lastWorkingDate)}</div>
-                    </td>
-                    <td className="px-4 py-3"><span className={getStatusBadge(s.status)}>{s.status.replace('_', ' ')}</span></td>
+                    {deleteConfirmId === s.id ? (
+                      <td colSpan={7} className="px-4 py-3 bg-red-50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this separation record?</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleDelete(s.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                          </div>
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{s.employee ? `${s.employee.firstName} ${s.employee.lastName}` : 'Unknown'}</td>
+                        <td className="px-4 py-3"><span className={getTypeBadge(s.type)}>{s.type.replace('_', ' ')}</span></td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{s.reason}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{s.noticePeriod} days</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                          <div className="flex items-center gap-1"><FiCalendar className="w-3.5 h-3.5 text-nexus-text-muted" />{formatDate(s.lastWorkingDate)}</div>
+                        </td>
+                        <td className="px-4 py-3"><span className={getStatusBadge(s.status)}>{s.status.replace('_', ' ')}</span></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            {['initiated', 'pending'].includes(s.status) && (
+                              <button onClick={() => handleStatusUpdate(s.id, 'notice_period')} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Move to Notice Period">
+                                <FiCalendar className="w-4 h-4" />
+                              </button>
+                            )}
+                            {s.status === 'notice_period' && (
+                              <button onClick={() => handleStatusUpdate(s.id, 'completed')} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark Completed">
+                                <FiUserCheck className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button onClick={() => handleEdit(s)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                              <FiEdit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setDeleteConfirmId(s.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))
               )}
@@ -208,56 +566,6 @@ export default function SeparationPage() {
           </table>
         </div>
       </div>
-
-      {/* Initiate Separation Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full animate-slide-in-down" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-nexus-border">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">Initiate Separation</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
-                <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                  <option value="">Select Employee</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Type</label>
-                  <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                    <option value="resignation">Resignation</option>
-                    <option value="termination">Termination</option>
-                    <option value="retirement">Retirement</option>
-                    <option value="layoff">Layoff</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notice Period (days)</label>
-                  <input type="number" value={form.noticePeriod} onChange={e => setForm(p => ({ ...p, noticePeriod: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Last Working Date *</label>
-                <input type="date" value={form.lastWorkingDate} onChange={e => setForm(p => ({ ...p, lastWorkingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason *</label>
-                <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Reason for separation..." />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-nexus-border">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
-                {submitting ? 'Initiating...' : 'Initiate Separation'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -57,3 +57,70 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
+
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    const body = await request.json();
+    const data: Record<string, unknown> = {};
+    if (body.title !== undefined) data.title = body.title;
+    if (body.description !== undefined) data.description = body.description;
+    if (body.category !== undefined) data.category = body.category;
+    if (body.trainer !== undefined) data.trainer = body.trainer;
+    if (body.startDate !== undefined) data.startDate = new Date(body.startDate);
+    if (body.endDate !== undefined) data.endDate = body.endDate ? new Date(body.endDate) : null;
+    if (body.mode !== undefined) data.mode = body.mode;
+    if (body.status !== undefined) data.status = body.status;
+    if (body.maxParticipants !== undefined) data.maxParticipants = body.maxParticipants;
+    if (body.location !== undefined) data.location = body.location;
+    if (body.cost !== undefined) data.cost = body.cost;
+
+    const training = await prisma.training.update({
+      where: { id },
+      data,
+      include: {
+        enrollments: {
+          include: {
+            employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+          },
+        },
+        _count: { select: { enrollments: true } },
+      },
+    });
+
+    return NextResponse.json({ training }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Update training error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    if (!user || !['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // Delete enrollments first (cascade)
+    await prisma.trainingEnrollment.deleteMany({ where: { trainingId: id } });
+    await prisma.training.delete({ where: { id } });
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete training error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}

@@ -54,8 +54,15 @@ export async function GET(request: Request) {
             select: {
               id: true,
               candidateName: true,
+              candidateEmail: true,
+              candidatePhone: true,
+              source: true,
               status: true,
               appliedDate: true,
+              rating: true,
+              expectedSalary: true,
+              notes: true,
+              jobPostingId: true,
             },
             orderBy: { appliedDate: 'desc' },
           },
@@ -110,6 +117,55 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+
+    // Handle application submission
+    if (body.action === 'apply') {
+      const { jobPostingId, candidateName, candidateEmail, candidatePhone, source, expectedSalary } = body;
+
+      if (!jobPostingId || !candidateName || !candidateEmail) {
+        return NextResponse.json(
+          { error: 'Missing required fields: jobPostingId, candidateName, candidateEmail' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+
+      // Verify job posting exists
+      const jobExists = await prisma.jobPosting.findUnique({ where: { id: jobPostingId } });
+      if (!jobExists) {
+        return NextResponse.json(
+          { error: 'Job posting not found' },
+          { status: 404, headers: corsHeaders() }
+        );
+      }
+
+      const application = await prisma.jobApplication.create({
+        data: {
+          jobPostingId,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          source: source || 'website',
+          expectedSalary,
+          status: 'applied',
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'SUBMIT_APPLICATION',
+          module: 'recruitment',
+          details: `Application submitted by ${candidateName} for job: ${jobExists.title}`,
+        },
+      });
+
+      return NextResponse.json(
+        { application },
+        { status: 201, headers: corsHeaders() }
+      );
+    }
+
+    // Handle job posting creation
     const {
       title,
       departmentId,

@@ -5,9 +5,12 @@ import {
   FiPackage,
   FiPlus,
   FiX,
+  FiEdit2,
+  FiTrash2,
+  FiSearch,
+  FiFilter,
   FiMonitor,
   FiSmartphone,
-  FiArrowRight,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -25,27 +28,11 @@ interface Asset {
   purchaseCost: number | null;
   status: string;
   condition: string;
-  assignments: AssetAssignment[];
-}
-
-interface AssetAssignment {
-  id: string;
-  assetId: string;
-  employeeId: string;
-  assignedDate: string;
-  returnDate: string | null;
-  condition: string;
-  notes: string | null;
-  status: string;
-  asset?: { id: string; name: string; assetTag: string };
-  employee?: { id: string; firstName: string; lastName: string; employeeId: string };
-}
-
-interface Employee {
-  id: string;
-  employeeId: string;
-  firstName: string;
-  lastName: string;
+  assignments: Array<{
+    id: string;
+    status: string;
+    employee: { id: string; firstName: string; lastName: string; employeeId: string };
+  }>;
 }
 
 /* ── Helpers ── */
@@ -54,29 +41,34 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-function formatDate(d: string | null | undefined) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function getAssetStatusBadge(status: string) {
+function getStatusBadge(status: string) {
   const map: Record<string, string> = {
     available: 'nexus-badge nexus-badge-success',
     assigned: 'nexus-badge nexus-badge-info',
+    under_repair: 'nexus-badge nexus-badge-warning',
     maintenance: 'nexus-badge nexus-badge-warning',
+    disposed: 'nexus-badge nexus-badge-error',
     retired: 'nexus-badge nexus-badge-error',
+    lost: 'nexus-badge nexus-badge-error',
   };
   return map[status] || 'nexus-badge nexus-badge-info';
 }
 
-function getConditionBadge(condition: string) {
+function formatStatus(status: string) {
   const map: Record<string, string> = {
-    new: 'nexus-badge nexus-badge-success',
-    good: 'nexus-badge nexus-badge-info',
-    fair: 'nexus-badge nexus-badge-warning',
-    poor: 'nexus-badge nexus-badge-error',
+    available: 'Available',
+    assigned: 'Assigned',
+    under_repair: 'Under Repair',
+    maintenance: 'Maintenance',
+    disposed: 'Disposed',
+    retired: 'Retired',
+    lost: 'Lost',
   };
-  return map[condition] || 'nexus-badge nexus-badge-info';
+  return map[status] || status;
+}
+
+function formatCategory(category: string) {
+  return category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ');
 }
 
 function getCategoryIcon(category: string) {
@@ -85,334 +77,418 @@ function getCategoryIcon(category: string) {
   return <FiPackage className="w-4 h-4" />;
 }
 
+const CATEGORIES = ['laptop', 'desktop', 'phone', 'tablet', 'monitor', 'printer', 'furniture', 'vehicle', 'other'];
+const STATUSES = ['available', 'assigned', 'under_repair', 'disposed', 'lost'];
+
+const initialForm = {
+  name: '',
+  assetTag: '',
+  category: 'laptop',
+  brand: '',
+  model: '',
+  serialNumber: '',
+  purchaseDate: '',
+  purchaseCost: '',
+  status: 'available',
+  condition: 'new',
+  location: '',
+  notes: '',
+};
+
 /* ── Component ── */
 export default function AssetsPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
 
-  const [activeTab, setActiveTab] = useState<'assets' | 'assignments'>('assets');
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [assignments, setAssignments] = useState<AssetAssignment[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
-  const [assetForm, setAssetForm] = useState({ name: '', assetTag: '', category: 'laptop', brand: '', model: '', serialNumber: '', purchaseDate: '', purchaseCost: '', condition: 'new' });
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const [assignModal, setAssignModal] = useState<string | null>(null);
-  const [assignEmpId, setAssignEmpId] = useState('');
-  const [assigning, setAssigning] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
-  /* Fetch */
+  /* Fetch data */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
-      const [assetRes, empRes] = await Promise.all([
-        fetch('/api/assets?limit=100', { headers }),
-        fetch('/api/employees?limit=500', { headers }),
-      ]);
-      if (assetRes.ok) {
-        const d = await assetRes.json();
-        setAssets(d.assets || []);
-        // Extract assignments from assets
-        const allAssignments: AssetAssignment[] = [];
-        (d.assets || []).forEach((a: Asset) => {
-          (a.assignments || []).forEach((asgn: AssetAssignment) => {
-            allAssignments.push({ ...asgn, asset: { id: a.id, name: a.name, assetTag: a.assetTag } });
-          });
-        });
-        setAssignments(allAssignments);
+
+      const params = new URLSearchParams({ limit: '100' });
+      if (filterCategory) params.set('category', filterCategory);
+      if (filterStatus) params.set('status', filterStatus);
+
+      const assetsRes = await fetch(`/api/assets?${params.toString()}`, { headers });
+
+      if (assetsRes.ok) {
+        const data = await assetsRes.json();
+        setAssets(data.assets || []);
       }
-      if (empRes.ok) { const d = await empRes.json(); setEmployees(d.employees || []); }
-    } catch {
-      toast.error('Failed to load asset data');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load assets');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterCategory, filterStatus]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
-  /* Add Asset */
-  const handleAddAsset = async () => {
-    if (!assetForm.name || !assetForm.assetTag) { toast.error('Name and Asset Tag are required'); return; }
+  /* Filter by search */
+  const filteredAssets = assets.filter(a => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      a.name.toLowerCase().includes(s) ||
+      a.assetTag.toLowerCase().includes(s) ||
+      (a.serialNumber || '').toLowerCase().includes(s)
+    );
+  });
+
+  /* Form handlers */
+  const handleAddNew = () => {
+    setForm(initialForm);
+    setEditingId(null);
+    setShowForm(true);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
+  const handleEdit = (asset: Asset) => {
+    setForm({
+      name: asset.name,
+      assetTag: asset.assetTag,
+      category: asset.category,
+      brand: asset.brand || '',
+      model: asset.model || '',
+      serialNumber: asset.serialNumber || '',
+      purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
+      purchaseCost: asset.purchaseCost?.toString() || '',
+      status: asset.status,
+      condition: asset.condition || 'new',
+      location: '',
+      notes: '',
+    });
+    setEditingId(asset.id);
+    setShowForm(true);
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(initialForm);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name || !form.assetTag || !form.category) {
+      toast.error('Please fill in all required fields (Name, Asset Tag, Category)');
+      return;
+    }
     try {
       setSubmitting(true);
-      const res = await fetch('/api/assets', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          ...assetForm,
-          purchaseCost: assetForm.purchaseCost ? parseFloat(assetForm.purchaseCost) : null,
-          purchaseDate: assetForm.purchaseDate || null,
-          status: 'available',
-        }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Asset added successfully');
-      setShowAssetModal(false);
-      setAssetForm({ name: '', assetTag: '', category: 'laptop', brand: '', model: '', serialNumber: '', purchaseDate: '', purchaseCost: '', condition: 'new' });
+      const body: Record<string, unknown> = {
+        name: form.name,
+        assetTag: form.assetTag,
+        category: form.category,
+        brand: form.brand || null,
+        model: form.model || null,
+        serialNumber: form.serialNumber || null,
+        purchaseDate: form.purchaseDate || null,
+        purchaseCost: form.purchaseCost ? parseFloat(form.purchaseCost) : null,
+        condition: form.condition || 'new',
+        status: form.status,
+      };
+
+      if (editingId) {
+        const res = await fetch(`/api/assets/${editingId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
+        toast.success('Asset updated successfully');
+      } else {
+        const res = await fetch('/api/assets', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }
+        toast.success('Asset created successfully');
+      }
+
+      handleCancelForm();
       fetchData();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to add asset');
+      toast.error(err instanceof Error ? err.message : 'Failed to save asset');
     } finally {
       setSubmitting(false);
     }
   };
 
-  /* Assign Asset */
-  const handleAssign = async () => {
-    if (!assignModal || !assignEmpId) { toast.error('Select an employee'); return; }
+  const handleDelete = async (id: string) => {
     try {
-      setAssigning(true);
-      const res = await fetch(`/api/assets/${assignModal}`, {
-        method: 'PATCH',
+      setDeleting(true);
+      const res = await fetch(`/api/assets/${id}`, {
+        method: 'DELETE',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ action: 'assign', employeeId: assignEmpId }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Asset assigned successfully');
-      setAssignModal(null);
-      setAssignEmpId('');
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
+      toast.success('Asset deleted successfully');
+      setDeleteConfirmId(null);
       fetchData();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to assign asset');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete asset');
     } finally {
-      setAssigning(false);
+      setDeleting(false);
     }
   };
+
+  const getAssignedEmployee = (asset: Asset) => {
+    if (asset.assignments && asset.assignments.length > 0 && asset.assignments[0].status === 'assigned') {
+      const emp = asset.assignments[0].employee;
+      return `${emp.firstName} ${emp.lastName}`;
+    }
+    return '—';
+  };
+
+  const colCount = isAdmin ? 8 : 7;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold gradient-text flex items-center gap-2">
-            <FiPackage className="w-6 h-6" />
-            Asset Management
+          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <FiPackage className="w-6 h-6 text-violet-500" />
+            Assets
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Track and manage company assets</p>
+          <p className="text-nexus-text-secondary mt-1">Manage company assets and equipment</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowAssetModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" /> Add Asset
+          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <FiPlus className="w-4 h-4" />
+            Add Asset
           </button>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
-        <button onClick={() => setActiveTab('assets')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'assets' ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>Assets</button>
-        <button onClick={() => setActiveTab('assignments')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'assignments' ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>Assignments</button>
+      {/* Filters & Search */}
+      <div className="nexus-card p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <input
+              type="text"
+              placeholder="Search by name, asset tag, or serial number..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <FiFilter className="w-4 h-4 text-nexus-text-muted" />
+            <select
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+              className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            >
+              <option value="">All Categories</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            >
+              <option value="">All Statuses</option>
+              {STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
+            </select>
+          </div>
+        </div>
       </div>
 
-      {/* Assets Tab */}
-      {activeTab === 'assets' && (
-        <div className="nexus-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Asset Tag</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Category</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Condition</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
-                      {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className="px-4 py-3"><div className="h-3 bg-slate-200 rounded" style={{ width: j === 0 ? '80px' : '60px' }} /></td>
-                      ))}
-                    </tr>
-                  ))
-                ) : assets.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
-                      <FiPackage className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No assets found</p>
-                    </td>
-                  </tr>
-                ) : (
-                  assets.map(a => (
-                    <tr key={a.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">{getCategoryIcon(a.category)}</span>
-                          <span className="text-sm font-mono font-medium text-nexus-text-primary">{a.assetTag}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{a.name}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary capitalize">{a.category}</td>
-                      <td className="px-4 py-3"><span className={getAssetStatusBadge(a.status)}>{a.status}</span></td>
-                      <td className="px-4 py-3"><span className={getConditionBadge(a.condition)}>{a.condition}</span></td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {isAdmin && a.status === 'available' && (
-                            <button onClick={() => setAssignModal(a.id)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-violet-600 hover:bg-violet-50 transition-colors">
-                              <FiArrowRight className="w-3 h-3" /> Assign
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Assignments Tab */}
-      {activeTab === 'assignments' && (
-        <div className="nexus-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Asset</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Assigned Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
-                      <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
-                    </tr>
-                  ))
-                ) : assignments.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-12 text-center">
-                      <FiArrowRight className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No assignments found</p>
-                    </td>
-                  </tr>
-                ) : (
-                  assignments.map(a => (
-                    <tr key={a.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{a.asset?.name || '—'}<p className="text-xs text-nexus-text-muted">{a.asset?.assetTag}</p></td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : '—'}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(a.assignedDate)}</td>
-                      <td className="px-4 py-3"><span className={a.status === 'assigned' ? 'nexus-badge nexus-badge-info' : a.status === 'returned' ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error'}>{a.status}</span></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Add Asset Modal */}
-      {showAssetModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowAssetModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full animate-slide-in-down max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-nexus-border">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">Add Asset</h2>
-              <button onClick={() => setShowAssetModal(false)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+      {/* Embedded Form */}
+      {showForm && (
+        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary">
+                {editingId ? 'Edit Asset' : 'Add New Asset'}
+              </h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+                <FiX className="w-5 h-5" />
+              </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
-                  <input type="text" value={assetForm.name} onChange={e => setAssetForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Asset name" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Asset Tag *</label>
-                  <input type="text" value={assetForm.assetTag} onChange={e => setAssetForm(p => ({ ...p, assetTag: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. LAP-001" />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Asset name" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label>
-                  <select value={assetForm.category} onChange={e => setAssetForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                    {['laptop', 'desktop', 'phone', 'tablet', 'monitor', 'other'].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Condition</label>
-                  <select value={assetForm.condition} onChange={e => setAssetForm(p => ({ ...p, condition: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                    {['new', 'good', 'fair', 'poor'].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Asset Tag *</label>
+                <input type="text" value={form.assetTag} onChange={e => setForm(p => ({ ...p, assetTag: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. AST-001" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Brand</label>
-                  <input type="text" value={assetForm.brand} onChange={e => setAssetForm(p => ({ ...p, brand: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Brand" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Model</label>
-                  <input type="text" value={assetForm.model} onChange={e => setAssetForm(p => ({ ...p, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Model" />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category *</label>
+                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  {CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Brand</label>
+                <input type="text" value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Brand name" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Model</label>
+                <input type="text" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Model name" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Serial Number</label>
-                <input type="text" value={assetForm.serialNumber} onChange={e => setAssetForm(p => ({ ...p, serialNumber: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Serial number" />
+                <input type="text" value={form.serialNumber} onChange={e => setForm(p => ({ ...p, serialNumber: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Serial number" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purchase Date</label>
-                  <input type="date" value={assetForm.purchaseDate} onChange={e => setAssetForm(p => ({ ...p, purchaseDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purchase Cost</label>
-                  <input type="number" value={assetForm.purchaseCost} onChange={e => setAssetForm(p => ({ ...p, purchaseCost: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0" />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purchase Date</label>
+                <input type="date" value={form.purchaseDate} onChange={e => setForm(p => ({ ...p, purchaseDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purchase Cost</label>
+                <input type="number" step="0.01" value={form.purchaseCost} onChange={e => setForm(p => ({ ...p, purchaseCost: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Condition</label>
+                <select value={form.condition} onChange={e => setForm(p => ({ ...p, condition: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  {['new', 'good', 'fair', 'poor'].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  {STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Location</label>
+                <input type="text" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Office location" />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notes</label>
+                <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Additional notes..." />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-nexus-border">
-              <button onClick={() => setShowAssetModal(false)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleAddAsset} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
-                {submitting ? 'Adding...' : 'Add Asset'}
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Assign Modal */}
-      {assignModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setAssignModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full animate-slide-in-down" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-nexus-border">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">Assign Asset</h2>
-              <button onClick={() => setAssignModal(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                <p className="text-sm text-blue-700 font-medium">Asset: {assets.find(a => a.id === assignModal)?.name} ({assets.find(a => a.id === assignModal)?.assetTag})</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Assign to Employee</label>
-                <select value={assignEmpId} onChange={e => setAssignEmpId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                  <option value="">Select Employee</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-nexus-border">
-              <button onClick={() => setAssignModal(null)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleAssign} disabled={assigning} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
-                {assigning ? 'Assigning...' : 'Assign'}
-              </button>
-            </div>
-          </div>
+      {/* Assets Table */}
+      <div className="nexus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-nexus-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Asset Tag</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Brand / Model</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Assigned To</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Location</th>
+                {isAdmin && (
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                    <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
+                    {isAdmin && <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded ml-auto" /></td>}
+                  </tr>
+                ))
+              ) : filteredAssets.length === 0 ? (
+                <tr>
+                  <td colSpan={colCount} className="px-4 py-12 text-center">
+                    <FiPackage className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                    <p className="text-nexus-text-secondary font-medium">No assets found</p>
+                    <p className="text-sm text-nexus-text-muted mt-1">
+                      {search || filterCategory || filterStatus ? 'Try adjusting your filters' : 'Add your first asset to get started'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filteredAssets.map(asset => (
+                  <tr key={asset.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                    {deleteConfirmId === asset.id ? (
+                      <td colSpan={colCount} className="px-4 py-3 bg-red-50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-red-700 font-medium">Are you sure you want to delete &quot;{asset.name}&quot;?</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleDelete(asset.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
+                              {deleting ? 'Deleting...' : 'Confirm'}
+                            </button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">{getCategoryIcon(asset.category)}</span>
+                            <span className="text-sm font-mono font-medium text-blue-600">{asset.assetTag}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{asset.name}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatCategory(asset.category)}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                          {asset.brand || asset.model ? `${asset.brand || ''} ${asset.model || ''}`.trim() : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={getStatusBadge(asset.status)}>{formatStatus(asset.status)}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{getAssignedEmployee(asset)}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">—</td>
+                        {isAdmin && (
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => handleEdit(asset)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <FiEdit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setDeleteConfirmId(asset.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }
