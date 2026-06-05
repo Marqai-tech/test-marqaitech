@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { useAuthStore } from './authStore';
 
-interface Notification {
+export interface Notification {
   id: string;
   title: string;
   message: string;

@@ -325,43 +325,43 @@ export default function TravelPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Employee</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Purpose</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.purpose</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.purpose}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Destination</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.destination</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.destination}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Start Date</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.startDate)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.startDate)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">End Date</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.endDate)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.endDate)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Travel Mode</p>
-                <p className="text-sm text-nexus-text-primary">getTravelModeLabel(viewingRecord.travelMode)</p>
+                <p className="text-sm text-nexus-text-primary">{getTravelModeLabel(viewingRecord.travelMode)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Estimated Cost</p>
-                <p className="text-sm text-nexus-text-primary">formatCurrency(viewingRecord.estimatedCost)</p>
+                <p className="text-sm text-nexus-text-primary">{formatCurrency(viewingRecord.estimatedCost)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Actual Cost</p>
-                <p className="text-sm text-nexus-text-primary">formatCurrency(viewingRecord.actualCost)</p>
+                <p className="text-sm text-nexus-text-primary">{formatCurrency(viewingRecord.actualCost)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Status</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.status.replace(/_/g, ' ')</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.status.replace(/_/g, ' ')}</p>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Approval Notes</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.approvalNotes || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.approvalNotes || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-6 pt-4 border-t border-nexus-border">

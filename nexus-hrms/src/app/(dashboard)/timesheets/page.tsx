@@ -397,35 +397,35 @@ export default function TimesheetsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Employee</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Date</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.date)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.date)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Project</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.project || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.project || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Task</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.task || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.task || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Hours</p>
-                <p className="text-sm text-nexus-text-primary">`${viewingRecord.hours}h'</p>
+                <p className="text-sm text-nexus-text-primary">{`${viewingRecord.hours}h`}</p>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Description</p>
-                <p className="text-sm text-nexus-text-primary whitespace-pre-wrap">viewingRecord.description || '—'</p>
+                <p className="text-sm text-nexus-text-primary whitespace-pre-wrap">{viewingRecord.description || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Status</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.status</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.status}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Approved By</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.approvedBy || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.approvedBy || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-6 pt-4 border-t border-nexus-border">

@@ -225,7 +225,39 @@ export default function FNFPage() {
             <tbody>
               {loading ? (Array.from({ length: 3 }).map((_, i) => (<tr key={i} className="border-b border-nexus-border/50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded ml-auto" /></td></tr>)))
               : filtered.length === 0 ? (<tr><td colSpan={5} className="px-4 py-12 text-center"><FiDollarSign className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No settlements found</p></td></tr>)
-              : filtered.map(s => (<tr key={s.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">{deleteConfirmId === s.id ? (<td colSpan={5} className="px-4 py-3 bg-red-50"><div className="flex items-center justify-between"><span className="text-sm text-red-700 font-medium">Delete this settlement?</span><div className="flex items-center gap-2"><button onClick={() => handleDelete(s.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button><button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button></div></div></td>) : (<><td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{getEmployeeName(s.employeeId)}</td><td className="px-4 py-3 text-sm font-bold text-emerald-600">{formatCurrency(s.totalAmount)}</td><td className="px-4 py-3"><span className={getStatusBadge(s.status)}>{s.status}</span></td><td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(s.paymentDate)}</td><td className="px-4 py-3"><div className="flex items-center justify-end gap-1"><button onClick={() => handleOpenView(s)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>{isAdmin && (<><button onClick={() => handleOpenEdit(s)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button><button onClick={() => { setDeleteConfirmId(s.id); setShowForm(false); setViewingId(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button></>)}</div></td></>)}</tr>)))}
+              : filtered.map(s => (
+                <tr key={s.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  {deleteConfirmId === s.id ? (
+                    <td colSpan={5} className="px-4 py-3 bg-red-50">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-red-700 font-medium">Delete this settlement?</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleDelete(s.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button>
+                          <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                        </div>
+                      </div>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{getEmployeeName(s.employeeId)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-emerald-600">{formatCurrency(s.totalAmount)}</td>
+                      <td className="px-4 py-3"><span className={getStatusBadge(s.status)}>{s.status}</span></td>
+                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(s.paymentDate)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleOpenView(s)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                          {isAdmin && (
+                            <>
+                              <button onClick={() => handleOpenEdit(s)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                              <button onClick={() => { setDeleteConfirmId(s.id); setShowForm(false); setViewingId(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

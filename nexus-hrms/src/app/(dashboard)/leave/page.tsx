@@ -220,7 +220,6 @@ export default function LeavePage() {
     setViewingId(record.id);
     setViewingRecord(record);
     setShowForm(false);
-    setDeleteConfirmId(null);
     setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -441,45 +440,42 @@ export default function LeavePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Employee</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Leave Type</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.leaveType?.name || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.leaveType?.name || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Start Date</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.startDate)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.startDate)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">End Date</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.endDate)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.endDate)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Days</p>
-                <p className="text-sm text-nexus-text-primary">getDaysBetween(viewingRecord.startDate, viewingRecord.endDate).toString()</p>
+                <p className="text-sm text-nexus-text-primary">{getDaysBetween(viewingRecord.startDate, viewingRecord.endDate).toString()}</p>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Reason</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.reason || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.reason || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Status</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.status</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.status}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Half Day</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.halfDay ? 'Yes' : 'No'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.halfDay ? 'Yes' : 'No'}</p>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Comments</p>
-                <p className="text-sm text-nexus-text-primary whitespace-pre-wrap">viewingRecord.comments || '—'</p>
+                <p className="text-sm text-nexus-text-primary whitespace-pre-wrap">{viewingRecord.comments || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={() => { handleOpenAction(viewingRecord); setViewingId(null); }} className="px-4 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors">
-                <FiEdit2 className="w-4 h-4 inline mr-1" /> Edit
-              </button>
               <button onClick={handleCloseView} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
                 Close
               </button>
