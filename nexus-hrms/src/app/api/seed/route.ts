@@ -767,11 +767,11 @@ export async function GET() {
 
     // ============ INTERVIEWS ============
     const interviews = [
-      { id: 'iv-1', jobApplicationId: 'ja-1', type: 'technical', date: new Date('2025-03-20'), time: '10:00 AM', duration: 60, location: 'Conference Room A', interviewer: 'John Williams', status: 'scheduled', score: null },
-      { id: 'iv-2', jobApplicationId: 'ja-4', type: 'final', date: new Date('2025-03-18'), time: '2:00 PM', duration: 45, location: 'Video Call', interviewer: 'Carol Davis', status: 'completed', feedback: 'Excellent design sense and communication skills', score: 9 },
-      { id: 'iv-3', jobApplicationId: 'ja-7', type: 'technical', date: new Date('2025-03-22'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.google.com/abc-defg-hij', interviewer: 'Frank Rodriguez', status: 'scheduled', score: null },
-      { id: 'iv-4', jobPostingId: undefined, jobApplicationId: 'ja-1', type: 'hr', date: new Date('2025-03-21'), time: '3:00 PM', duration: 30, location: 'HR Office', interviewer: 'Sarah Johnson', status: 'scheduled', score: null },
-      { id: 'iv-5', jobApplicationId: 'ja-8', type: 'managerial', date: new Date('2025-03-15'), time: '1:00 PM', duration: 45, location: 'Executive Suite', interviewer: 'John Williams', status: 'completed', feedback: 'Strong technical and leadership abilities', score: 8, aiScore: 8, aiFeedback: 'Candidate demonstrated excellent problem-solving and communication' },
+      { id: 'iv-1', jobApplicationId: 'ja-1', round: 1, type: 'technical', title: 'Technical Round 1', date: new Date('2025-03-20'), time: '10:00 AM', duration: 60, location: 'Conference Room A', interviewerIds: JSON.stringify(['user-john']), interviewerNames: JSON.stringify(['John Williams']), status: 'scheduled' },
+      { id: 'iv-2', jobApplicationId: 'ja-4', round: 2, type: 'final', title: 'Final Interview', date: new Date('2025-03-18'), time: '2:00 PM', duration: 45, location: 'Video Call', interviewerIds: JSON.stringify(['user-carol']), interviewerNames: JSON.stringify(['Carol Davis']), status: 'completed', feedback: 'Excellent design sense and communication skills', score: 9 },
+      { id: 'iv-3', jobApplicationId: 'ja-7', round: 1, type: 'technical', title: 'Technical Assessment', date: new Date('2025-03-22'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.google.com/abc-defg-hij', interviewerIds: JSON.stringify(['user-frank']), interviewerNames: JSON.stringify(['Frank Rodriguez']), status: 'scheduled' },
+      { id: 'iv-4', jobApplicationId: 'ja-1', round: 2, type: 'hr', title: 'HR Discussion', date: new Date('2025-03-21'), time: '3:00 PM', duration: 30, location: 'HR Office', interviewerIds: JSON.stringify(['user-sarah']), interviewerNames: JSON.stringify(['Sarah Johnson']), status: 'scheduled' },
+      { id: 'iv-5', jobApplicationId: 'ja-8', round: 1, type: 'managerial', title: 'Managerial Round', date: new Date('2025-03-15'), time: '1:00 PM', duration: 45, location: 'Executive Suite', interviewerIds: JSON.stringify(['user-john']), interviewerNames: JSON.stringify(['John Williams']), status: 'completed', feedback: 'Strong technical and leadership abilities', score: 8, aiScore: 8, aiFeedback: 'Candidate demonstrated excellent problem-solving and communication' },
     ];
 
     for (const iv of interviews) {
