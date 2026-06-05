@@ -153,3 +153,48 @@ export async function PATCH(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    const userRole = decoded.role as string;
+    if (userRole !== 'super_admin') {
+      return NextResponse.json({ error: 'Only super admins can delete tenants' }, { status: 403, headers: corsHeaders() });
+    }
+
+    const { id } = await params;
+
+    const existingTenant = await prisma.tenant.findUnique({ where: { id } });
+    if (!existingTenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    await prisma.tenant.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'DELETE_TENANT',
+        module: 'tenants',
+        details: `Deleted tenant ${existingTenant.name} (${existingTenant.slug})`,
+      },
+    });
+
+    return NextResponse.json({ message: 'Tenant deleted successfully' }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Delete tenant error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
