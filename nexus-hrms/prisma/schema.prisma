@@ -14,12 +14,42 @@ model Tenant {
   name        String
   slug        String   @unique
   domain      String?
-  plan        String   @default("starter") // starter, professional, enterprise
-  status      String   @default("active")
-  logo        String?
+
+  // Tenant type classification
+  tenantType  String   @default("single_company") // single_company, multi_company_group, staffing_company, enterprise_group, white_label_partner
+
+  // Company details
+  companyName String?
+  legalName   String?
+  industry    String?
+
+  // Location
   country     String?
   currency    String   @default("USD")
+
+  // Admin info
+  adminName   String?
+  adminEmail  String?
+  adminMobile String?
+
+  // Subscription
+  plan        String   @default("starter") // starter, professional, enterprise, global_enterprise, staffing_suite, white_label
+  employeeLimit Int    @default(50)
+  userLimit     Int    @default(10)
+  storageLimit  Int    @default(5) // GB
+  aiCreditLimit Int    @default(100)
+  trialStartDate  DateTime?
+  trialEndDate    DateTime?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  billingCycle  String  @default("monthly") // monthly, annual
+  paymentStatus String  @default("pending") // pending, paid, overdue, cancelled
+
+  // Status
+  status      String   @default("active") // active, suspended, trial, expired
+  logo        String?
   timezone    String   @default("UTC")
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

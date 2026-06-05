@@ -29,13 +29,83 @@ export async function GET() {
         name: 'Nexus Corp',
         slug: 'nexus-corp',
         domain: 'nexushrms.com',
+        tenantType: 'enterprise_group',
+        companyName: 'Nexus Corporation',
+        legalName: 'Nexus Corporation Inc.',
+        industry: 'Technology',
         plan: 'enterprise',
         status: 'active',
         country: 'US',
         currency: 'USD',
         timezone: 'America/New_York',
+        adminName: 'Admin User',
+        adminEmail: 'admin@nexushrms.com',
+        adminMobile: '+1-212-555-1001',
+        employeeLimit: 500,
+        userLimit: 50,
+        storageLimit: 100,
+        aiCreditLimit: 5000,
+        subscriptionStartDate: new Date('2024-01-01'),
+        subscriptionEndDate: new Date('2025-12-31'),
+        billingCycle: 'annual',
+        paymentStatus: 'paid',
       },
     });
+
+    // ============ ADDITIONAL TENANTS FOR SUPER ADMIN ============
+    const tenants = [
+      { name: 'Acme Technologies', slug: 'acme-tech', domain: 'acmetech.com', tenantType: 'single_company', companyName: 'Acme Technologies LLC', legalName: 'Acme Technologies LLC', industry: 'Software', country: 'US', plan: 'professional', employeeLimit: 200, userLimit: 20, storageLimit: 50, aiCreditLimit: 1000, billingCycle: 'monthly', paymentStatus: 'paid', status: 'active' },
+      { name: 'Global Staffing Inc', slug: 'global-staffing', domain: 'globalstaffing.com', tenantType: 'staffing_company', companyName: 'Global Staffing Inc', legalName: 'Global Staffing Incorporated', industry: 'Staffing', country: 'US', plan: 'staffing_suite', employeeLimit: 1000, userLimit: 100, storageLimit: 200, aiCreditLimit: 10000, billingCycle: 'annual', paymentStatus: 'paid', status: 'active' },
+      { name: 'StartupXYZ', slug: 'startup-xyz', domain: 'startupxyz.io', tenantType: 'single_company', companyName: 'StartupXYZ', legalName: 'StartupXYZ Pvt Ltd', industry: 'Fintech', country: 'IN', plan: 'starter', employeeLimit: 50, userLimit: 10, storageLimit: 5, aiCreditLimit: 100, billingCycle: 'monthly', paymentStatus: 'pending', status: 'trial', trialStartDate: new Date(), trialEndDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+      { name: 'MegaCorp Industries', slug: 'megacorp', domain: 'megacorp.com', tenantType: 'multi_company_group', companyName: 'MegaCorp Industries', legalName: 'MegaCorp Industries Group', industry: 'Manufacturing', country: 'GB', plan: 'global_enterprise', employeeLimit: 5000, userLimit: 500, storageLimit: 500, aiCreditLimit: 50000, billingCycle: 'annual', paymentStatus: 'paid', status: 'active' },
+      { name: 'Suspended Co', slug: 'suspended-co', domain: 'suspendedco.com', tenantType: 'single_company', companyName: 'Suspended Company', legalName: 'Suspended Company Ltd', industry: 'Retail', country: 'CA', plan: 'professional', employeeLimit: 100, userLimit: 15, storageLimit: 25, aiCreditLimit: 500, billingCycle: 'monthly', paymentStatus: 'overdue', status: 'suspended' },
+    ];
+
+    for (const t of tenants) {
+      await prisma.tenant.upsert({
+        where: { slug: t.slug },
+        update: {},
+        create: {
+          name: t.name,
+          slug: t.slug,
+          domain: t.domain,
+          tenantType: t.tenantType,
+          companyName: t.companyName,
+          legalName: t.legalName,
+          industry: t.industry,
+          country: t.country,
+          plan: t.plan,
+          currency: t.country === 'IN' ? 'INR' : t.country === 'GB' ? 'GBP' : t.country === 'CA' ? 'CAD' : 'USD',
+          employeeLimit: t.employeeLimit,
+          userLimit: t.userLimit,
+          storageLimit: t.storageLimit,
+          aiCreditLimit: t.aiCreditLimit,
+          billingCycle: t.billingCycle,
+          paymentStatus: t.paymentStatus,
+          status: t.status,
+          ...(t.trialStartDate ? { trialStartDate: t.trialStartDate } : {}),
+          ...(t.trialEndDate ? { trialEndDate: t.trialEndDate } : {}),
+        },
+      });
+    }
+
+    // ============ SUBSCRIPTION PLANS ============
+    const subscriptionPlans = [
+      { title: 'Starter', category: 'subscription_plan', description: 'Starter plan - $29/mo', version: 'starter', status: 'active', content: JSON.stringify({ planType: 'starter', monthlyPrice: 29, annualPrice: 290, employeeLimit: 50, companyLimit: 1, branchLimit: 1, storageLimit: 5, aiInterviewLimit: 10, aiChatbotLimit: 100, payrollEnabled: false, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: false, clientPortalEnabled: false, vendorPortalEnabled: false, mobileAppEnabled: false, apiAccessEnabled: false, whiteLabelEnabled: false, supportLevel: 'standard' }) },
+      { title: 'Professional', category: 'subscription_plan', description: 'Professional plan - $79/mo', version: 'professional', status: 'active', content: JSON.stringify({ planType: 'professional', monthlyPrice: 79, annualPrice: 790, employeeLimit: 200, companyLimit: 3, branchLimit: 5, storageLimit: 25, aiInterviewLimit: 50, aiChatbotLimit: 500, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: false, vendorPortalEnabled: false, mobileAppEnabled: true, apiAccessEnabled: false, whiteLabelEnabled: false, supportLevel: 'priority' }) },
+      { title: 'Enterprise', category: 'subscription_plan', description: 'Enterprise plan - $199/mo', version: 'enterprise', status: 'active', content: JSON.stringify({ planType: 'enterprise', monthlyPrice: 199, annualPrice: 1990, employeeLimit: 1000, companyLimit: 10, branchLimit: 25, storageLimit: 100, aiInterviewLimit: 200, aiChatbotLimit: 2000, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, whiteLabelEnabled: false, supportLevel: 'dedicated' }) },
+      { title: 'Global Enterprise', category: 'subscription_plan', description: 'Global Enterprise plan - $499/mo', version: 'global_enterprise', status: 'active', content: JSON.stringify({ planType: 'global_enterprise', monthlyPrice: 499, annualPrice: 4990, employeeLimit: 5000, companyLimit: 50, branchLimit: 100, storageLimit: 500, aiInterviewLimit: 1000, aiChatbotLimit: 10000, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, whiteLabelEnabled: false, supportLevel: '24/7' }) },
+      { title: 'Staffing Suite', category: 'subscription_plan', description: 'Staffing Suite plan - $299/mo', version: 'staffing_suite', status: 'active', content: JSON.stringify({ planType: 'staffing_suite', monthlyPrice: 299, annualPrice: 2990, employeeLimit: 5000, companyLimit: 100, branchLimit: 50, storageLimit: 200, aiInterviewLimit: 500, aiChatbotLimit: 5000, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, whiteLabelEnabled: false, supportLevel: '24/7' }) },
+      { title: 'White Label', category: 'subscription_plan', description: 'White Label plan - $999/mo', version: 'white_label', status: 'active', content: JSON.stringify({ planType: 'white_label', monthlyPrice: 999, annualPrice: 9990, employeeLimit: 10000, companyLimit: 100, branchLimit: 200, storageLimit: 1000, aiInterviewLimit: 2000, aiChatbotLimit: 20000, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, whiteLabelEnabled: true, supportLevel: '24/7' }) },
+    ];
+
+    for (const sp of subscriptionPlans) {
+      await prisma.policy.upsert({
+        where: { id: `sp-${sp.version}` },
+        update: {},
+        create: { id: `sp-${sp.version}`, ...sp },
+      });
+    }
 
     // ============ COMPANY GROUPS ============
     const americasGroup = await prisma.companyGroup.upsert({

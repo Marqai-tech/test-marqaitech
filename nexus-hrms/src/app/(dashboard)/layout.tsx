@@ -52,7 +52,7 @@ export default function DashboardLayout({
     // Try to auto-detect module from pathname
     if (!activeModule) {
       const matchedModule = modules.find(
-        (m) => m.id !== 'super-admin' && m.route !== '/dashboard' && pathname.startsWith(m.route)
+        (m) => m.route !== '/dashboard' && pathname.startsWith(m.route)
       );
       if (matchedModule) {
         setActiveModule(matchedModule.id);

@@ -24,6 +24,9 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiArrowLeft,
+  FiServer,
+  FiCreditCard,
+  FiFileText,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -54,6 +57,9 @@ const subMenuIconMap: Record<string, React.ComponentType<{ className?: string }>
   FiLock,
   FiSettings,
   FiBook,
+  FiServer,
+  FiCreditCard,
+  FiFileText,
 };
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
@@ -69,7 +75,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   // Auto-detect module from pathname if activeModule is not set
   const detectedModule = !activeModule
-    ? modules.find((m) => m.id !== 'super-admin' && pathname?.startsWith(m.route) && m.route !== '/dashboard')
+    ? modules.find((m) => m.route !== '/dashboard' && pathname?.startsWith(m.route))
     : null;
 
   // Use detected module if activeModule is null but we're on a module route

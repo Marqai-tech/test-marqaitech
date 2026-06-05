@@ -144,7 +144,7 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold text-nexus-text-primary">Modules</h2>
           <p className="text-sm text-nexus-text-muted">{visibleModules.length} modules available</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 items-start">
           {visibleModules.map((module) => (
             <ModuleTile
               key={module.id}
