@@ -11,19 +11,17 @@ const globalForPrisma = globalThis as unknown as {
 // parent monorepo workspace).  If the value is not a valid PostgreSQL
 // connection string we fall back to the URL defined in .env.local.
 function resolveDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL;
-  if (url && (url.startsWith('postgresql://') || url.startsWith('postgres://'))) {
-    // Remove channel_binding param which can cause auth issues with some Neon configurations
-    return url.replace(/channel_binding=[^&]*&?/g, '').replace(/\?$/g, '');
+  // Try DATABASE_URL first, then fall back to POSTGRES_URL (Neon Vercel integration)
+  const urls = [process.env.DATABASE_URL, process.env.POSTGRES_URL];
+  for (const url of urls) {
+    if (url && (url.startsWith('postgresql://') || url.startsWith('postgres://'))) {
+      // Remove channel_binding param which can cause auth issues with some Neon configurations
+      return url.replace(/channel_binding=[^&]*&?/g, '').replace(/\?$/g, '');
+    }
   }
-  // Not a PostgreSQL URL — likely a stale SQLite path from a parent workspace.
-  // Next.js will have already loaded .env / .env.local into process.env, but
-  // those values are overridden by the shell-level DATABASE_URL.  Since we
-  // can't read .env.local directly in this context, throw a helpful error.
   throw new Error(
-    'DATABASE_URL is not set or is not a valid PostgreSQL connection string. ' +
-    'Current value: ' + (url || '(empty)') + '. ' +
-    'Please set it in .env.local to your Neon database URL, or run with: env -u DATABASE_URL next dev'
+    'DATABASE_URL / POSTGRES_URL is not set or is not a valid PostgreSQL connection string. ' +
+    'Please set it in Vercel environment variables to your Neon database URL.'
   );
 }
 
