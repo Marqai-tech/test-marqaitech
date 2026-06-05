@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useModuleStore, modules } from '@/store/moduleStore';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
@@ -15,8 +16,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, isLoading, fetchUser, token } = useAuthStore();
   const { fetchNotifications } = useNotificationStore();
+  const { activeModule, setActiveModule } = useModuleStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -34,6 +37,28 @@ export default function DashboardLayout({
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Sync pathname to module store - detect which module we're in
+  useEffect(() => {
+    if (!pathname) return;
+
+    // If we're on the dashboard landing page, clear active module
+    if (pathname === '/dashboard') {
+      // Only clear if user explicitly navigated here (not via module click)
+      // We don't auto-clear because the dashboard page itself may have set it
+      return;
+    }
+
+    // Try to auto-detect module from pathname
+    if (!activeModule) {
+      const matchedModule = modules.find(
+        (m) => m.id !== 'super-admin' && m.route !== '/dashboard' && pathname.startsWith(m.route)
+      );
+      if (matchedModule) {
+        setActiveModule(matchedModule.id);
+      }
+    }
+  }, [pathname, activeModule, setActiveModule]);
 
   // Auth check
   useEffect(() => {

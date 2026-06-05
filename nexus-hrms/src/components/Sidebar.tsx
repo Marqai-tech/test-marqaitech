@@ -1,98 +1,88 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiHome,
   FiUsers,
-  FiBriefcase,
-  FiUserPlus,
-  FiClock,
+  FiSliders,
   FiCalendar,
+  FiClock,
+  FiFolder,
   FiDollarSign,
-  FiTrendingUp,
   FiBookOpen,
-  FiPackage,
-  FiFileText,
+  FiTrendingUp,
   FiMap,
-  FiCreditCard,
-  FiWatch,
-  FiAlertCircle,
   FiLogOut,
-  FiBell,
+  FiGitBranch,
+  FiLifeBuoy,
+  FiGrid,
+  FiLock,
   FiSettings,
+  FiBook,
+  FiShield,
   FiChevronLeft,
   FiChevronRight,
-  FiFolder,
-  FiClipboard,
-  FiMail,
-  FiLayers,
-  FiTruck,
-  FiLifeBuoy,
-  FiGitBranch,
-  FiShield,
-  FiSliders,
+  FiArrowLeft,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  roles?: string[]; // If specified, only these roles can see it
-}
-
-const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: <FiHome className="w-5 h-5" /> },
-  { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'] },
-  { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Onboarding', href: '/onboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Attendance', href: '/attendance', icon: <FiClock className="w-5 h-5" /> },
-  { label: 'Leave Management', href: '/leave', icon: <FiCalendar className="w-5 h-5" /> },
-  { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Performance', href: '/performance', icon: <FiTrendingUp className="w-5 h-5" /> },
-  { label: 'Training', href: '/training', icon: <FiBookOpen className="w-5 h-5" /> },
-  { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Documents', href: '/documents', icon: <FiFileText className="w-5 h-5" /> },
-  { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" /> },
-  { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" /> },
-  { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-5 h-5" /> },
-  { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-5 h-5" /> },
-  { label: 'Separation', href: '/separation', icon: <FiLogOut className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Help Desk', href: '/helpdesk', icon: <FiLifeBuoy className="w-5 h-5" /> },
-  { label: 'Clients', href: '/clients', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Offers', href: '/offers', icon: <FiMail className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Salary Structures', href: '/salary-structures', icon: <FiLayers className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'FNF Settlement', href: '/fnf', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-5 h-5" /> },
-  { label: 'Company Mgmt', href: '/company-management', icon: <FiHome className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'RBAC', href: '/rbac', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Masters', href: '/masters', icon: <FiSliders className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-  { label: 'Settings', href: '/settings', icon: <FiSettings className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-];
+import { useModuleStore, modules, type SubMenuItem } from '@/store/moduleStore';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
+// Map icon string keys to actual icon components for sub-menus
+const subMenuIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  FiShield,
+  FiHome,
+  FiSliders,
+  FiUsers,
+  FiCalendar,
+  FiClock,
+  FiFolder,
+  FiDollarSign,
+  FiBookOpen,
+  FiTrendingUp,
+  FiMap,
+  FiLogOut,
+  FiGitBranch,
+  FiLifeBuoy,
+  FiGrid,
+  FiLock,
+  FiSettings,
+  FiBook,
+};
+
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { activeModule, setActiveModule } = useModuleStore();
+
   const userRole = user?.role || 'employee';
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.roles || item.roles.includes(userRole)
-  );
+  // Get the active module config
+  const currentModule = activeModule ? modules.find((m) => m.id === activeModule) : null;
+
+  // Auto-detect module from pathname if activeModule is not set
+  const detectedModule = !activeModule
+    ? modules.find((m) => m.id !== 'super-admin' && pathname?.startsWith(m.route) && m.route !== '/dashboard')
+    : null;
+
+  // Use detected module if activeModule is null but we're on a module route
+  const displayModule = currentModule || detectedModule;
 
   const handleLogout = async () => {
     await logout();
     window.location.href = '/login';
+  };
+
+  const handleBackToHome = () => {
+    setActiveModule(null);
+    router.push('/dashboard');
   };
 
   const getInitials = (name: string) => {
@@ -102,6 +92,29 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const isOnLandingPage = pathname === '/dashboard' && !activeModule;
+
+  // Filter sub-menus based on role
+  const visibleModules = modules.filter(
+    (m) => !m.roles || m.roles.includes(userRole)
+  );
+
+  // Get a small icon for sub-menu items
+  const getSubMenuIcon = (moduleIconKey: string) => {
+    const IconComponent = subMenuIconMap[moduleIconKey];
+    return IconComponent ? <IconComponent className="w-4 h-4" /> : <FiGrid className="w-4 h-4" />;
+  };
+
+  // Deduplicate sub-menus by href for display
+  const getUniqueSubMenus = (subMenus: SubMenuItem[]): SubMenuItem[] => {
+    const seen = new Set<string>();
+    return subMenus.filter((sm) => {
+      if (seen.has(sm.href)) return false;
+      seen.add(sm.href);
+      return true;
+    });
   };
 
   return (
@@ -116,7 +129,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <HiShieldCheck className="w-5 h-5 text-white" />
         </div>
         {!collapsed && (
-          <div className="overflow-hidden">
+          <div className="overflow-hidden flex-1">
             <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
               NEXUS
             </h1>
@@ -127,35 +140,122 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 sidebar-scroll">
-        <ul className="space-y-0.5">
-          {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
-                    isActive
-                      ? 'bg-blue-500/15 text-blue-400'
-                      : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
-                  } ${collapsed ? 'justify-center' : ''}`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  {/* Active indicator bar */}
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
-                  )}
-                  <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-nexus-sidebar-text group-hover:text-slate-200'} transition-colors`}>
-                    {item.icon}
-                  </span>
-                  {!collapsed && (
-                    <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
-                  )}
-                </Link>
+        {!displayModule ? (
+          /* LANDING PAGE MODE - Minimal sidebar */
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/dashboard"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
+                  isOnLandingPage
+                    ? 'bg-blue-500/15 text-blue-400'
+                    : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
+                } ${collapsed ? 'justify-center' : ''}`}
+              >
+                {isOnLandingPage && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
+                )}
+                <span className={`flex-shrink-0 ${isOnLandingPage ? 'text-blue-400' : 'text-nexus-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                  <FiHome className="w-5 h-5" />
+                </span>
+                {!collapsed && <span className="whitespace-nowrap overflow-hidden">Home</span>}
+              </Link>
+            </li>
+
+            {/* Module quick links in collapsed mode or as a compact list */}
+            {!collapsed && (
+              <>
+                <li className="pt-3 pb-1 px-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-nexus-sidebar-text/50">Modules</p>
+                </li>
+                {visibleModules.map((mod) => {
+                  const modIcon = getSubMenuIcon(mod.icon);
+                  const isModActive = pathname?.startsWith(mod.route) && mod.route !== '/dashboard';
+                  return (
+                    <li key={mod.id}>
+                      <button
+                        onClick={() => {
+                          setActiveModule(mod.id);
+                          router.push(mod.route);
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative w-full text-left ${
+                          isModActive
+                            ? 'bg-blue-500/15 text-blue-400'
+                            : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
+                        }`}
+                      >
+                        {isModActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-500 rounded-r-full" />
+                        )}
+                        <span className={`flex-shrink-0 ${isModActive ? 'text-blue-400' : 'text-nexus-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                          {modIcon}
+                        </span>
+                        <span className="whitespace-nowrap overflow-hidden">{mod.name}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </>
+            )}
+          </ul>
+        ) : (
+          /* MODULE MODE - Show module-specific sub-menus */
+          <ul className="space-y-0.5">
+            {/* Back to Home button */}
+            <li>
+              <button
+                onClick={handleBackToHome}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200 w-full group relative ${
+                  collapsed ? 'justify-center' : ''
+                }`}
+              >
+                <span className="flex-shrink-0 group-hover:text-slate-200 transition-colors">
+                  <FiArrowLeft className="w-5 h-5" />
+                </span>
+                {!collapsed && (
+                  <span className="whitespace-nowrap overflow-hidden">Back to Home</span>
+                )}
+              </button>
+            </li>
+
+            {/* Module header */}
+            {!collapsed && (
+              <li className="pt-2 pb-1 px-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-nexus-sidebar-text/50">
+                  {displayModule.name}
+                </p>
               </li>
-            );
-          })}
-        </ul>
+            )}
+
+            {/* Module sub-menu items */}
+            {getUniqueSubMenus(displayModule.subMenus).map((subMenu) => {
+              const isActive = pathname === subMenu.href || pathname?.startsWith(subMenu.href + '/');
+              return (
+                <li key={`${subMenu.label}-${subMenu.href}`}>
+                  <Link
+                    href={subMenu.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
+                      isActive
+                        ? 'bg-blue-500/15 text-blue-400'
+                        : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? subMenu.label : undefined}
+                  >
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
+                    )}
+                    <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-nexus-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                      {getSubMenuIcon(displayModule.icon)}
+                    </span>
+                    {!collapsed && (
+                      <span className="whitespace-nowrap overflow-hidden">{subMenu.label}</span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </nav>
 
       {/* Bottom Section: User Info + Collapse Toggle */}
