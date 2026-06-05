@@ -10,6 +10,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiEye,
+  FiX,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -187,7 +188,6 @@ export default function AttendancePage() {
   const handleOpenView = (record: AttendanceRecord) => {
     setViewingId(record.id);
     setViewingRecord(record);
-    setShowForm(false);
     setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 

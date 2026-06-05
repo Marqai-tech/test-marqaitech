@@ -351,63 +351,63 @@ export default function AssetsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Name</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.name</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.name}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Asset Tag</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.assetTag</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.assetTag}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Category</p>
-                <p className="text-sm text-nexus-text-primary">getCategoryLabel(viewingRecord.category)</p>
+                <p className="text-sm text-nexus-text-primary">{getCategoryLabel(viewingRecord.category)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Brand</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.brand || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.brand || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Model</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.model || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.model || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Serial Number</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.serialNumber || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.serialNumber || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Purchase Date</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.purchaseDate)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.purchaseDate)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Purchase Cost</p>
-                <p className="text-sm text-nexus-text-primary">formatCurrency(viewingRecord.purchaseCost)</p>
+                <p className="text-sm text-nexus-text-primary">{formatCurrency(viewingRecord.purchaseCost)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Current Value</p>
-                <p className="text-sm text-nexus-text-primary">formatCurrency(viewingRecord.currentValue)</p>
+                <p className="text-sm text-nexus-text-primary">{formatCurrency(viewingRecord.currentValue)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Status</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.status.replace(/_/g, ' ')</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.status.replace(/_/g, ' ')}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Condition</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.status</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.status}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Assigned To</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.assignedTo ? `${viewingRecord.assignedTo.firstName} ${viewingRecord.assignedTo.lastName}` : 'Unassigned'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.assignedTo ? `${viewingRecord.assignedTo.firstName} ${viewingRecord.assignedTo.lastName}` : 'Unassigned'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Location</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.location || '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.location || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Warranty Expiry</p>
-                <p className="text-sm text-nexus-text-primary">formatDate(viewingRecord.warrantyExpiry)</p>
+                <p className="text-sm text-nexus-text-primary">{formatDate(viewingRecord.warrantyExpiry)}</p>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Notes</p>
-                <p className="text-sm text-nexus-text-primary whitespace-pre-wrap">viewingRecord.notes || '—'</p>
+                <p className="text-sm text-nexus-text-primary whitespace-pre-wrap">{viewingRecord.notes || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-6 pt-4 border-t border-nexus-border">

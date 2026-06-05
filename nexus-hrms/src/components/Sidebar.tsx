@@ -30,6 +30,8 @@ import {
   FiTruck,
   FiLifeBuoy,
   FiGitBranch,
+  FiShield,
+  FiSliders,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -68,6 +70,9 @@ const navItems: NavItem[] = [
   { label: 'FNF Settlement', href: '/fnf', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
   { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
   { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-5 h-5" /> },
+  { label: 'Company Mgmt', href: '/company-management', icon: <FiHome className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+  { label: 'RBAC', href: '/rbac', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+  { label: 'Masters', href: '/masters', icon: <FiSliders className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
   { label: 'Settings', href: '/settings', icon: <FiSettings className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
 ];
 

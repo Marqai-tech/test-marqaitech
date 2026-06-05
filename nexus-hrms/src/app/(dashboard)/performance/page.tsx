@@ -160,7 +160,7 @@ export default function PerformancePage() {
       if (filterCycle) params.set('reviewCycle', filterCycle);
       params.set('limit', '50');
 
-      const [reviewRes, empRes] = await PromiseAllSettled([
+      const [reviewRes, empRes] = await Promise.allSettled([
         fetch(`/api/performance?${params.toString()}`, { headers }),
         fetch('/api/employees?limit=500', { headers }),
       ]);

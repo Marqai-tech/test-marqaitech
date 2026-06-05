@@ -331,7 +331,7 @@ export default function DocumentsPage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Employee</p>
-                <p className="text-sm text-nexus-text-primary">viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'</p>
+                <p className="text-sm text-nexus-text-primary">{viewingRecord.employee ? `${viewingRecord.employee.firstName} ${viewingRecord.employee.lastName}` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-nexus-text-secondary mb-1">Status</p>

@@ -249,20 +249,20 @@ export async function GET() {
 
     // ============ DESIGNATIONS ============
     const designations = [
-      { id: 'des-cto', title: 'Chief Technology Officer', departmentId: 'dept-eng', level: 10, minSalary: 200000, maxSalary: 350000 },
-      { id: 'des-vp-eng', title: 'VP of Engineering', departmentId: 'dept-eng', level: 9, minSalary: 180000, maxSalary: 280000 },
-      { id: 'des-sr-eng', title: 'Senior Software Engineer', departmentId: 'dept-eng', level: 6, minSalary: 120000, maxSalary: 180000 },
-      { id: 'des-eng', title: 'Software Engineer', departmentId: 'dept-eng', level: 4, minSalary: 80000, maxSalary: 130000 },
-      { id: 'des-jr-eng', title: 'Junior Software Engineer', departmentId: 'dept-eng', level: 2, minSalary: 55000, maxSalary: 80000 },
-      { id: 'des-vp-product', title: 'VP of Product', departmentId: 'dept-product', level: 9, minSalary: 170000, maxSalary: 260000 },
-      { id: 'des-pm', title: 'Product Manager', departmentId: 'dept-product', level: 5, minSalary: 100000, maxSalary: 160000 },
-      { id: 'des-marketing-mgr', title: 'Marketing Manager', departmentId: 'dept-marketing', level: 5, minSalary: 90000, maxSalary: 140000 },
-      { id: 'des-sales-exec', title: 'Sales Executive', departmentId: 'dept-sales', level: 3, minSalary: 60000, maxSalary: 120000 },
-      { id: 'des-hr-admin', title: 'HR Administrator', departmentId: 'dept-hr', level: 5, minSalary: 70000, maxSalary: 110000 },
-      { id: 'des-hr-manager', title: 'HR Manager', departmentId: 'dept-hr', level: 6, minSalary: 90000, maxSalary: 140000 },
-      { id: 'des-finance-analyst', title: 'Financial Analyst', departmentId: 'dept-finance', level: 4, minSalary: 75000, maxSalary: 120000 },
-      { id: 'des-ops-manager', title: 'Operations Manager', departmentId: 'dept-ops', level: 5, minSalary: 80000, maxSalary: 130000 },
-      { id: 'des-sr-designer', title: 'Senior UI/UX Designer', departmentId: 'dept-design', level: 5, minSalary: 95000, maxSalary: 150000 },
+      { id: 'des-cto', title: 'Chief Technology Officer', departmentId: 'dept-eng', level: 10, minSalary: 200000, maxSalary: 350000, companyId: usaCompany.id },
+      { id: 'des-vp-eng', title: 'VP of Engineering', departmentId: 'dept-eng', level: 9, minSalary: 180000, maxSalary: 280000, companyId: usaCompany.id },
+      { id: 'des-sr-eng', title: 'Senior Software Engineer', departmentId: 'dept-eng', level: 6, minSalary: 120000, maxSalary: 180000, companyId: usaCompany.id },
+      { id: 'des-eng', title: 'Software Engineer', departmentId: 'dept-eng', level: 4, minSalary: 80000, maxSalary: 130000, companyId: usaCompany.id },
+      { id: 'des-jr-eng', title: 'Junior Software Engineer', departmentId: 'dept-eng', level: 2, minSalary: 55000, maxSalary: 80000, companyId: usaCompany.id },
+      { id: 'des-vp-product', title: 'VP of Product', departmentId: 'dept-product', level: 9, minSalary: 170000, maxSalary: 260000, companyId: usaCompany.id },
+      { id: 'des-pm', title: 'Product Manager', departmentId: 'dept-product', level: 5, minSalary: 100000, maxSalary: 160000, companyId: usaCompany.id },
+      { id: 'des-marketing-mgr', title: 'Marketing Manager', departmentId: 'dept-marketing', level: 5, minSalary: 90000, maxSalary: 140000, companyId: usaCompany.id },
+      { id: 'des-sales-exec', title: 'Sales Executive', departmentId: 'dept-sales', level: 3, minSalary: 60000, maxSalary: 120000, companyId: usaCompany.id },
+      { id: 'des-hr-admin', title: 'HR Administrator', departmentId: 'dept-hr', level: 5, minSalary: 70000, maxSalary: 110000, companyId: usaCompany.id },
+      { id: 'des-hr-manager', title: 'HR Manager', departmentId: 'dept-hr', level: 6, minSalary: 90000, maxSalary: 140000, companyId: usaCompany.id },
+      { id: 'des-finance-analyst', title: 'Financial Analyst', departmentId: 'dept-finance', level: 4, minSalary: 75000, maxSalary: 120000, companyId: usaCompany.id },
+      { id: 'des-ops-manager', title: 'Operations Manager', departmentId: 'dept-ops', level: 5, minSalary: 80000, maxSalary: 130000, companyId: indiaCompany.id },
+      { id: 'des-sr-designer', title: 'Senior UI/UX Designer', departmentId: 'dept-design', level: 5, minSalary: 95000, maxSalary: 150000, companyId: usaCompany.id },
     ];
 
     for (const des of designations) {
