@@ -29,7 +29,7 @@ const connectionString = resolveDatabaseUrl();
 
 // Cache both the adapter and PrismaClient in the global scope
 // to prevent creating new connections on every request in serverless (Vercel)
-const adapter = globalForPrisma.adapter ?? new PrismaNeon({ connectionString, pool: { max: 5 } });
+const adapter = globalForPrisma.adapter ?? new PrismaNeon({ connectionString });
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== 'production') {
