@@ -80,11 +80,11 @@ export const modules: ModuleConfig[] = [
       { label: 'Dashboard', href: '/recruitment?tab=dashboard' },
       { label: 'Manpower Requisitions', href: '/recruitment?tab=requisitions' },
       { label: 'Job Postings', href: '/recruitment?tab=jobs' },
-      { label: 'Candidates', href: '/recruitment?tab=candidates' },
+      { label: 'Candidate Pipeline', href: '/recruitment?tab=candidates' },
       { label: 'Interview Scheduling', href: '/recruitment?tab=interviews' },
       { label: 'Offer Management', href: '/recruitment?tab=offers' },
       { label: 'Career Page', href: '/recruitment?tab=career' },
-      { label: 'Settings', href: '/recruitment?tab=settings' },
+      { label: 'Recruitment Settings', href: '/recruitment?tab=settings' },
     ],
   },
   {
