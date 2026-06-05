@@ -21,6 +21,7 @@ import {
   FiSettings,
   FiBook,
   FiArrowRight,
+  FiBriefcase,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useModuleStore, modules, type ModuleConfig } from '@/store/moduleStore';
@@ -44,6 +45,7 @@ const iconMap: Record<string, React.ReactNode> = {
   FiLock: <FiLock className="w-8 h-8" />,
   FiSettings: <FiSettings className="w-8 h-8" />,
   FiBook: <FiBook className="w-8 h-8" />,
+  FiBriefcase: <FiBriefcase className="w-8 h-8" />,
 };
 
 function ModuleTile({ module, onClick }: { module: ModuleConfig; onClick: () => void }) {

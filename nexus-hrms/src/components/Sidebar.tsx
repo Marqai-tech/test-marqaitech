@@ -27,6 +27,7 @@ import {
   FiServer,
   FiCreditCard,
   FiFileText,
+  FiBriefcase,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -60,6 +61,7 @@ const subMenuIconMap: Record<string, React.ComponentType<{ className?: string }>
   FiServer,
   FiCreditCard,
   FiFileText,
+  FiBriefcase,
 };
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
