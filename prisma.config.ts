@@ -6,6 +6,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || "",
+    // Neon Vercel integration sets POSTGRES_PRISMA_URL and POSTGRES_URL
+    url: process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL || "",
   },
 });
