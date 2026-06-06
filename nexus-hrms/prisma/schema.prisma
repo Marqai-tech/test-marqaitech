@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ============ SaaS MULTI-TENANT CORE ============
@@ -14,12 +14,42 @@ model Tenant {
   name        String
   slug        String   @unique
   domain      String?
-  plan        String   @default("starter") // starter, professional, enterprise
-  status      String   @default("active")
-  logo        String?
+
+  // Tenant type classification
+  tenantType  String   @default("single_company") // single_company, multi_company_group, staffing_company, enterprise_group, white_label_partner
+
+  // Company details
+  companyName String?
+  legalName   String?
+  industry    String?
+
+  // Location
   country     String?
   currency    String   @default("USD")
+
+  // Admin info
+  adminName   String?
+  adminEmail  String?
+  adminMobile String?
+
+  // Subscription
+  plan        String   @default("starter") // starter, professional, enterprise, global_enterprise, staffing_suite, white_label
+  employeeLimit Int    @default(50)
+  userLimit     Int    @default(10)
+  storageLimit  Int    @default(5) // GB
+  aiCreditLimit Int    @default(100)
+  trialStartDate  DateTime?
+  trialEndDate    DateTime?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  billingCycle  String  @default("monthly") // monthly, annual
+  paymentStatus String  @default("pending") // pending, paid, overdue, cancelled
+
+  // Status
+  status      String   @default("active") // active, suspended, trial, expired
+  logo        String?
   timezone    String   @default("UTC")
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -354,25 +384,79 @@ model EmployeeSkill {
 
 // ============ RECRUITMENT ============
 
+model ManpowerRequisition {
+  id              String @id @default(cuid())
+  requisitionId   String @unique // auto-generated: REQ-YYYY-NNNN
+  companyId       String?
+  branchId        String?
+  departmentId    String?
+  designationId   String?
+  hiringManagerId String?
+
+  positionType    String @default("new") // new, replacement
+  replacementEmployeeId String?
+  numberOfOpenings Int @default(1)
+  employmentType  String @default("full-time") // full-time, part-time, contract, internship, temporary
+  skillsRequired  String?
+  experienceRequired String?
+  qualification   String?
+  salaryBudget    String?
+  projectId       String?
+  clientId        String?
+  priority        String @default("medium") // low, medium, high, critical
+  expectedJoiningDate DateTime?
+  justification   String?
+
+  approvalStatus  String @default("draft") // draft, pending_manager, pending_hr, pending_budget, approved, rejected, cancelled
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  requestedBy     String?
+  status          String @default("active") // active, fulfilled, cancelled
+
+  jobPostingId    String? // linked job posting after approval
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([approvalStatus])
+  @@index([status])
+}
+
 model JobPosting {
-  id          String @id @default(cuid())
-  title       String
-  departmentId String
-  department  Department @relation(fields: [departmentId], references: [id])
+  id              String @id @default(cuid())
+  title           String
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
 
-  position    String
-  location    String?
-  type        String @default("full-time") // full-time, part-time, contract, internship
-  experience  String?
-  salary      String?
-  description String
-  requirements String?
-  status      String @default("open") // open, closed, on_hold, filled
-  postedDate  DateTime @default(now())
-  closingDate DateTime?
-  vacancies   Int @default(1)
+  position        String
+  location        String?
+  type            String @default("full-time") // full-time, part-time, contract, internship
+  experience      String?
+  salary          String?
+  description     String
+  requirements    String?
+  status          String @default("draft") // draft, pending_approval, open, closed, on_hold, filled
+  approvalStatus  String @default("pending") // pending, approved, rejected
+  approvedBy      String?
+  approvedAt      DateTime?
+  postedDate      DateTime?
+  closingDate     DateTime?
+  vacancies       Int @default(1)
 
-  applications JobApplication[]
+  // Source tracking
+  isInternal      Boolean @default(false)
+  isExternal      Boolean @default(true)
+  externalPortals String? // JSON: ["linkedin","indeed","naukri"]
+  vendorId        String?
+  subVendorId     String?
+
+  // Requisition link
+  requisitionId   String?
+
+  applications    JobApplication[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -382,30 +466,56 @@ model JobPosting {
 }
 
 model JobApplication {
-  id           String @id @default(cuid())
-  jobPostingId String
-  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  id              String @id @default(cuid())
+  jobPostingId    String
+  jobPosting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
 
-  candidateName  String
-  candidateEmail String
-  candidatePhone String?
-  resume         String?
-  coverLetter    String?
-  source         String @default("website") // website, referral, linkedin, indeed, other
-  status         String @default("applied") // applied, screening, interview, offered, hired, rejected
-  appliedDate    DateTime @default(now())
-  rating         Int?
-  notes          String?
-  interviewDate  DateTime?
-  expectedSalary String?
+  // Candidate info (enhanced)
+  candidateId     String? // link to Candidate model if exists
+  candidateName   String
+  candidateEmail  String
+  candidatePhone  String?
+  resume          String?
+  coverLetter     String?
+  source          String @default("website") // website, referral, linkedin, indeed, naukri, vendor, internal, other
+  vendorId        String?
+  subVendorId     String?
 
-  interviews Interview[]
+  // Candidate details
+  skills          String? // JSON array of skills
+  experience      String?
+  currentCtc      String?
+  expectedCtc     String?
+  noticePeriod    String?
+  currentLocation String?
+
+  // AI fields
+  aiResumeScore   Float?
+  aiInterviewScore Float?
+  aiScreeningResult String? // JSON with detailed AI analysis
+
+  // Status tracking
+  status          String @default("applied") // applied, screening, ai_screening, ai_interview, shortlisted, interview, offered, hired, rejected, on_hold, withdrawn
+  appliedDate     DateTime @default(now())
+  rating          Int?
+  notes           String?
+  interviewDate   DateTime?
+  expectedSalary  String?
+
+  // Workflow stage tracking
+  recruiterStatus String @default("new") // new, screening, shortlisted, interview_scheduled, offered, rejected, on_hold
+  clientStatus    String? // pending, shortlisted, interview_scheduled, selected, rejected
+  offerStatus     String? // draft, pending_approval, approved, released, accepted, rejected, withdrawn
+
+  interviews      Interview[]
+  offers          Offer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([jobPostingId])
   @@index([status])
+  @@index([candidateId])
 }
 
 model Interview {
@@ -413,23 +523,88 @@ model Interview {
   jobApplicationId String
   jobApplication  JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
 
-  type       String @default("technical") // technical, hr, managerial, final
-  date       DateTime
-  time       String?
-  duration   Int?
-  location   String?
-  meetingUrl String?
-  interviewer String?
-  status     String @default("scheduled") // scheduled, completed, cancelled, rescheduled
-  feedback   String?
-  score      Int?
-  aiScore    Int?
-  aiFeedback String?
+  round           Int @default(1)
+  type            String @default("technical") // ai_screening, technical, hr, managerial, client, final
+  title           String? // e.g. "Technical Round 1", "AI Pre-screening"
+  date            DateTime
+  time            String?
+  duration        Int? // in minutes
+  location        String?
+  meetingUrl      String?
+
+  // Interviewer info
+  interviewerIds  String? // JSON array of employee IDs
+  interviewerNames String? // JSON array of names for display
+
+  status          String @default("scheduled") // scheduled, in_progress, completed, cancelled, rescheduled, no_show
+  feedback        String?
+  score           Int?
+  recommendation  String? // strong_yes, yes, no, strong_no
+  aiScore         Int?
+  aiFeedback      String?
+  aiInterviewUrl  String? // link to AI interview recording
+
+  rescheduledFrom DateTime?
+  rescheduledReason String?
+  cancellationReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([jobApplicationId])
+  @@index([status])
+  @@index([date])
+}
+
+model Offer {
+  id              String @id @default(cuid())
+  jobApplicationId String
+  jobApplication  JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+
+  offerNumber     String @unique // auto-generated: OFR-YYYY-NNNN
+  candidateName   String
+  candidateEmail  String
+  jobTitle        String?
+  departmentId    String?
+
+  // Compensation
+  offeredSalary   Float?
+  currency        String @default("USD")
+  salaryBreakup   String? // JSON: { basic, hra, da, allowances, deductions }
+  joiningBonus    Float?
+  retentionBonus  Float?
+  variablePay     Float?
+
+  // Dates
+  offerDate       DateTime @default(now())
+  joiningDate     DateTime?
+  offerExpiryDate DateTime?
+
+  // Approval workflow
+  approvalStatus  String @default("draft") // draft, pending_hr, pending_finance, pending_management, approved, rejected
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  // Candidate response
+  candidateResponse String? // accepted, rejected, negotiation, pending
+  responseDate    DateTime?
+  negotiationNotes String?
+
+  status          String @default("draft") // draft, pending_approval, approved, released, accepted, rejected, withdrawn, expired
+
+  // Conversion
+  convertedToEmployee Boolean @default(false)
+  employeeId      String?
+
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([jobApplicationId])
+  @@index([status])
+  @@index([approvalStatus])
 }
 
 // ============ ONBOARDING ============
@@ -1077,47 +1252,6 @@ model Project {
   description String?
   budget      Float?
   manager     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status])
-}
-
-// ============ REQUISITIONS ============
-
-model Requisition {
-  id           String @id @default(cuid())
-  title        String
-  departmentId String?
-  position     String?
-  vacancies    Int @default(1)
-  priority     String @default("medium")
-  status       String @default("draft")
-  requestedBy  String?
-  description  String?
-  deadline     DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status])
-}
-
-// ============ OFFERS ============
-
-model Offer {
-  id             String @id @default(cuid())
-  candidateName  String
-  candidateEmail String
-  jobTitle       String?
-  departmentId   String?
-  offeredSalary  Float?
-  currency       String @default("USD")
-  offerDate      DateTime @default(now())
-  joiningDate    DateTime?
-  status         String @default("draft")
-  notes          String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

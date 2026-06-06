@@ -15,6 +15,28 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// Retry helper for Neon cold start resilience
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1000): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      const isConnectionError = error instanceof Error && (
+        error.message.includes('connection') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ECONNRESET') ||
+        error.message.includes('fetch failed')
+      );
+      if (attempt < retries && isConnectionError) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -27,10 +49,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { tenant: true },
-    });
+    const user = await withRetry(() =>
+      prisma.user.findUnique({
+        where: { email },
+        include: { tenant: true },
+      })
+    );
 
     if (!user) {
       return NextResponse.json(

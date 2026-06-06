@@ -109,17 +109,16 @@ export default function RequisitionsPage() {
       setLoading(true);
       const headers = getAuthHeaders();
       const [reqRes, deptRes] = await Promise.all([
-        fetch('/api/requisitions?limit=100', { headers }),
-        fetch('/api/employees?limit=1', { headers }),
+        fetch('/api/manpower-requisitions?limit=100', { headers }),
+        fetch('/api/departments?limit=100', { headers }),
       ]);
       if (reqRes.ok) {
         const data = await reqRes.json();
         setRequisitions(data.requisitions || []);
       }
-      // Fetch departments from seed or just use empty array
-      // We'll store dept names locally since departments are complex
       if (deptRes.ok) {
-        setDepartments([]);
+        const deptData = await deptRes.json();
+        setDepartments(deptData.departments || []);
       }
     } catch (err) {
       console.error(err);
@@ -193,7 +192,7 @@ export default function RequisitionsPage() {
         deadline: form.deadline || null,
       };
 
-      const url = editingId ? `/api/requisitions/${editingId}` : '/api/requisitions';
+      const url = editingId ? `/api/manpower-requisitions/${editingId}` : '/api/manpower-requisitions';
       const method = editingId ? 'PATCH' : 'POST';
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -210,7 +209,7 @@ export default function RequisitionsPage() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/requisitions/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/manpower-requisitions/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Requisition deleted successfully');
       setDeleteConfirmId(null);

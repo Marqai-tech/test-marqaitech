@@ -24,17 +24,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const body = await request.json();
     const data: Record<string, unknown> = {};
-    if (body.title !== undefined) data.title = body.title;
     if (body.departmentId !== undefined) data.departmentId = body.departmentId || null;
-    if (body.position !== undefined) data.position = body.position || null;
-    if (body.vacancies !== undefined) data.vacancies = parseInt(body.vacancies);
+    if (body.designationId !== undefined) data.designationId = body.designationId || null;
+    if (body.companyId !== undefined) data.companyId = body.companyId || null;
+    if (body.branchId !== undefined) data.branchId = body.branchId || null;
+    if (body.hiringManagerId !== undefined) data.hiringManagerId = body.hiringManagerId || null;
+    if (body.positionType !== undefined) data.positionType = body.positionType;
+    if (body.numberOfOpenings !== undefined) data.numberOfOpenings = parseInt(body.numberOfOpenings);
+    if (body.employmentType !== undefined) data.employmentType = body.employmentType;
+    if (body.skillsRequired !== undefined) data.skillsRequired = body.skillsRequired || null;
+    if (body.experienceRequired !== undefined) data.experienceRequired = body.experienceRequired || null;
+    if (body.qualification !== undefined) data.qualification = body.qualification || null;
+    if (body.salaryBudget !== undefined) data.salaryBudget = body.salaryBudget || null;
     if (body.priority !== undefined) data.priority = body.priority;
+    if (body.expectedJoiningDate !== undefined) data.expectedJoiningDate = body.expectedJoiningDate ? new Date(body.expectedJoiningDate) : null;
+    if (body.justification !== undefined) data.justification = body.justification || null;
+    if (body.approvalStatus !== undefined) data.approvalStatus = body.approvalStatus;
     if (body.status !== undefined) data.status = body.status;
     if (body.requestedBy !== undefined) data.requestedBy = body.requestedBy || null;
-    if (body.description !== undefined) data.description = body.description || null;
-    if (body.deadline !== undefined) data.deadline = body.deadline ? new Date(body.deadline) : null;
 
-    const requisition = await prisma.requisition.update({ where: { id }, data });
+    const requisition = await prisma.manpowerRequisition.update({ where: { id }, data });
     return NextResponse.json({ requisition }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update requisition error:', error);
@@ -50,7 +59,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    await prisma.requisition.delete({ where: { id } });
+    await prisma.manpowerRequisition.delete({ where: { id } });
     return NextResponse.json({ message: 'Requisition deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Delete requisition error:', error);
