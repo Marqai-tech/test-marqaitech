@@ -22,13 +22,23 @@ export async function GET(request: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const categories = await prisma.docCategory.findMany({
-      where: { status: 'active' },
-      include: {
-        _count: { select: { articles: { where: { status: 'published' } } } },
-      },
-      orderBy: { sortOrder: 'asc' },
-    });
+    let categories;
+    try {
+      categories = await prisma.docCategory.findMany({
+        where: { status: 'active' },
+        include: {
+          _count: { select: { articles: { where: { status: 'published' } } } },
+        },
+        orderBy: { sortOrder: 'asc' },
+      });
+    } catch (dbError) {
+      // Table might not exist yet - return empty array to trigger auto-initialization
+      const errMsg = dbError instanceof Error ? dbError.message : '';
+      if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('table')) {
+        return NextResponse.json([], { headers: corsHeaders() });
+      }
+      throw dbError;
+    }
 
     const result = categories.map((cat) => ({
       id: cat.id,
@@ -44,10 +54,8 @@ export async function GET(request: Request) {
     return NextResponse.json(result, { headers: corsHeaders() });
   } catch (error) {
     console.error('Error fetching doc categories:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500, headers: corsHeaders() }
-    );
+    // Return empty array instead of error to allow auto-initialization
+    return NextResponse.json([], { headers: corsHeaders() });
   }
 }
 

@@ -42,8 +42,12 @@ export async function GET(request: Request) {
 
     // Filter by category slug
     if (categorySlug) {
-      const cat = await prisma.docCategory.findUnique({ where: { slug: categorySlug } });
-      if (cat) where.categoryId = cat.id;
+      try {
+        const cat = await prisma.docCategory.findUnique({ where: { slug: categorySlug } });
+        if (cat) where.categoryId = cat.id;
+      } catch {
+        // Table might not exist yet
+      }
     }
 
     if (docType) where.docType = docType;
@@ -57,14 +61,24 @@ export async function GET(request: Request) {
       ];
     }
 
-    const articles = await prisma.docArticle.findMany({
-      where,
-      include: {
-        category: { select: { name: true, slug: true, icon: true, color: true } },
-        accessRules: true,
-      },
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-    });
+    let articles;
+    try {
+      articles = await prisma.docArticle.findMany({
+        where,
+        include: {
+          category: { select: { name: true, slug: true, icon: true, color: true } },
+          accessRules: true,
+        },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      });
+    } catch (dbError) {
+      // Table might not exist yet - return empty array to trigger auto-initialization
+      const errMsg = dbError instanceof Error ? dbError.message : '';
+      if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('table')) {
+        return NextResponse.json([], { headers: corsHeaders() });
+      }
+      throw dbError;
+    }
 
     // Filter by access rules for non-super_admin users
     const filteredArticles = isSuperAdmin
@@ -103,10 +117,8 @@ export async function GET(request: Request) {
     return NextResponse.json(result, { headers: corsHeaders() });
   } catch (error) {
     console.error('Error fetching doc articles:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500, headers: corsHeaders() }
-    );
+    // Return empty array instead of error to allow auto-initialization
+    return NextResponse.json([], { headers: corsHeaders() });
   }
 }
 

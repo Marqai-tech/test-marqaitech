@@ -179,6 +179,8 @@ export default function DocsPage() {
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [accessRules, setAccessRules] = useState<DocAccessRule[]>([]);
   const [editingArticle, setEditingArticle] = useState<ArticleDetail | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initAttempted, setInitAttempted] = useState(false);
 
   // Article editor form state
   const [articleForm, setArticleForm] = useState({
@@ -282,11 +284,43 @@ export default function DocsPage() {
     }
   }, [token]);
 
+  // Auto-initialize docs hub if categories are empty
+  const autoInitialize = useCallback(async () => {
+    if (!token) return;
+    setIsInitializing(true);
+    setInitAttempted(true);
+    try {
+      const res = await fetch('/api/docs/init', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.initialized && (data.articlesCreated > 0 || data.totalArticles > 0)) {
+          toast.success(`Documentation Hub initialized: ${data.categories} categories, ${data.totalArticles || data.articlesCreated} articles`);
+        }
+      }
+    } catch {
+      // Silently fail - user can try manual seed later
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [token]);
+
   // Fetch categories on mount
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
     fetchCategories();
   }, [fetchCategories]);
+
+  // Auto-initialize when categories come back empty
+  useEffect(() => {
+    if (!isLoading && categories.length === 0 && token && !initAttempted) {
+      autoInitialize().then(() => {
+        fetchCategories();
+        fetchArticles();
+      });
+    }
+  }, [categories.length, isLoading, token, initAttempted, autoInitialize, fetchCategories, fetchArticles]);
 
   // Fetch articles when filters change
   useEffect(() => {
@@ -538,10 +572,10 @@ export default function DocsPage() {
             {isSuperAdmin && (
               <>
                 <button
-                  onClick={handleSeedData}
+                  onClick={async () => { await autoInitialize(); fetchCategories(); fetchArticles(); }}
                   className="px-3 py-2 rounded-lg bg-white/15 text-white text-sm font-medium hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
                 >
-                  Seed Data
+                  {isInitializing ? 'Initializing...' : 'Seed Data'}
                 </button>
                 <button
                   onClick={() => setShowCategoryEditor(true)}
@@ -1101,7 +1135,7 @@ export default function DocsPage() {
           ) : !showArticleEditor && !showCategoryEditor && !showAccessPanel ? (
             /* Article List View */
             <>
-              {isLoading ? (
+              {isLoading || isInitializing ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="nexus-card p-5 animate-pulse">
@@ -1110,6 +1144,13 @@ export default function DocsPage() {
                       <div className="h-4 bg-slate-100 rounded w-2/3" />
                     </div>
                   ))}
+                  {isInitializing && (
+                    <div className="nexus-card p-6 text-center border-violet-200">
+                      <div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-nexus-text-secondary font-medium">Initializing Documentation Hub...</p>
+                      <p className="text-xs text-nexus-text-muted mt-1">Creating tables and seeding sample documentation</p>
+                    </div>
+                  )}
                 </div>
               ) : displayArticles.length === 0 ? (
                 <div className="nexus-card p-12 text-center">
@@ -1120,10 +1161,10 @@ export default function DocsPage() {
                   </p>
                   {isSuperAdmin && (
                     <button
-                      onClick={handleSeedData}
+                      onClick={async () => { await autoInitialize(); fetchCategories(); fetchArticles(); }}
                       className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-bold hover:bg-violet-700"
                     >
-                      Seed Sample Documentation
+                      Initialize Documentation Hub
                     </button>
                   )}
                 </div>
