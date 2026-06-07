@@ -10,7 +10,8 @@ import {
   FiMessageCircle, FiGitBranch, FiShield, FiBarChart2,
   FiSettings, FiPackage, FiMap, FiCreditCard,
   FiWatch, FiAlertCircle, FiTruck, FiPercent, FiLayers,
-  FiSliders, FiFileText, FiBell, FiZap
+  FiSliders, FiFileText, FiBell, FiZap, FiHeart, FiTarget,
+  FiServer
 } from 'react-icons/fi';
 import { HiShieldCheck, HiSparkles, HiCollection } from 'react-icons/hi';
 
@@ -28,6 +29,8 @@ interface ModuleCard {
 const allModules: ModuleCard[] = [
   // Platform Admin
   { key: 'super-admin', label: 'Super Admin', icon: <HiCollection className="w-6 h-6" />, description: 'Platform management, tenants & subscriptions', gradient: 'from-amber-500 to-orange-500', href: '/super-admin', badge: 'SaaS', category: 'Platform' },
+  { key: 'ai-admin', label: 'AI Admin Console', icon: <FiZap className="w-6 h-6" />, description: 'AI model config, prompts & monitoring', gradient: 'from-amber-500 to-orange-500', href: '/ai-admin', badge: 'AI', category: 'Platform' },
+  { key: 'tenant-admin', label: 'Tenant Admin', icon: <FiServer className="w-6 h-6" />, description: 'Multi-tenant management & provisioning', gradient: 'from-teal-500 to-cyan-500', href: '/tenant-admin', badge: 'SaaS', category: 'Platform' },
 
   // Core HR
   { key: 'dashboard', label: 'Dashboard', icon: <FiHome className="w-6 h-6" />, description: 'HR overview, analytics & quick actions', gradient: 'from-blue-500 to-cyan-500', href: '/dashboard', category: 'Core HR' },
@@ -42,6 +45,7 @@ const allModules: ModuleCard[] = [
   { key: 'ai-interview', label: 'AI Interview', icon: <HiSparkles className="w-6 h-6" />, description: 'AI-powered interview sessions & scoring', gradient: 'from-purple-500 to-fuchsia-500', href: '/ai-assistant', badge: 'AI', category: 'Talent Acquisition' },
 
   // Employee Lifecycle
+  { key: 'preboarding', label: 'Preboarding', icon: <FiUserPlus className="w-6 h-6" />, description: 'Pre-boarding tasks & new hire portal', gradient: 'from-green-400 to-emerald-500', href: '/preboarding', category: 'Lifecycle' },
   { key: 'onboarding', label: 'Onboarding', icon: <FiUserPlus className="w-6 h-6" />, description: 'Pre-boarding, checklist & induction', gradient: 'from-green-500 to-emerald-500', href: '/onboarding', category: 'Lifecycle' },
   { key: 'attendance', label: 'Attendance', icon: <FiClock className="w-6 h-6" />, description: 'Mark attendance, shifts & regularization', gradient: 'from-teal-500 to-cyan-500', href: '/attendance', category: 'Lifecycle' },
   { key: 'leave', label: 'Leave Management', icon: <FiCalendar className="w-6 h-6" />, description: 'Leave requests, balance & calendar', gradient: 'from-emerald-500 to-green-500', href: '/leave', category: 'Lifecycle' },
@@ -55,6 +59,8 @@ const allModules: ModuleCard[] = [
   // Performance & Growth
   { key: 'performance', label: 'Performance', icon: <FiTrendingUp className="w-6 h-6" />, description: 'Reviews, goals & feedback cycles', gradient: 'from-amber-500 to-yellow-500', href: '/performance', category: 'Growth' },
   { key: 'training', label: 'Training', icon: <FiBookOpen className="w-6 h-6" />, description: 'Courses, learning paths & certifications', gradient: 'from-blue-500 to-indigo-500', href: '/training', category: 'Growth' },
+  { key: 'engagement', label: 'Engagement', icon: <FiHeart className="w-6 h-6" />, description: 'Employee engagement surveys & insights', gradient: 'from-pink-500 to-rose-500', href: '/engagement', category: 'Growth' },
+  { key: 'succession', label: 'Succession Planning', icon: <FiTarget className="w-6 h-6" />, description: 'Talent pipeline & succession mapping', gradient: 'from-indigo-500 to-violet-500', href: '/succession', category: 'Growth' },
 
   // Operations
   { key: 'projects', label: 'Projects', icon: <FiFolder className="w-6 h-6" />, description: 'Project list, kanban board & milestones', gradient: 'from-indigo-500 to-blue-500', href: '/projects', category: 'Operations' },

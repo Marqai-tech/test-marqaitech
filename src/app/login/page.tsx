@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -15,6 +15,35 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
+
+  const demoAccounts = [
+    { role: 'Super Admin', email: 'admin@nexushrms.com', password: 'admin123', color: 'bg-amber-500' },
+    { role: 'HR Admin', email: 'hr@nexushrms.com', password: 'hr123', color: 'bg-blue-500' },
+    { role: 'Manager', email: 'manager@nexushrms.com', password: 'manager123', color: 'bg-violet-500' },
+    { role: 'Employee', email: 'employee@nexushrms.com', password: 'employee123', color: 'bg-emerald-500' },
+  ];
+
+  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const success = await login(demoEmail, demoPassword);
+      if (success) {
+        toast.success('Welcome back! Redirecting...');
+        router.push('/home');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +221,37 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+
+            {/* Demo Accounts */}
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                className="w-full flex items-center justify-center gap-1.5 text-xs text-nexus-text-muted hover:text-nexus-text-secondary transition-colors py-1"
+              >
+                {showDemoAccounts ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
+                Demo Accounts
+              </button>
+              {showDemoAccounts && (
+                <div className="mt-3 space-y-2 animate-slide-in-down">
+                  <p className="text-[11px] text-nexus-text-muted text-center font-medium">Quick Access Demo Accounts</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {demoAccounts.map((account) => (
+                      <button
+                        key={account.role}
+                        type="button"
+                        onClick={() => handleDemoLogin(account.email, account.password)}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 p-2.5 rounded-lg border border-nexus-border bg-slate-50/50 hover:bg-slate-100 hover:border-slate-300 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full ${account.color} shrink-0`} />
+                        <span className="text-xs font-semibold text-nexus-text-primary truncate">{account.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </form>
 
           {/* Footer */}
