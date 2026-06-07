@@ -61,39 +61,56 @@ export async function POST(request: Request) {
       tenantId: user.tenantId,
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() },
-    });
+    // Non-critical operations - don't block login if these fail
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() },
+      });
+    } catch (e) {
+      console.error('Failed to update lastLogin:', e);
+    }
 
-    await prisma.loginActivity.create({
-      data: {
+    try {
+      await prisma.loginActivity.create({
+        data: {
+          userId: user.id,
+          action: 'login',
+          ip: request.headers.get('x-forwarded-for') || null,
+          userAgent: request.headers.get('user-agent') || null,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to create loginActivity:', e);
+    }
+
+    try {
+      await createNotification({
+        tenantId: user.tenantId,
         userId: user.id,
-        action: 'login',
-        ip: request.headers.get('x-forwarded-for') || null,
-        userAgent: request.headers.get('user-agent') || null,
-      },
-    });
+        title: 'Login Successful',
+        message: `Welcome back, ${user.name}! You have successfully logged in.`,
+        type: 'login',
+        category: 'auth',
+      });
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
 
-    await createNotification({
-      tenantId: user.tenantId,
-      userId: user.id,
-      title: 'Login Successful',
-      message: `Welcome back, ${user.name}! You have successfully logged in.`,
-      type: 'login',
-      category: 'auth',
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        action: 'LOGIN',
-        module: 'auth',
-        details: `User ${user.email} logged in`,
-        ip: request.headers.get('x-forwarded-for') || null,
-        userAgent: request.headers.get('user-agent') || null,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'LOGIN',
+          module: 'auth',
+          details: `User ${user.email} logged in`,
+          ip: request.headers.get('x-forwarded-for') || null,
+          userAgent: request.headers.get('user-agent') || null,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to create auditLog:', e);
+    }
 
     return NextResponse.json(
       {
@@ -112,7 +129,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers: corsHeaders() }
     );
   }

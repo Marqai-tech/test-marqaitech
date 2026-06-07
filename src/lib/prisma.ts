@@ -17,8 +17,19 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+function getPrismaClient(): PrismaClient {
+  if (process.env.NODE_ENV !== 'production') {
+    if (!globalForPrisma.prisma) {
+      globalForPrisma.prisma = createPrismaClient();
+    }
+    return globalForPrisma.prisma;
+  }
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+  // In production (Vercel serverless), create a new client each time
+  // to avoid connection pool issues with Neon serverless
+  return createPrismaClient();
+}
+
+export const prisma = getPrismaClient();
 
 export default prisma;
