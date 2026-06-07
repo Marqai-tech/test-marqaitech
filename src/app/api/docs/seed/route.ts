@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
@@ -258,7 +258,7 @@ Every API route follows this pattern:
 \`\`\`typescript
 const token = getTokenFromHeaders(request);
 if (!token) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-const payload = verifyToken(token);
+const payload = await verifyToken(token);
 if (!payload) return Response.json({ error: 'Invalid token' }, { status: 401 });
 const user = await prisma.user.findUnique({ where: { id: payload.userId } });
 \`\`\`

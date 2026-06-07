@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
@@ -122,7 +122,7 @@ export async function DELETE(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
