@@ -34,15 +34,15 @@ const allModules: ModuleCard[] = [
 
   // Core HR
   { key: 'dashboard', label: 'Dashboard', icon: <FiHome className="w-6 h-6" />, description: 'HR overview, analytics & quick actions', gradient: 'from-blue-500 to-cyan-500', href: '/dashboard', category: 'Core HR' },
-  { key: 'company-management', label: 'Company Management', icon: <FiLayers className="w-6 h-6" />, description: 'Branches, departments & designations', gradient: 'from-teal-500 to-emerald-500', href: '/employees', category: 'Core HR' },
+  { key: 'company-management', label: 'Company Management', icon: <FiLayers className="w-6 h-6" />, description: 'Branches, departments & designations', gradient: 'from-teal-500 to-emerald-500', href: '/company', category: 'Core HR' },
   { key: 'employees', label: 'Employees', icon: <FiUsers className="w-6 h-6" />, description: 'Directory, org chart & employee lifecycle', gradient: 'from-cyan-500 to-blue-500', href: '/employees', category: 'Core HR' },
 
   // Talent Acquisition
   { key: 'recruitment', label: 'Recruitment', icon: <FiBriefcase className="w-6 h-6" />, description: 'Requisitions, job postings & offers', gradient: 'from-violet-500 to-purple-500', href: '/recruitment', badge: 'AI', category: 'Talent Acquisition' },
   { key: 'requisitions', label: 'Requisitions', icon: <FiFileText className="w-6 h-6" />, description: 'Job requisitions & approval workflows', gradient: 'from-indigo-500 to-violet-500', href: '/requisitions', category: 'Talent Acquisition' },
   { key: 'offers', label: 'Offers', icon: <FiStar className="w-6 h-6" />, description: 'Offer letters & acceptance tracking', gradient: 'from-yellow-500 to-amber-500', href: '/offers', category: 'Talent Acquisition' },
-  { key: 'job-portal', label: 'Job Portal', icon: <FiGlobe className="w-6 h-6" />, description: 'Public career site & applications', gradient: 'from-sky-500 to-blue-500', href: '/recruitment', badge: 'Portal', category: 'Talent Acquisition' },
-  { key: 'ai-interview', label: 'AI Interview', icon: <HiSparkles className="w-6 h-6" />, description: 'AI-powered interview sessions & scoring', gradient: 'from-purple-500 to-fuchsia-500', href: '/ai-assistant', badge: 'AI', category: 'Talent Acquisition' },
+  { key: 'job-portal', label: 'Job Portal', icon: <FiGlobe className="w-6 h-6" />, description: 'Public career site & applications', gradient: 'from-sky-500 to-blue-500', href: '/job-portal', badge: 'Portal', category: 'Talent Acquisition' },
+  { key: 'ai-interview', label: 'AI Interview', icon: <HiSparkles className="w-6 h-6" />, description: 'AI-powered interview sessions & scoring', gradient: 'from-purple-500 to-fuchsia-500', href: '/ai-interview', badge: 'AI', category: 'Talent Acquisition' },
 
   // Employee Lifecycle
   { key: 'preboarding', label: 'Preboarding', icon: <FiUserPlus className="w-6 h-6" />, description: 'Pre-boarding tasks & new hire portal', gradient: 'from-green-400 to-emerald-500', href: '/preboarding', category: 'Lifecycle' },
