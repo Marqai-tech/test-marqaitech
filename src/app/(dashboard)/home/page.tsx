@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuthStore } from '@/store/authStore';
 import {
   FiHome, FiSearch, FiUsers, FiBriefcase, FiGlobe, FiStar,
@@ -11,7 +12,7 @@ import {
   FiSettings, FiPackage, FiMap, FiCreditCard,
   FiWatch, FiAlertCircle, FiTruck, FiPercent, FiLayers,
   FiSliders, FiFileText, FiBell, FiZap, FiHeart, FiTarget,
-  FiServer
+  FiServer, FiArrowRight, FiChevronRight
 } from 'react-icons/fi';
 import { HiShieldCheck, HiSparkles, HiCollection } from 'react-icons/hi';
 
@@ -140,30 +141,93 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="nexus-card p-6 bg-gradient-to-r from-blue-500 via-violet-500 to-purple-600 border-0 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-              <HiShieldCheck className="w-8 h-8 text-white" />
+      {/* ===== HERO BANNER ===== */}
+      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-blue-500/10">
+        {/* Deep gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
+        
+        {/* Animated mesh pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.07]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }} />
+        
+        {/* Glowing orbs */}
+        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-violet-500/20 rounded-full blur-[80px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px]" />
+        
+        {/* Content */}
+        <div className="relative z-10 px-8 py-8">
+          {/* Top row: Logo + Company Name */}
+          <div className="flex items-center gap-5 mb-6">
+            {/* NEXUS Logo Shield */}
+            <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-white/10">
+              <svg viewBox="0 0 30 30" className="w-8 h-8" fill="none">
+                <path d="M15 2L3 8V16C3 24 8.1 31.2 15 33C21.9 31.2 27 24 27 16V8L15 2Z" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="0.5"/>
+                <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
+              </svg>
             </div>
+            
+            {/* Company Name + Product */}
             <div>
-              <h1 className="text-2xl font-bold text-white">
-                {greeting}, {firstName}!
-              </h1>
-              <p className="text-blue-100 mt-0.5 text-sm">Welcome to NEXUS HRMS. Select a module to get started.</p>
+              <div className="flex items-baseline gap-2">
+                <h1 className="text-3xl font-extrabold text-white tracking-tight">
+                  NEXUS
+                </h1>
+                <span className="text-lg font-bold text-blue-300 tracking-wide">HRMS</span>
+              </div>
+              <p className="text-blue-200/60 text-xs font-medium tracking-widest uppercase mt-0.5">
+                Intelligent Human Resource Management
+              </p>
+            </div>
+
+            {/* Right side: Company badge */}
+            <div className="ml-auto hidden md:flex items-center gap-3">
+              <div className="h-10 w-px bg-white/10" />
+              <div className="text-right">
+                <p className="text-xs text-blue-200/50 font-medium uppercase tracking-wider">Organization</p>
+                <p className="text-sm font-semibold text-white/90">{user?.tenantName || 'NEXUS Corp'}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
+                <FiShield className="w-5 h-5 text-blue-300" />
+              </div>
             </div>
           </div>
-          {/* Search Bar */}
-          <div className="relative max-w-md w-full">
-            <FiSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/50" />
-            <input
-              placeholder="Search modules..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20 transition-all text-sm"
-            />
+
+          {/* Divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-5" />
+
+          {/* Bottom row: Greeting + Search */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-white">
+                {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300">{firstName}</span>!
+              </h2>
+              <p className="text-blue-100/80 mt-1 text-sm font-medium tracking-wide">
+                Welcome to <span className="text-white font-semibold">NEXUS HRMS</span>. Select a module to get started.
+              </p>
+            </div>
+
+            {/* Search Bar - Prominent & Distinct */}
+            <div className="relative max-w-lg w-full">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400/30 to-violet-400/30 blur-sm" />
+              <div className="relative flex items-center">
+                <FiSearch className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-blue-200" />
+                <input
+                  placeholder="Search modules, features, actions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-28 py-3.5 rounded-xl bg-white/[0.08] backdrop-blur-md border border-white/[0.15] text-white placeholder:text-blue-200/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400/40 focus:bg-white/[0.12] transition-all text-sm font-medium"
+                />
+                <button
+                  onClick={() => {}}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 text-white text-xs font-bold tracking-wide hover:from-blue-400 hover:to-violet-400 active:scale-95 transition-all shadow-lg shadow-blue-500/25 flex items-center gap-1.5"
+                >
+                  <FiSearch className="w-3.5 h-3.5" />
+                  Search
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -174,7 +238,7 @@ export default function HomePage() {
           onClick={() => setActiveCategory(null)}
           className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
             activeCategory === null
-              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25'
+              ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-md shadow-blue-500/25'
               : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200 hover:text-nexus-text-primary'
           }`}
         >
@@ -188,7 +252,7 @@ export default function HomePage() {
               onClick={() => setActiveCategory(activeCategory === cat.key ? null : cat.key)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 activeCategory === cat.key
-                  ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25'
+                  ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-md shadow-blue-500/25'
                   : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200 hover:text-nexus-text-primary'
               }`}
             >
@@ -222,14 +286,17 @@ export default function HomePage() {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       mod.badge === 'AI'
                         ? 'bg-purple-100 text-purple-700'
+                        : mod.badge === 'NEW'
+                        ? 'bg-violet-100 text-violet-700'
                         : 'bg-emerald-100 text-emerald-700'
                     }`}>
                       {mod.badge}
                     </span>
                   )}
                 </div>
-                <h3 className="text-sm font-bold text-nexus-text-primary group-hover:text-blue-600 transition-colors">
+                <h3 className="text-sm font-bold text-nexus-text-primary group-hover:text-blue-600 transition-colors flex items-center gap-1">
                   {mod.label}
+                  <FiChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h3>
                 <p className="text-xs text-nexus-text-muted mt-1 leading-relaxed">
                   {mod.description}
@@ -248,7 +315,7 @@ export default function HomePage() {
           <p className="text-nexus-text-muted text-sm mt-1">Try adjusting your search query or category filter</p>
           <button
             onClick={() => { setSearchQuery(''); setActiveCategory(null); }}
-            className="mt-4 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+            className="mt-4 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 text-white text-sm font-medium hover:from-blue-600 hover:to-violet-600 transition-all shadow-md shadow-blue-500/25"
           >
             Clear filters
           </button>

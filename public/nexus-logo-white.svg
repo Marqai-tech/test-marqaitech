@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" fill="none">
+  <!-- Shield Icon -->
+  <defs>
+    <linearGradient id="shieldGradW" x1="0" y1="0" x2="30" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield shape -->
+  <path d="M30 4L6 14V30C6 44.4 16.2 57.6 30 60C43.8 57.6 54 44.4 54 30V14L30 4Z" fill="url(#shieldGradW)"/>
+  <!-- N letter inside shield -->
+  <path d="M18 42V18H24L36 36V18H42V42H36L24 24V42H18Z" fill="white"/>
+  <!-- NEXUS text -->
+  <text x="66" y="28" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="800" letter-spacing="2" fill="white">
+    NEXUS
+  </text>
+  <!-- HRMS text -->
+  <text x="66" y="48" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" letter-spacing="4" fill="rgba(255,255,255,0.7)">
+    HRMS
+  </text>
+</svg>

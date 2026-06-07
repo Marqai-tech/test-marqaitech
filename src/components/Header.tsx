@@ -106,6 +106,20 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         <FiMenu className="w-5 h-5" />
       </button>
 
+      {/* NEXUS Logo + Name in Header */}
+      <div className="flex items-center gap-2.5 pr-3 border-r border-slate-200">
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
+          <svg viewBox="0 0 30 30" className="w-4.5 h-4.5" fill="none">
+            <path d="M15 2L3 8V16C3 24 8.1 31.2 15 33C21.9 31.2 27 24 27 16V8L15 2Z" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="0.5"/>
+            <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
+          </svg>
+        </div>
+        <div className="hidden sm:block">
+          <span className="text-sm font-extrabold text-slate-800 tracking-tight">NEXUS</span>
+          <span className="text-[10px] font-bold text-blue-500 ml-1 tracking-wider">HRMS</span>
+        </div>
+      </div>
+
       {/* Search Bar */}
       <div className="flex-1 max-w-xl relative">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />

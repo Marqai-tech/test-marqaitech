@@ -261,15 +261,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Brand Header */}
       <div className={`flex items-center h-16 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <HiShieldCheck className="w-5 h-5 text-white" />
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+          <svg viewBox="0 0 30 30" className="w-5 h-5" fill="none">
+            <path d="M15 2L3 8V16C3 24 8.1 31.2 15 33C21.9 31.2 27 24 27 16V8L15 2Z" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="0.5"/>
+            <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
+          </svg>
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
             <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
-              NEXUS
+              NEXUS <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
             </h1>
-            <p className="text-[10px] text-nexus-sidebar-text leading-none -mt-0.5">HRMS Platform</p>
+            <p className="text-[10px] text-nexus-sidebar-text leading-none -mt-0.5">Intelligent HR Platform</p>
           </div>
         )}
       </div>
