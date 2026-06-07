@@ -1674,3 +1674,155 @@ model DocAccessRule {
   @@index([role])
   @@index([userId])
 }
+
+// ============ AI INTERVIEW PLATFORM ============
+
+model InterviewSet {
+  id                      String   @id @default(cuid())
+  title                   String
+  roleTitle               String
+  jobDescription          String?
+  tenantId                String
+  interviewMode           String   @default("text") // text, voice, video, mcq, coding
+  language                String   @default("en")
+  timeLimit               Int      @default(30)
+  cvProbeDuration         Int      @default(10)
+  enablePreScreening      Boolean  @default(true)
+  enableProctoring        Boolean  @default(true)
+  enableDynamicFollowUp   Boolean  @default(true)
+  status                  String   @default("draft") // draft, active, archived
+  preScreenFilters        Json?
+  evaluationConfig        Json?
+  createdBy               String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  questions               InterviewSetQuestion[]
+  sessions                InterviewSession[]
+  invitations             InterviewInvitation[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model InterviewSetQuestion {
+  id              String   @id @default(cuid())
+  setId           String
+  order           Int
+  category        String   // technical, behavioral, situational, cv_based, cognitive
+  question        String
+  expectedPoints   String?
+  followUpPrompts  String?
+  duration        Int?
+  isMandatory     Boolean  @default(true)
+  difficulty      String   @default("medium") // easy, medium, hard
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  set             InterviewSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@index([setId])
+}
+
+model InterviewSession {
+  id                  String    @id @default(cuid())
+  setId               String
+  candidateName       String
+  candidateEmail      String
+  candidatePhone      String?
+  resumeUrl           String?
+  resumeParsed        Json?
+  language            String    @default("en")
+  status              String    @default("invited") // invited, pre_screen, in_progress, completed, expired, disqualified
+  preScreenResult     Json?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  videoUrl            String?
+  audioUrl            String?
+  transcriptUrl       String?
+  fullTranscript      String?
+  overallScore        Int?
+  communicationScore  Int?
+  grammarScore        Int?
+  fluencyScore        Int?
+  comprehensionScore  Int?
+  vocabularyScore     Int?
+  cognitiveScore      Int?
+  skillMatchScore     Int?
+  aiSummary           String?
+  aiRecommendation    String? // strong_hire, hire, no_hire, not_enough_evidence
+  durationSeconds     Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  set                 InterviewSet     @relation(fields: [setId], references: [id], onDelete: Cascade)
+  responses           InterviewResponse[]
+  proctoringLogs      ProctoringLog[]
+
+  @@index([setId])
+  @@index([status])
+  @@index([candidateEmail])
+}
+
+model InterviewResponse {
+  id                String   @id @default(cuid())
+  sessionId         String
+  questionId        String?
+  order             Int
+  question          String?
+  responseText      String?
+  responseAudioUrl  String?
+  responseVideoUrl  String?
+  responseDuration  Int?
+  aiScore           Int?
+  aiFeedback        String?
+  followUpFromId    String?
+  isFollowUp        Boolean  @default(false)
+  isCvBased         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  session           InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  followUpFrom      InterviewResponse?  @relation("ResponseFollowUp", fields: [followUpFromId], references: [id], onDelete: SetNull)
+  followUps         InterviewResponse[]  @relation("ResponseFollowUp")
+
+  @@index([sessionId])
+  @@index([followUpFromId])
+}
+
+model ProctoringLog {
+  id            String   @id @default(cuid())
+  sessionId     String
+  eventType     String   // tab_switch, face_not_detected, multiple_faces, audio_anomaly, copy_paste, ai_assistant_detected, browser_devtools
+  severity      String   @default("low") // low, medium, high, critical
+  details       String?
+  timestamp     DateTime @default(now())
+  screenshotUrl String?
+
+  session       InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([severity])
+}
+
+model InterviewInvitation {
+  id                   String    @id @default(cuid())
+  setId                String
+  candidateEmail       String
+  candidateName        String
+  invitationToken      String    @unique
+  invitationUrl        String?
+  status               String    @default("pending") // pending, sent, opened, started, completed, expired, bounced
+  sentAt               DateTime?
+  openedAt             DateTime?
+  expiresAt            DateTime?
+  emailDeliveryStatus  String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  set                  InterviewSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@index([setId])
+  @@index([invitationToken])
+  @@index([status])
+}
