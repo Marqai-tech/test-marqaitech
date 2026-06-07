@@ -157,6 +157,13 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    key: 'knowledge-base',
+    label: 'Knowledge Base',
+    items: [
+      { label: 'Documentation Hub', href: '/docs', icon: <FiBookOpen className="w-5 h-5" />, isNew: true },
+    ],
+  },
+  {
     key: 'governance',
     label: 'Governance',
     items: [

@@ -1607,3 +1607,70 @@ model AIChatLog {
   @@index([sessionId])
   @@index([userId])
 }
+
+// ============ DOCUMENTATION HUB ============
+
+model DocCategory {
+  id          String @id @default(cuid())
+  name        String
+  slug        String @unique
+  description String?
+  icon        String @default("FiBookOpen")
+  color       String @default("blue")
+  sortOrder   Int    @default(0)
+  status      String @default("active") // active, archived
+
+  articles    DocArticle[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DocArticle {
+  id          String @id @default(cuid())
+  categoryId  String
+  category    DocCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  title       String
+  slug        String @unique
+  summary     String?
+  content     String // Markdown content
+  docType     String @default("functional") // technical, functional, workflow, security, ai, sop, training
+  moduleKey   String? // Links to a specific HRMS module (e.g., "recruitment", "payroll")
+  tags        String? // Comma-separated tags
+  version     String @default("1.0")
+  status      String @default("published") // draft, published, archived
+  authorId    String?
+  viewCount   Int    @default(0)
+  sortOrder   Int    @default(0)
+
+  accessRules DocAccessRule[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([docType])
+  @@index([moduleKey])
+  @@index([status])
+}
+
+model DocAccessRule {
+  id         String @id @default(cuid())
+  articleId  String
+  article    DocArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  // Access control: either role-based or user-specific
+  role       String? // super_admin, tenant_admin, hr_admin, manager, employee (null = all roles)
+  userId     String? // Specific user access (null = role-based)
+
+  accessType String @default("read") // read, edit, manage
+  grantedBy  String? // userId of super_admin who granted access
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([role])
+  @@index([userId])
+}

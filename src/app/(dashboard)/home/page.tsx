@@ -83,6 +83,9 @@ const allModules: ModuleCard[] = [
   { key: 'workflows', label: 'Workflows', icon: <FiGitBranch className="w-6 h-6" />, description: 'Workflow builder & templates', gradient: 'from-fuchsia-500 to-pink-500', href: '/workflows', category: 'Governance' },
   { key: 'reports', label: 'Reports', icon: <FiBarChart2 className="w-6 h-6" />, description: 'HR analytics, reports & exports', gradient: 'from-emerald-500 to-teal-500', href: '/reports', category: 'Governance' },
   { key: 'settings', label: 'Settings', icon: <FiSettings className="w-6 h-6" />, description: 'General, notifications & integrations', gradient: 'from-slate-500 to-gray-600', href: '/settings', category: 'Governance' },
+
+  // Knowledge Base
+  { key: 'docs', label: 'Documentation Hub', icon: <FiBookOpen className="w-6 h-6" />, description: 'Knowledge base, SOPs, training & technical docs', gradient: 'from-violet-500 to-purple-600', href: '/docs', badge: 'NEW', category: 'Knowledge Base' },
 ];
 
 const categories = [
@@ -96,6 +99,7 @@ const categories = [
   { key: 'External', label: 'External Relations', color: 'text-teal-600' },
   { key: 'Support', label: 'Support & Intelligence', color: 'text-purple-600' },
   { key: 'Governance', label: 'Governance', color: 'text-slate-600' },
+  { key: 'Knowledge Base', label: 'Knowledge Base', color: 'text-violet-600' },
 ];
 
 export default function HomePage() {
