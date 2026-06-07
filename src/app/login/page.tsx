@@ -38,7 +38,7 @@ export default function LoginPage() {
       const success = await login(email, password);
       if (success) {
         toast.success('Welcome back! Redirecting...');
-        router.push('/dashboard');
+        router.push('/home');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';

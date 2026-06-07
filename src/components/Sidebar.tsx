@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiHome,
+  FiGrid,
   FiUsers,
   FiBriefcase,
   FiUserPlus,
@@ -47,6 +48,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { label: 'Home', href: '/home', icon: <FiGrid className="w-5 h-5" /> },
   { label: 'Dashboard', href: '/dashboard', icon: <FiHome className="w-5 h-5" /> },
   { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
   { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'] },
