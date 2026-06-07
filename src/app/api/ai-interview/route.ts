@@ -1,92 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-export async function POST(request: NextRequest) {
+// GET /api/ai-interview — List interviews
+export async function GET(req: NextRequest) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status');
+    const type = searchParams.get('type');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
 
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
 
-    const body = await request.json();
-    const { jobTitle, skills, experience, type } = body;
-
-    if (!jobTitle) {
-      return NextResponse.json({ error: 'Job title is required' }, { status: 400 });
-    }
-
-    const skillsStr = Array.isArray(skills) ? skills.join(', ') : skills || 'General';
-    const typeStr = type || 'technical';
-
-    const prompt = `Generate 5 ${typeStr} interview questions for a ${jobTitle} position.
-Required skills: ${skillsStr}
-Experience level: ${experience || 'Mid-level'}
-
-Format each question as a JSON array of objects with:
-- "question": the interview question
-- "category": category (technical/behavioral/situational/domain)
-- "difficulty": easy/medium/hard
-- "expectedPoints": key points expected in the answer (array of strings)
-
-Return ONLY the JSON array, no other text.`;
-
-    let questions = [];
-    let score = 0;
-
-    try {
-      const zai = await ZAI.create();
-      const response = await zai.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert HR interviewer. Generate relevant, professional interview questions. Return only valid JSON.',
+    const [interviews, total] = await Promise.all([
+      prisma.interview.findMany({
+        where,
+        include: {
+          jobApplication: {
+            select: {
+              id: true,
+              candidateName: true,
+              candidateEmail: true,
+              jobPosting: { select: { id: true, title: true } },
+            },
           },
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-      });
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.interview.count({ where }),
+    ]);
 
-      const content = response?.choices?.[0]?.message?.content || '';
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        questions = JSON.parse(jsonMatch[0]);
-        score = questions.length * 20;
-      }
-    } catch (aiError) {
-      console.error('AI interview error:', aiError);
-      // Fallback questions
-      questions = [
-        { question: `Tell me about your experience with ${skillsStr}?`, category: 'technical', difficulty: 'medium', expectedPoints: ['Relevant experience', 'Specific projects', 'Problem-solving approach'] },
-        { question: `How do you handle tight deadlines in a ${jobTitle} role?`, category: 'behavioral', difficulty: 'medium', expectedPoints: ['Time management', 'Prioritization', 'Communication'] },
-        { question: `Describe a challenging project you worked on as a ${jobTitle}.`, category: 'situational', difficulty: 'hard', expectedPoints: ['Problem description', 'Solution approach', 'Outcome'] },
-        { question: `What methodologies do you follow for ${skillsStr}?`, category: 'domain', difficulty: 'medium', expectedPoints: ['Best practices', 'Industry standards', 'Adaptability'] },
-        { question: `Where do you see yourself in 3 years in this ${jobTitle} career path?`, category: 'behavioral', difficulty: 'easy', expectedPoints: ['Career goals', 'Growth mindset', 'Alignment with role'] },
-      ];
-      score = 100;
+    return NextResponse.json({
+      data: interviews,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error: unknown) {
+    console.error('AI Interview GET error:', error);
+    return NextResponse.json({ error: 'Failed to fetch interviews' }, { status: 500 });
+  }
+}
+
+// POST /api/ai-interview — Schedule a new interview
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const {
+      jobApplicationId,
+      type,
+      date,
+      time,
+      duration,
+      meetingUrl,
+      interviewer,
+    } = body;
+
+    if (!jobApplicationId || !date) {
+      return NextResponse.json(
+        { error: 'jobApplicationId and date are required' },
+        { status: 400 }
+      );
     }
 
-    // Log the AI interaction
-    await prisma.aIChatLog.create({
+    const interview = await prisma.interview.create({
       data: {
-        userId: decoded.id as string,
-        sessionId: `interview-${Date.now()}`,
-        role: 'assistant',
-        message: `Generated ${questions.length} interview questions for ${jobTitle}`,
-        source: 'interview',
-        metadata: JSON.stringify({ jobTitle, skills: skillsStr, experience, type: typeStr }),
+        jobApplicationId,
+        type: type || 'technical',
+        date: new Date(date),
+        time: time || null,
+        duration: duration ? parseInt(String(duration), 10) : null,
+        meetingUrl: meetingUrl || null,
+        interviewer: interviewer || 'AI Interviewer',
+        status: 'scheduled',
+      },
+      include: {
+        jobApplication: {
+          select: {
+            candidateName: true,
+            candidateEmail: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json({ questions, score });
-  } catch (error) {
-    console.error('AI Interview error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ data: interview }, { status: 201 });
+  } catch (error: unknown) {
+    console.error('AI Interview POST error:', error);
+    return NextResponse.json({ error: 'Failed to schedule interview' }, { status: 500 });
+  }
+}
+
+// PUT /api/ai-interview — Update interview
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, status, feedback, score, aiScore, aiFeedback, type, date, duration, meetingUrl } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Interview ID is required' }, { status: 400 });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (status) updateData.status = status;
+    if (feedback !== undefined) updateData.feedback = feedback;
+    if (score !== undefined) updateData.score = parseInt(String(score), 10);
+    if (aiScore !== undefined) updateData.aiScore = parseInt(String(aiScore), 10);
+    if (aiFeedback !== undefined) updateData.aiFeedback = aiFeedback;
+    if (type) updateData.type = type;
+    if (date) updateData.date = new Date(date);
+    if (duration !== undefined) updateData.duration = parseInt(String(duration), 10);
+    if (meetingUrl !== undefined) updateData.meetingUrl = meetingUrl;
+
+    const interview = await prisma.interview.update({
+      where: { id },
+      data: updateData,
+      include: {
+        jobApplication: {
+          select: {
+            candidateName: true,
+            candidateEmail: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({ data: interview });
+  } catch (error: unknown) {
+    console.error('AI Interview PUT error:', error);
+    return NextResponse.json({ error: 'Failed to update interview' }, { status: 500 });
   }
 }
