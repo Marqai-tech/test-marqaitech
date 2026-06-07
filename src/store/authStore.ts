@@ -2,6 +2,16 @@
 
 import { create } from 'zustand';
 
+interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  currency: string;
+  timezone: string;
+  logo?: string | null;
+}
+
 interface UserInfo {
   id: string;
   name: string;
@@ -9,6 +19,7 @@ interface UserInfo {
   role: string;
   avatar?: string | null;
   tenantId?: string;
+  tenant?: TenantInfo;
 }
 
 interface AuthState {

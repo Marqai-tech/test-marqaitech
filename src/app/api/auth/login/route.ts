@@ -122,6 +122,14 @@ export async function POST(request: Request) {
           role: user.role,
           tenantId: user.tenantId,
           avatar: user.avatar,
+          tenant: {
+            id: user.tenant.id,
+            name: user.tenant.name,
+            slug: user.tenant.slug,
+            plan: user.tenant.plan,
+            currency: user.tenant.currency,
+            timezone: user.tenant.timezone,
+          },
         },
       },
       { headers: corsHeaders() }

@@ -96,7 +96,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-nexus-border flex items-center px-4 gap-4 sticky top-0 z-30">
+    <header className="h-16 bg-white border-b border-slate-200 shadow-sm flex items-center px-4 gap-4 sticky top-0 z-30">
       {/* Sidebar Toggle */}
       <button
         onClick={onSidebarToggle}
@@ -108,13 +108,13 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
       {/* Search Bar */}
       <div className="flex-1 max-w-xl relative">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search employees, modules, actions..."
-          className="w-full pl-10 pr-4 py-2 rounded-lg border border-nexus-border bg-slate-50/50 text-sm text-nexus-text-primary placeholder:text-nexus-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+          className="w-full pl-10 pr-4 py-2 rounded-lg border border-blue-200 bg-blue-50/30 text-sm text-nexus-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
         />
       </div>
 

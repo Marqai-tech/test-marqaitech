@@ -17,7 +17,9 @@ import {
   FiAlertTriangle,
   FiInfo,
   FiGift,
+  FiSearch,
 } from 'react-icons/fi';
+import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -93,11 +95,43 @@ export default function DashboardPage() {
   const [departmentDist, setDepartmentDist] = useState<DepartmentDist[]>([]);
   const [birthdays, setBirthdays] = useState<BirthdayEmployee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [heroSearch, setHeroSearch] = useState('');
 
   const firstName = user?.name?.split(' ')[0] || 'User';
+  const tenantName = user?.tenant?.name || 'NEXUS HRMS';
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  // Module search suggestions for the hero search bar
+  const moduleSuggestions = [
+    { label: 'Employees', href: '/employees', icon: '👥' },
+    { label: 'Recruitment', href: '/recruitment', icon: '💼' },
+    { label: 'Attendance', href: '/attendance', icon: '🕐' },
+    { label: 'Leave Management', href: '/leave', icon: '📅' },
+    { label: 'Payroll', href: '/payroll', icon: '💵' },
+    { label: 'Performance', href: '/performance', icon: '📈' },
+    { label: 'Onboarding', href: '/onboarding', icon: '🚀' },
+    { label: 'Training', href: '/training', icon: '🎓' },
+    { label: 'Documents', href: '/documents', icon: '📄' },
+    { label: 'Helpdesk', href: '/helpdesk', icon: '🎧' },
+    { label: 'Projects', href: '/projects', icon: '📁' },
+    { label: 'Expenses', href: '/expenses', icon: '💳' },
+    { label: 'Reports', href: '/reports', icon: '📊' },
+    { label: 'Settings', href: '/settings', icon: '⚙️' },
+    { label: 'AI Assistant', href: '/ai-assistant', icon: '🤖' },
+  ];
+
+  const filteredSuggestions = heroSearch.trim()
+    ? moduleSuggestions.filter(m => m.label.toLowerCase().includes(heroSearch.toLowerCase()))
+    : [];
+
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (heroSearch.trim() && filteredSuggestions.length > 0) {
+      router.push(filteredSuggestions[0].href);
+    }
+  };
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -246,18 +280,115 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary">
-            {greeting}, {firstName}!
-          </h1>
-          <p className="text-nexus-text-secondary mt-1">
-            Here&apos;s what&apos;s happening with your organization today.
-          </p>
-        </div>
-        <div className="text-sm text-nexus-text-muted">
-          {today}
+      {/* ===== HERO BANNER ===== */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-950 to-violet-950">
+        {/* Animated background orbs */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl animate-pulse-subtle" />
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-violet-500/15 rounded-full blur-3xl animate-pulse-subtle" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute top-1/2 right-1/3 w-48 h-48 bg-cyan-400/10 rounded-full blur-3xl animate-pulse-subtle" style={{ animationDelay: '0.7s' }} />
+
+        {/* Grid pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '50px 50px',
+          }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 px-6 py-8 sm:px-8 sm:py-10">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            {/* Left: Logo + Welcome */}
+            <div className="flex items-start sm:items-center gap-4">
+              {/* Company Logo */}
+              <div className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-xl shadow-blue-500/30 ring-2 ring-white/10">
+                <HiShieldCheck className="w-8 h-8 sm:w-9 sm:h-9 text-white" />
+              </div>
+              <div>
+                {/* Company Name */}
+                <p className="text-blue-300/80 text-xs sm:text-sm font-semibold tracking-widest uppercase mb-1">
+                  {tenantName}
+                </p>
+                {/* Welcome Message */}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight">
+                  {greeting}, <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-violet-400 bg-clip-text text-transparent">{firstName}</span>!
+                </h1>
+                <p className="text-slate-300/70 text-sm sm:text-base mt-1 font-medium">
+                  Welcome to <span className="text-white font-semibold">NEXUS HRMS</span>. Select a module to get started.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: Search + Date */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:gap-6">
+              {/* Date */}
+              <div className="hidden sm:block text-right">
+                <p className="text-slate-400 text-xs font-medium">{today}</p>
+              </div>
+              {/* Search Bar */}
+              <form onSubmit={handleHeroSearch} className="relative w-full sm:w-80 lg:w-96">
+                <div className="relative">
+                  <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={heroSearch}
+                    onChange={(e) => setHeroSearch(e.target.value)}
+                    placeholder="Search modules, employees, actions..."
+                    className="w-full pl-11 pr-24 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400/40 focus:bg-white/15 backdrop-blur-sm transition-all"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-violet-600 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:from-blue-600 hover:to-violet-700 transition-all"
+                  >
+                    Search
+                  </button>
+                </div>
+                {/* Search Suggestions Dropdown */}
+                {heroSearch.trim() && filteredSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50">
+                    {filteredSuggestions.slice(0, 5).map((s) => (
+                      <button
+                        key={s.href}
+                        type="button"
+                        onClick={() => {
+                          setHeroSearch('');
+                          router.push(s.href);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                      >
+                        <span className="text-base">{s.icon}</span>
+                        <span className="text-sm font-medium text-slate-200">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+
+          {/* Quick Access Module Pills */}
+          <div className="mt-6 flex flex-wrap gap-2">
+            {[
+              { label: 'Employees', href: '/employees', color: 'from-blue-500/20 to-blue-600/10 border-blue-400/20 text-blue-300' },
+              { label: 'Attendance', href: '/attendance', color: 'from-cyan-500/20 to-cyan-600/10 border-cyan-400/20 text-cyan-300' },
+              { label: 'Leave', href: '/leave', color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-400/20 text-emerald-300' },
+              { label: 'Payroll', href: '/payroll', color: 'from-green-500/20 to-green-600/10 border-green-400/20 text-green-300' },
+              { label: 'Recruitment', href: '/recruitment', color: 'from-violet-500/20 to-violet-600/10 border-violet-400/20 text-violet-300' },
+              { label: 'Performance', href: '/performance', color: 'from-amber-500/20 to-amber-600/10 border-amber-400/20 text-amber-300' },
+              { label: 'AI Assistant', href: '/ai-assistant', color: 'from-purple-500/20 to-purple-600/10 border-purple-400/20 text-purple-300' },
+              { label: 'Reports', href: '/reports', color: 'from-rose-500/20 to-rose-600/10 border-rose-400/20 text-rose-300' },
+            ].map((pill) => (
+              <button
+                key={pill.href}
+                onClick={() => router.push(pill.href)}
+                className={`px-3.5 py-1.5 rounded-lg bg-gradient-to-r ${pill.color} border text-xs font-semibold hover:scale-105 transition-transform backdrop-blur-sm`}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
