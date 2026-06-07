@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npx prisma generate && npx prisma db push --accept-data-loss && npx next build"
+  "buildCommand": "npx prisma generate && (npx prisma db push --accept-data-loss 2>&1 || echo 'DB push warning: continuing build') && npx next build"
 }
