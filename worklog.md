@@ -48,3 +48,26 @@ Stage Summary:
 - 7 categories + 21 articles are seeded with comprehensive content
 - Access rules are created for security docs (restricted to hr_admin+)
 - All 4 previously-404 pages (Company, AI Interview, Offers, Job Portal) confirmed to exist with correct routes
+
+---
+Task ID: 1
+Agent: full-stack-developer
+Task: Fix demo logins, seed AI interview data, add recruiter/candidate logins
+
+Work Log:
+- Rewrote prisma/seed.ts with bcrypt password hashing matching the current Prisma schema
+- Created proper multi-tenant hierarchy: Tenant → CompanyGroup → Company → Branch → Department → Designation
+- Added all 6 demo users with individual bcrypt-hashed passwords (super_admin, hr_admin, manager, employee, recruiter, candidate)
+- Seeded AI Interview sample data (JobPostings, JobApplications, Interviews with aiScore and aiFeedback)
+- Updated login page with recruiter and candidate demo accounts (6 accounts total, grid-cols-3)
+- Updated API seed route (/api/seed) with correct demo account emails and individual password hashing
+- Added Recruitment and Analytics departments with Recruiter and Data Scientist designations
+- Added employee records for demo users (HR, Manager, Employee, Recruiter)
+- Enhanced interview data with AI scores (aiScore 89-95) and detailed AI feedback
+- Pushed to GitHub for Vercel auto-deploy
+
+Stage Summary:
+- All 6 demo logins now work with bcrypt-hashed passwords (admin123, hr123, manager123, employee123, recruiter123, candidate123)
+- AI Interview has sample data for testing (8 interviews, 4 completed with AI scores, 4 scheduled)
+- Recruiter and candidate accounts available for testing interview flow
+- API seed route creates demo users with update: { password } to fix previously wrong passwords
