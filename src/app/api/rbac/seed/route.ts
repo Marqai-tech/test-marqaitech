@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { neon } from '@neondatabase/serverless';
 
 function corsHeaders() {
   return {
@@ -14,80 +15,50 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-// Default module definitions for the HRMS platform
 const MODULE_DEFINITIONS = [
-  // Core HR
   { key: 'dashboard', name: 'Dashboard', category: 'Core HR', icon: 'LayoutDashboard', sortOrder: 1 },
   { key: 'employees', name: 'Employees', category: 'Core HR', icon: 'Users', sortOrder: 2 },
   { key: 'company', name: 'Company', category: 'Core HR', icon: 'Building2', sortOrder: 3 },
-
-  // Talent
   { key: 'recruitment', name: 'Recruitment', category: 'Talent', icon: 'UserPlus', sortOrder: 4 },
   { key: 'requisitions', name: 'Requisitions', category: 'Talent', icon: 'ClipboardList', sortOrder: 5 },
   { key: 'offers', name: 'Offers', category: 'Talent', icon: 'FileText', sortOrder: 6 },
   { key: 'job_portal', name: 'Job Portal', category: 'Talent', icon: 'Globe', sortOrder: 7 },
   { key: 'ai_interview', name: 'AI Interview', category: 'Talent', icon: 'Bot', sortOrder: 8 },
-
-  // Lifecycle
   { key: 'onboarding', name: 'Onboarding', category: 'Lifecycle', icon: 'UserCheck', sortOrder: 9 },
   { key: 'preboarding', name: 'Preboarding', category: 'Lifecycle', icon: 'ClipboardCheck', sortOrder: 10 },
-
-  // Time
   { key: 'attendance', name: 'Attendance', category: 'Time', icon: 'Clock', sortOrder: 11 },
   { key: 'leave', name: 'Leave', category: 'Time', icon: 'CalendarOff', sortOrder: 12 },
   { key: 'timesheets', name: 'Timesheets', category: 'Time', icon: 'Timer', sortOrder: 13 },
-
-  // Compensation
   { key: 'payroll', name: 'Payroll', category: 'Compensation', icon: 'Banknote', sortOrder: 14 },
   { key: 'salary_structures', name: 'Salary Structures', category: 'Compensation', icon: 'Coins', sortOrder: 15 },
-
-  // Performance
   { key: 'performance', name: 'Performance', category: 'Performance', icon: 'TrendingUp', sortOrder: 16 },
   { key: 'training', name: 'Training', category: 'Performance', icon: 'GraduationCap', sortOrder: 17 },
   { key: 'engagement', name: 'Engagement', category: 'Performance', icon: 'Heart', sortOrder: 18 },
   { key: 'succession', name: 'Succession', category: 'Performance', icon: 'ArrowUpRight', sortOrder: 19 },
-
-  // Operations
   { key: 'projects', name: 'Projects', category: 'Operations', icon: 'FolderKanban', sortOrder: 20 },
   { key: 'travel', name: 'Travel', category: 'Operations', icon: 'Plane', sortOrder: 21 },
   { key: 'expenses', name: 'Expenses', category: 'Operations', icon: 'Receipt', sortOrder: 22 },
   { key: 'assets', name: 'Assets', category: 'Operations', icon: 'Monitor', sortOrder: 23 },
   { key: 'documents', name: 'Documents', category: 'Operations', icon: 'FileStack', sortOrder: 24 },
-
-  // External
   { key: 'clients', name: 'Clients', category: 'External', icon: 'Handshake', sortOrder: 25 },
   { key: 'vendors', name: 'Vendors', category: 'External', icon: 'Truck', sortOrder: 26 },
-
-  // Support
   { key: 'helpdesk', name: 'Helpdesk', category: 'Support', icon: 'Headphones', sortOrder: 27 },
   { key: 'grievances', name: 'Grievances', category: 'Support', icon: 'AlertTriangle', sortOrder: 28 },
   { key: 'ai_assistant', name: 'AI Assistant', category: 'Support', icon: 'Sparkles', sortOrder: 29 },
-
-  // Knowledge
   { key: 'docs', name: 'Documentation', category: 'Knowledge', icon: 'BookOpen', sortOrder: 30 },
-
-  // Governance
   { key: 'workflows', name: 'Workflows', category: 'Governance', icon: 'GitBranch', sortOrder: 31 },
   { key: 'reports', name: 'Reports', category: 'Governance', icon: 'BarChart3', sortOrder: 32 },
   { key: 'settings', name: 'Settings', category: 'Governance', icon: 'Settings', sortOrder: 33 },
   { key: 'notifications', name: 'Notifications', category: 'Governance', icon: 'Bell', sortOrder: 34 },
-
-  // Admin
   { key: 'super_admin', name: 'Super Admin', category: 'Admin', icon: 'Shield', sortOrder: 35 },
   { key: 'tenant_admin', name: 'Tenant Admin', category: 'Admin', icon: 'ShieldCheck', sortOrder: 36 },
   { key: 'ai_admin', name: 'AI Admin', category: 'Admin', icon: 'Brain', sortOrder: 37 },
 ];
 
-// Default permission actions per module
 const DEFAULT_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'approve'];
-
-// Modules that only need limited actions (view only)
 const LIMITED_ACTION_MODULES = ['dashboard', 'notifications', 'docs'];
-
-// Admin-only modules (not accessible to tenant_admin and below by default)
 const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
 
-// System role definitions
 const SYSTEM_ROLES = [
   { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
   { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
@@ -98,288 +69,100 @@ const SYSTEM_ROLES = [
   { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access', level: 5, isSystem: true },
 ];
 
-// Module access lists per role
-const HR_ADMIN_MODULES = [
-  'dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers',
-  'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance',
-  'leave', 'timesheets', 'payroll', 'salary_structures', 'performance',
-  'training', 'engagement', 'documents', 'helpdesk', 'grievances',
-  'ai_assistant', 'docs', 'workflows', 'reports', 'notifications',
-];
-
-const MANAGER_MODULES = [
-  'dashboard', 'employees', 'recruitment', 'onboarding', 'attendance',
-  'leave', 'timesheets', 'performance', 'training', 'engagement',
-  'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects',
-];
-
-const EMPLOYEE_MODULES = [
-  'dashboard', 'employees', 'leave', 'attendance', 'timesheets',
-  'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications',
-  'expenses', 'travel', 'training',
-];
-
-const RECRUITER_MODULES = [
-  'dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal',
-  'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant',
-];
-
+const HR_ADMIN_MODULES = ['dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance', 'leave', 'timesheets', 'payroll', 'salary_structures', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'grievances', 'ai_assistant', 'docs', 'workflows', 'reports', 'notifications'];
+const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 'attendance', 'leave', 'timesheets', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects'];
+const EMPLOYEE_MODULES = ['dashboard', 'employees', 'leave', 'attendance', 'timesheets', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'expenses', 'travel', 'training'];
+const RECRUITER_MODULES = ['dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant'];
 const CANDIDATE_MODULES = ['job_portal', 'ai_interview', 'docs', 'notifications'];
 
-/**
- * Create RBAC tables using raw SQL if they don't exist
- * This is a fallback for when prisma db push didn't run during build
- */
-async function ensureRBACTablesExist(): Promise<boolean> {
+function getNeonClient() {
+  const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!connectionString) throw new Error('No database connection string found');
+  return neon(connectionString);
+}
+
+async function ensureRBACTablesExist(): Promise<{ success: boolean; error?: string }> {
   try {
-    // Try to query the Module table first
     await prisma.module.findFirst();
-    return true; // Tables exist
+    return { success: true };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes('does not exist') && !msg.includes('relation') && !msg.includes('table')) {
-      // Some other error - tables might exist
-      console.warn('RBAC table check returned unexpected error:', msg);
-      return true;
+    if (!msg.includes('does not exist') && !msg.includes('relation') && !msg.includes('table') && !msg.includes('Invalid')) {
+      return { success: true };
     }
   }
 
-  // Tables don't exist - create them using raw SQL
-  console.log('RBAC tables missing. Creating via raw SQL...');
-
+  console.log('RBAC tables missing. Creating via direct Neon SQL...');
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "Module" (
-        "id" TEXT NOT NULL,
-        "key" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "category" TEXT NOT NULL,
-        "icon" TEXT,
-        "sortOrder" INTEGER NOT NULL DEFAULT 0,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "Module_pkey" PRIMARY KEY ("id"),
-        CONSTRAINT "Module_key_key" UNIQUE ("key")
-      );
-    `);
+    const sql = getNeonClient();
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "Permission" (
-        "id" TEXT NOT NULL,
-        "moduleId" TEXT NOT NULL,
-        "action" TEXT NOT NULL,
-        "description" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "Permission_pkey" PRIMARY KEY ("id"),
-        CONSTRAINT "Permission_moduleId_action_key" UNIQUE ("moduleId", "action")
-      );
-    `);
+    await sql`CREATE TABLE IF NOT EXISTS "Module" ("id" TEXT NOT NULL, "key" TEXT NOT NULL, "name" TEXT NOT NULL, "description" TEXT, "category" TEXT NOT NULL, "icon" TEXT, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Module_pkey" PRIMARY KEY ("id"), CONSTRAINT "Module_key_key" UNIQUE ("key"))`;
+    await sql`CREATE TABLE IF NOT EXISTS "Permission" ("id" TEXT NOT NULL, "moduleId" TEXT NOT NULL, "action" TEXT NOT NULL, "description" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Permission_pkey" PRIMARY KEY ("id"), CONSTRAINT "Permission_moduleId_action_key" UNIQUE ("moduleId", "action"))`;
+    await sql`CREATE TABLE IF NOT EXISTS "Role" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "key" TEXT NOT NULL, "description" TEXT, "isSystem" BOOLEAN NOT NULL DEFAULT false, "level" INTEGER NOT NULL DEFAULT 0, "tenantId" TEXT, "companyId" TEXT, "status" TEXT NOT NULL DEFAULT 'active', "createdBy" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Role_pkey" PRIMARY KEY ("id"), CONSTRAINT "Role_key_tenantId_companyId_key" UNIQUE ("key", "tenantId", "companyId"))`;
+    await sql`CREATE TABLE IF NOT EXISTS "RolePermission" ("id" TEXT NOT NULL, "roleId" TEXT NOT NULL, "permissionId" TEXT NOT NULL, "granted" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("id"), CONSTRAINT "RolePermission_roleId_permissionId_key" UNIQUE ("roleId", "permissionId"))`;
+    await sql`CREATE TABLE IF NOT EXISTS "UserRoleAssignment" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "roleId" TEXT NOT NULL, "companyId" TEXT, "assignedBy" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "UserRoleAssignment_pkey" PRIMARY KEY ("id"), CONSTRAINT "UserRoleAssignment_userId_roleId_companyId_key" UNIQUE ("userId", "roleId", "companyId"))`;
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "Role" (
-        "id" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "key" TEXT NOT NULL,
-        "description" TEXT,
-        "isSystem" BOOLEAN NOT NULL DEFAULT false,
-        "level" INTEGER NOT NULL DEFAULT 0,
-        "tenantId" TEXT,
-        "companyId" TEXT,
-        "status" TEXT NOT NULL DEFAULT 'active',
-        "createdBy" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "Role_pkey" PRIMARY KEY ("id"),
-        CONSTRAINT "Role_key_tenantId_companyId_key" UNIQUE ("key", "tenantId", "companyId")
-      );
-    `);
+    // Foreign keys
+    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Permission_moduleId_fkey') THEN ALTER TABLE "Permission" ADD CONSTRAINT "Permission_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
+    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Role_tenantId_fkey') THEN ALTER TABLE "Role" ADD CONSTRAINT "Role_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
+    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_roleId_fkey') THEN ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
+    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_permissionId_fkey') THEN ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
+    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRoleAssignment_userId_fkey') THEN ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
+    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRoleAssignment_roleId_fkey') THEN ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "RolePermission" (
-        "id" TEXT NOT NULL,
-        "roleId" TEXT NOT NULL,
-        "permissionId" TEXT NOT NULL,
-        "granted" BOOLEAN NOT NULL DEFAULT true,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("id"),
-        CONSTRAINT "RolePermission_roleId_permissionId_key" UNIQUE ("roleId", "permissionId")
-      );
-    `);
+    // Indexes
+    await sql`CREATE INDEX IF NOT EXISTS "Permission_moduleId_idx" ON "Permission"("moduleId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "Role_tenantId_idx" ON "Role"("tenantId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "Role_companyId_idx" ON "Role"("companyId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "Role_key_idx" ON "Role"("key")`;
+    await sql`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_userId_idx" ON "UserRoleAssignment"("userId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_roleId_idx" ON "UserRoleAssignment"("roleId")`;
+    await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_companyId_idx" ON "UserRoleAssignment"("companyId")`;
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "UserRoleAssignment" (
-        "id" TEXT NOT NULL,
-        "userId" TEXT NOT NULL,
-        "roleId" TEXT NOT NULL,
-        "companyId" TEXT,
-        "assignedBy" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "UserRoleAssignment_pkey" PRIMARY KEY ("id"),
-        CONSTRAINT "UserRoleAssignment_userId_roleId_companyId_key" UNIQUE ("userId", "roleId", "companyId")
-      );
-    `);
-
-    // Add foreign key constraints
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Permission_moduleId_fkey') THEN
-          ALTER TABLE "Permission" ADD CONSTRAINT "Permission_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Role_tenantId_fkey') THEN
-          ALTER TABLE "Role" ADD CONSTRAINT "Role_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_roleId_fkey') THEN
-          ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_permissionId_fkey') THEN
-          ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRoleAssignment_userId_fkey') THEN
-          ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRoleAssignment_roleId_fkey') THEN
-          ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    // Create indexes
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Permission_moduleId_idx" ON "Permission"("moduleId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Role_tenantId_idx" ON "Role"("tenantId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Role_companyId_idx" ON "Role"("companyId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Role_key_idx" ON "Role"("key");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_userId_idx" ON "UserRoleAssignment"("userId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_roleId_idx" ON "UserRoleAssignment"("roleId");`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_companyId_idx" ON "UserRoleAssignment"("companyId");`);
-
-    console.log('RBAC tables created successfully via raw SQL');
-    return true;
+    console.log('RBAC tables created successfully');
+    return { success: true };
   } catch (createError) {
     const createMsg = createError instanceof Error ? createError.message : String(createError);
-    console.error('Failed to create RBAC tables via raw SQL:', createMsg);
-    return false;
+    console.error('Failed to create RBAC tables:', createMsg);
+    return { success: false, error: createMsg };
   }
 }
 
-/**
- * Core RBAC seeding logic - used by both GET and POST handlers
- */
 async function seedRBACData(userId?: string) {
-  let modulesCreated = 0;
-  let permissionsCreated = 0;
-  let rolesCreated = 0;
-  let rolePermissionsCreated = 0;
-  let userRoleAssignmentsCreated = 0;
+  let modulesCreated = 0, permissionsCreated = 0, rolesCreated = 0, rolePermissionsCreated = 0, userRoleAssignmentsCreated = 0;
 
-  // Step 1: Create or update modules
   for (const modDef of MODULE_DEFINITIONS) {
-    const existingModule = await prisma.module.findUnique({
-      where: { key: modDef.key },
-    });
-
+    const existingModule = await prisma.module.findUnique({ where: { key: modDef.key } });
     if (!existingModule) {
-      const createdModule = await prisma.module.create({
-        data: {
-          key: modDef.key,
-          name: modDef.name,
-          category: modDef.category,
-          icon: modDef.icon,
-          sortOrder: modDef.sortOrder,
-        },
-      });
-
-      // Create permissions for this module
+      const createdModule = await prisma.module.create({ data: { key: modDef.key, name: modDef.name, category: modDef.category, icon: modDef.icon, sortOrder: modDef.sortOrder } });
       const actions = LIMITED_ACTION_MODULES.includes(modDef.key) ? ['view'] : DEFAULT_ACTIONS;
-
       for (const action of actions) {
-        await prisma.permission.create({
-          data: {
-            moduleId: createdModule.id,
-            action,
-            description: `${action} ${modDef.name.toLowerCase()}`,
-          },
-        });
+        await prisma.permission.create({ data: { moduleId: createdModule.id, action, description: `${action} ${modDef.name.toLowerCase()}` } });
         permissionsCreated++;
       }
       modulesCreated++;
     }
   }
 
-  // Step 2: Create system roles
   const createdRoles: Record<string, string> = {};
-
   for (const roleDef of SYSTEM_ROLES) {
-    // Check if role already exists
     let existingRole;
     if (roleDef.tenantId === null) {
-      // Global roles (super_admin, tenant_admin) - look for null tenantId
-      existingRole = await prisma.role.findFirst({
-        where: { key: roleDef.key, tenantId: null, companyId: null },
-      });
+      existingRole = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: null, companyId: null } });
     } else {
-      // Tenant-scoped roles - find the tenant and check
       const tenants = await prisma.tenant.findMany({ take: 1 });
-      if (tenants.length === 0) {
-        console.warn('No tenant found for role:', roleDef.key);
-        continue;
-      }
-      existingRole = await prisma.role.findFirst({
-        where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null },
-      });
+      if (tenants.length === 0) continue;
+      existingRole = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null } });
     }
-
     if (!existingRole) {
-      // Determine tenantId for tenant-scoped roles
       let roleTenantId = roleDef.tenantId;
       if (roleTenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin') {
-        // For non-global system roles, find the first tenant
         const tenants = await prisma.tenant.findMany({ take: 1 });
         roleTenantId = tenants.length > 0 ? tenants[0].id : null;
       }
-
-      const role = await prisma.role.create({
-        data: {
-          name: roleDef.name,
-          key: roleDef.key,
-          description: roleDef.description,
-          isSystem: roleDef.isSystem,
-          level: roleDef.level,
-          tenantId: roleTenantId,
-          status: 'active',
-          createdBy: userId || null,
-        },
-      });
+      const role = await prisma.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: userId || null } });
       createdRoles[roleDef.key] = role.id;
       rolesCreated++;
     } else {
@@ -387,302 +170,107 @@ async function seedRBACData(userId?: string) {
     }
   }
 
-  // Step 3: Assign permissions to roles
-  const allModules = await prisma.module.findMany({
-    include: { permissions: true },
-  });
-
+  const allModules = await prisma.module.findMany({ include: { permissions: true } });
   const moduleMap = new Map(allModules.map((m) => [m.key, m]));
 
-  // Helper: assign permissions for a set of module keys to a role
-  const assignPermissions = async (
-    roleId: string,
-    moduleKeys: string[],
-    allowedActions?: string[]
-  ): Promise<void> => {
+  const assignPermissions = async (roleId: string, moduleKeys: string[], allowedActions?: string[]) => {
     for (const moduleKey of moduleKeys) {
       const mod = moduleMap.get(moduleKey);
       if (!mod) continue;
-
       for (const perm of mod.permissions) {
         if (allowedActions && !allowedActions.includes(perm.action)) continue;
-
-        // Check if already exists
         try {
-          const existing = await prisma.rolePermission.findUnique({
-            where: {
-              roleId_permissionId: {
-                roleId,
-                permissionId: perm.id,
-              },
-            },
-          });
-
+          const existing = await prisma.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: perm.id } } });
           if (!existing) {
-            await prisma.rolePermission.create({
-              data: {
-                roleId,
-                permissionId: perm.id,
-                granted: true,
-              },
-            });
+            await prisma.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
             rolePermissionsCreated++;
           }
-        } catch {
-          // Skip duplicate entries
-        }
+        } catch { /* skip duplicates */ }
       }
     }
   };
 
-  // super_admin gets ALL permissions
-  if (createdRoles.super_admin) {
-    await assignPermissions(createdRoles.super_admin, MODULE_DEFINITIONS.map((m) => m.key));
-  }
-
-  // tenant_admin gets all permissions except admin-only modules
-  if (createdRoles.tenant_admin) {
-    const tenantAdminModules = MODULE_DEFINITIONS
-      .filter((m) => !ADMIN_ONLY_MODULES.includes(m.key))
-      .map((m) => m.key);
-    await assignPermissions(createdRoles.tenant_admin, tenantAdminModules);
-  }
-
-  // hr_admin gets HR-relevant permissions
-  if (createdRoles.hr_admin) {
-    await assignPermissions(createdRoles.hr_admin, HR_ADMIN_MODULES);
-  }
-
-  // manager gets view, create, edit, approve
-  if (createdRoles.manager) {
-    await assignPermissions(createdRoles.manager, MANAGER_MODULES, ['view', 'create', 'edit', 'approve']);
-  }
-
-  // employee: view-only for most, self-service for some
+  if (createdRoles.super_admin) await assignPermissions(createdRoles.super_admin, MODULE_DEFINITIONS.map((m) => m.key));
+  if (createdRoles.tenant_admin) await assignPermissions(createdRoles.tenant_admin, MODULE_DEFINITIONS.filter((m) => !ADMIN_ONLY_MODULES.includes(m.key)).map((m) => m.key));
+  if (createdRoles.hr_admin) await assignPermissions(createdRoles.hr_admin, HR_ADMIN_MODULES);
+  if (createdRoles.manager) await assignPermissions(createdRoles.manager, MANAGER_MODULES, ['view', 'create', 'edit', 'approve']);
   if (createdRoles.employee) {
-    const viewOnlyModules = EMPLOYEE_MODULES.filter(
-      (m) => !['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'].includes(m)
-    );
-    await assignPermissions(createdRoles.employee, viewOnlyModules, ['view']);
-
-    const selfServiceModules = ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'];
-    await assignPermissions(createdRoles.employee, selfServiceModules, ['view', 'create', 'edit']);
+    const viewOnly = EMPLOYEE_MODULES.filter((m) => !['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'].includes(m));
+    await assignPermissions(createdRoles.employee, viewOnly, ['view']);
+    await assignPermissions(createdRoles.employee, ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'], ['view', 'create', 'edit']);
   }
+  if (createdRoles.recruiter) await assignPermissions(createdRoles.recruiter, RECRUITER_MODULES, ['view', 'create', 'edit', 'export']);
+  if (createdRoles.candidate) await assignPermissions(createdRoles.candidate, CANDIDATE_MODULES, ['view', 'create']);
 
-  // recruiter gets recruitment permissions
-  if (createdRoles.recruiter) {
-    await assignPermissions(createdRoles.recruiter, RECRUITER_MODULES, ['view', 'create', 'edit', 'export']);
-  }
-
-  // candidate gets basic access
-  if (createdRoles.candidate) {
-    await assignPermissions(createdRoles.candidate, CANDIDATE_MODULES, ['view', 'create']);
-  }
-
-  // Step 4: Assign roles to existing users
   const users = await prisma.user.findMany();
-  const roleKeyToUserRole: Record<string, string> = {
-    'super_admin': 'super_admin',
-    'hr_admin': 'hr_admin',
-    'manager': 'manager',
-    'employee': 'employee',
-    'recruiter': 'recruiter',
-    'candidate': 'candidate',
-  };
-
+  const roleKeyMap: Record<string, string> = { super_admin: 'super_admin', hr_admin: 'hr_admin', manager: 'manager', employee: 'employee', recruiter: 'recruiter', candidate: 'candidate' };
   for (const user of users) {
-    const roleKey = roleKeyToUserRole[user.role];
+    const roleKey = roleKeyMap[user.role];
     if (!roleKey || !createdRoles[roleKey]) continue;
-
-    // Find the first company for company-scoped assignments
     const companies = await prisma.company.findMany({ take: 1 });
-
     try {
-      await prisma.userRoleAssignment.create({
-        data: {
-          userId: user.id,
-          roleId: createdRoles[roleKey],
-          companyId: companies.length > 0 && roleKey !== 'super_admin' && roleKey !== 'tenant_admin'
-            ? companies[0].id
-            : null,
-          assignedBy: userId || null,
-        },
-      });
+      await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: createdRoles[roleKey], companyId: companies.length > 0 && roleKey !== 'super_admin' && roleKey !== 'tenant_admin' ? companies[0].id : null, assignedBy: userId || null } });
       userRoleAssignmentsCreated++;
-    } catch {
-      // Skip if already assigned
-    }
+    } catch { /* skip */ }
   }
 
-  return {
-    modulesCreated,
-    permissionsCreated,
-    rolesCreated,
-    rolePermissionsCreated,
-    userRoleAssignmentsCreated,
-  };
+  return { modulesCreated, permissionsCreated, rolesCreated, rolePermissionsCreated, userRoleAssignmentsCreated };
 }
 
-/**
- * GET handler - Allows seeding without auth for initial setup
- * This is needed because you can't authenticate if there are no users/roles yet
- */
 export async function GET() {
   try {
-    // Ensure RBAC tables exist (creates via raw SQL if needed)
-    const tablesReady = await ensureRBACTablesExist();
-    if (!tablesReady) {
-      return NextResponse.json(
-        {
-          error: 'Failed to create RBAC tables',
-          hint: 'Please redeploy the application. The build script runs "prisma db push" to create tables automatically. If the issue persists, check that POSTGRES_PRISMA_URL and POSTGRES_URL_NON_POOLING environment variables are set correctly in Vercel.',
-        },
-        { status: 500, headers: corsHeaders() }
-      );
+    const tablesResult = await ensureRBACTablesExist();
+    if (!tablesResult.success) {
+      return NextResponse.json({ error: 'Failed to create RBAC tables', details: tablesResult.error, hint: 'Make sure POSTGRES_PRISMA_URL or DATABASE_URL is set in Vercel environment variables.' }, { status: 500, headers: corsHeaders() });
     }
-
     const result = await seedRBACData();
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'RBAC data seeded successfully',
-        data: result,
-      },
-      { headers: corsHeaders() }
-    );
+    return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-
-    // Check if this is a "table does not exist" error - try creating tables
     if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
-      console.log('Detected missing tables, attempting to create via raw SQL...');
-      const tablesReady = await ensureRBACTablesExist();
-      if (tablesReady) {
+      const tablesResult = await ensureRBACTablesExist();
+      if (tablesResult.success) {
         try {
           const result = await seedRBACData();
-          return NextResponse.json(
-            {
-              success: true,
-              message: 'RBAC data seeded successfully after auto-creating tables',
-              data: result,
-            },
-            { headers: corsHeaders() }
-          );
+          return NextResponse.json({ success: true, message: 'RBAC data seeded after auto-creating tables', data: result }, { headers: corsHeaders() });
         } catch (retryError) {
-          const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
-          return NextResponse.json(
-            { error: 'Failed to seed RBAC data after creating tables', details: retryMsg },
-            { status: 500, headers: corsHeaders() }
-          );
+          return NextResponse.json({ error: 'Failed to seed RBAC data after creating tables', details: retryError instanceof Error ? retryError.message : String(retryError) }, { status: 500, headers: corsHeaders() });
         }
       }
-
-      return NextResponse.json(
-        {
-          error: 'RBAC tables not found in database and auto-creation failed.',
-          details: errorMessage,
-          hint: 'Please redeploy the application. Make sure POSTGRES_PRISMA_URL and POSTGRES_URL_NON_POOLING are set in Vercel environment variables.',
-        },
-        { status: 500, headers: corsHeaders() }
-      );
     }
-
-    return NextResponse.json(
-      { error: 'Failed to seed RBAC data', details: errorMessage, stack: errorStack },
-      { status: 500, headers: corsHeaders() }
-    );
+    return NextResponse.json({ error: 'Failed to seed RBAC data', details: errorMessage }, { status: 500, headers: corsHeaders() });
   }
 }
 
-/**
- * POST handler - Requires auth (super_admin) for security
- */
 export async function POST(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
+    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    // Only super_admin can seed RBAC data
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId as string },
-    });
-
-    if (!user || user.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Only super administrators can seed RBAC data' },
-        { status: 403, headers: corsHeaders() }
-      );
-    }
-
-    // Ensure RBAC tables exist
-    const tablesReady = await ensureRBACTablesExist();
-    if (!tablesReady) {
-      return NextResponse.json(
-        {
-          error: 'Failed to create RBAC tables',
-          hint: 'Please redeploy the application or check Vercel environment variables.',
-        },
-        { status: 500, headers: corsHeaders() }
-      );
-    }
-
+    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    if (!user || user.role !== 'super_admin') return NextResponse.json({ error: 'Only super administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
+    
+    const tablesResult = await ensureRBACTablesExist();
+    if (!tablesResult.success) return NextResponse.json({ error: 'Failed to create RBAC tables', details: tablesResult.error }, { status: 500, headers: corsHeaders() });
+    
     const result = await seedRBACData(user.id);
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'RBAC data seeded successfully',
-        data: result,
-      },
-      { headers: corsHeaders() }
-    );
+    return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    // Check if this is a "table does not exist" error - auto-create and retry
     if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
-      const tablesReady = await ensureRBACTablesExist();
-      if (tablesReady) {
+      const tablesResult = await ensureRBACTablesExist();
+      if (tablesResult.success) {
         try {
           const result = await seedRBACData();
-          return NextResponse.json(
-            {
-              success: true,
-              message: 'RBAC data seeded successfully after auto-creating tables',
-              data: result,
-            },
-            { headers: corsHeaders() }
-          );
+          return NextResponse.json({ success: true, message: 'RBAC data seeded after auto-creating tables', data: result }, { headers: corsHeaders() });
         } catch (retryError) {
-          const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
-          return NextResponse.json(
-            { error: 'Failed to seed RBAC data after creating tables', details: retryMsg },
-            { status: 500, headers: corsHeaders() }
-          );
+          return NextResponse.json({ error: 'Failed to seed RBAC data after creating tables', details: retryError instanceof Error ? retryError.message : String(retryError) }, { status: 500, headers: corsHeaders() });
         }
       }
     }
-
-    return NextResponse.json(
-      { error: 'Failed to seed RBAC data', details: errorMessage },
-      { status: 500, headers: corsHeaders() }
-    );
+    return NextResponse.json({ error: 'Failed to seed RBAC data', details: errorMessage }, { status: 500, headers: corsHeaders() });
   }
 }
