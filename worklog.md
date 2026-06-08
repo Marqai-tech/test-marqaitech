@@ -137,3 +137,26 @@ Stage Summary:
 - All 6 demo accounts working: super_admin, hr_admin, manager, employee, recruiter, candidate
 - AI Interview module fully seeded with diverse interview types and realistic sample data
 - Login page redesigned with mobile app download section featuring platform-specific install guides
+
+---
+Task ID: fix-login-email-mismatch
+Agent: Main Agent
+Task: Fix login errors for all demo accounts (Super Admin and other users)
+
+Work Log:
+- Identified root cause: Login page was rebranded to use @3boxeshrms.com emails, but database still had users with @nexushrms.com emails
+- Triggered /api/seed/reseed on Vercel to create users with @3boxeshrms.com emails
+- Verified all 6 demo accounts now work via API calls
+- Updated prisma/seed.ts: Changed all user emails from @nexushrms.com to @3boxeshrms.com, updated tenant name/slug
+- Updated /api/seed/route.ts: Changed tenant slug from nexus-corp to 3boxes-corp, updated company/group names from Nexus to 3 Boxes
+- Updated /api/seed/reseed/route.ts: Added 3boxes-hrms-demo tenant slug lookup, changed default tenant creation to 3 Boxes HRMS Demo
+- Updated /api/seed/ai-interview/route.ts: Added 3boxes-hrms-demo tenant slug lookup
+- Updated scripts/seed.mjs: Changed branding from NEXUS to 3 Boxes
+- Updated static data in company-management.tsx, job-portal/page.tsx, company/page.tsx, login-screen.tsx: Changed Nexus to 3 Boxes
+- Committed and pushed to GitHub
+
+Stage Summary:
+- All 6 demo accounts verified working: admin@3boxeshrms.com, hr@3boxeshrms.com, manager@3boxeshrms.com, employee@3boxeshrms.com, recruiter@3boxeshrms.com, candidate@3boxeshrms.com
+- All seed files and endpoints fully rebranded from NEXUS to 3 Boxes HRMS
+- Tenant slug fallback chain: 3boxes-hrms-demo → nexus-hrms-demo → nexus-corp → any active tenant
+- Changes pushed to Vercel for deployment
