@@ -84,3 +84,30 @@ Stage Summary:
 - All NEXUS branding replaced with 3 Boxes HRMS
 - Build successful, pushed to GitHub for Vercel auto-deployment
 - Users can now install the app directly from the login page on both Android and iOS
+
+---
+Task ID: rbac-system
+Agent: Main Agent
+Task: Build comprehensive RBAC system with role-permission management for Super Admin and Tenant Admin
+
+Work Log:
+- Added 5 new Prisma models: Role, Module, Permission, RolePermission, UserRoleAssignment
+- Added Role relation to Tenant and UserRoleAssignment relation to User
+- Created 7 RBAC API endpoints (seed, modules, roles CRUD, permissions, assign, my-permissions)
+- Seed endpoint creates 37 HRMS modules across 11 categories with 6 actions each
+- Created 7 system roles with appropriate default permissions
+- Built Super Admin RBAC management page (/super-admin/rbac) with 3 tabs
+- Built Tenant Admin RBAC management page (/tenant-admin/rbac) with 3 tabs
+- Updated auth store with permissions support (fetchPermissions, hasPermission, canAccessModule)
+- Added RBAC navigation items to Sidebar
+- Fixed db.ts to use generated Prisma client path
+- Build verified, pushed to GitHub
+
+Stage Summary:
+- Complete RBAC system implemented with database models, API routes, and UI pages
+- Super Admin: Full control over all modules, can manage tenant admin permissions and all roles
+- Tenant Admin: Company-scoped role management, can assign permissions within their tenant
+- Permission matrix with toggle switches for granular module-level access control
+- User role assignment with company scoping support
+- Seed endpoint for initializing default RBAC data
+- Pushed to GitHub, Vercel will auto-deploy
