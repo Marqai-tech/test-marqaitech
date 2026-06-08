@@ -396,8 +396,22 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error('RBAC seed error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Check if this is a "table does not exist" error
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
+      return NextResponse.json(
+        { 
+          error: 'RBAC tables not found in database. Please run database migration first (prisma db push or prisma migrate deploy).',
+          details: errorMessage,
+          hint: 'Run: npx prisma db push'
+        },
+        { status: 500, headers: corsHeaders() }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to seed RBAC data', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to seed RBAC data', details: errorMessage },
       { status: 500, headers: corsHeaders() }
     );
   }

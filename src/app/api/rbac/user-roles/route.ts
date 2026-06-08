@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import prisma from '@/lib/prisma';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders() });
+}
 
 // GET /api/rbac/user-roles — List users with their role assignments
 export async function GET(req: NextRequest) {
@@ -18,7 +30,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const users = await db.user.findMany({
+    const users = await prisma.user.findMany({
       where,
       select: {
         id: true,
@@ -48,9 +60,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ users: filtered });
+    return NextResponse.json(
+      { users: filtered },
+      { headers: corsHeaders() }
+    );
   } catch (error: unknown) {
     console.error('Get user roles error:', error);
-    return NextResponse.json({ error: 'Failed to fetch user roles' }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    // If RBAC tables don't exist yet, return empty array instead of error
+    if (errMsg.includes('does not exist') || errMsg.includes('relation')) {
+      return NextResponse.json(
+        { users: [], needsSeed: true },
+        { headers: corsHeaders() }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Failed to fetch user roles' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }

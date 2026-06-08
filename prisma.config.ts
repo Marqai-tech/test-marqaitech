@@ -4,6 +4,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    seed: "npx tsx prisma/seed.ts",
   },
   datasource: {
     // Neon Vercel integration sets POSTGRES_PRISMA_URL and POSTGRES_URL

@@ -1,19 +1,47 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import prisma from '@/lib/prisma';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders() });
+}
 
 // GET /api/rbac/modules — List all modules with permissions
 export async function GET() {
   try {
-    const modules = await db.module.findMany({
+    const modules = await prisma.module.findMany({
       include: {
         permissions: { orderBy: { action: 'asc' } },
       },
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }],
     });
 
-    return NextResponse.json({ modules });
+    const categories = [...new Set(modules.map((m) => m.category))];
+
+    return NextResponse.json(
+      { modules, totalModules: modules.length, categories },
+      { headers: corsHeaders() }
+    );
   } catch (error: unknown) {
     console.error('Get modules error:', error);
-    return NextResponse.json({ error: 'Failed to fetch modules' }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    // If RBAC tables don't exist yet, return empty array instead of error
+    if (errMsg.includes('does not exist') || errMsg.includes('relation')) {
+      return NextResponse.json(
+        { modules: [], totalModules: 0, categories: [], needsSeed: true },
+        { headers: corsHeaders() }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Failed to fetch modules' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }

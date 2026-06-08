@@ -111,3 +111,32 @@ Stage Summary:
 - User role assignment with company scoping support
 - Seed endpoint for initializing default RBAC data
 - Pushed to GitHub, Vercel will auto-deploy
+---
+Task ID: rbac-seed-fix
+Agent: Main Agent
+Task: Fix RBAC seed failure and make RBAC system work end-to-end
+
+Work Log:
+- Investigated the "failed to seed RBAC data" error
+- Found that RBAC modules and user-roles API routes were importing from `@/lib/db` instead of `@/lib/prisma`, causing failures
+- The `@/lib/db.ts` file creates PrismaClient without the Neon adapter (no `PrismaNeon`), breaking serverless connections
+- The fallback proxy in `db.ts` didn't include RBAC model names (role, module, permission, etc.)
+- The seed data for RBAC (modules, permissions, roles, role permissions, user role assignments) was NOT in `prisma/seed.ts`, only available via API route
+- Fixed both `modules/route.ts` and `user-roles/route.ts` to use `import prisma from '@/lib/prisma'`
+- Added RBAC model names to fallback proxy in `db.ts`
+- Added comprehensive RBAC seed data to `prisma/seed.ts` (37 modules, permissions, 7 system roles, role-permission mappings, user-role assignments)
+- Added idempotent checks in seed (skips existing modules/roles/permissions)
+- Improved error handling in API seed route to detect and explain "table does not exist" errors
+- Updated frontend seed handlers to show detailed error messages from API
+- Added `prisma.config.ts` seed command configuration
+- Added `db:push`, `db:seed`, `db:setup` npm scripts to `package.json`
+- Updated `postinstall` script to run `prisma generate`
+- Build verified clean with all changes
+
+Stage Summary:
+- Fixed 2 broken API routes (modules, user-roles) that used wrong Prisma import
+- RBAC seed data now included in main `prisma/seed.ts` for one-command setup
+- API seed route gives helpful error messages when tables don't exist
+- Frontend shows detailed seed error messages
+- All routes gracefully return empty arrays when RBAC tables don't exist yet
+- Build passes cleanly

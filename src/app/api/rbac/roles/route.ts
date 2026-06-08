@@ -110,6 +110,14 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error('Get roles error:', error);
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    // If RBAC tables don't exist yet, return empty array instead of error
+    if (errMsg.includes('does not exist') || errMsg.includes('relation')) {
+      return NextResponse.json(
+        { roles: [], total: 0, needsSeed: true },
+        { headers: corsHeaders() }
+      );
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500, headers: corsHeaders() }

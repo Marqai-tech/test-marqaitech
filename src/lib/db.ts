@@ -33,7 +33,8 @@ function createFallbackProxy(): PrismaClient {
         'client', 'vendor', 'subVendor', 'survey', 'surveyQuestion', 'surveyResponse',
         'shift', 'shiftMember', 'complianceItem', 'document', 'interview',
         'leavePolicy', 'payrollStructure', 'alumniRecord', 'workflowStepDef',
-        'workflowStepInstance',
+        'workflowStepInstance', 'role', 'module', 'permission', 'rolePermission',
+        'userRoleAssignment', 'tenant',
       ]
 
       if (modelNames.includes(prop)) {

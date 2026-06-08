@@ -370,7 +370,11 @@ export default function SuperAdminRBACPage() {
     setSeeding(true);
     try {
       const res = await fetch('/api/rbac/seed', { method: 'POST', headers: getAuthHeaders() });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      if (!res.ok) { 
+        const d = await res.json(); 
+        const errMsg = d.details ? `${d.error}: ${d.details}` : (d.error || 'Failed');
+        throw new Error(errMsg); 
+      }
       const data = await res.json();
       toast.success(data.message || 'RBAC data seeded');
       fetchRoles();
