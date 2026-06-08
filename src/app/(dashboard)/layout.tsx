@@ -1,13 +1,27 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
+import {
+  FiHome, FiUsers, FiBriefcase, FiClock, FiMenu,
+  FiCpu, FiGrid, FiBell, FiUser, FiDollarSign,
+  FiCalendar, FiMoreHorizontal,
+} from 'react-icons/fi';
+
+// Mobile bottom navigation items
+const mobileNavItems = [
+  { label: 'Home', href: '/home', icon: FiGrid },
+  { label: 'People', href: '/employees', icon: FiUsers },
+  { label: 'Recruit', href: '/recruitment', icon: FiBriefcase },
+  { label: 'AI Interview', href: '/ai-interview', icon: FiCpu },
+  { label: 'More', href: '#more', icon: FiMoreHorizontal },
+];
 
 export default function DashboardLayout({
   children,
@@ -15,11 +29,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, fetchUser, token } = useAuthStore();
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading, fetchUser, token, user, logout } = useAuthStore();
   const { fetchNotifications } = useNotificationStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileNotif, setShowMobileNotif] = useState(false);
+  const [showMobileProfile, setShowMobileProfile] = useState(false);
 
   // Check mobile viewport
   useEffect(() => {
@@ -50,7 +68,6 @@ export default function DashboardLayout({
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      // Poll for new notifications every 30 seconds
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
@@ -85,6 +102,168 @@ export default function DashboardLayout({
     return null;
   }
 
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+
+  // ========= MOBILE LAYOUT =========
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-nexus-background flex flex-col">
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#fff',
+              color: '#0F172A',
+              borderRadius: '12px',
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              padding: '10px 14px',
+              fontSize: '13px',
+              maxWidth: '90vw',
+            },
+          }}
+        />
+        <NotificationPopup />
+
+        {/* Mobile Top Bar */}
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center px-3 gap-2 sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+              <svg viewBox="0 0 35 11" className="w-4 h-3" fill="none">
+                <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+                <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+                <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+              </svg>
+            </div>
+            <span className="text-sm font-extrabold text-slate-800 truncate">
+              3 Boxes <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span>
+            </span>
+          </div>
+          <button
+            onClick={() => { setShowMobileNotif(false); setShowMobileProfile(false); setShowMobileMenu(!showMobileMenu); }}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <FiMenu className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => { setShowMobileMenu(false); setShowMobileProfile(false); setShowMobileNotif(!showMobileNotif); }}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative"
+          >
+            <FiBell className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }}
+            className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
+          >
+            {user?.name ? getInitials(user.name) : '??'}
+          </button>
+        </header>
+
+        {/* Mobile Slide-down Menu */}
+        {showMobileMenu && (
+          <div className="fixed inset-0 z-50" onClick={() => setShowMobileMenu(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute top-14 left-0 right-0 bg-white border-b border-slate-200 shadow-xl max-h-[70vh] overflow-y-auto animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
+              <Sidebar collapsed={false} onToggle={() => setShowMobileMenu(false)} isMobileMenu />
+              <div className="p-3 border-t border-slate-100">
+                <button
+                  onClick={async () => { await logout(); window.location.href = '/login'; }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors text-sm font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Notifications Panel */}
+        {showMobileNotif && (
+          <div className="fixed inset-0 z-50" onClick={() => setShowMobileNotif(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute top-14 left-0 right-0 bg-white border-b border-slate-200 shadow-xl max-h-[70vh] overflow-y-auto animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800">Notifications</h3>
+              </div>
+              <div className="p-6 text-center">
+                <FiBell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">No new notifications</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Profile Panel */}
+        {showMobileProfile && (
+          <div className="fixed inset-0 z-50" onClick={() => setShowMobileProfile(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute top-14 right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-b-xl animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-slate-100 text-center">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">
+                  {user?.name ? getInitials(user.name) : '??'}
+                </div>
+                <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
+                <p className="text-[11px] text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
+              </div>
+              <div className="py-1">
+                <button onClick={() => { setShowMobileProfile(false); router.push('/settings?tab=profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                  <FiUser className="w-4 h-4" /> Profile
+                </button>
+                <button onClick={() => { setShowMobileProfile(false); router.push('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                  <FiMoreHorizontal className="w-4 h-4" /> Settings
+                </button>
+                <div className="border-t border-slate-100 my-1" />
+                <button onClick={async () => { await logout(); window.location.href = '/login'; }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Main Content */}
+        <main className="flex-1 overflow-y-auto p-3 pb-20">
+          {children}
+        </main>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 safe-area-bottom">
+          <div className="flex items-center justify-around h-14">
+            {mobileNavItems.map((item) => {
+              const isActive = item.href === '#more' ? false : pathname === item.href || pathname?.startsWith(item.href + '/');
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.href === '#more') {
+                      setShowMobileMenu(true);
+                    } else {
+                      router.push(item.href);
+                    }
+                  }}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+                    isActive
+                      ? 'text-blue-500'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
+                  <span className={`text-[9px] font-semibold tracking-wide ${isActive ? 'text-blue-500' : ''}`}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+    );
+  }
+
+  // ========= DESKTOP LAYOUT =========
   return (
     <div className="min-h-screen bg-nexus-background">
       <Toaster
@@ -99,18 +278,6 @@ export default function DashboardLayout({
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
             padding: '12px 16px',
             fontSize: '14px',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
-            },
           },
         }}
       />

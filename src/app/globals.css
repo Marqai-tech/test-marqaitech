@@ -285,3 +285,38 @@ body {
 button, a, input, select, textarea {
   transition: all 0.15s ease;
 }
+
+/* Mobile Safe Area */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile touch-friendly improvements */
+@media (max-width: 767px) {
+  /* Reduce card shadows on mobile for cleaner look */
+  .nexus-card {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    border-radius: 10px;
+  }
+
+  /* Smaller padding in mobile content */
+  .nexus-card-hover:hover {
+    transform: none;
+  }
+
+  /* Make tables horizontally scrollable */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Better tap targets */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text selection on UI elements */
+  button, nav, header {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

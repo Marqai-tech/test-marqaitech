@@ -178,9 +178,10 @@ const navSections: NavSection[] = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobileMenu?: boolean;
 }
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const userRole = user?.role || 'employee';
@@ -255,28 +256,30 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-full bg-nexus-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
-        collapsed ? 'w-[68px]' : 'w-[260px]'
+      className={`${isMobileMenu ? 'w-full' : 'fixed left-0 top-0 h-full'} bg-nexus-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
+        isMobileMenu ? '' : collapsed ? 'w-[68px]' : 'w-[260px]'
       }`}
     >
-      {/* Brand Header */}
-      <div className={`flex items-center h-16 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
-          <svg viewBox="0 0 35 11" className="w-5 h-3" fill="none">
-            <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-            <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-            <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-          </svg>
-        </div>
-        {!collapsed && (
-          <div className="overflow-hidden">
-            <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
-              3 Boxes <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
-            </h1>
-            <p className="text-[10px] text-nexus-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
+      {/* Brand Header - hidden in mobile menu mode */}
+      {!isMobileMenu && (
+        <div className={`flex items-center h-16 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
+          <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+            <svg viewBox="0 0 35 11" className="w-5 h-3" fill="none">
+              <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+              <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+              <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+            </svg>
           </div>
-        )}
-      </div>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
+                3 Boxes <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
+              </h1>
+              <p className="text-[10px] text-nexus-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 sidebar-scroll">
@@ -324,6 +327,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         <li key={item.href}>
                           <Link
                             href={item.href}
+                            onClick={() => { if (isMobileMenu) onToggle(); }}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
                               isActive
                                 ? 'bg-blue-500/15 text-blue-400'
@@ -363,7 +367,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Bottom Section: User Info + Collapse Toggle */}
+      {/* Bottom Section: User Info + Collapse Toggle - hidden in mobile menu mode */}
+      {!isMobileMenu && (
       <div className="border-t border-white/[0.06]">
         {/* User Info */}
         <div className={`flex items-center p-3 ${collapsed ? 'justify-center' : 'gap-3'}`}>
@@ -409,6 +414,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         </button>
       </div>
+      )}
     </aside>
   );
 }
