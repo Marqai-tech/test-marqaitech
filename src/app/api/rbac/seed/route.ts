@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { neon } from '@neondatabase/serverless';
 
 function corsHeaders() {
   return {
@@ -74,61 +73,6 @@ const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 
 const EMPLOYEE_MODULES = ['dashboard', 'employees', 'leave', 'attendance', 'timesheets', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'expenses', 'travel', 'training'];
 const RECRUITER_MODULES = ['dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant'];
 const CANDIDATE_MODULES = ['job_portal', 'ai_interview', 'docs', 'notifications'];
-
-function getNeonClient() {
-  const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  if (!connectionString) throw new Error('No database connection string found');
-  return neon(connectionString);
-}
-
-async function ensureRBACTablesExist(): Promise<{ success: boolean; error?: string }> {
-  try {
-    await prisma.module.findFirst();
-    return { success: true };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes('does not exist') && !msg.includes('relation') && !msg.includes('table') && !msg.includes('Invalid')) {
-      return { success: true };
-    }
-  }
-
-  console.log('RBAC tables missing. Creating via direct Neon SQL...');
-  try {
-    const sql = getNeonClient();
-
-    await sql`CREATE TABLE IF NOT EXISTS "Module" ("id" TEXT NOT NULL, "key" TEXT NOT NULL, "name" TEXT NOT NULL, "description" TEXT, "category" TEXT NOT NULL, "icon" TEXT, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Module_pkey" PRIMARY KEY ("id"), CONSTRAINT "Module_key_key" UNIQUE ("key"))`;
-    await sql`CREATE TABLE IF NOT EXISTS "Permission" ("id" TEXT NOT NULL, "moduleId" TEXT NOT NULL, "action" TEXT NOT NULL, "description" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Permission_pkey" PRIMARY KEY ("id"), CONSTRAINT "Permission_moduleId_action_key" UNIQUE ("moduleId", "action"))`;
-    await sql`CREATE TABLE IF NOT EXISTS "Role" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "key" TEXT NOT NULL, "description" TEXT, "isSystem" BOOLEAN NOT NULL DEFAULT false, "level" INTEGER NOT NULL DEFAULT 0, "tenantId" TEXT, "companyId" TEXT, "status" TEXT NOT NULL DEFAULT 'active', "createdBy" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Role_pkey" PRIMARY KEY ("id"), CONSTRAINT "Role_key_tenantId_companyId_key" UNIQUE ("key", "tenantId", "companyId"))`;
-    await sql`CREATE TABLE IF NOT EXISTS "RolePermission" ("id" TEXT NOT NULL, "roleId" TEXT NOT NULL, "permissionId" TEXT NOT NULL, "granted" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("id"), CONSTRAINT "RolePermission_roleId_permissionId_key" UNIQUE ("roleId", "permissionId"))`;
-    await sql`CREATE TABLE IF NOT EXISTS "UserRoleAssignment" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "roleId" TEXT NOT NULL, "companyId" TEXT, "assignedBy" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "UserRoleAssignment_pkey" PRIMARY KEY ("id"), CONSTRAINT "UserRoleAssignment_userId_roleId_companyId_key" UNIQUE ("userId", "roleId", "companyId"))`;
-
-    // Foreign keys
-    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Permission_moduleId_fkey') THEN ALTER TABLE "Permission" ADD CONSTRAINT "Permission_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
-    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Role_tenantId_fkey') THEN ALTER TABLE "Role" ADD CONSTRAINT "Role_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
-    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_roleId_fkey') THEN ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
-    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_permissionId_fkey') THEN ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
-    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRoleAssignment_userId_fkey') THEN ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
-    await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRoleAssignment_roleId_fkey') THEN ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`;
-
-    // Indexes
-    await sql`CREATE INDEX IF NOT EXISTS "Permission_moduleId_idx" ON "Permission"("moduleId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "Role_tenantId_idx" ON "Role"("tenantId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "Role_companyId_idx" ON "Role"("companyId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "Role_key_idx" ON "Role"("key")`;
-    await sql`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_userId_idx" ON "UserRoleAssignment"("userId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_roleId_idx" ON "UserRoleAssignment"("roleId")`;
-    await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_companyId_idx" ON "UserRoleAssignment"("companyId")`;
-
-    console.log('RBAC tables created successfully');
-    return { success: true };
-  } catch (createError) {
-    const createMsg = createError instanceof Error ? createError.message : String(createError);
-    console.error('Failed to create RBAC tables:', createMsg);
-    return { success: false, error: createMsg };
-  }
-}
 
 async function seedRBACData(userId?: string) {
   let modulesCreated = 0, permissionsCreated = 0, rolesCreated = 0, rolePermissionsCreated = 0, userRoleAssignmentsCreated = 0;
@@ -219,27 +163,23 @@ async function seedRBACData(userId?: string) {
 
 export async function GET() {
   try {
-    const tablesResult = await ensureRBACTablesExist();
-    if (!tablesResult.success) {
-      return NextResponse.json({ error: 'Failed to create RBAC tables', details: tablesResult.error, hint: 'Make sure POSTGRES_PRISMA_URL or DATABASE_URL is set in Vercel environment variables.' }, { status: 500, headers: corsHeaders() });
-    }
     const result = await seedRBACData();
     return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
-      const tablesResult = await ensureRBACTablesExist();
-      if (tablesResult.success) {
-        try {
-          const result = await seedRBACData();
-          return NextResponse.json({ success: true, message: 'RBAC data seeded after auto-creating tables', data: result }, { headers: corsHeaders() });
-        } catch (retryError) {
-          return NextResponse.json({ error: 'Failed to seed RBAC data after creating tables', details: retryError instanceof Error ? retryError.message : String(retryError) }, { status: 500, headers: corsHeaders() });
-        }
-      }
-    }
-    return NextResponse.json({ error: 'Failed to seed RBAC data', details: errorMessage }, { status: 500, headers: corsHeaders() });
+    const isTableMissing = errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table') || errorMessage.includes('Invalid');
+    return NextResponse.json(
+      { 
+        error: 'Failed to seed RBAC data', 
+        details: errorMessage,
+        tableMissing: isTableMissing,
+        hint: isTableMissing 
+          ? 'RBAC tables are missing from the database. Please redeploy the application (push to main branch) so that "prisma db push" runs during the build and creates the required tables. Also ensure POSTGRES_PRISMA_URL environment variable is set in Vercel.'
+          : undefined
+      }, 
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
 
@@ -252,25 +192,22 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user || user.role !== 'super_admin') return NextResponse.json({ error: 'Only super administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
     
-    const tablesResult = await ensureRBACTablesExist();
-    if (!tablesResult.success) return NextResponse.json({ error: 'Failed to create RBAC tables', details: tablesResult.error }, { status: 500, headers: corsHeaders() });
-    
     const result = await seedRBACData(user.id);
     return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
-      const tablesResult = await ensureRBACTablesExist();
-      if (tablesResult.success) {
-        try {
-          const result = await seedRBACData();
-          return NextResponse.json({ success: true, message: 'RBAC data seeded after auto-creating tables', data: result }, { headers: corsHeaders() });
-        } catch (retryError) {
-          return NextResponse.json({ error: 'Failed to seed RBAC data after creating tables', details: retryError instanceof Error ? retryError.message : String(retryError) }, { status: 500, headers: corsHeaders() });
-        }
-      }
-    }
-    return NextResponse.json({ error: 'Failed to seed RBAC data', details: errorMessage }, { status: 500, headers: corsHeaders() });
+    const isTableMissing = errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table') || errorMessage.includes('Invalid');
+    return NextResponse.json(
+      { 
+        error: 'Failed to seed RBAC data', 
+        details: errorMessage,
+        tableMissing: isTableMissing,
+        hint: isTableMissing 
+          ? 'RBAC tables are missing from the database. Please redeploy the application (push to main branch) so that "prisma db push" runs during the build and creates the required tables.'
+          : undefined
+      }, 
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
