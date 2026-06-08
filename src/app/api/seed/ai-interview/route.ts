@@ -18,8 +18,15 @@ export async function POST(request: Request) {
 
     console.log('[AI-Interview-Seed] Starting AI Interview data seeding...');
 
-    // Find the tenant
-    const tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+    // Find the tenant (try both slugs)
+    let tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+    if (!tenant) {
+      tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-corp' } });
+    }
+    if (!tenant) {
+      // Find any active tenant
+      tenant = await prisma.tenant.findFirst({ where: { status: 'active' } });
+    }
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found. Run reseed first.' }, { status: 400 });
     }
