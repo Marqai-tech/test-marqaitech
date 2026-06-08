@@ -1,391 +1,706 @@
-import { PrismaClient } from '@prisma/client';
-import { hash } from 'crypto';
+import bcryptjs from 'bcryptjs';
+import { PrismaClient } from '../src/generated/prisma/client';
+import { PrismaNeon } from '@prisma/adapter-neon';
 
-const prisma = new PrismaClient();
+// Setup Prisma client with Neon adapter (same pattern as src/lib/prisma.ts)
+const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('No database connection string found. Set POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL');
+}
 
-function simpleHash(str: string): string {
-  return str; // In production, use bcrypt. For demo, store plain.
+const adapter = new PrismaNeon({ connectionString });
+const prisma = new PrismaClient({ adapter });
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcryptjs.genSalt(12);
+  return bcryptjs.hash(password, salt);
 }
 
 async function main() {
-  console.log('Seeding database...');
+  console.log('🌱 Seeding database...');
+  console.log('ℹ️  Using connection string prefix:', connectionString?.substring(0, 30) + '...');
+
+  // ==================== TENANT ====================
+  console.log('\n📋 Creating Tenant...');
+  const tenant = await prisma.tenant.create({
+    data: {
+      name: 'Nexus HRMS Demo',
+      slug: 'nexus-hrms-demo',
+      domain: 'demo.nexushrms.com',
+      plan: 'enterprise',
+      status: 'active',
+      country: 'US',
+      currency: 'USD',
+      timezone: 'America/New_York',
+    },
+  });
+  console.log(`  ✓ Tenant: ${tenant.name} (${tenant.id})`);
+
+  // ==================== COMPANY GROUP ====================
+  console.log('\n📋 Creating Company Group...');
+  const companyGroup = await prisma.companyGroup.create({
+    data: {
+      name: 'TechCorp Global Group',
+      tenantId: tenant.id,
+    },
+  });
+  console.log(`  ✓ CompanyGroup: ${companyGroup.name}`);
 
   // ==================== COMPANIES ====================
-  const companies = await Promise.all([
-    prisma.company.upsert({ where: { code: 'TCG' }, update: {}, create: { name: 'TechCorp Global', code: 'TCG', industry: 'IT Services', country: 'US', currency: 'USD', timezone: 'America/New_York', isActive: true } }),
-    prisma.company.upsert({ where: { code: 'MPI' }, update: {}, create: { name: 'ManufactPro Industries', code: 'MPI', industry: 'Manufacturing', country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', isActive: true } }),
-    prisma.company.upsert({ where: { code: 'HFS' }, update: {}, create: { name: 'HealthFirst Solutions', code: 'HFS', industry: 'Healthcare', country: 'GB', currency: 'GBP', timezone: 'Europe/London', isActive: true } }),
-    prisma.company.upsert({ where: { code: 'RMG' }, update: {}, create: { name: 'RetailMax Group', code: 'RMG', industry: 'Retail', country: 'DE', currency: 'EUR', timezone: 'Europe/Berlin', isActive: true } }),
-    prisma.company.upsert({ where: { code: 'LTW' }, update: {}, create: { name: 'LogiTrans Worldwide', code: 'LTW', industry: 'Logistics', country: 'SG', currency: 'SGD', timezone: 'Asia/Singapore', isActive: true } }),
+  console.log('\n📋 Creating Companies...');
+  const [tcg, mpi, hfs] = await Promise.all([
+    prisma.company.create({
+      data: {
+        name: 'TechCorp Global',
+        code: 'TCG',
+        companyGroupId: companyGroup.id,
+        country: 'US',
+        currency: 'USD',
+        timezone: 'America/New_York',
+        city: 'San Francisco',
+        state: 'CA',
+        email: 'info@techcorp.com',
+        website: 'https://techcorp.com',
+        status: 'active',
+      },
+    }),
+    prisma.company.create({
+      data: {
+        name: 'ManufactPro Industries',
+        code: 'MPI',
+        companyGroupId: companyGroup.id,
+        country: 'IN',
+        currency: 'INR',
+        timezone: 'Asia/Kolkata',
+        city: 'Mumbai',
+        state: 'MH',
+        email: 'info@manufactpro.com',
+        status: 'active',
+      },
+    }),
+    prisma.company.create({
+      data: {
+        name: 'HealthFirst Solutions',
+        code: 'HFS',
+        companyGroupId: companyGroup.id,
+        country: 'GB',
+        currency: 'GBP',
+        timezone: 'Europe/London',
+        city: 'London',
+        state: 'England',
+        email: 'info@healthfirst.com',
+        status: 'active',
+      },
+    }),
   ]);
-  console.log(`Created ${companies.length} companies`);
-
-  const tcg = companies[0];
-  const mpi = companies[1];
-  const hfs = companies[2];
+  console.log(`  ✓ Created 3 companies: ${tcg.name}, ${mpi.name}, ${hfs.name}`);
 
   // ==================== BRANCHES ====================
-  const branches = await Promise.all([
-    prisma.branch.create({ data: { name: 'HQ San Francisco', code: 'TCG-SF', city: 'San Francisco', state: 'CA', country: 'US', companyId: tcg.id } }),
-    prisma.branch.create({ data: { name: 'NYC Office', code: 'TCG-NY', city: 'New York', state: 'NY', country: 'US', companyId: tcg.id } }),
-    prisma.branch.create({ data: { name: 'Mumbai HQ', code: 'MPI-MUM', city: 'Mumbai', state: 'MH', country: 'IN', companyId: mpi.id } }),
-    prisma.branch.create({ data: { name: 'London Office', code: 'HFS-LON', city: 'London', state: 'England', country: 'GB', companyId: hfs.id } }),
+  console.log('\n📋 Creating Branches...');
+  const [sfBranch, nyBranch, mumbaiBranch, londonBranch] = await Promise.all([
+    prisma.branch.create({
+      data: { name: 'HQ San Francisco', code: 'TCG-SF', city: 'San Francisco', state: 'CA', country: 'US', companyId: tcg.id, status: 'active' },
+    }),
+    prisma.branch.create({
+      data: { name: 'NYC Office', code: 'TCG-NY', city: 'New York', state: 'NY', country: 'US', companyId: tcg.id, status: 'active' },
+    }),
+    prisma.branch.create({
+      data: { name: 'Mumbai HQ', code: 'MPI-MUM', city: 'Mumbai', state: 'MH', country: 'IN', companyId: mpi.id, status: 'active' },
+    }),
+    prisma.branch.create({
+      data: { name: 'London Office', code: 'HFS-LON', city: 'London', state: 'England', country: 'GB', companyId: hfs.id, status: 'active' },
+    }),
   ]);
-  console.log(`Created ${branches.length} branches`);
+  console.log(`  ✓ Created 4 branches`);
 
   // ==================== DEPARTMENTS ====================
-  const departments = await Promise.all([
-    prisma.department.create({ data: { name: 'Engineering', code: 'ENG', companyId: tcg.id } }),
-    prisma.department.create({ data: { name: 'Human Resources', code: 'HR', companyId: tcg.id } }),
-    prisma.department.create({ data: { name: 'Design', code: 'DSG', companyId: tcg.id } }),
-    prisma.department.create({ data: { name: 'Finance', code: 'FIN', companyId: tcg.id } }),
-    prisma.department.create({ data: { name: 'Operations', code: 'OPS', companyId: tcg.id } }),
-    prisma.department.create({ data: { name: 'Sales', code: 'SAL', companyId: tcg.id } }),
-    prisma.department.create({ data: { name: 'Quality', code: 'QAT', companyId: mpi.id } }),
-    prisma.department.create({ data: { name: 'Production', code: 'PRD', companyId: mpi.id } }),
-    prisma.department.create({ data: { name: 'Clinical', code: 'CLI', companyId: hfs.id } }),
-    prisma.department.create({ data: { name: 'Analytics', code: 'ANA', companyId: tcg.id } }),
+  console.log('\n📋 Creating Departments...');
+  const [engDept, hrDept, designDept, finDept, opsDept, salesDept, anaDept, recDept] = await Promise.all([
+    prisma.department.create({ data: { name: 'Engineering', code: 'ENG', companyId: tcg.id, branchId: sfBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Human Resources', code: 'HR', companyId: tcg.id, branchId: sfBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Design', code: 'DSG', companyId: tcg.id, branchId: sfBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Finance', code: 'FIN', companyId: tcg.id, branchId: nyBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Operations', code: 'OPS', companyId: tcg.id, branchId: sfBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Sales', code: 'SAL', companyId: tcg.id, branchId: nyBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Analytics', code: 'ANA', companyId: tcg.id, branchId: sfBranch.id, status: 'active' } }),
+    prisma.department.create({ data: { name: 'Recruitment', code: 'REC', companyId: tcg.id, branchId: sfBranch.id, status: 'active' } }),
   ]);
-  console.log(`Created ${departments.length} departments`);
+  console.log(`  ✓ Created 8 departments`);
+
+  // ==================== DESIGNATIONS ====================
+  console.log('\n📋 Creating Designations...');
+  const [seniorDevDesg, hrManagerDesg, designerDesg, devOpsDesg, financeAnalystDesg, opsManagerDesg, recruiterDesg, dataScientistDesg] = await Promise.all([
+    prisma.designation.create({ data: { title: 'Senior Software Engineer', departmentId: engDept.id, level: 4, minSalary: 120000, maxSalary: 180000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'HR Manager', departmentId: hrDept.id, level: 5, minSalary: 90000, maxSalary: 130000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'Product Designer', departmentId: designDept.id, level: 3, minSalary: 95000, maxSalary: 140000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'DevOps Lead', departmentId: engDept.id, level: 4, minSalary: 130000, maxSalary: 175000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'Finance Analyst', departmentId: finDept.id, level: 3, minSalary: 70000, maxSalary: 100000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'Operations Manager', departmentId: opsDept.id, level: 4, minSalary: 85000, maxSalary: 120000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'Recruiter', departmentId: recDept.id, level: 3, minSalary: 65000, maxSalary: 95000, status: 'active' } }),
+    prisma.designation.create({ data: { title: 'Data Scientist', departmentId: anaDept.id, level: 4, minSalary: 110000, maxSalary: 160000, status: 'active' } }),
+  ]);
+  console.log(`  ✓ Created 8 designations`);
 
   // ==================== USERS ====================
-  const users = await Promise.all([
-    prisma.user.create({ data: { email: 'admin@nexushrms.com', password: 'admin123', name: 'Admin Nexus', role: 'super_admin', isActive: true } }),
-    prisma.user.create({ data: { email: 'sarah.j@techcorp.com', password: 'sarah123', name: 'Sarah Johnson', role: 'company_hr_admin', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'raj.p@techcorp.com', password: 'raj123', name: 'Raj Patel', role: 'employee', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'emily.c@techcorp.com', password: 'emily123', name: 'Emily Chen', role: 'employee', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'michael.b@techcorp.com', password: 'michael123', name: 'Michael Brown', role: 'employee', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'priya.s@manufactpro.com', password: 'priya123', name: 'Priya Sharma', role: 'reporting_manager', companyId: mpi.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'david.w@healthfirst.com', password: 'david123', name: 'David Wilson', role: 'employee', companyId: hfs.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'aiko.t@logitrans.com', password: 'aiko123', name: 'Aiko Tanaka', role: 'employee', companyId: companies[4].id, isActive: true } }),
-    prisma.user.create({ data: { email: 'carlos.r@retailmax.com', password: 'carlos123', name: 'Carlos Rodriguez', role: 'employee', companyId: companies[3].id, isActive: true } }),
-    prisma.user.create({ data: { email: 'lisa.a@techcorp.com', password: 'lisa123', name: 'Lisa Anderson', role: 'finance', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'arjun.k@manufactpro.com', password: 'arjun123', name: 'Arjun Kumar', role: 'employee', companyId: mpi.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'hr@acme.com', password: 'acme123', name: 'Acme Corp', role: 'client', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'info@talenthunt.com', password: 'thunt123', name: 'TalentHunt Agency', role: 'vendor', companyId: tcg.id, isActive: true } }),
-    prisma.user.create({ data: { email: 'recruiter@techcorp.com', password: 'recruit123', name: 'Recruiter Kim', role: 'recruiter', companyId: tcg.id, isActive: true } }),
-  ]);
-  console.log(`Created ${users.length} users`);
-
-  // ==================== EMPLOYEES ====================
-  const engDept = departments[0];
-  const hrDept = departments[1];
-  const designDept = departments[2];
-  const finDept = departments[3];
-  const opsDept = departments[4];
-  const salesDept = departments[5];
-  const qualDept = departments[6];
-  const prodDept = departments[7];
-  const clinDept = departments[8];
-  const anaDept = departments[9];
-
-  const employees = await Promise.all([
-    prisma.employee.create({ data: { employeeId: 'EMP001', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.j@techcorp.com', designation: 'Senior Software Engineer', jobTitle: 'Senior Developer', employmentType: 'full-time', status: 'active', joiningDate: new Date('2022-03-15'), companyId: tcg.id, branchId: branches[0].id, departmentId: engDept.id, userId: users[1].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP002', firstName: 'Raj', lastName: 'Patel', email: 'raj.p@techcorp.com', designation: 'HR Manager', employmentType: 'full-time', status: 'active', joiningDate: new Date('2021-07-01'), companyId: tcg.id, branchId: branches[0].id, departmentId: hrDept.id, userId: users[2].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP003', firstName: 'Emily', lastName: 'Chen', email: 'emily.c@techcorp.com', designation: 'Product Designer', employmentType: 'full-time', status: 'active', joiningDate: new Date('2023-01-10'), companyId: tcg.id, branchId: branches[0].id, departmentId: designDept.id, userId: users[3].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP004', firstName: 'Michael', lastName: 'Brown', email: 'michael.b@techcorp.com', designation: 'DevOps Lead', employmentType: 'full-time', status: 'probation', joiningDate: new Date('2024-09-01'), probationEnd: new Date('2025-03-01'), companyId: tcg.id, branchId: branches[0].id, departmentId: engDept.id, userId: users[4].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP005', firstName: 'Priya', lastName: 'Sharma', email: 'priya.s@manufactpro.com', designation: 'Production Manager', employmentType: 'full-time', status: 'active', joiningDate: new Date('2020-11-20'), companyId: mpi.id, branchId: branches[2].id, departmentId: prodDept.id, userId: users[5].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP006', firstName: 'David', lastName: 'Wilson', email: 'david.w@healthfirst.com', designation: 'Nurse Practitioner', employmentType: 'full-time', status: 'on_leave', joiningDate: new Date('2019-05-15'), companyId: hfs.id, branchId: branches[3].id, departmentId: clinDept.id, userId: users[6].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP007', firstName: 'Aiko', lastName: 'Tanaka', email: 'aiko.t@logitrans.com', designation: 'Fleet Coordinator', employmentType: 'full-time', status: 'active', joiningDate: new Date('2023-06-01'), companyId: companies[4].id, departmentId: opsDept.id, userId: users[7].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP008', firstName: 'Carlos', lastName: 'Rodriguez', email: 'carlos.r@retailmax.com', designation: 'Store Manager', employmentType: 'full-time', status: 'notice_period', joiningDate: new Date('2021-02-10'), companyId: companies[3].id, departmentId: salesDept.id, userId: users[8].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP009', firstName: 'Lisa', lastName: 'Anderson', email: 'lisa.a@techcorp.com', designation: 'Finance Analyst', employmentType: 'full-time', status: 'active', joiningDate: new Date('2022-08-22'), companyId: tcg.id, branchId: branches[1].id, departmentId: finDept.id, userId: users[9].id } }),
-    prisma.employee.create({ data: { employeeId: 'EMP010', firstName: 'Arjun', lastName: 'Kumar', email: 'arjun.k@manufactpro.com', designation: 'Quality Inspector', employmentType: 'full-time', status: 'active', joiningDate: new Date('2023-04-01'), companyId: mpi.id, branchId: branches[2].id, departmentId: qualDept.id, userId: users[10].id } }),
-  ]);
-  console.log(`Created ${employees.length} employees`);
-
-  // Set reporting manager for some employees
-  await Promise.all([
-    prisma.employee.update({ where: { id: employees[2].id }, data: { reportingManagerId: employees[0].id } }),
-    prisma.employee.update({ where: { id: employees[3].id }, data: { reportingManagerId: employees[0].id } }),
-    prisma.employee.update({ where: { id: employees[8].id }, data: { reportingManagerId: employees[0].id } }),
+  console.log('\n📋 Creating Users (with bcrypt-hashed passwords)...');
+  const passwordHashes = await Promise.all([
+    hashPassword('admin123'),
+    hashPassword('hr123'),
+    hashPassword('manager123'),
+    hashPassword('employee123'),
+    hashPassword('recruiter123'),
+    hashPassword('candidate123'),
   ]);
 
-  // ==================== JOBS ====================
-  const jobs = await Promise.all([
-    prisma.job.create({ data: { title: 'Senior Full-Stack Developer', description: 'We are looking for a senior full-stack developer to join our engineering team.', requirements: 'React, Node.js, TypeScript, 5+ years experience', department: 'Engineering', location: 'San Francisco, CA', employmentType: 'Full-time', experienceMin: 5, experienceMax: 8, salaryMin: 140000, salaryMax: 180000, status: 'open', priority: 'high', positions: 2, postedDate: new Date('2024-12-01'), companyId: tcg.id } }),
-    prisma.job.create({ data: { title: 'HR Business Partner', description: 'Seeking an experienced HR business partner.', requirements: '7+ years HR experience, PHR certification preferred', department: 'Human Resources', location: 'New York, NY', employmentType: 'Full-time', experienceMin: 7, experienceMax: 10, salaryMin: 95000, salaryMax: 120000, status: 'open', priority: 'medium', positions: 1, postedDate: new Date('2024-11-28'), companyId: tcg.id } }),
-    prisma.job.create({ data: { title: 'UX Research Lead', description: 'Lead UX research initiatives across products.', requirements: '6+ years UX research, mixed methods expertise', department: 'Design', location: 'Remote', employmentType: 'Full-time', experienceMin: 6, experienceMax: 9, salaryMin: 120000, salaryMax: 150000, status: 'open', priority: 'high', positions: 1, postedDate: new Date('2024-11-15'), companyId: tcg.id } }),
-    prisma.job.create({ data: { title: 'Production Supervisor', description: 'Oversee daily production operations.', requirements: '8+ years in manufacturing, Six Sigma preferred', department: 'Operations', location: 'Mumbai, India', employmentType: 'Full-time', experienceMin: 8, experienceMax: 12, salaryMin: 1500000, salaryMax: 2200000, status: 'open', priority: 'urgent', positions: 3, postedDate: new Date('2024-12-05'), companyId: mpi.id } }),
-    prisma.job.create({ data: { title: 'Data Scientist', description: 'Build ML models for business insights.', requirements: 'Python, TensorFlow, 3+ years experience', department: 'Analytics', location: 'Austin, TX', employmentType: 'Full-time', experienceMin: 3, experienceMax: 5, salaryMin: 110000, salaryMax: 145000, status: 'draft', priority: 'medium', positions: 1, companyId: tcg.id } }),
-    prisma.job.create({ data: { title: 'Registered Nurse', description: 'Join our clinical team.', requirements: 'RN license, BLS/ACLS certified, 2+ years', department: 'Clinical', location: 'London, UK', employmentType: 'Full-time', experienceMin: 2, experienceMax: 5, salaryMin: 35000, salaryMax: 45000, status: 'open', priority: 'high', positions: 5, postedDate: new Date('2024-12-03'), companyId: hfs.id } }),
-    prisma.job.create({ data: { title: 'Cloud Infrastructure Engineer', description: 'Design and maintain cloud infrastructure.', requirements: 'AWS/Azure, Terraform, Kubernetes, 4+ years', department: 'Engineering', location: 'Singapore', employmentType: 'Full-time', experienceMin: 4, experienceMax: 7, salaryMin: 8000, salaryMax: 12000, status: 'on_hold', priority: 'low', positions: 1, postedDate: new Date('2024-11-20'), companyId: companies[4].id } }),
+  const [adminUser, hrUser, managerUser, employeeUser, recruiterUser, candidateUser] = await Promise.all([
+    prisma.user.create({
+      data: { email: 'admin@nexushrms.com', password: passwordHashes[0], name: 'Admin Nexus', role: 'super_admin', status: 'active', tenantId: tenant.id },
+    }),
+    prisma.user.create({
+      data: { email: 'hr@nexushrms.com', password: passwordHashes[1], name: 'Sarah Johnson', role: 'hr_admin', status: 'active', tenantId: tenant.id },
+    }),
+    prisma.user.create({
+      data: { email: 'manager@nexushrms.com', password: passwordHashes[2], name: 'Priya Sharma', role: 'manager', status: 'active', tenantId: tenant.id },
+    }),
+    prisma.user.create({
+      data: { email: 'employee@nexushrms.com', password: passwordHashes[3], name: 'Raj Patel', role: 'employee', status: 'active', tenantId: tenant.id },
+    }),
+    prisma.user.create({
+      data: { email: 'recruiter@nexushrms.com', password: passwordHashes[4], name: 'Kim Chen', role: 'recruiter', status: 'active', tenantId: tenant.id },
+    }),
+    prisma.user.create({
+      data: { email: 'candidate@nexushrms.com', password: passwordHashes[5], name: 'Alex Turner', role: 'candidate', status: 'active', tenantId: tenant.id },
+    }),
   ]);
-  console.log(`Created ${jobs.length} jobs`);
+  console.log(`  ✓ Created 6 users: super_admin, hr_admin, manager, employee, recruiter, candidate`);
 
-  // ==================== CANDIDATES ====================
-  const candidates = await Promise.all([
-    prisma.candidate.create({ data: { firstName: 'Alex', lastName: 'Turner', email: 'alex.t@email.com', currentCompany: 'Google', currentTitle: 'Software Engineer', experience: 6, expectedSalary: 160000, noticePeriod: '30 days', status: 'interviewing', source: 'LinkedIn', aiScore: 92, skillMatch: 88, cultureFitScore: 85, jobId: jobs[0].id } }),
-    prisma.candidate.create({ data: { firstName: 'Maya', lastName: 'Singh', email: 'maya.s@email.com', currentCompany: 'Amazon', currentTitle: 'Senior Developer', experience: 8, expectedSalary: 175000, noticePeriod: '60 days', status: 'shortlisted', source: 'Naukri', aiScore: 89, skillMatch: 91, cultureFitScore: 80, jobId: jobs[0].id } }),
-    prisma.candidate.create({ data: { firstName: 'James', lastName: 'Williams', email: 'james.w@email.com', currentCompany: 'Microsoft', currentTitle: 'HR Manager', experience: 9, expectedSalary: 110000, noticePeriod: '30 days', status: 'offered', source: 'Referral', aiScore: 95, skillMatch: 94, cultureFitScore: 90, jobId: jobs[1].id } }),
-    prisma.candidate.create({ data: { firstName: 'Sophie', lastName: 'Martin', email: 'sophie.m@email.com', currentCompany: 'Meta', currentTitle: 'UX Researcher', experience: 7, expectedSalary: 140000, noticePeriod: '45 days', status: 'screening', source: 'Portal', aiScore: 78, skillMatch: 82, cultureFitScore: 88, jobId: jobs[2].id } }),
-    prisma.candidate.create({ data: { firstName: 'Wei', lastName: 'Zhang', email: 'wei.z@email.com', currentCompany: 'ByteDance', currentTitle: 'Data Engineer', experience: 4, expectedSalary: 135000, noticePeriod: '30 days', status: 'applied', source: 'Indeed', aiScore: 72, skillMatch: 68, cultureFitScore: 75, jobId: jobs[4].id } }),
+  // ==================== EMPLOYEES (for internal roles) ====================
+  console.log('\n📋 Creating Employees...');
+  const [hrEmployee, managerEmployee, employeeEmployee, recruiterEmployee] = await Promise.all([
+    prisma.employee.create({
+      data: {
+        employeeId: 'EMP001',
+        firstName: 'Sarah',
+        lastName: 'Johnson',
+        email: 'hr@nexushrms.com',
+        phone: '+1-555-0101',
+        userId: hrUser.id,
+        departmentId: hrDept.id,
+        designationId: hrManagerDesg.id,
+        branchId: sfBranch.id,
+        companyId: tcg.id,
+        dateOfJoining: new Date('2021-07-01'),
+        dateOfBirth: new Date('1988-03-15'),
+        gender: 'female',
+        nationality: 'American',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US',
+        status: 'active',
+        salary: 115000,
+        salaryCurrency: 'USD',
+      },
+    }),
+    prisma.employee.create({
+      data: {
+        employeeId: 'EMP002',
+        firstName: 'Priya',
+        lastName: 'Sharma',
+        email: 'manager@nexushrms.com',
+        phone: '+1-555-0102',
+        userId: managerUser.id,
+        departmentId: opsDept.id,
+        designationId: opsManagerDesg.id,
+        branchId: sfBranch.id,
+        companyId: tcg.id,
+        dateOfJoining: new Date('2020-11-20'),
+        dateOfBirth: new Date('1985-08-22'),
+        gender: 'female',
+        nationality: 'Indian',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US',
+        status: 'active',
+        salary: 105000,
+        salaryCurrency: 'USD',
+      },
+    }),
+    prisma.employee.create({
+      data: {
+        employeeId: 'EMP003',
+        firstName: 'Raj',
+        lastName: 'Patel',
+        email: 'employee@nexushrms.com',
+        phone: '+1-555-0103',
+        userId: employeeUser.id,
+        departmentId: engDept.id,
+        designationId: seniorDevDesg.id,
+        branchId: sfBranch.id,
+        companyId: tcg.id,
+        dateOfJoining: new Date('2022-03-15'),
+        dateOfBirth: new Date('1992-06-10'),
+        gender: 'male',
+        nationality: 'Indian',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US',
+        status: 'active',
+        salary: 145000,
+        salaryCurrency: 'USD',
+      },
+    }),
+    prisma.employee.create({
+      data: {
+        employeeId: 'EMP004',
+        firstName: 'Kim',
+        lastName: 'Chen',
+        email: 'recruiter@nexushrms.com',
+        phone: '+1-555-0104',
+        userId: recruiterUser.id,
+        departmentId: recDept.id,
+        designationId: recruiterDesg.id,
+        branchId: sfBranch.id,
+        companyId: tcg.id,
+        dateOfJoining: new Date('2023-01-10'),
+        dateOfBirth: new Date('1990-11-05'),
+        gender: 'female',
+        nationality: 'American',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US',
+        status: 'active',
+        salary: 85000,
+        salaryCurrency: 'USD',
+      },
+    }),
   ]);
-  console.log(`Created ${candidates.length} candidates`);
+  console.log(`  ✓ Created 4 employee records for internal users`);
 
-  // ==================== ATTENDANCE ====================
-  const today = new Date('2025-01-20');
-  const attendanceRecords = await Promise.all([
-    prisma.attendance.create({ data: { date: today, checkIn: new Date('2025-01-20T09:02:00'), checkOut: new Date('2025-01-20T18:15:00'), workHours: 8.5, status: 'present', source: 'biometric', employeeId: employees[0].id } }),
-    prisma.attendance.create({ data: { date: today, checkIn: new Date('2025-01-20T09:35:00'), checkOut: new Date('2025-01-20T18:30:00'), workHours: 8.0, status: 'late', source: 'mobile', employeeId: employees[1].id } }),
-    prisma.attendance.create({ data: { date: today, checkIn: new Date('2025-01-20T08:50:00'), checkOut: new Date('2025-01-20T17:45:00'), workHours: 8.0, status: 'present', source: 'gps', employeeId: employees[2].id } }),
-    prisma.attendance.create({ data: { date: today, status: 'absent', source: 'web', employeeId: employees[5].id } }),
-    prisma.attendance.create({ data: { date: today, checkIn: new Date('2025-01-20T09:00:00'), checkOut: new Date('2025-01-20T14:00:00'), workHours: 4.0, status: 'half_day', source: 'web', employeeId: employees[4].id } }),
-    prisma.attendance.create({ data: { date: today, checkIn: new Date('2025-01-20T08:45:00'), checkOut: new Date('2025-01-20T18:00:00'), workHours: 8.5, status: 'present', source: 'rfid', employeeId: employees[6].id } }),
+  // ==================== JOB POSTINGS ====================
+  console.log('\n📋 Creating Job Postings (AI Interview sample data)...');
+  const [job1, job2, job3, job4] = await Promise.all([
+    prisma.jobPosting.create({
+      data: {
+        title: 'Senior Full-Stack Developer',
+        departmentId: engDept.id,
+        position: 'Senior Full-Stack Developer',
+        location: 'San Francisco, CA',
+        type: 'full-time',
+        experience: '5-8 years',
+        salary: '$140,000 - $180,000',
+        description: 'We are looking for a senior full-stack developer to join our engineering team. You will be responsible for building and maintaining scalable web applications using modern technologies.',
+        requirements: 'React, Node.js, TypeScript, PostgreSQL, 5+ years experience, strong system design skills',
+        status: 'open',
+        postedDate: new Date('2025-01-15'),
+        closingDate: new Date('2025-03-15'),
+        vacancies: 2,
+      },
+    }),
+    prisma.jobPosting.create({
+      data: {
+        title: 'UX Research Lead',
+        departmentId: designDept.id,
+        position: 'UX Research Lead',
+        location: 'Remote',
+        type: 'full-time',
+        experience: '6-9 years',
+        salary: '$120,000 - $150,000',
+        description: 'Lead UX research initiatives across products. Drive user-centered design through qualitative and quantitative research methods.',
+        requirements: '6+ years UX research experience, mixed methods expertise, proficiency in research tools',
+        status: 'open',
+        postedDate: new Date('2025-01-10'),
+        closingDate: new Date('2025-02-28'),
+        vacancies: 1,
+      },
+    }),
+    prisma.jobPosting.create({
+      data: {
+        title: 'Data Scientist',
+        departmentId: anaDept.id,
+        position: 'Data Scientist',
+        location: 'Austin, TX',
+        type: 'full-time',
+        experience: '3-5 years',
+        salary: '$110,000 - $145,000',
+        description: 'Build ML models for business insights. Work with cross-functional teams to identify opportunities for data-driven decision making.',
+        requirements: 'Python, TensorFlow/PyTorch, SQL, statistical analysis, 3+ years experience',
+        status: 'open',
+        postedDate: new Date('2025-01-20'),
+        closingDate: new Date('2025-03-20'),
+        vacancies: 1,
+      },
+    }),
+    prisma.jobPosting.create({
+      data: {
+        title: 'HR Business Partner',
+        departmentId: hrDept.id,
+        position: 'HR Business Partner',
+        location: 'New York, NY',
+        type: 'full-time',
+        experience: '7-10 years',
+        salary: '$95,000 - $120,000',
+        description: 'Seeking an experienced HR business partner to align people strategies with business objectives and drive organizational effectiveness.',
+        requirements: '7+ years HR experience, PHR certification preferred, strong stakeholder management',
+        status: 'filled',
+        postedDate: new Date('2024-11-28'),
+        closingDate: new Date('2025-01-15'),
+        vacancies: 1,
+      },
+    }),
   ]);
-  console.log(`Created ${attendanceRecords.length} attendance records`);
+  console.log(`  ✓ Created 4 job postings`);
 
-  // ==================== LEAVE POLICIES ====================
-  const leavePolicies = await Promise.all([
-    prisma.leavePolicy.create({ data: { name: 'Casual Leave', type: 'casual', totalDays: 12, carryForward: true, maxCarryDays: 3, isPaid: true, companyId: tcg.id } }),
-    prisma.leavePolicy.create({ data: { name: 'Sick Leave', type: 'sick', totalDays: 10, carryForward: false, isPaid: true, companyId: tcg.id } }),
-    prisma.leavePolicy.create({ data: { name: 'Paid Leave', type: 'paid', totalDays: 15, carryForward: true, maxCarryDays: 5, isPaid: true, companyId: tcg.id } }),
-    prisma.leavePolicy.create({ data: { name: 'Maternity Leave', type: 'maternity', totalDays: 182, carryForward: false, isPaid: true, companyId: tcg.id } }),
-    prisma.leavePolicy.create({ data: { name: 'Comp Off', type: 'comp_off', totalDays: 5, carryForward: false, isPaid: true, companyId: tcg.id } }),
+  // ==================== JOB APPLICATIONS ====================
+  console.log('\n📋 Creating Job Applications...');
+  const [app1, app2, app3, app4, app5, app6, app7] = await Promise.all([
+    // Application for Senior Full-Stack Developer - interview stage
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job1.id,
+        candidateName: 'Alex Turner',
+        candidateEmail: 'alex.turner@email.com',
+        candidatePhone: '+1-555-1001',
+        source: 'linkedin',
+        status: 'interview',
+        appliedDate: new Date('2025-01-18'),
+        rating: 5,
+        expectedSalary: '$160,000',
+        notes: 'Strong candidate with Google background. Excellent technical skills.',
+      },
+    }),
+    // Another application for Senior Full-Stack Developer - screening stage
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job1.id,
+        candidateName: 'Maya Singh',
+        candidateEmail: 'maya.singh@email.com',
+        candidatePhone: '+1-555-1002',
+        source: 'referral',
+        status: 'screening',
+        appliedDate: new Date('2025-01-20'),
+        rating: 4,
+        expectedSalary: '$175,000',
+        notes: 'Referred by current employee. Amazon background.',
+      },
+    }),
+    // Application for UX Research Lead - interview stage
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job2.id,
+        candidateName: 'Sophie Martin',
+        candidateEmail: 'sophie.martin@email.com',
+        candidatePhone: '+1-555-1003',
+        source: 'website',
+        status: 'interview',
+        appliedDate: new Date('2025-01-12'),
+        rating: 4,
+        expectedSalary: '$140,000',
+        notes: 'Meta UX researcher, strong portfolio.',
+      },
+    }),
+    // Application for Data Scientist - applied stage
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job3.id,
+        candidateName: 'Wei Zhang',
+        candidateEmail: 'wei.zhang@email.com',
+        candidatePhone: '+1-555-1004',
+        source: 'indeed',
+        status: 'applied',
+        appliedDate: new Date('2025-01-21'),
+        rating: 3,
+        expectedSalary: '$135,000',
+      },
+    }),
+    // Application for HR Business Partner - hired (completed flow)
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job4.id,
+        candidateName: 'James Williams',
+        candidateEmail: 'james.williams@email.com',
+        candidatePhone: '+1-555-1005',
+        source: 'referral',
+        status: 'hired',
+        appliedDate: new Date('2024-12-01'),
+        rating: 5,
+        expectedSalary: '$110,000',
+        notes: 'Exceptional candidate. Offer accepted.',
+      },
+    }),
+    // Another application for Senior Full-Stack Developer - rejected
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job1.id,
+        candidateName: 'Tom Baker',
+        candidateEmail: 'tom.baker@email.com',
+        candidatePhone: '+1-555-1006',
+        source: 'website',
+        status: 'rejected',
+        appliedDate: new Date('2025-01-16'),
+        rating: 2,
+        expectedSalary: '$190,000',
+        notes: 'Did not meet minimum technical requirements.',
+      },
+    }),
+    // Application for Data Scientist - screening stage
+    prisma.jobApplication.create({
+      data: {
+        jobPostingId: job3.id,
+        candidateName: 'Lisa Park',
+        candidateEmail: 'lisa.park@email.com',
+        candidatePhone: '+1-555-1007',
+        source: 'linkedin',
+        status: 'screening',
+        appliedDate: new Date('2025-01-22'),
+        rating: 4,
+        expectedSalary: '$125,000',
+        notes: 'Strong ML background, published researcher.',
+      },
+    }),
   ]);
-  console.log(`Created ${leavePolicies.length} leave policies`);
-
-  // ==================== LEAVES ====================
-  const leaves = await Promise.all([
-    prisma.leave.create({ data: { type: 'casual', startDate: new Date('2025-01-22'), endDate: new Date('2025-01-23'), totalDays: 2, reason: 'Personal work', status: 'approved', approverId: employees[1].id, employeeId: employees[0].id } }),
-    prisma.leave.create({ data: { type: 'sick', startDate: new Date('2025-01-20'), endDate: new Date('2025-01-21'), totalDays: 2, reason: 'Not feeling well', status: 'pending', employeeId: employees[1].id } }),
-    prisma.leave.create({ data: { type: 'paid', startDate: new Date('2025-02-10'), endDate: new Date('2025-02-14'), totalDays: 5, reason: 'Family vacation', status: 'pending', employeeId: employees[2].id } }),
-    prisma.leave.create({ data: { type: 'maternity', startDate: new Date('2025-01-15'), endDate: new Date('2025-07-15'), totalDays: 182, reason: 'Maternity', status: 'approved', approverId: employees[1].id, employeeId: employees[8].id } }),
-    prisma.leave.create({ data: { type: 'comp_off', startDate: new Date('2025-01-25'), endDate: new Date('2025-01-25'), totalDays: 1, reason: 'Weekend work compensation', status: 'approved', approverId: employees[4].id, employeeId: employees[9].id } }),
-  ]);
-  console.log(`Created ${leaves.length} leaves`);
-
-  // ==================== PAYROLL ====================
-  const payrollStructures = await Promise.all([
-    prisma.payrollStructure.create({ data: { name: 'Standard Salaried', basicPay: 8000, hra: 3200, da: 800, transportAllowance: 1500, medicalAllowance: 500, specialAllowance: 2000, pfEmployee: 960, pfEmployer: 960, esiEmployee: 200, esiEmployer: 550, taxDeduction: 1200, companyId: tcg.id } }),
-  ]);
-
-  const payrollRecords = await Promise.all([
-    prisma.payrollRecord.create({ data: { month: 1, year: 2025, basicPay: 8000, grossSalary: 12000, totalDeductions: 3200, netSalary: 8800, status: 'paid', paymentDate: new Date('2025-01-31'), employeeId: employees[0].id } }),
-    prisma.payrollRecord.create({ data: { month: 1, year: 2025, basicPay: 7500, grossSalary: 11000, totalDeductions: 2900, netSalary: 8100, status: 'paid', paymentDate: new Date('2025-01-31'), employeeId: employees[1].id } }),
-    prisma.payrollRecord.create({ data: { month: 1, year: 2025, basicPay: 6500, grossSalary: 9500, totalDeductions: 2500, netSalary: 7000, status: 'processed', employeeId: employees[2].id } }),
-    prisma.payrollRecord.create({ data: { month: 1, year: 2025, basicPay: 9000, grossSalary: 13500, totalDeductions: 3600, netSalary: 9900, status: 'draft', employeeId: employees[3].id } }),
-  ]);
-  console.log(`Created ${payrollRecords.length} payroll records`);
-
-  // ==================== GOALS ====================
-  const goals = await Promise.all([
-    prisma.goal.create({ data: { title: 'Complete React 19 Migration', description: 'Migrate all frontend apps to React 19', type: 'individual', category: 'okr', progress: 65, status: 'in_progress', startDate: new Date('2025-01-01'), endDate: new Date('2025-03-31'), employeeId: employees[0].id } }),
-    prisma.goal.create({ data: { title: 'Reduce Hiring Time-to-Fill', description: 'Reduce average time-to-fill from 45 to 30 days', type: 'department', category: 'kpi', progress: 40, status: 'in_progress', startDate: new Date('2025-01-01'), endDate: new Date('2025-06-30'), employeeId: employees[1].id } }),
-    prisma.goal.create({ data: { title: 'Improve Design System Coverage', description: 'Achieve 90% component coverage in design system', type: 'individual', category: 'smart', progress: 80, status: 'in_progress', startDate: new Date('2025-01-01'), endDate: new Date('2025-02-28'), employeeId: employees[2].id } }),
-    prisma.goal.create({ data: { title: 'Achieve 99.9% Uptime', description: 'Maintain 99.9% uptime for all production services', type: 'team', category: 'kpi', progress: 95, status: 'in_progress', startDate: new Date('2025-01-01'), endDate: new Date('2025-12-31'), employeeId: employees[3].id } }),
-  ]);
-  console.log(`Created ${goals.length} goals`);
-
-  // ==================== ASSETS ====================
-  const assets = await Promise.all([
-    prisma.assetAllocation.create({ data: { assetType: 'laptop', assetName: 'MacBook Pro 16"', assetCode: 'LTP-0042', serialNumber: 'MBP16-2024-0042', status: 'allocated', employeeId: employees[0].id } }),
-    prisma.assetAllocation.create({ data: { assetType: 'phone', assetName: 'iPhone 15 Pro', assetCode: 'PHN-0088', status: 'allocated', employeeId: employees[1].id } }),
-    prisma.assetAllocation.create({ data: { assetType: 'access_card', assetName: 'Access Card - Floor 5', assetCode: 'AC-1025', status: 'allocated', employeeId: employees[2].id } }),
-    prisma.assetAllocation.create({ data: { assetType: 'laptop', assetName: 'Dell XPS 15', assetCode: 'LTP-0045', status: 'allocated', notes: 'On loan from IT pool', employeeId: employees[3].id } }),
-  ]);
-  console.log(`Created ${assets.length} assets`);
-
-  // ==================== TRAVEL & EXPENSE ====================
-  const travelRequests = await Promise.all([
-    prisma.travelRequest.create({ data: { purpose: 'Client Meeting - Acme Corp', destination: 'New York, NY', departureDate: new Date('2025-02-15'), returnDate: new Date('2025-02-17'), estimatedCost: 2500, status: 'pending', employeeId: employees[0].id } }),
-    prisma.travelRequest.create({ data: { purpose: 'Tech Conference 2025', destination: 'Las Vegas, NV', departureDate: new Date('2025-03-10'), returnDate: new Date('2025-03-13'), estimatedCost: 4000, approvedCost: 3800, status: 'approved', employeeId: employees[2].id } }),
-  ]);
-
-  const expenseClaims = await Promise.all([
-    prisma.expenseClaim.create({ data: { type: 'travel', amount: 450, description: 'Taxi to airport', status: 'pending', employeeId: employees[0].id } }),
-    prisma.expenseClaim.create({ data: { type: 'food', amount: 120, description: 'Team lunch meeting', status: 'approved', employeeId: employees[1].id } }),
-    prisma.expenseClaim.create({ data: { type: 'communication', amount: 85, description: 'International calls for project', status: 'reimbursed', employeeId: employees[2].id } }),
-  ]);
-  console.log(`Created ${travelRequests.length} travel requests, ${expenseClaims.length} expense claims`);
-
-  // ==================== LEARNING ====================
-  const learningRecords = await Promise.all([
-    prisma.learningRecord.create({ data: { courseName: 'Advanced React Patterns', provider: 'Frontend Masters', type: 'e_learning', status: 'in_progress', score: null, employeeId: employees[0].id } }),
-    prisma.learningRecord.create({ data: { courseName: 'HR Analytics Fundamentals', provider: 'Coursera', type: 'certification', status: 'completed', completedAt: new Date('2024-12-15'), score: 92, certificate: 'cert-hr-analytics-2024', employeeId: employees[1].id } }),
-    prisma.learningRecord.create({ data: { courseName: 'Design Systems Workshop', provider: 'Internal', type: 'workshop', status: 'enrolled', employeeId: employees[2].id } }),
-  ]);
-  console.log(`Created ${learningRecords.length} learning records`);
-
-  // ==================== TICKETS ====================
-  const tickets = await Promise.all([
-    prisma.ticket.create({ data: { subject: 'VPN Connection Issue', description: 'Cannot connect to VPN since morning', category: 'it', priority: 'high', status: 'in_progress', employeeId: employees[0].id } }),
-    prisma.ticket.create({ data: { subject: 'Payroll Discrepancy', description: 'December salary has incorrect deduction', category: 'payroll', priority: 'urgent', status: 'open', employeeId: employees[1].id } }),
-    prisma.ticket.create({ data: { subject: 'Access Request - Production DB', description: 'Need read access to production database for debugging', category: 'it', priority: 'medium', status: 'resolved', resolution: 'Access granted by IT admin', employeeId: employees[3].id } }),
-  ]);
-  console.log(`Created ${tickets.length} tickets`);
-
-  // ==================== CLIENTS & VENDORS ====================
-  const clients = await Promise.all([
-    prisma.client.create({ data: { name: 'Acme Corp', email: 'hr@acme.com', clientCompany: 'Acme Corporation', industry: 'Technology', contractStart: new Date('2024-01-01'), contractEnd: new Date('2025-12-31'), status: 'active', companyId: tcg.id } }),
-    prisma.client.create({ data: { name: 'GlobalTech Inc', email: 'talent@globaltech.com', clientCompany: 'GlobalTech Inc', industry: 'Software', contractStart: new Date('2024-06-01'), contractEnd: new Date('2025-05-31'), status: 'active', companyId: tcg.id } }),
-    prisma.client.create({ data: { name: 'BuildRight Construction', email: 'hr@buildright.com', clientCompany: 'BuildRight', industry: 'Construction', contractStart: new Date('2023-09-01'), contractEnd: new Date('2024-08-31'), status: 'active', companyId: tcg.id } }),
-  ]);
-
-  const vendors = await Promise.all([
-    prisma.vendor.create({ data: { name: 'TalentHunt Agency', email: 'info@talenthunt.com', vendorCompany: 'TalentHunt', serviceType: 'recruitment', status: 'active', rating: 4.5, companyId: tcg.id } }),
-    prisma.vendor.create({ data: { name: 'StaffPro Solutions', email: 'contact@staffpro.com', vendorCompany: 'StaffPro', serviceType: 'staffing', status: 'active', rating: 4.2, companyId: tcg.id } }),
-    prisma.vendor.create({ data: { name: 'VerifyRight BGV', email: 'team@verifyright.com', vendorCompany: 'VerifyRight', serviceType: 'bgv', status: 'active', rating: 4.8, companyId: tcg.id } }),
-  ]);
-
-  const subVendors = await Promise.all([
-    prisma.subVendor.create({ data: { name: 'QuickHire Regional', email: 'hire@quickhire.com', company: 'QuickHire', status: 'active', vendorId: vendors[0].id } }),
-    prisma.subVendor.create({ data: { name: 'TalentBridge East', email: 'east@talentbridge.com', company: 'TalentBridge', status: 'active', vendorId: vendors[1].id } }),
-  ]);
-  console.log(`Created ${clients.length} clients, ${vendors.length} vendors, ${subVendors.length} sub-vendors`);
-
-  // ==================== WORKFLOW DEFINITIONS ====================
-  const leaveWorkflow = await prisma.workflowDefinition.create({
-    data: {
-      name: 'Leave Approval Workflow',
-      type: 'approval',
-      entity: 'leave',
-      description: 'Standard leave approval: Manager → HR',
-      isActive: true,
-      companyId: tcg.id,
-      steps: {
-        create: [
-          { name: 'Manager Approval', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'HR Approval', stepOrder: 1, approverRole: 'hr_executive', approverType: 'role', action: 'approve_reject' },
-        ]
-      }
-    }
-  });
-
-  const expenseWorkflow = await prisma.workflowDefinition.create({
-    data: {
-      name: 'Expense Approval Workflow',
-      type: 'approval',
-      entity: 'expense',
-      description: 'Expense approval: Manager → Finance',
-      isActive: true,
-      companyId: tcg.id,
-      steps: {
-        create: [
-          { name: 'Manager Approval', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'Finance Review', stepOrder: 1, approverRole: 'finance', approverType: 'role', action: 'approve_reject' },
-        ]
-      }
-    }
-  });
-
-  const travelWorkflow = await prisma.workflowDefinition.create({
-    data: {
-      name: 'Travel Request Workflow',
-      type: 'approval',
-      entity: 'travel',
-      description: 'Travel approval: Manager → HR → Finance',
-      isActive: true,
-      companyId: tcg.id,
-      steps: {
-        create: [
-          { name: 'Manager Approval', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'HR Approval', stepOrder: 1, approverRole: 'hr_executive', approverType: 'role', action: 'approve_reject' },
-          { name: 'Finance Approval', stepOrder: 2, approverRole: 'finance', approverType: 'role', action: 'approve_reject' },
-        ]
-      }
-    }
-  });
-  console.log('Created workflow definitions: Leave, Expense, Travel');
-
-  // ==================== SURVEYS ====================
-  const survey = await prisma.survey.create({
-    data: {
-      title: 'Q1 2025 Employee Engagement Pulse',
-      description: 'Quarterly pulse survey to measure employee engagement and satisfaction.',
-      type: 'pulse',
-      status: 'active',
-      startDate: new Date('2025-01-15'),
-      endDate: new Date('2025-01-31'),
-      companyId: tcg.id,
-    }
-  });
-
-  const surveyQuestions = await Promise.all([
-    prisma.surveyQuestion.create({ data: { question: 'How satisfied are you with your current role?', type: 'rating', order: 0, surveyId: survey.id } }),
-    prisma.surveyQuestion.create({ data: { question: 'Do you feel your work is recognized?', type: 'rating', order: 1, surveyId: survey.id } }),
-    prisma.surveyQuestion.create({ data: { question: 'How would you rate team collaboration?', type: 'rating', order: 2, surveyId: survey.id } }),
-    prisma.surveyQuestion.create({ data: { question: 'What could we improve?', type: 'text', required: false, order: 3, surveyId: survey.id } }),
-    prisma.surveyQuestion.create({ data: { question: 'Would you recommend this company as a workplace?', type: 'rating', order: 4, surveyId: survey.id } }),
-  ]);
-
-  // Add some survey responses
-  await Promise.all([
-    prisma.surveyResponse.create({ data: { answer: '4', questionId: surveyQuestions[0].id, employeeId: employees[0].id } }),
-    prisma.surveyResponse.create({ data: { answer: '3', questionId: surveyQuestions[1].id, employeeId: employees[0].id } }),
-    prisma.surveyResponse.create({ data: { answer: '5', questionId: surveyQuestions[2].id, employeeId: employees[0].id } }),
-    prisma.surveyResponse.create({ data: { answer: '4', questionId: surveyQuestions[0].id, employeeId: employees[1].id } }),
-    prisma.surveyResponse.create({ data: { answer: '4', questionId: surveyQuestions[1].id, employeeId: employees[1].id } }),
-  ]);
-  console.log(`Created survey with questions and responses`);
-
-  // ==================== ONBOARDING TASKS ====================
-  await Promise.all([
-    prisma.onboardingTask.create({ data: { title: 'Complete IT Setup', description: 'Laptop, email, VPN access setup', category: 'it', status: 'completed', completedAt: new Date('2024-09-02'), employeeId: employees[3].id } }),
-    prisma.onboardingTask.create({ data: { title: 'HR Orientation', description: 'Company policies, benefits overview', category: 'hr', status: 'completed', completedAt: new Date('2024-09-03'), employeeId: employees[3].id } }),
-    prisma.onboardingTask.create({ data: { title: 'Team Introduction', description: 'Meet the engineering team', category: 'team', status: 'completed', completedAt: new Date('2024-09-04'), employeeId: employees[3].id } }),
-    prisma.onboardingTask.create({ data: { title: 'Codebase Walkthrough', description: 'Overview of the main repositories', category: 'training', status: 'in_progress', employeeId: employees[3].id } }),
-    prisma.onboardingTask.create({ data: { title: 'First Project Assignment', description: 'Assign first development task', category: 'training', status: 'pending', employeeId: employees[3].id } }),
-  ]);
-  console.log('Created onboarding tasks');
+  console.log(`  ✓ Created 7 job applications in various stages`);
 
   // ==================== INTERVIEWS ====================
-  await Promise.all([
-    prisma.interview.create({ data: { type: 'technical', scheduledAt: new Date('2025-01-22T10:00:00'), duration: 60, status: 'scheduled', meetingLink: 'https://meet.example.com/interview-1', candidateId: candidates[0].id, jobId: jobs[0].id } }),
-    prisma.interview.create({ data: { type: 'hr', scheduledAt: new Date('2025-01-23T14:00:00'), duration: 45, status: 'scheduled', candidateId: candidates[0].id, jobId: jobs[0].id } }),
-    prisma.interview.create({ data: { type: 'manager', scheduledAt: new Date('2025-01-20T11:00:00'), duration: 60, status: 'completed', feedback: 'Strong technical skills, good culture fit. Recommended for next round.', rating: 4, candidateId: candidates[2].id, jobId: jobs[1].id } }),
+  console.log('\n📋 Creating Interviews (with AI scores and feedback)...');
+  const [interview1, interview2, interview3, interview4, interview5, interview6] = await Promise.all([
+    // Completed AI interview - Alex Turner for Full-Stack Developer
+    prisma.interview.create({
+      data: {
+        jobApplicationId: app1.id,
+        type: 'technical',
+        date: new Date('2025-02-01T10:00:00Z'),
+        time: '10:00 AM',
+        duration: 60,
+        location: 'Online',
+        meetingUrl: 'https://meet.nexushrms.com/interview-alex-tech',
+        interviewer: recruiterEmployee.id,
+        status: 'completed',
+        feedback: 'Strong technical skills demonstrated. Good problem-solving approach. Excellent communication.',
+        score: 88,
+        aiScore: 92,
+        aiFeedback: 'Candidate demonstrated exceptional proficiency in React, Node.js, and TypeScript. Problem-solving approach was systematic and efficient. Communication skills rated 9/10. Recommended for next round. Key strengths: system design, algorithmic thinking, clean code practices.',
+      },
+    }),
+    // Completed AI HR interview - Alex Turner
+    prisma.interview.create({
+      data: {
+        jobApplicationId: app1.id,
+        type: 'hr',
+        date: new Date('2025-02-03T14:00:00Z'),
+        time: '2:00 PM',
+        duration: 45,
+        location: 'Online',
+        meetingUrl: 'https://meet.nexushrms.com/interview-alex-hr',
+        interviewer: hrEmployee.id,
+        status: 'completed',
+        feedback: 'Good culture fit. Strong alignment with company values.',
+        score: 85,
+        aiScore: 89,
+        aiFeedback: 'Candidate shows strong cultural alignment with organizational values. Leadership potential identified. Response consistency score: 94%. Behavioral indicators suggest high adaptability and team collaboration skills. Recommended for offer stage.',
+      },
+    }),
+    // Scheduled AI interview - Sophie Martin for UX Research Lead
+    prisma.interview.create({
+      data: {
+        jobApplicationId: app3.id,
+        type: 'technical',
+        date: new Date('2025-02-10T11:00:00Z'),
+        time: '11:00 AM',
+        duration: 60,
+        location: 'Online',
+        meetingUrl: 'https://meet.nexushrms.com/interview-sophie-tech',
+        interviewer: recruiterEmployee.id,
+        status: 'scheduled',
+      },
+    }),
+    // Completed AI interview - James Williams for HR Business Partner (full cycle)
+    prisma.interview.create({
+      data: {
+        jobApplicationId: app5.id,
+        type: 'technical',
+        date: new Date('2024-12-15T10:00:00Z'),
+        time: '10:00 AM',
+        duration: 60,
+        location: 'Online',
+        interviewer: hrEmployee.id,
+        status: 'completed',
+        feedback: 'Excellent HR knowledge. Strong stakeholder management experience.',
+        score: 92,
+        aiScore: 95,
+        aiFeedback: 'Candidate demonstrated expert-level knowledge in HR business partnering. Strategic thinking score: 96%. Stakeholder management simulation: outstanding. Industry knowledge comprehensive. Strongly recommended for hire.',
+      },
+    }),
+    // Completed AI final interview - James Williams
+    prisma.interview.create({
+      data: {
+        jobApplicationId: app5.id,
+        type: 'final',
+        date: new Date('2024-12-20T15:00:00Z'),
+        time: '3:00 PM',
+        duration: 45,
+        location: 'Online',
+        interviewer: managerEmployee.id,
+        status: 'completed',
+        feedback: 'Final round cleared. Ready for offer.',
+        score: 90,
+        aiScore: 93,
+        aiFeedback: 'Final assessment confirms strong fit for HR Business Partner role. Leadership assessment: excellent. Cultural fit: 95%. Communication: outstanding. Salary expectation alignment: within range. Proceed to offer stage.',
+      },
+    }),
+    // Scheduled AI interview - Maya Singh for Full-Stack Developer
+    prisma.interview.create({
+      data: {
+        jobApplicationId: app2.id,
+        type: 'technical',
+        date: new Date('2025-02-15T09:00:00Z'),
+        time: '9:00 AM',
+        duration: 60,
+        location: 'Online',
+        meetingUrl: 'https://meet.nexushrms.com/interview-maya-tech',
+        interviewer: recruiterEmployee.id,
+        status: 'scheduled',
+      },
+    }),
   ]);
-  console.log('Created interviews');
+  console.log(`  ✓ Created 6 interviews (4 completed with AI scores, 2 scheduled)`);
 
-  // ==================== SHIFTS ====================
-  const shifts = await Promise.all([
-    prisma.shift.create({ data: { name: 'Morning Shift', startTime: '06:00', endTime: '14:00', breakMinutes: 30, companyId: tcg.id } }),
-    prisma.shift.create({ data: { name: 'General Shift', startTime: '09:00', endTime: '18:00', breakMinutes: 60, isActive: true, companyId: tcg.id } }),
-    prisma.shift.create({ data: { name: 'Evening Shift', startTime: '14:00', endTime: '22:00', breakMinutes: 30, companyId: tcg.id } }),
-    prisma.shift.create({ data: { name: 'Night Shift', startTime: '22:00', endTime: '06:00', breakMinutes: 30, companyId: tcg.id } }),
+  // ==================== LEAVE TYPES ====================
+  console.log('\n📋 Creating Leave Types...');
+  const [casualLeave, sickLeave, paidLeave] = await Promise.all([
+    prisma.leaveType.create({
+      data: { name: 'Casual Leave', code: 'CL', description: 'Casual leave for personal matters', defaultDays: 12, isPaid: true, carryForward: true, maxCarryForward: 3, status: 'active' },
+    }),
+    prisma.leaveType.create({
+      data: { name: 'Sick Leave', code: 'SL', description: 'Sick leave for medical reasons', defaultDays: 10, isPaid: true, carryForward: false, status: 'active' },
+    }),
+    prisma.leaveType.create({
+      data: { name: 'Paid Leave', code: 'PL', description: 'Earned paid leave', defaultDays: 15, isPaid: true, carryForward: true, maxCarryForward: 5, status: 'active' },
+    }),
   ]);
-  await Promise.all([
-    prisma.shiftMember.create({ data: { effectiveDate: new Date('2025-01-01'), shiftId: shifts[1].id, employeeId: employees[0].id } }),
-    prisma.shiftMember.create({ data: { effectiveDate: new Date('2025-01-01'), shiftId: shifts[1].id, employeeId: employees[1].id } }),
-    prisma.shiftMember.create({ data: { effectiveDate: new Date('2025-01-01'), shiftId: shifts[1].id, employeeId: employees[2].id } }),
-  ]);
-  console.log('Created shifts');
+  console.log(`  ✓ Created 3 leave types`);
 
-  // ==================== COMPLIANCE ITEMS ====================
+  // ==================== LEAVE BALANCES ====================
+  console.log('\n📋 Creating Leave Balances...');
+  const currentYear = new Date().getFullYear();
   await Promise.all([
-    prisma.complianceItem.create({ data: { title: 'Annual Fire Safety Training', description: 'Mandatory fire safety training for all employees', category: 'safety', dueDate: new Date('2025-03-31'), status: 'pending', companyId: tcg.id } }),
-    prisma.complianceItem.create({ data: { title: 'POPI Act Compliance Review', description: 'Review data protection compliance', category: 'regulatory', dueDate: new Date('2025-06-30'), status: 'pending', companyId: tcg.id } }),
-    prisma.complianceItem.create({ data: { title: 'Quarterly Tax Filing', description: 'Q4 2024 tax filing', category: 'tax', dueDate: new Date('2025-01-31'), status: 'completed', companyId: tcg.id } }),
+    // Sarah (HR) leave balances
+    prisma.leaveBalance.create({ data: { employeeId: hrEmployee.id, leaveTypeId: casualLeave.id, year: currentYear, total: 12, used: 3, remaining: 9, carryForward: 2 } }),
+    prisma.leaveBalance.create({ data: { employeeId: hrEmployee.id, leaveTypeId: sickLeave.id, year: currentYear, total: 10, used: 2, remaining: 8, carryForward: 0 } }),
+    prisma.leaveBalance.create({ data: { employeeId: hrEmployee.id, leaveTypeId: paidLeave.id, year: currentYear, total: 15, used: 5, remaining: 10, carryForward: 3 } }),
+    // Raj (Employee) leave balances
+    prisma.leaveBalance.create({ data: { employeeId: employeeEmployee.id, leaveTypeId: casualLeave.id, year: currentYear, total: 12, used: 1, remaining: 11, carryForward: 0 } }),
+    prisma.leaveBalance.create({ data: { employeeId: employeeEmployee.id, leaveTypeId: sickLeave.id, year: currentYear, total: 10, used: 0, remaining: 10, carryForward: 0 } }),
+    prisma.leaveBalance.create({ data: { employeeId: employeeEmployee.id, leaveTypeId: paidLeave.id, year: currentYear, total: 15, used: 2, remaining: 13, carryForward: 5 } }),
   ]);
-  console.log('Created compliance items');
+  console.log(`  ✓ Created leave balances`);
+
+  // ==================== ATTENDANCE ====================
+  console.log('\n📋 Creating Attendance records...');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  await Promise.all([
+    prisma.attendance.create({ data: { employeeId: hrEmployee.id, date: today, checkIn: new Date(today.getTime() + 9 * 3600000 + 2 * 60000), checkOut: new Date(today.getTime() + 18 * 3600000 + 15 * 60000), workHours: 8.5, status: 'present' } }),
+    prisma.attendance.create({ data: { employeeId: employeeEmployee.id, date: today, checkIn: new Date(today.getTime() + 8 * 3600000 + 50 * 60000), checkOut: new Date(today.getTime() + 17 * 3600000 + 45 * 60000), workHours: 8.0, status: 'present' } }),
+    prisma.attendance.create({ data: { employeeId: managerEmployee.id, date: today, checkIn: new Date(today.getTime() + 9 * 3600000 + 35 * 60000), checkOut: new Date(today.getTime() + 18 * 3600000 + 30 * 60000), workHours: 8.0, status: 'late' } }),
+  ]);
+  console.log(`  ✓ Created 3 attendance records`);
 
   // ==================== NOTIFICATIONS ====================
+  console.log('\n📋 Creating Notifications...');
   await Promise.all([
-    prisma.notification.create({ data: { title: 'Leave Request', message: 'Raj Patel has submitted a sick leave request', type: 'info', category: 'leave', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'New Candidate', message: 'Alex Turner applied for Senior Full-Stack Developer', type: 'success', category: 'recruitment', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'Payroll Processed', message: 'January 2025 payroll has been processed', type: 'success', category: 'payroll', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'Attendance Alert', message: 'David Wilson is absent today without prior notice', type: 'warning', category: 'attendance', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'Expense Approval', message: 'You have 2 pending expense approvals', type: 'info', category: 'expense', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'Probation Ending', message: 'Michael Brown probation ends on March 1, 2025', type: 'warning', category: 'employee', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'New Ticket', message: 'VPN Connection Issue reported by Sarah Johnson', type: 'info', category: 'helpdesk', userId: users[1].id } }),
-    prisma.notification.create({ data: { title: 'Interview Scheduled', message: 'Technical interview with Alex Turner on Jan 22', type: 'info', category: 'recruitment', userId: users[13].id } }),
+    prisma.notification.create({ data: { tenantId: tenant.id, userId: hrUser.id, title: 'New Job Application', message: 'Alex Turner has applied for Senior Full-Stack Developer', type: 'info', category: 'recruitment', isRead: false } }),
+    prisma.notification.create({ data: { tenantId: tenant.id, userId: hrUser.id, title: 'Interview Scheduled', message: 'AI Technical interview with Sophie Martin on Feb 10', type: 'info', category: 'recruitment', isRead: false } }),
+    prisma.notification.create({ data: { tenantId: tenant.id, userId: recruiterUser.id, title: 'AI Interview Completed', message: 'AI interview for Alex Turner has been completed with score 92/100', type: 'success', category: 'recruitment', isRead: true } }),
+    prisma.notification.create({ data: { tenantId: tenant.id, userId: adminUser.id, title: 'New Candidate Registered', message: 'Candidate Alex Turner has registered on the platform', type: 'info', category: 'recruitment', isRead: false } }),
+    prisma.notification.create({ data: { tenantId: tenant.id, userId: managerUser.id, title: 'Leave Request', message: 'Raj Patel has submitted a leave request', type: 'info', category: 'leave', isRead: false } }),
   ]);
-  console.log('Created notifications');
+  console.log(`  ✓ Created 5 notifications`);
 
-  // ==================== AUDIT LOGS ====================
-  await Promise.all([
-    prisma.auditLog.create({ data: { action: 'LOGIN', entity: 'User', entityId: users[1].id, details: 'Sarah Johnson logged in', userId: users[1].id, ipAddress: '192.168.1.100' } }),
-    prisma.auditLog.create({ data: { action: 'CREATE', entity: 'Leave', entityId: leaves[0].id, details: 'Leave request created by Sarah Johnson', userId: users[1].id } }),
-    prisma.auditLog.create({ data: { action: 'UPDATE', entity: 'Leave', entityId: leaves[0].id, details: 'Leave approved by Raj Patel', userId: users[2].id } }),
-    prisma.auditLog.create({ data: { action: 'CREATE', entity: 'Employee', entityId: employees[3].id, details: 'New employee Michael Brown added', userId: users[1].id } }),
-  ]);
-  console.log('Created audit logs');
+  // ==================== SUBSCRIPTION PLAN ====================
+  console.log('\n📋 Creating Subscription Plan...');
+  const plan = await prisma.subscriptionPlan.create({
+    data: {
+      name: 'Enterprise',
+      planType: 'enterprise',
+      monthlyPrice: 299,
+      annualPrice: 2990,
+      employeeLimit: 500,
+      companyLimit: 10,
+      branchLimit: 50,
+      storageLimit: 50000,
+      aiInterviewLimit: 500,
+      aiChatbotLimit: 5000,
+      payrollEnabled: true,
+      recruitmentEnabled: true,
+      attendanceEnabled: true,
+      projectEnabled: true,
+      clientPortalEnabled: true,
+      vendorPortalEnabled: true,
+      mobileAppEnabled: true,
+      apiAccessEnabled: true,
+      whiteLabelEnabled: false,
+      supportLevel: 'dedicated',
+      status: 'active',
+      description: 'Full-featured enterprise plan with AI capabilities',
+    },
+  });
+  console.log(`  ✓ Created subscription plan: ${plan.name}`);
+
+  // Subscription
+  await prisma.subscription.create({
+    data: {
+      tenantId: tenant.id,
+      planId: plan.id,
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-12-31'),
+      billingCycle: 'annual',
+      amount: 2990,
+      currency: 'USD',
+      paymentStatus: 'paid',
+      status: 'active',
+      autoRenew: true,
+    },
+  });
+  console.log(`  ✓ Created subscription for tenant`);
+
+  // ==================== VERIFICATION ====================
+  console.log('\n🔍 Verifying seed data...');
+  const userCount = await prisma.user.count();
+  const employeeCount = await prisma.employee.count();
+  const jobPostingCount = await prisma.jobPosting.count();
+  const jobAppCount = await prisma.jobApplication.count();
+  const interviewCount = await prisma.interview.count();
+
+  console.log(`  ✓ Users: ${userCount}`);
+  console.log(`  ✓ Employees: ${employeeCount}`);
+  console.log(`  ✓ Job Postings: ${jobPostingCount}`);
+  console.log(`  ✓ Job Applications: ${jobAppCount}`);
+  console.log(`  ✓ Interviews: ${interviewCount}`);
+
+  // Verify password hashing works
+  const adminUserCheck = await prisma.user.findUnique({ where: { email: 'admin@nexushrms.com' } });
+  if (adminUserCheck) {
+    const passwordMatch = await bcryptjs.compare('admin123', adminUserCheck.password);
+    console.log(`  ✓ Password verification (admin@nexushrms.com / admin123): ${passwordMatch ? 'PASS ✓' : 'FAIL ✗'}`);
+  }
 
   console.log('\n✅ Database seeding completed successfully!');
+  console.log('\n📝 Demo Login Credentials:');
+  console.log('  ┌─────────────────┬───────────────────────────┬──────────────┐');
+  console.log('  │ Role            │ Email                     │ Password     │');
+  console.log('  ├─────────────────┼───────────────────────────┼──────────────┤');
+  console.log('  │ Super Admin     │ admin@nexushrms.com       │ admin123     │');
+  console.log('  │ HR Admin        │ hr@nexushrms.com          │ hr123        │');
+  console.log('  │ Manager         │ manager@nexushrms.com     │ manager123   │');
+  console.log('  │ Employee        │ employee@nexushrms.com    │ employee123  │');
+  console.log('  │ Recruiter       │ recruiter@nexushrms.com   │ recruiter123 │');
+  console.log('  │ Candidate       │ candidate@nexushrms.com   │ candidate123 │');
+  console.log('  └─────────────────┴───────────────────────────┴──────────────┘');
 }
 
 main()
   .catch((e) => {
-    console.error('Seed error:', e);
+    console.error('❌ Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

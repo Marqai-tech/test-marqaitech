@@ -22,6 +22,8 @@ export default function LoginPage() {
     { role: 'HR Admin', email: 'hr@nexushrms.com', password: 'hr123', color: 'bg-blue-500' },
     { role: 'Manager', email: 'manager@nexushrms.com', password: 'manager123', color: 'bg-violet-500' },
     { role: 'Employee', email: 'employee@nexushrms.com', password: 'employee123', color: 'bg-emerald-500' },
+    { role: 'Recruiter', email: 'recruiter@nexushrms.com', password: 'recruiter123', color: 'bg-pink-500' },
+    { role: 'Candidate', email: 'candidate@nexushrms.com', password: 'candidate123', color: 'bg-cyan-500' },
   ];
 
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
@@ -239,7 +241,7 @@ export default function LoginPage() {
               {showDemoAccounts && (
                 <div className="mt-3 space-y-2 animate-slide-in-down">
                   <p className="text-[11px] text-nexus-text-muted text-center font-medium">Quick Access Demo Accounts</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {demoAccounts.map((account) => (
                       <button
                         key={account.role}

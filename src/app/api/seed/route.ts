@@ -16,7 +16,21 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
-    const hashedPassword = await hashPassword('admin123');
+    // Hash passwords for each demo account separately
+    const pwHashes: Record<string, string> = {};
+    const demoPasswords: Record<string, string> = {
+      'admin@nexushrms.com': 'admin123',
+      'hr@nexushrms.com': 'hr123',
+      'manager@nexushrms.com': 'manager123',
+      'employee@nexushrms.com': 'employee123',
+      'recruiter@nexushrms.com': 'recruiter123',
+      'candidate@nexushrms.com': 'candidate123',
+    };
+    for (const [email, pw] of Object.entries(demoPasswords)) {
+      pwHashes[email] = await hashPassword(pw);
+    }
+    // Fallback hash for non-demo users
+    const defaultHashedPassword = pwHashes['admin@nexushrms.com'];
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
@@ -237,6 +251,8 @@ export async function GET() {
       { id: 'dept-finance', name: 'Finance', code: 'FIN', companyId: usaCompany.id, branchId: nyBranch.id },
       { id: 'dept-ops', name: 'Operations', code: 'OPS', companyId: indiaCompany.id, branchId: blrBranch.id },
       { id: 'dept-design', name: 'Design', code: 'DES', companyId: usaCompany.id, branchId: sfBranch.id },
+      { id: 'dept-recruitment', name: 'Recruitment', code: 'REC', companyId: usaCompany.id, branchId: nyBranch.id },
+      { id: 'dept-analytics', name: 'Analytics', code: 'ANA', companyId: usaCompany.id, branchId: nyBranch.id },
     ];
 
     for (const dept of departments) {
@@ -263,6 +279,8 @@ export async function GET() {
       { id: 'des-finance-analyst', title: 'Financial Analyst', departmentId: 'dept-finance', level: 4, minSalary: 75000, maxSalary: 120000 },
       { id: 'des-ops-manager', title: 'Operations Manager', departmentId: 'dept-ops', level: 5, minSalary: 80000, maxSalary: 130000 },
       { id: 'des-sr-designer', title: 'Senior UI/UX Designer', departmentId: 'dept-design', level: 5, minSalary: 95000, maxSalary: 150000 },
+      { id: 'des-recruiter', title: 'Recruiter', departmentId: 'dept-recruitment', level: 4, minSalary: 65000, maxSalary: 95000 },
+      { id: 'des-data-scientist', title: 'Data Scientist', departmentId: 'dept-analytics', level: 5, minSalary: 110000, maxSalary: 160000 },
     ];
 
     for (const des of designations) {
@@ -273,9 +291,35 @@ export async function GET() {
       });
     }
 
-    // ============ USERS ============
-    const users = [
-      { id: 'user-admin', name: 'Admin User', email: 'admin@nexushrms.com', role: 'super_admin' },
+    // ============ DEMO USERS (login page accounts with individual passwords) ============
+    const demoUsers = [
+      { id: 'user-admin', name: 'Admin Nexus', email: 'admin@nexushrms.com', role: 'super_admin' },
+      { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@nexushrms.com', role: 'hr_admin' },
+      { id: 'user-manager', name: 'Priya Sharma', email: 'manager@nexushrms.com', role: 'manager' },
+      { id: 'user-employee', name: 'Raj Patel', email: 'employee@nexushrms.com', role: 'employee' },
+      { id: 'user-recruiter', name: 'Kim Chen', email: 'recruiter@nexushrms.com', role: 'recruiter' },
+      { id: 'user-candidate', name: 'Alex Turner', email: 'candidate@nexushrms.com', role: 'candidate' },
+    ];
+
+    for (const u of demoUsers) {
+      const userPassword = pwHashes[u.email] || defaultHashedPassword;
+      await prisma.user.upsert({
+        where: { id: u.id },
+        update: { password: userPassword }, // Update password in case it was previously wrong
+        create: {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          password: userPassword,
+          tenantId: tenant.id,
+          role: u.role,
+          status: 'active',
+        },
+      });
+    }
+
+    // Additional non-demo users (all use admin123 password)
+    const additionalUsers = [
       { id: 'user-sarah', name: 'Sarah Johnson', email: 'sarah.hr@nexushrms.com', role: 'hr_admin' },
       { id: 'user-john', name: 'John Williams', email: 'john.manager@nexushrms.com', role: 'manager' },
       { id: 'user-alice', name: 'Alice Chen', email: 'alice.emp@nexushrms.com', role: 'employee' },
@@ -287,7 +331,7 @@ export async function GET() {
       { id: 'user-grace', name: 'Grace Liu', email: 'grace.product@nexushrms.com', role: 'employee' },
     ];
 
-    for (const u of users) {
+    for (const u of additionalUsers) {
       await prisma.user.upsert({
         where: { id: u.id },
         update: {},
@@ -295,7 +339,7 @@ export async function GET() {
           id: u.id,
           name: u.name,
           email: u.email,
-          password: hashedPassword,
+          password: defaultHashedPassword,
           tenantId: tenant.id,
           role: u.role,
           status: 'active',
@@ -303,7 +347,51 @@ export async function GET() {
       });
     }
 
-    // ============ EMPLOYEES ============
+    // ============ DEMO EMPLOYEES (for login page demo accounts) ============
+    const demoEmployees = [
+      {
+        id: 'emp-hr-demo', employeeId: 'EMP-HR', firstName: 'Sarah', lastName: 'Johnson', email: 'hr@nexushrms.com',
+        phone: '+1-212-555-2001', userId: 'user-hr', departmentId: 'dept-hr', designationId: 'des-hr-manager',
+        branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2021-03-01'),
+        dateOfBirth: new Date('1990-09-14'), gender: 'female', maritalStatus: 'single', nationality: 'American',
+        city: 'New York', state: 'NY', country: 'US',
+        salary: 115000, salaryCurrency: 'USD', status: 'active',
+      },
+      {
+        id: 'emp-manager-demo', employeeId: 'EMP-MGR', firstName: 'Priya', lastName: 'Sharma', email: 'manager@nexushrms.com',
+        phone: '+1-212-555-2002', userId: 'user-manager', departmentId: 'dept-ops', designationId: 'des-ops-manager',
+        branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2020-11-20'),
+        dateOfBirth: new Date('1985-08-22'), gender: 'female', maritalStatus: 'married', nationality: 'Indian',
+        city: 'New York', state: 'NY', country: 'US',
+        salary: 105000, salaryCurrency: 'USD', status: 'active',
+      },
+      {
+        id: 'emp-employee-demo', employeeId: 'EMP-EMP', firstName: 'Raj', lastName: 'Patel', email: 'employee@nexushrms.com',
+        phone: '+1-212-555-2003', userId: 'user-employee', departmentId: 'dept-eng', designationId: 'des-sr-eng',
+        branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2022-03-15'),
+        dateOfBirth: new Date('1992-06-10'), gender: 'male', maritalStatus: 'single', nationality: 'Indian',
+        city: 'New York', state: 'NY', country: 'US',
+        salary: 145000, salaryCurrency: 'USD', status: 'active',
+      },
+      {
+        id: 'emp-recruiter-demo', employeeId: 'EMP-REC', firstName: 'Kim', lastName: 'Chen', email: 'recruiter@nexushrms.com',
+        phone: '+1-212-555-2004', userId: 'user-recruiter', departmentId: 'dept-recruitment', designationId: 'des-recruiter',
+        branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2023-01-10'),
+        dateOfBirth: new Date('1990-11-05'), gender: 'female', maritalStatus: 'single', nationality: 'American',
+        city: 'New York', state: 'NY', country: 'US',
+        salary: 85000, salaryCurrency: 'USD', status: 'active',
+      },
+    ];
+
+    for (const emp of demoEmployees) {
+      await prisma.employee.upsert({
+        where: { id: emp.id },
+        update: {},
+        create: emp,
+      });
+    }
+
+    // ============ REGULAR EMPLOYEES ============
     const employees = [
       {
         id: 'emp-admin', employeeId: 'EMP-001', firstName: 'Admin', lastName: 'User', email: 'admin@nexushrms.com',
@@ -695,13 +783,16 @@ export async function GET() {
       });
     }
 
-    // ============ INTERVIEWS ============
+    // ============ INTERVIEWS (with AI scores and feedback) ============
     const interviews = [
-      { id: 'iv-1', jobApplicationId: 'ja-1', type: 'technical', date: new Date('2025-03-20'), time: '10:00 AM', duration: 60, location: 'Conference Room A', interviewer: 'John Williams', status: 'scheduled', score: null },
-      { id: 'iv-2', jobApplicationId: 'ja-4', type: 'final', date: new Date('2025-03-18'), time: '2:00 PM', duration: 45, location: 'Video Call', interviewer: 'Carol Davis', status: 'completed', feedback: 'Excellent design sense and communication skills', score: 9 },
-      { id: 'iv-3', jobApplicationId: 'ja-7', type: 'technical', date: new Date('2025-03-22'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.google.com/abc-defg-hij', interviewer: 'Frank Rodriguez', status: 'scheduled', score: null },
-      { id: 'iv-4', jobPostingId: undefined, jobApplicationId: 'ja-1', type: 'hr', date: new Date('2025-03-21'), time: '3:00 PM', duration: 30, location: 'HR Office', interviewer: 'Sarah Johnson', status: 'scheduled', score: null },
-      { id: 'iv-5', jobApplicationId: 'ja-8', type: 'managerial', date: new Date('2025-03-15'), time: '1:00 PM', duration: 45, location: 'Executive Suite', interviewer: 'John Williams', status: 'completed', feedback: 'Strong technical and leadership abilities', score: 8, aiScore: 8, aiFeedback: 'Candidate demonstrated excellent problem-solving and communication' },
+      { id: 'iv-1', jobApplicationId: 'ja-1', type: 'technical', date: new Date('2025-03-20'), time: '10:00 AM', duration: 60, location: 'Conference Room A', interviewer: 'user-manager', status: 'completed', feedback: 'Strong technical skills demonstrated. Good problem-solving approach.', score: 88, aiScore: 92, aiFeedback: 'Candidate demonstrated exceptional proficiency in React, Node.js, and TypeScript. Problem-solving approach was systematic and efficient. Communication skills rated 9/10. Key strengths: system design, algorithmic thinking, clean code practices.' },
+      { id: 'iv-2', jobApplicationId: 'ja-1', type: 'hr', date: new Date('2025-03-21'), time: '3:00 PM', duration: 45, location: 'HR Office', interviewer: 'user-hr', status: 'completed', feedback: 'Good culture fit. Strong alignment with company values.', score: 85, aiScore: 89, aiFeedback: 'Candidate shows strong cultural alignment with organizational values. Leadership potential identified. Response consistency score: 94%. Behavioral indicators suggest high adaptability and team collaboration skills.' },
+      { id: 'iv-3', jobApplicationId: 'ja-4', type: 'final', date: new Date('2025-03-18'), time: '2:00 PM', duration: 45, location: 'Video Call', interviewer: 'user-recruiter', status: 'completed', feedback: 'Excellent design sense and communication skills', score: 9, aiScore: 95, aiFeedback: 'Candidate demonstrated expert-level design thinking. Portfolio review score: 97%. Figma proficiency: outstanding. User research methodology: comprehensive. Strongly recommended for hire.' },
+      { id: 'iv-4', jobApplicationId: 'ja-7', type: 'technical', date: new Date('2025-03-22'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.nexushrms.com/interview-arun', interviewer: 'user-recruiter', status: 'scheduled' },
+      { id: 'iv-5', jobApplicationId: 'ja-8', type: 'managerial', date: new Date('2025-03-15'), time: '1:00 PM', duration: 45, location: 'Executive Suite', interviewer: 'user-manager', status: 'completed', feedback: 'Strong technical and leadership abilities', score: 90, aiScore: 93, aiFeedback: 'Final assessment confirms strong fit. Leadership assessment: excellent. Cultural fit: 95%. Communication: outstanding. Salary expectation alignment: within range. Proceed to offer stage.' },
+      { id: 'iv-6', jobApplicationId: 'ja-8', type: 'technical', date: new Date('2025-03-12'), time: '10:00 AM', duration: 60, location: 'Video Call', interviewer: 'user-recruiter', status: 'completed', feedback: 'Excellent full-stack knowledge and system design capabilities', score: 91, aiScore: 94, aiFeedback: 'Candidate demonstrated advanced proficiency across the full technology stack. System design score: 96%. Algorithm problem-solving: 92%. Code quality assessment: excellent. Recommended for managerial round.' },
+      { id: 'iv-7', jobApplicationId: 'ja-2', type: 'technical', date: new Date('2025-03-25'), time: '9:00 AM', duration: 60, meetingUrl: 'https://meet.nexushrms.com/interview-maria', interviewer: 'user-recruiter', status: 'scheduled' },
+      { id: 'iv-8', jobApplicationId: 'ja-10', type: 'technical', date: new Date('2025-03-28'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.nexushrms.com/interview-deepa', interviewer: 'user-recruiter', status: 'scheduled' },
     ];
 
     for (const iv of interviews) {
