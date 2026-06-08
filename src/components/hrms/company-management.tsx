@@ -13,15 +13,15 @@ import { Building2, MapPin, Users, Calendar, Clock, Sun, Plus, Search, Eye, Edit
 import { useState } from 'react'
 
 const companies = [
-  { name: 'Nexus Technologies', code: 'NEXTECH', city: 'Mumbai', state: 'Maharashtra', status: 'Active', branches: 3, departments: 8, employees: 11, gst: '27AABCN1234F1Z5', phone: '+91 22 4567 8901' },
+  { name: '3 Boxes Technologies', code: '3BOXES', city: 'Mumbai', state: 'Maharashtra', status: 'Active', branches: 3, departments: 8, employees: 11, gst: '27AABCN1234F1Z5', phone: '+91 22 4567 8901' },
   { name: 'Nexus Solutions', code: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', status: 'Active', branches: 2, departments: 8, employees: 10, gst: '36AABCN5678F1Z3', phone: '+91 40 2345 6789' },
   { name: 'Nexus Staffing', code: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', status: 'Active', branches: 1, departments: 8, employees: 10, gst: '27AABCN9012F1Z1', phone: '+91 20 3456 7890' },
 ]
 
 const branches = [
-  { name: 'Mumbai HQ', company: 'NEXTECH', city: 'Mumbai', state: 'Maharashtra', address: 'BKC, Bandra East', status: 'Active', head: 'Aarav Sharma' },
-  { name: 'Bangalore Tech Park', company: 'NEXTECH', city: 'Bangalore', state: 'Karnataka', address: 'Whitefield Main Road', status: 'Active', head: 'Priya Patel' },
-  { name: 'Delhi NCR Office', company: 'NEXTECH', city: 'New Delhi', state: 'Delhi', address: 'Connaught Place', status: 'Active', head: 'Rohan Kumar' },
+  { name: 'Mumbai HQ', company: '3BOXES', city: 'Mumbai', state: 'Maharashtra', address: 'BKC, Bandra East', status: 'Active', head: 'Aarav Sharma' },
+  { name: 'Bangalore Tech Park', company: '3BOXES', city: 'Bangalore', state: 'Karnataka', address: 'Whitefield Main Road', status: 'Active', head: 'Priya Patel' },
+  { name: 'Delhi NCR Office', company: '3BOXES', city: 'New Delhi', state: 'Delhi', address: 'Connaught Place', status: 'Active', head: 'Rohan Kumar' },
   { name: 'Hyderabad Campus', company: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', address: 'HITEC City, Madhapur', status: 'Active', head: 'Amit Rao' },
   { name: 'Chennai Center', company: 'NEXSOL', city: 'Chennai', state: 'Tamil Nadu', address: 'OMR, Thoraipakkam', status: 'Active', head: 'Suresh Babu' },
   { name: 'Pune Office', company: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', address: 'Hinjewadi Phase 2', status: 'Active', head: 'Sanjay Deshmukh' },

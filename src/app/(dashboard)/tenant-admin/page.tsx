@@ -67,7 +67,7 @@ interface WorkflowConfig {
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nexus_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
@@ -114,7 +114,7 @@ const demoTenants: Tenant[] = [
 ];
 
 const demoSettings: CompanySettings = {
-  name: 'NEXUS HRMS',
+  name: '3 Boxes HRMS',
   industry: 'Human Resources Technology',
   size: '51-200',
   timezone: 'UTC+5:30 (IST)',

@@ -9,7 +9,7 @@ import {
 import toast from 'react-hot-toast';
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nexus_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
@@ -35,7 +35,7 @@ interface JobPosting {
 
 /* ── Featured Jobs (demo) ── */
 const FEATURED_JOBS = [
-  { id: 'fj1', title: 'Senior AI/ML Engineer', company: 'Nexus Technologies', location: 'Mumbai, India', salary: '₹35L - ₹50L', match: 95, tags: ['AI/ML', 'Python', 'TensorFlow'] },
+  { id: 'fj1', title: 'Senior AI/ML Engineer', company: '3 Boxes Technologies', location: 'Mumbai, India', salary: '₹35L - ₹50L', match: 95, tags: ['AI/ML', 'Python', 'TensorFlow'] },
   { id: 'fj2', title: 'Product Design Lead', company: 'Nexus Solutions', location: 'Hyderabad, India', salary: '₹25L - ₹40L', match: 88, tags: ['Design', 'Figma', 'Leadership'] },
   { id: 'fj3', title: 'DevOps Architect', company: 'Nexus Staffing', location: 'Bangalore, India', salary: '₹30L - ₹45L', match: 82, tags: ['AWS', 'Kubernetes', 'CI/CD'] },
 ];

@@ -12,11 +12,11 @@ function getDemoDashboardData() {
       unreadNotifications: 3,
     },
     recentActivities: [
-      { id: '1', action: 'LOGIN', entity: 'User', details: 'Rajesh Kumar logged in', createdAt: new Date().toISOString(), user: { name: 'Rajesh Kumar', email: 'rajesh.kumar@nexustech.com', avatar: null } },
-      { id: '2', action: 'CREATE', entity: 'Leave', details: 'Ananya Gupta requested casual leave', createdAt: new Date(Date.now() - 3600000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@nexustech.com', avatar: null } },
-      { id: '3', action: 'APPROVE', entity: 'ExpenseClaim', details: 'Expense claim approved for ₹8,500', createdAt: new Date(Date.now() - 7200000).toISOString(), user: { name: 'Meera Joshi', email: 'meera.joshi@nexustech.com', avatar: null } },
-      { id: '4', action: 'CREATE', entity: 'Employee', details: 'New employee Vikram Singh onboarded', createdAt: new Date(Date.now() - 86400000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@nexustech.com', avatar: null } },
-      { id: '5', action: 'UPDATE', entity: 'Attendance', details: 'Check-out recorded for Deepa Iyer', createdAt: new Date(Date.now() - 90000000).toISOString(), user: { name: 'Deepa Iyer', email: 'deepa.iyer@nexustech.com', avatar: null } },
+      { id: '1', action: 'LOGIN', entity: 'User', details: 'Rajesh Kumar logged in', createdAt: new Date().toISOString(), user: { name: 'Rajesh Kumar', email: 'rajesh.kumar@3boxestech.com', avatar: null } },
+      { id: '2', action: 'CREATE', entity: 'Leave', details: 'Ananya Gupta requested casual leave', createdAt: new Date(Date.now() - 3600000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@3boxestech.com', avatar: null } },
+      { id: '3', action: 'APPROVE', entity: 'ExpenseClaim', details: 'Expense claim approved for ₹8,500', createdAt: new Date(Date.now() - 7200000).toISOString(), user: { name: 'Meera Joshi', email: 'meera.joshi@3boxestech.com', avatar: null } },
+      { id: '4', action: 'CREATE', entity: 'Employee', details: 'New employee Vikram Singh onboarded', createdAt: new Date(Date.now() - 86400000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@3boxestech.com', avatar: null } },
+      { id: '5', action: 'UPDATE', entity: 'Attendance', details: 'Check-out recorded for Deepa Iyer', createdAt: new Date(Date.now() - 90000000).toISOString(), user: { name: 'Deepa Iyer', email: 'deepa.iyer@3boxestech.com', avatar: null } },
     ],
     recentNotifications: [
       { id: 'notif-1', title: 'Leave Request', message: 'Ananya Gupta requested leave for June 1-5', type: 'leave', category: 'approval', isRead: false, createdAt: new Date(Date.now() - 1800000).toISOString() },

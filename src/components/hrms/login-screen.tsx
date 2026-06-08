@@ -10,16 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Shield, Users, UserCheck, Building2, Truck, Hexagon, ArrowRight, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 
 const DEMO_LOGINS: { role: UserRole; name: string; email: string; password: string; icon: React.ReactNode; color: string }[] = [
-  { role: 'super_admin', name: 'Admin Nexus', email: 'admin@nexushrms.com', password: 'admin123', icon: <Shield className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' },
-  { role: 'company_hr_admin', name: 'Priya Sharma', email: 'sarah.j@nexustech.com', password: 'sarah123', icon: <Users className="h-4 w-4" />, color: 'bg-purple-500 hover:bg-purple-600' },
-  { role: 'employee', name: 'Amit Patel', email: 'emily.c@nexustech.com', password: 'emily123', icon: <UserCheck className="h-4 w-4" />, color: 'bg-emerald-500 hover:bg-emerald-600' },
+  { role: 'super_admin', name: 'Admin Nexus', email: 'admin@3boxeshrms.com', password: 'admin123', icon: <Shield className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' },
+  { role: 'company_hr_admin', name: 'Priya Sharma', email: 'sarah.j@3boxestech.com', password: 'sarah123', icon: <Users className="h-4 w-4" />, color: 'bg-purple-500 hover:bg-purple-600' },
+  { role: 'employee', name: 'Amit Patel', email: 'emily.c@3boxestech.com', password: 'emily123', icon: <UserCheck className="h-4 w-4" />, color: 'bg-emerald-500 hover:bg-emerald-600' },
   { role: 'client', name: 'Acme Corp', email: 'hr@acme.com', password: 'acme123', icon: <Building2 className="h-4 w-4" />, color: 'bg-amber-500 hover:bg-amber-600' },
   { role: 'vendor', name: 'TalentHunt', email: 'info@talenthunt.com', password: 'thunt123', icon: <Truck className="h-4 w-4" />, color: 'bg-teal-500 hover:bg-teal-600' },
 ];
 
 export function LoginScreen() {
   const { login, isLoading, authError } = useAppStore();
-  const [email, setEmail] = useState('admin@nexushrms.com');
+  const [email, setEmail] = useState('admin@3boxeshrms.com');
   const [password, setPassword] = useState('admin123');
   const [mounted, setMounted] = useState(true);
 
@@ -55,7 +55,7 @@ export function LoginScreen() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl shadow-2xl shadow-emerald-500/30 mb-4 animate-[spin_20s_linear_infinite]">
             <Hexagon className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white tracking-tight">NEXUS HRMS</h1>
+          <h1 className="text-4xl font-bold text-white tracking-tight">3 Boxes HRMS</h1>
           <p className="text-emerald-200/80 mt-2 text-sm">AI-Powered Enterprise Human Resource Management</p>
         </div>
 
@@ -64,7 +64,7 @@ export function LoginScreen() {
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-xl flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-emerald-400" />
-              Sign In to NEXUS HRMS
+              Sign In to 3 Boxes HRMS
             </CardTitle>
             <CardDescription className="text-emerald-200/70">
               Enter your credentials to access the platform
@@ -145,7 +145,7 @@ export function LoginScreen() {
 
         {/* Footer */}
         <p className="text-center text-emerald-200/40 text-xs mt-6">
-          &copy; 2025 NEXUS HRMS. AI-Powered Enterprise HR Platform.
+          &copy; 2025 3 Boxes HRMS. AI-Powered Enterprise HR Platform.
         </p>
       </div>
     </div>

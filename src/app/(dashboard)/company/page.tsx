@@ -9,21 +9,21 @@ import {
 import toast from 'react-hot-toast';
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nexus_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
 /* ── Demo Data ── */
 const companies = [
-  { id: 'comp-1', name: 'Nexus Technologies', code: 'NEXTECH', city: 'Mumbai', state: 'Maharashtra', status: 'Active', branches: 3, departments: 8, employees: 31, gst: '27AABCN1234F1Z5', phone: '+91 22 4567 8901' },
+  { id: 'comp-1', name: '3 Boxes Technologies', code: '3BOXES', city: 'Mumbai', state: 'Maharashtra', status: 'Active', branches: 3, departments: 8, employees: 31, gst: '27AABCN1234F1Z5', phone: '+91 22 4567 8901' },
   { id: 'comp-2', name: 'Nexus Solutions', code: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', status: 'Active', branches: 2, departments: 8, employees: 10, gst: '36AABCN5678F1Z3', phone: '+91 40 2345 6789' },
   { id: 'comp-3', name: 'Nexus Staffing', code: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', status: 'Active', branches: 1, departments: 8, employees: 10, gst: '27AABCN9012F1Z1', phone: '+91 20 3456 7890' },
 ];
 
 const branches = [
-  { id: 'br-1', name: 'Mumbai HQ', company: 'NEXTECH', city: 'Mumbai', state: 'Maharashtra', address: 'BKC, Bandra East', status: 'Active', head: 'Aarav Sharma' },
-  { id: 'br-2', name: 'Bangalore Tech Park', company: 'NEXTECH', city: 'Bangalore', state: 'Karnataka', address: 'Whitefield Main Road', status: 'Active', head: 'Priya Patel' },
-  { id: 'br-3', name: 'Delhi NCR Office', company: 'NEXTECH', city: 'New Delhi', state: 'Delhi', address: 'Connaught Place', status: 'Active', head: 'Rohan Kumar' },
+  { id: 'br-1', name: 'Mumbai HQ', company: '3BOXES', city: 'Mumbai', state: 'Maharashtra', address: 'BKC, Bandra East', status: 'Active', head: 'Aarav Sharma' },
+  { id: 'br-2', name: 'Bangalore Tech Park', company: '3BOXES', city: 'Bangalore', state: 'Karnataka', address: 'Whitefield Main Road', status: 'Active', head: 'Priya Patel' },
+  { id: 'br-3', name: 'Delhi NCR Office', company: '3BOXES', city: 'New Delhi', state: 'Delhi', address: 'Connaught Place', status: 'Active', head: 'Rohan Kumar' },
   { id: 'br-4', name: 'Hyderabad Campus', company: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', address: 'HITEC City, Madhapur', status: 'Active', head: 'Amit Rao' },
   { id: 'br-5', name: 'Chennai Center', company: 'NEXSOL', city: 'Chennai', state: 'Tamil Nadu', address: 'OMR, Thoraipakkam', status: 'Active', head: 'Suresh Babu' },
   { id: 'br-6', name: 'Pune Office', company: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', address: 'Hinjewadi Phase 2', status: 'Active', head: 'Sanjay Deshmukh' },

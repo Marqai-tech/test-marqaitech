@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nexus_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

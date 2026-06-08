@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { token, user } = data;
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('nexus_token', token);
+        localStorage.setItem('tb_token', token);
       }
 
       set({
@@ -90,7 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('Logout error:', error);
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('nexus_token');
+        localStorage.removeItem('tb_token');
       }
       set({
         user: null,
@@ -117,7 +117,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (!res.ok) {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('nexus_token');
+          localStorage.removeItem('tb_token');
         }
         set({
           user: null,
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Fetch user error:', error);
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('nexus_token');
+        localStorage.removeItem('tb_token');
       }
       set({
         user: null,
@@ -150,7 +150,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setToken: (token: string) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('nexus_token', token);
+      localStorage.setItem('tb_token', token);
     }
     set({ token });
   },
@@ -158,7 +158,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 // Initialize auth state from localStorage on client
 if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('nexus_token');
+  const token = localStorage.getItem('tb_token');
   if (token) {
     useAuthStore.setState({ token, isLoading: true });
     useAuthStore.getState().fetchUser();

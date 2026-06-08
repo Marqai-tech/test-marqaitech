@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     // Find the recruiter user
-    const recruiterUser = await prisma.user.findUnique({ where: { email: 'recruiter@nexushrms.com' } });
+    const recruiterUser = await prisma.user.findUnique({ where: { email: 'recruiter@3boxeshrms.com' } });
     if (!recruiterUser) {
       return NextResponse.json({ error: 'Recruiter user not found. Run reseed first.' }, { status: 400 });
     }
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
           candidateName: 'Alex Turner',
           candidateEmail: 'alex.turner@email.com',
           candidatePhone: '+1-555-1001',
-          resumeUrl: 'https://resumes.nexushrms.com/alex-turner.pdf',
+          resumeUrl: 'https://resumes.3boxeshrms.com/alex-turner.pdf',
           resumeParsed: { name: 'Alex Turner', experience: 6, skills: ['React', 'Node.js', 'TypeScript', 'PostgreSQL'], education: 'BS Computer Science', companies: ['Google', 'Startup Co'] },
           language: 'en',
           status: 'completed',
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
           candidateEmail: 'alex.turner@email.com',
           candidateName: 'Alex Turner',
           invitationToken: generateToken(),
-          invitationUrl: 'https://nexushrms.com/interview/inv-alex-001',
+          invitationUrl: 'https://3boxeshrms.com/interview/inv-alex-001',
           status: 'completed',
           sentAt: new Date('2025-01-28T09:00:00Z'),
           openedAt: new Date('2025-01-28T09:15:00Z'),
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
           candidateName: 'Maya Singh',
           candidateEmail: 'maya.singh@email.com',
           candidatePhone: '+1-555-1002',
-          resumeUrl: 'https://resumes.nexushrms.com/maya-singh.pdf',
+          resumeUrl: 'https://resumes.3boxeshrms.com/maya-singh.pdf',
           resumeParsed: { name: 'Maya Singh', experience: 8, skills: ['React', 'Python', 'AWS', 'Docker'], education: 'MS Computer Science', companies: ['Amazon', 'Tech Corp'] },
           language: 'en',
           status: 'in_progress',
@@ -192,7 +192,7 @@ export async function POST(request: Request) {
           candidateEmail: 'john.doe@email.com',
           candidateName: 'John Doe',
           invitationToken: generateToken(),
-          invitationUrl: 'https://nexushrms.com/interview/inv-john-001',
+          invitationUrl: 'https://3boxeshrms.com/interview/inv-john-001',
           status: 'pending',
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
           candidateName: 'Sophie Martin',
           candidateEmail: 'sophie.martin@email.com',
           candidatePhone: '+1-555-1003',
-          resumeUrl: 'https://resumes.nexushrms.com/sophie-martin.pdf',
+          resumeUrl: 'https://resumes.3boxeshrms.com/sophie-martin.pdf',
           resumeParsed: { name: 'Sophie Martin', experience: 7, skills: ['UX Research', 'Figma', 'User Testing', 'Analytics'], education: 'MS Human-Computer Interaction', companies: ['Meta', 'Design Studio'] },
           language: 'en',
           status: 'invited',
@@ -262,7 +262,7 @@ export async function POST(request: Request) {
           candidateEmail: 'sophie.martin@email.com',
           candidateName: 'Sophie Martin',
           invitationToken: generateToken(),
-          invitationUrl: 'https://nexushrms.com/interview/inv-sophie-001',
+          invitationUrl: 'https://3boxeshrms.com/interview/inv-sophie-001',
           status: 'sent',
           sentAt: new Date(),
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -389,7 +389,7 @@ export async function POST(request: Request) {
           candidateEmail: 'wei.zhang@email.com',
           candidateName: 'Wei Zhang',
           invitationToken: generateToken(),
-          invitationUrl: 'https://nexushrms.com/interview/inv-wei-001',
+          invitationUrl: 'https://3boxeshrms.com/interview/inv-wei-001',
           status: 'completed',
           sentAt: new Date('2025-01-22T10:00:00Z'),
           openedAt: new Date('2025-01-22T10:30:00Z'),
@@ -471,7 +471,7 @@ export async function POST(request: Request) {
           candidateEmail: 'james.williams@email.com',
           candidateName: 'James Williams',
           invitationToken: generateToken(),
-          invitationUrl: 'https://nexushrms.com/interview/inv-james-001',
+          invitationUrl: 'https://3boxeshrms.com/interview/inv-james-001',
           status: 'completed',
           sentAt: new Date('2024-12-10T09:00:00Z'),
           openedAt: new Date('2024-12-10T09:30:00Z'),
@@ -569,7 +569,7 @@ export async function POST(request: Request) {
           candidateEmail: 'lisa.park@email.com',
           candidateName: 'Lisa Park',
           invitationToken: generateToken(),
-          invitationUrl: 'https://nexushrms.com/interview/inv-lisa-001',
+          invitationUrl: 'https://3boxeshrms.com/interview/inv-lisa-001',
           status: 'expired',
           sentAt: new Date('2025-01-01T10:00:00Z'),
           expiresAt: new Date('2025-01-08T23:59:59Z'),
@@ -598,7 +598,7 @@ export async function POST(request: Request) {
       // Proctoring logs for disqualified session
       const disqualifyLogs = [
         { eventType: 'copy_paste', severity: 'high', details: 'Large code block pasted from clipboard. Content appears to be from external source.', timestamp: new Date('2025-01-20T15:02:00Z') },
-        { eventType: 'ai_assistant_detected', severity: 'critical', details: 'AI assistant tool detected in screen share. ChatGPT interface visible in background.', timestamp: new Date('2025-01-20T15:03:00Z'), screenshotUrl: 'https://evidence.nexushrms.com/proctoring/tom-baker-ai-detect.png' },
+        { eventType: 'ai_assistant_detected', severity: 'critical', details: 'AI assistant tool detected in screen share. ChatGPT interface visible in background.', timestamp: new Date('2025-01-20T15:03:00Z'), screenshotUrl: 'https://evidence.3boxeshrms.com/proctoring/tom-baker-ai-detect.png' },
         { eventType: 'multiple_faces', severity: 'medium', details: 'Multiple faces detected in frame for 15 seconds.', timestamp: new Date('2025-01-20T15:04:00Z') },
       ];
 

@@ -10,7 +10,7 @@ export default function HomePage() {
 
   useEffect(() => {
     // Check for existing token in localStorage
-    const savedToken = localStorage.getItem('nexus_token');
+    const savedToken = localStorage.getItem('tb_token');
 
     if (savedToken && !isAuthenticated) {
       // Try to fetch user with existing token

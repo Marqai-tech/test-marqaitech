@@ -160,11 +160,12 @@ export default function HomePage() {
         <div className="relative z-10 px-8 py-8">
           {/* Top row: Logo + Company Name */}
           <div className="flex items-center gap-5 mb-6">
-            {/* NEXUS Logo Shield */}
+            {/* 3 Boxes Logo */}
             <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-white/10">
-              <svg viewBox="0 0 30 30" className="w-8 h-8" fill="none">
-                <path d="M15 2L3 8V16C3 24 8.1 31.2 15 33C21.9 31.2 27 24 27 16V8L15 2Z" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="0.5"/>
-                <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
+              <svg viewBox="0 0 35 11" className="w-8 h-5" fill="none">
+                <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+                <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
+                <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
               </svg>
             </div>
             
@@ -172,12 +173,12 @@ export default function HomePage() {
             <div>
               <div className="flex items-baseline gap-2">
                 <h1 className="text-3xl font-extrabold text-white tracking-tight">
-                  NEXUS
+                  3 Boxes
                 </h1>
                 <span className="text-lg font-bold text-blue-300 tracking-wide">HRMS</span>
               </div>
               <p className="text-blue-200/60 text-xs font-medium tracking-widest uppercase mt-0.5">
-                Intelligent Human Resource Management
+                People &middot; Process &middot; Technology
               </p>
             </div>
 
@@ -186,7 +187,7 @@ export default function HomePage() {
               <div className="h-10 w-px bg-white/10" />
               <div className="text-right">
                 <p className="text-xs text-blue-200/50 font-medium uppercase tracking-wider">Organization</p>
-                <p className="text-sm font-semibold text-white/90">{user?.tenantName || 'NEXUS Corp'}</p>
+                <p className="text-sm font-semibold text-white/90">{user?.tenantName || '3 Boxes Corp'}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
                 <FiShield className="w-5 h-5 text-blue-300" />
@@ -204,7 +205,7 @@ export default function HomePage() {
                 {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300">{firstName}</span>!
               </h2>
               <p className="text-blue-100/80 mt-1 text-sm font-medium tracking-wide">
-                Welcome to <span className="text-white font-semibold">NEXUS HRMS</span>. Select a module to get started.
+                Welcome to <span className="text-white font-semibold">3 Boxes HRMS</span>. Select a module to get started.
               </p>
             </div>
 

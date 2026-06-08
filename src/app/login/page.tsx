@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight,
   FiChevronDown, FiChevronUp, FiSmartphone, FiDownload,
-  FiMonitor, FiTablet, FiX, FiCheck, FiWifi,
-  FiRefreshCw, FiShield, FiZap, FiGlobe
+  FiMonitor, FiX, FiCheck, FiWifi,
+  FiRefreshCw, FiShield, FiZap, FiGlobe,
+  FiUsers, FiSettings, FiCpu, FiStar,
+  FiPlay, FiArrowLeft
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -37,12 +39,12 @@ export default function LoginPage() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   const demoAccounts = [
-    { role: 'Super Admin', email: 'admin@nexushrms.com', password: 'admin123', color: 'bg-amber-500', desc: 'Full system access' },
-    { role: 'HR Admin', email: 'hr@nexushrms.com', password: 'hr123', color: 'bg-blue-500', desc: 'HR management' },
-    { role: 'Manager', email: 'manager@nexushrms.com', password: 'manager123', color: 'bg-violet-500', desc: 'Team management' },
-    { role: 'Employee', email: 'employee@nexushrms.com', password: 'employee123', color: 'bg-emerald-500', desc: 'Self-service portal' },
-    { role: 'Recruiter', email: 'recruiter@nexushrms.com', password: 'recruiter123', color: 'bg-pink-500', desc: 'Recruitment & AI interviews' },
-    { role: 'Candidate', email: 'candidate@nexushrms.com', password: 'candidate123', color: 'bg-cyan-500', desc: 'Interview & application' },
+    { role: 'Super Admin', email: 'admin@3boxeshrms.com', password: 'admin123', color: 'bg-amber-500', desc: 'Full system access' },
+    { role: 'HR Admin', email: 'hr@3boxeshrms.com', password: 'hr123', color: 'bg-blue-500', desc: 'HR management' },
+    { role: 'Manager', email: 'manager@3boxeshrms.com', password: 'manager123', color: 'bg-violet-500', desc: 'Team management' },
+    { role: 'Employee', email: 'employee@3boxeshrms.com', password: 'employee123', color: 'bg-emerald-500', desc: 'Self-service portal' },
+    { role: 'Recruiter', email: 'recruiter@3boxeshrms.com', password: 'recruiter123', color: 'bg-pink-500', desc: 'Recruitment & AI interviews' },
+    { role: 'Candidate', email: 'candidate@3boxeshrms.com', password: 'candidate123', color: 'bg-cyan-500', desc: 'Interview & application' },
   ];
 
   // Detect platform and PWA install capability
@@ -69,7 +71,7 @@ export default function LoginPage() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        toast.success('NEXUS HRMS app installed successfully!');
+        toast.success('3 Boxes HRMS app installed successfully!');
         setDeferredPrompt(null);
       }
     } catch (err) {
@@ -131,375 +133,460 @@ export default function LoginPage() {
     }
   };
 
+  const ThreeBoxesLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' | 'xl' }) => {
+    const dims = { sm: 'w-6 h-6', md: 'w-9 h-9', lg: 'w-12 h-12', xl: 'w-16 h-16' };
+    const boxSize = { sm: 8, md: 11, lg: 15, xl: 19 };
+    const gap = { sm: 1.5, md: 2, lg: 2.5, xl: 3 };
+    const rx = { sm: 2, md: 2.5, lg: 3, xl: 4 };
+    const s = boxSize[size];
+    const g = gap[size];
+    const r = rx[size];
+    const totalW = (s * 3) + (g * 2);
+    const totalH = s;
+
+    return (
+      <svg viewBox={`0 0 ${totalW} ${totalH}`} className={dims[size]} fill="none">
+        <rect x="0" y="0" width={s} height={s} rx={r} fill="#3B82F6" />
+        <rect x={s + g} y="0" width={s} height={s} rx={r} fill="#10B981" />
+        <rect x={(s + g) * 2} y="0" width={s} height={s} rx={r} fill="#8B5CF6" />
+      </svg>
+    );
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-violet-950" />
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* ===== LEFT PANEL — Branding & Features ===== */}
+      <div className="hidden lg:flex lg:w-[55%] xl:w-[58%] relative flex-col justify-between">
+        {/* Deep gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0B1120] via-[#0F1D3A] to-[#1A0F2E]" />
 
-      {/* Animated Background Orbs */}
-      <div className="absolute top-1/4 -left-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl animate-pulse-subtle" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl animate-pulse-subtle" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-3xl" />
+        {/* Animated mesh pattern */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }} />
 
-      {/* Grid Pattern Overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
+        {/* Glowing orbs */}
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-blue-500/15 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[400px] h-[400px] bg-violet-500/15 rounded-full blur-[100px]" />
+        <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px]" />
 
-      {/* Main Content */}
-      <div className="relative z-10 w-full max-w-5xl mx-4 flex flex-col lg:flex-row gap-6 items-stretch">
-
-        {/* Left: Login Card */}
-        <div className="w-full lg:w-[420px] shrink-0">
-          <div className="nexus-card p-8 shadow-2xl border-white/10 bg-white/[0.97]">
-            {/* Brand Header */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 mb-4 shadow-lg shadow-blue-500/25 ring-2 ring-blue-400/20">
-                <svg viewBox="0 0 30 30" className="w-9 h-9" fill="none">
-                  <path d="M15 2L3 8V16C3 24 8.1 31.2 15 33C21.9 31.2 27 24 27 16V8L15 2Z" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="0.5"/>
-                  <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
-                </svg>
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                <span className="gradient-text">NEXUS</span>
-                <span className="text-blue-500 ml-1 text-xl font-extrabold">HRMS</span>
-              </h1>
-              <p className="text-nexus-text-secondary mt-2 text-sm font-medium">
-                SaaS-Based AI HRMS Platform
-              </p>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 animate-slide-in-down">
-                <p className="text-sm text-red-700 font-medium">{error}</p>
-              </div>
-            )}
-
-            {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email Field */}
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between h-full p-10 xl:p-14">
+          {/* Top — Logo & Brand */}
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <ThreeBoxesLogo size="lg" />
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-nexus-text-primary mb-1.5">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <FiMail className="h-[18px] w-[18px] text-nexus-text-muted" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (error) setError('');
-                    }}
-                    placeholder="you@company.com"
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-nexus-border bg-slate-50/50 text-nexus-text-primary placeholder:text-nexus-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-sm"
-                    autoComplete="email"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-nexus-text-primary mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <FiLock className="h-[18px] w-[18px] text-nexus-text-muted" />
-                  </div>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (error) setError('');
-                    }}
-                    placeholder="Enter your password"
-                    className="w-full pl-11 pr-12 py-3 rounded-xl border border-nexus-border bg-slate-50/50 text-nexus-text-primary placeholder:text-nexus-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-sm"
-                    autoComplete="current-password"
-                    disabled={isSubmitting}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-nexus-text-muted hover:text-nexus-text-secondary transition-colors"
-                  >
-                    {showPassword ? (
-                      <FiEyeOff className="h-[18px] w-[18px]" />
-                    ) : (
-                      <FiEye className="h-[18px] w-[18px]" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <FiArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-
-              {/* Demo Accounts */}
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-                  className="w-full flex items-center justify-center gap-1.5 text-xs text-nexus-text-muted hover:text-nexus-text-secondary transition-colors py-1"
-                >
-                  {showDemoAccounts ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
-                  Demo Accounts
-                </button>
-                {showDemoAccounts && (
-                  <div className="mt-3 space-y-2 animate-slide-in-down">
-                    <p className="text-[11px] text-nexus-text-muted text-center font-medium">Quick Access Demo Accounts</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {demoAccounts.map((account) => (
-                        <button
-                          key={account.role}
-                          type="button"
-                          onClick={() => handleDemoLogin(account.email, account.password)}
-                          disabled={isSubmitting}
-                          className="flex items-center gap-2 p-2.5 rounded-lg border border-nexus-border bg-slate-50/50 hover:bg-slate-100 hover:border-slate-300 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
-                        >
-                          <span className={`w-2.5 h-2.5 rounded-full ${account.color} shrink-0`} />
-                          <div className="min-w-0">
-                            <span className="text-xs font-semibold text-nexus-text-primary block truncate">{account.role}</span>
-                            <span className="text-[10px] text-nexus-text-muted block truncate">{account.desc}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </form>
-
-            {/* Footer */}
-            <div className="mt-6 pt-5 border-t border-nexus-border text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-nexus-text-muted">
-                <HiShieldCheck className="w-3.5 h-3.5 text-green-500" />
-                Protected by enterprise-grade security
+                <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                  3 Boxes <span className="text-blue-400">HRMS</span>
+                </h1>
+                <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
+                  People &middot; Process &middot; Technology
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Bottom attribution */}
-          <p className="text-center mt-4 text-xs text-slate-400">
-            &copy; {new Date().getFullYear()} NEXUS HRMS. All rights reserved.
-          </p>
-        </div>
-
-        {/* Right: Mobile App Download Section */}
-        <div className="flex-1 min-w-0">
-          <div className="nexus-card p-8 shadow-2xl border-white/10 bg-white/[0.97] h-full flex flex-col">
-            {/* Section Header */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-100 mb-4">
-                <FiSmartphone className="w-3.5 h-3.5 text-blue-500" />
-                <span className="text-xs font-semibold text-blue-600">Mobile App Available</span>
-              </div>
-              <h2 className="text-2xl font-bold text-nexus-text-primary">
-                Get NEXUS HRMS on Your Device
-              </h2>
-              <p className="text-sm text-nexus-text-secondary mt-2 max-w-md mx-auto">
-                Install the app for instant access, offline support, and native-like experience. 
-                Updates are automatic — always stay in sync with the latest features.
-              </p>
+          {/* Center — Hero messaging */}
+          <div className="max-w-lg">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-subtle" />
+              <span className="text-[11px] text-emerald-300 font-semibold tracking-wide">AI-POWERED PLATFORM</span>
             </div>
 
-            {/* Install Button / Platform-specific instructions */}
-            <div className="flex-1 flex flex-col justify-center">
-              {/* Direct Install (Android/Chrome with beforeinstallprompt) */}
-              {deferredPrompt && !isStandalone && (
-                <div className="mb-6">
-                  <button
-                    onClick={handlePWAInstall}
-                    className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-bold text-base shadow-lg shadow-blue-500/25 hover:shadow-xl hover:from-blue-600 hover:to-violet-700 transition-all"
-                  >
-                    <FiDownload className="w-5 h-5" />
-                    Install NEXUS HRMS App
-                  </button>
-                  <p className="text-xs text-center text-nexus-text-muted mt-3">
-                    One-tap install for Android &amp; Chrome
-                  </p>
-                </div>
-              )}
+            <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-[1.1] mb-6">
+              Transform Your
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-violet-400">
+                HR Operations
+              </span>
+            </h2>
 
-              {/* Platform Instructions */}
-              <div className="space-y-4">
-                {/* Android Instructions */}
-                <div className={`p-4 rounded-xl border ${isAndroid ? 'border-green-200 bg-green-50/50' : 'border-nexus-border bg-slate-50/50'}`}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                        <path d="M17.523 15.341a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64zm-10.246 0a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64z" fill="#3DDC84"/>
-                        <path d="M6.978 13.277V8.36l5.022 2.922-5.022 2.995zm10.044-4.917v4.917l-5.022-2.995 5.022-2.922z" fill="#3DDC84"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-nexus-text-primary">Android</h3>
-                      <p className="text-[11px] text-nexus-text-secondary">Chrome browser required</p>
-                    </div>
-                    {isAndroid && (
-                      <span className="ml-auto px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold">YOUR DEVICE</span>
-                    )}
-                  </div>
-                  <ol className="space-y-1.5 text-xs text-nexus-text-secondary">
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">1</span>
-                      Open this page in <span className="font-medium text-nexus-text-primary">Chrome browser</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">2</span>
-                      Tap the <span className="font-medium text-nexus-text-primary">three-dot menu</span> in the top right
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">3</span>
-                      Select <span className="font-medium text-nexus-text-primary">&quot;Install app&quot;</span> or &quot;Add to Home Screen&quot;
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">4</span>
-                      Tap <span className="font-medium text-nexus-text-primary">&quot;Install&quot;</span> to confirm
-                    </li>
-                  </ol>
-                </div>
+            <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
+              The next-generation SaaS HRMS platform where three pillars converge — empowering businesses to manage people, streamline processes, and leverage technology seamlessly.
+            </p>
 
-                {/* iOS Instructions */}
-                <div className={`p-4 rounded-xl border ${isIOS ? 'border-slate-300 bg-slate-50/50' : 'border-nexus-border bg-slate-50/50'}`}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83" fill="#333"/>
-                        <path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="#333"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-nexus-text-primary">iPhone / iPad</h3>
-                      <p className="text-[11px] text-nexus-text-secondary">Safari browser required</p>
-                    </div>
-                    {isIOS && (
-                      <span className="ml-auto px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">YOUR DEVICE</span>
-                    )}
-                  </div>
-                  <ol className="space-y-1.5 text-xs text-nexus-text-secondary">
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">1</span>
-                      Open this page in <span className="font-medium text-nexus-text-primary">Safari browser</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">2</span>
-                      Tap the <span className="font-medium text-nexus-text-primary">Share button</span> at the bottom
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">3</span>
-                      Scroll down and tap <span className="font-medium text-nexus-text-primary">&quot;Add to Home Screen&quot;</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">4</span>
-                      Tap <span className="font-medium text-nexus-text-primary">&quot;Add&quot;</span> to confirm
-                    </li>
-                  </ol>
+            {/* Three Pillars */}
+            <div className="grid grid-cols-3 gap-4 mb-10">
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center mb-3">
+                  <FiUsers className="w-5 h-5 text-blue-400" />
                 </div>
+                <h3 className="text-sm font-bold text-white mb-1">People</h3>
+                <p className="text-[11px] text-slate-400 leading-relaxed">Employee lifecycle, engagement & growth management</p>
+              </div>
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
+                  <FiSettings className="w-5 h-5 text-emerald-400" />
+                </div>
+                <h3 className="text-sm font-bold text-white mb-1">Process</h3>
+                <p className="text-[11px] text-slate-400 leading-relaxed">Automated workflows, compliance & approvals</p>
+              </div>
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                <div className="w-10 h-10 rounded-lg bg-violet-500/15 flex items-center justify-center mb-3">
+                  <FiCpu className="w-5 h-5 text-violet-400" />
+                </div>
+                <h3 className="text-sm font-bold text-white mb-1">Technology</h3>
+                <p className="text-[11px] text-slate-400 leading-relaxed">AI interviews, analytics & smart automation</p>
+              </div>
+            </div>
+          </div>
 
-                {/* Desktop Instructions */}
-                <div className={`p-4 rounded-xl border border-nexus-border bg-slate-50/50 ${!isIOS && !isAndroid ? 'ring-2 ring-blue-200' : ''}`}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                      <FiMonitor className="w-5 h-5 text-blue-500" />
+          {/* Bottom — Social proof & Trust */}
+          <div>
+            <div className="flex items-center gap-6 mb-6">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500'].map((c, i) => (
+                    <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-[#0F1D3A] flex items-center justify-center text-[10px] font-bold text-white`}>
+                      {['SK', 'AP', 'MJ', 'RK'][i]}
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-nexus-text-primary">Desktop / Laptop</h3>
-                      <p className="text-[11px] text-nexus-text-secondary">Chrome or Edge browser</p>
-                    </div>
-                    {!isIOS && !isAndroid && (
-                      <span className="ml-auto px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">YOUR DEVICE</span>
-                    )}
-                  </div>
-                  <ol className="space-y-1.5 text-xs text-nexus-text-secondary">
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">1</span>
-                      Look for the <span className="font-medium text-nexus-text-primary">install icon</span> in the address bar
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">2</span>
-                      Or click <span className="font-medium text-nexus-text-primary">three-dot menu → Install NEXUS HRMS</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold">3</span>
-                      Click <span className="font-medium text-nexus-text-primary">&quot;Install&quot;</span> to open as a desktop app
-                    </li>
-                  </ol>
+                  ))}
                 </div>
+                <div>
+                  <p className="text-xs font-semibold text-white">2,500+ Companies</p>
+                  <p className="text-[10px] text-slate-400">Trust 3 Boxes HRMS</p>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-white/10" />
+              <div className="flex items-center gap-1.5">
+                {[...Array(5)].map((_, i) => (
+                  <FiStar key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                ))}
+                <span className="text-xs font-semibold text-white ml-1">4.9/5</span>
               </div>
             </div>
 
-            {/* Auto-update Feature Highlight */}
-            <div className="mt-6 pt-5 border-t border-nexus-border">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mx-auto mb-1.5">
-                    <FiRefreshCw className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <p className="text-[10px] font-semibold text-nexus-text-primary">Auto Updates</p>
-                  <p className="text-[9px] text-nexus-text-muted mt-0.5">Always latest version</p>
-                </div>
-                <div className="text-center p-2">
-                  <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center mx-auto mb-1.5">
-                    <FiWifi className="w-4 h-4 text-green-500" />
-                  </div>
-                  <p className="text-[10px] font-semibold text-nexus-text-primary">Works Offline</p>
-                  <p className="text-[9px] text-nexus-text-muted mt-0.5">Access without internet</p>
-                </div>
-                <div className="text-center p-2">
-                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center mx-auto mb-1.5">
-                    <FiShield className="w-4 h-4 text-violet-500" />
-                  </div>
-                  <p className="text-[10px] font-semibold text-nexus-text-primary">Secure</p>
-                  <p className="text-[9px] text-nexus-text-muted mt-0.5">Enterprise encryption</p>
-                </div>
-              </div>
+            <div className="flex items-center gap-4 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <FiShield className="w-3.5 h-3.5 text-slate-400" />
+                SOC 2 Compliant
+              </span>
+              <span className="flex items-center gap-1.5">
+                <FiGlobe className="w-3.5 h-3.5 text-slate-400" />
+                GDPR Ready
+              </span>
+              <span className="flex items-center gap-1.5">
+                <FiZap className="w-3.5 h-3.5 text-slate-400" />
+                99.9% Uptime
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile App Toggle for Small Screens */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50">
-        <button
-          onClick={() => setShowMobileApp(!showMobileApp)}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/25"
-        >
-          <FiSmartphone className="w-4 h-4" />
-          {showMobileApp ? 'Back to Login' : 'Get Mobile App'}
-          <FiDownload className="w-4 h-4" />
-        </button>
+      {/* ===== RIGHT PANEL — Login Form ===== */}
+      <div className="w-full lg:w-[45%] xl:w-[42%] flex items-center justify-center bg-white relative">
+        {/* Subtle pattern for right panel */}
+        <div className="absolute inset-0 opacity-[0.015]" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, #3B82F6 1px, transparent 0)`,
+          backgroundSize: '24px 24px',
+        }} />
+
+        <div className="relative z-10 w-full max-w-md px-8 py-10">
+          {/* Mobile-only brand header */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="inline-flex items-center gap-2.5 mb-3">
+              <ThreeBoxesLogo size="md" />
+              <h1 className="text-2xl font-extrabold tracking-tight">
+                <span className="gradient-text">3 Boxes</span>
+                <span className="text-blue-500 ml-1 text-lg font-extrabold">HRMS</span>
+              </h1>
+            </div>
+            <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
+              People &middot; Process &middot; Technology
+            </p>
+          </div>
+
+          {/* Form header */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Welcome back</h2>
+            <p className="text-sm text-slate-500">Sign in to your account to continue</p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200/80 animate-slide-in-down">
+              <p className="text-sm text-red-700 font-medium">{error}</p>
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <FiMail className="h-[18px] w-[18px] text-slate-400" />
+                </div>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="you@company.com"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all text-sm"
+                  autoComplete="email"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
+                  Password
+                </label>
+                <button type="button" className="text-xs font-medium text-blue-500 hover:text-blue-700 transition-colors">
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <FiLock className="h-[18px] w-[18px] text-slate-400" />
+                </div>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="Enter your password"
+                  className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all text-sm"
+                  autoComplete="current-password"
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? (
+                    <FiEyeOff className="h-[18px] w-[18px]" />
+                  ) : (
+                    <FiEye className="h-[18px] w-[18px]" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember me */}
+            <div className="flex items-center gap-2">
+              <input
+                id="remember"
+                type="checkbox"
+                className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20"
+              />
+              <label htmlFor="remember" className="text-sm text-slate-500">
+                Keep me signed in for 30 days
+              </label>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:via-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <FiArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-3 text-slate-400 font-medium">or try with demo account</span>
+              </div>
+            </div>
+
+            {/* Demo Accounts */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                className="w-full flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors py-1"
+              >
+                {showDemoAccounts ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
+                Demo Accounts
+              </button>
+              {showDemoAccounts && (
+                <div className="mt-3 space-y-2 animate-slide-in-down">
+                  <div className="grid grid-cols-2 gap-2">
+                    {demoAccounts.map((account) => (
+                      <button
+                        key={account.role}
+                        type="button"
+                        onClick={() => handleDemoLogin(account.email, account.password)}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-100 hover:border-slate-300 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full ${account.color} shrink-0`} />
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold text-slate-800 block truncate">{account.role}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">{account.desc}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
+
+          {/* Mobile App Download */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowMobileApp(!showMobileApp)}
+              className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-50 to-violet-50 flex items-center justify-center">
+                  <FiSmartphone className="w-4.5 h-4.5 text-blue-500" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-slate-800">Get Mobile App</p>
+                  <p className="text-[11px] text-slate-400">Auto-updates with web changes</p>
+                </div>
+              </div>
+              {showMobileApp ? (
+                <FiChevronUp className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
+              ) : (
+                <FiChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
+              )}
+            </button>
+
+            {showMobileApp && (
+              <div className="mt-4 space-y-3 animate-slide-in-down">
+                {/* Direct Install */}
+                {deferredPrompt && !isStandalone && (
+                  <button
+                    onClick={handlePWAInstall}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/20 hover:from-blue-600 hover:to-violet-700 transition-all"
+                  >
+                    <FiDownload className="w-4 h-4" />
+                    Install 3 Boxes HRMS App
+                  </button>
+                )}
+
+                {/* Platform instructions */}
+                <div className="space-y-2">
+                  {/* Android */}
+                  <div className={`p-3 rounded-xl border ${isAndroid ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/50'}`}>
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                          <path d="M17.523 15.341a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64zm-10.246 0a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64z" fill="#3DDC84"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold text-slate-800">Android</h4>
+                        <p className="text-[10px] text-slate-400">Chrome → Menu → Install app</p>
+                      </div>
+                      {isAndroid && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold">YOUR DEVICE</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* iOS */}
+                  <div className={`p-3 rounded-xl border ${isIOS ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-slate-50/50'}`}>
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83" fill="#333"/>
+                          <path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="#333"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold text-slate-800">iPhone / iPad</h4>
+                        <p className="text-[10px] text-slate-400">Safari → Share → Add to Home Screen</p>
+                      </div>
+                      {isIOS && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[9px] font-bold">YOUR DEVICE</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Desktop */}
+                  <div className={`p-3 rounded-xl border border-slate-200 bg-slate-50/50 ${!isIOS && !isAndroid ? 'ring-1 ring-blue-200' : ''}`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <FiMonitor className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold text-slate-800">Desktop</h4>
+                        <p className="text-[10px] text-slate-400">Chrome/Edge → Address bar install icon</p>
+                      </div>
+                      {!isIOS && !isAndroid && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold">YOUR DEVICE</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature highlights */}
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="text-center p-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center mx-auto mb-1">
+                      <FiRefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                    </div>
+                    <p className="text-[10px] font-semibold text-slate-700">Auto Updates</p>
+                  </div>
+                  <div className="text-center p-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-1">
+                      <FiWifi className="w-3.5 h-3.5 text-emerald-500" />
+                    </div>
+                    <p className="text-[10px] font-semibold text-slate-700">Offline Mode</p>
+                  </div>
+                  <div className="text-center p-2">
+                    <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center mx-auto mb-1">
+                      <FiShield className="w-3.5 h-3.5 text-violet-500" />
+                    </div>
+                    <p className="text-[10px] font-semibold text-slate-700">Encrypted</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <HiShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                Enterprise-grade security
+              </div>
+              <p className="text-[11px] text-slate-400">
+                &copy; {new Date().getFullYear()} 3 Boxes HRMS
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

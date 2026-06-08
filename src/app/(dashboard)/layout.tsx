@@ -75,7 +75,7 @@ export default function DashboardLayout({
               <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
             </svg>
           </div>
-          <p className="text-sm text-nexus-text-secondary font-medium">Loading NEXUS HRMS...</p>
+          <p className="text-sm text-nexus-text-secondary font-medium">Loading 3 Boxes HRMS...</p>
         </div>
       </div>
     );

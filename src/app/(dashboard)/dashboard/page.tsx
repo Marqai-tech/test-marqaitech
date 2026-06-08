@@ -49,7 +49,7 @@ interface BirthdayEmployee {
 }
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nexus_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -98,7 +98,7 @@ export default function DashboardPage() {
   const [heroSearch, setHeroSearch] = useState('');
 
   const firstName = user?.name?.split(' ')[0] || 'User';
-  const tenantName = user?.tenant?.name || 'NEXUS HRMS';
+  const tenantName = user?.tenant?.name || '3 Boxes HRMS';
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -316,7 +316,7 @@ export default function DashboardPage() {
                   {greeting}, <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-violet-400 bg-clip-text text-transparent">{firstName}</span>!
                 </h1>
                 <p className="text-slate-300/70 text-sm sm:text-base mt-1 font-medium">
-                  Welcome to <span className="text-white font-semibold">NEXUS HRMS</span>. Select a module to get started.
+                  Welcome to <span className="text-white font-semibold">3 Boxes HRMS</span>. Select a module to get started.
                 </p>
               </div>
             </div>

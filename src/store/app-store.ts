@@ -55,7 +55,7 @@ interface AppState {
 }
 
 const DEMO_COMPANIES: CompanyInfo[] = [
-  { id: 'comp-1', name: 'Nexus Technologies', code: 'NEXUS', industry: 'IT Services', country: 'IN', currency: 'INR', employeeCount: 10, isActive: true },
+  { id: 'comp-1', name: '3 Boxes Technologies', code: '3BOXES', industry: 'IT Services', country: 'IN', currency: 'INR', employeeCount: 10, isActive: true },
   { id: 'comp-2', name: 'ManufactPro Industries', code: 'MPI', industry: 'Manufacturing', country: 'IN', currency: 'INR', employeeCount: 5800, isActive: true },
   { id: 'comp-3', name: 'HealthFirst Solutions', code: 'HFS', industry: 'Healthcare', country: 'GB', currency: 'GBP', employeeCount: 1200, isActive: true },
 ];

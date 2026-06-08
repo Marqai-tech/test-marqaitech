@@ -264,7 +264,7 @@ export default function CandidateInterviewPage() {
           <div className="w-16 h-16 rounded-2xl bg-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25 animate-pulse">
             <FiCpu className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">NEXUS AI Interview</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">3 Boxes AI Interview</h2>
           <p className="text-gray-500 text-sm">Loading your interview session...</p>
         </div>
       </div>
@@ -407,7 +407,7 @@ export default function CandidateInterviewPage() {
             </div>
           </div>
           <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
-            <FiHeart className="w-3.5 h-3.5" /> <span>Powered by NEXUS AI Interview</span>
+            <FiHeart className="w-3.5 h-3.5" /> <span>Powered by 3 Boxes AI Interview</span>
           </div>
         </div>
       </div>
@@ -579,7 +579,7 @@ export default function CandidateInterviewPage() {
         <div className="mt-4 text-center text-xs text-gray-400 flex items-center justify-center gap-4">
           <span className="flex items-center gap-1"><FiShield className="w-3 h-3" /> Proctored session</span>
           <span className="flex items-center gap-1"><FiCpu className="w-3 h-3" /> AI-powered evaluation</span>
-          <span className="flex items-center gap-1"><FiStar className="w-3 h-3" /> NEXUS AI Interview</span>
+          <span className="flex items-center gap-1"><FiStar className="w-3 h-3" /> 3 Boxes AI Interview</span>
         </div>
       </div>
     </div>

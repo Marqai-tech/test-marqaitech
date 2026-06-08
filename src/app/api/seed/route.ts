@@ -19,18 +19,18 @@ export async function GET() {
     // Hash passwords for each demo account separately
     const pwHashes: Record<string, string> = {};
     const demoPasswords: Record<string, string> = {
-      'admin@nexushrms.com': 'admin123',
-      'hr@nexushrms.com': 'hr123',
-      'manager@nexushrms.com': 'manager123',
-      'employee@nexushrms.com': 'employee123',
-      'recruiter@nexushrms.com': 'recruiter123',
-      'candidate@nexushrms.com': 'candidate123',
+      'admin@3boxeshrms.com': 'admin123',
+      'hr@3boxeshrms.com': 'hr123',
+      'manager@3boxeshrms.com': 'manager123',
+      'employee@3boxeshrms.com': 'employee123',
+      'recruiter@3boxeshrms.com': 'recruiter123',
+      'candidate@3boxeshrms.com': 'candidate123',
     };
     for (const [email, pw] of Object.entries(demoPasswords)) {
       pwHashes[email] = await hashPassword(pw);
     }
     // Fallback hash for non-demo users
-    const defaultHashedPassword = pwHashes['admin@nexushrms.com'];
+    const defaultHashedPassword = pwHashes['admin@3boxeshrms.com'];
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
@@ -42,7 +42,7 @@ export async function GET() {
       create: {
         name: 'Nexus Corp',
         slug: 'nexus-corp',
-        domain: 'nexushrms.com',
+        domain: '3boxeshrms.com',
         plan: 'enterprise',
         status: 'active',
         country: 'US',
@@ -91,8 +91,8 @@ export async function GET() {
         state: 'NY',
         zipCode: '10118',
         phone: '+1-212-555-0100',
-        email: 'info@nexustechusa.com',
-        website: 'https://nexustechusa.com',
+        email: 'info@3boxestechusa.com',
+        website: 'https://3boxestechusa.com',
         status: 'active',
       },
     });
@@ -102,7 +102,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-india',
-        name: 'Nexus Technologies India',
+        name: '3 Boxes Technologies India',
         code: 'NTI',
         companyGroupId: asiaPacificGroup.id,
         registrationNo: 'IN-NT-001',
@@ -115,8 +115,8 @@ export async function GET() {
         state: 'Karnataka',
         zipCode: '560034',
         phone: '+91-80-555-0100',
-        email: 'info@nexustechindia.com',
-        website: 'https://nexustechindia.com',
+        email: 'info@3boxestechindia.com',
+        website: 'https://3boxestechindia.com',
         status: 'active',
       },
     });
@@ -160,7 +160,7 @@ export async function GET() {
         address: '350 Fifth Avenue, Suite 7200',
         zipCode: '10118',
         phone: '+1-212-555-0101',
-        email: 'nyhq@nexustechusa.com',
+        email: 'nyhq@3boxestechusa.com',
         status: 'active',
       },
     });
@@ -179,7 +179,7 @@ export async function GET() {
         address: '101 Market Street, Suite 300',
         zipCode: '94105',
         phone: '+1-415-555-0201',
-        email: 'sf@nexustechusa.com',
+        email: 'sf@3boxestechusa.com',
         status: 'active',
       },
     });
@@ -198,7 +198,7 @@ export async function GET() {
         address: '100 Feet Road, Koramangala, 4th Block',
         zipCode: '560034',
         phone: '+91-80-555-0301',
-        email: 'blr@nexustechindia.com',
+        email: 'blr@3boxestechindia.com',
         status: 'active',
       },
     });
@@ -217,7 +217,7 @@ export async function GET() {
         address: 'Bandra Kurla Complex, Bandra East',
         zipCode: '400051',
         phone: '+91-22-555-0401',
-        email: 'mumbai@nexustechindia.com',
+        email: 'mumbai@3boxestechindia.com',
         status: 'active',
       },
     });
@@ -293,12 +293,12 @@ export async function GET() {
 
     // ============ DEMO USERS (login page accounts with individual passwords) ============
     const demoUsers = [
-      { id: 'user-admin', name: 'Admin Nexus', email: 'admin@nexushrms.com', role: 'super_admin' },
-      { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@nexushrms.com', role: 'hr_admin' },
-      { id: 'user-manager', name: 'Priya Sharma', email: 'manager@nexushrms.com', role: 'manager' },
-      { id: 'user-employee', name: 'Raj Patel', email: 'employee@nexushrms.com', role: 'employee' },
-      { id: 'user-recruiter', name: 'Kim Chen', email: 'recruiter@nexushrms.com', role: 'recruiter' },
-      { id: 'user-candidate', name: 'Alex Turner', email: 'candidate@nexushrms.com', role: 'candidate' },
+      { id: 'user-admin', name: 'Admin 3Boxes', email: 'admin@3boxeshrms.com', role: 'super_admin' },
+      { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@3boxeshrms.com', role: 'hr_admin' },
+      { id: 'user-manager', name: 'Priya Sharma', email: 'manager@3boxeshrms.com', role: 'manager' },
+      { id: 'user-employee', name: 'Raj Patel', email: 'employee@3boxeshrms.com', role: 'employee' },
+      { id: 'user-recruiter', name: 'Kim Chen', email: 'recruiter@3boxeshrms.com', role: 'recruiter' },
+      { id: 'user-candidate', name: 'Alex Turner', email: 'candidate@3boxeshrms.com', role: 'candidate' },
     ];
 
     for (const u of demoUsers) {
@@ -320,15 +320,15 @@ export async function GET() {
 
     // Additional non-demo users (all use admin123 password)
     const additionalUsers = [
-      { id: 'user-sarah', name: 'Sarah Johnson', email: 'sarah.hr@nexushrms.com', role: 'hr_admin' },
-      { id: 'user-john', name: 'John Williams', email: 'john.manager@nexushrms.com', role: 'manager' },
-      { id: 'user-alice', name: 'Alice Chen', email: 'alice.emp@nexushrms.com', role: 'employee' },
-      { id: 'user-bob', name: 'Bob Martinez', email: 'bob.dev@nexushrms.com', role: 'employee' },
-      { id: 'user-carol', name: 'Carol Davis', email: 'carol.design@nexushrms.com', role: 'employee' },
-      { id: 'user-david', name: 'David Kim', email: 'david.sales@nexushrms.com', role: 'employee' },
-      { id: 'user-emma', name: 'Emma Thompson', email: 'emma.finance@nexushrms.com', role: 'employee' },
-      { id: 'user-frank', name: 'Frank Rodriguez', email: 'frank.ops@nexushrms.com', role: 'employee' },
-      { id: 'user-grace', name: 'Grace Liu', email: 'grace.product@nexushrms.com', role: 'employee' },
+      { id: 'user-sarah', name: 'Sarah Johnson', email: 'sarah.hr@3boxeshrms.com', role: 'hr_admin' },
+      { id: 'user-john', name: 'John Williams', email: 'john.manager@3boxeshrms.com', role: 'manager' },
+      { id: 'user-alice', name: 'Alice Chen', email: 'alice.emp@3boxeshrms.com', role: 'employee' },
+      { id: 'user-bob', name: 'Bob Martinez', email: 'bob.dev@3boxeshrms.com', role: 'employee' },
+      { id: 'user-carol', name: 'Carol Davis', email: 'carol.design@3boxeshrms.com', role: 'employee' },
+      { id: 'user-david', name: 'David Kim', email: 'david.sales@3boxeshrms.com', role: 'employee' },
+      { id: 'user-emma', name: 'Emma Thompson', email: 'emma.finance@3boxeshrms.com', role: 'employee' },
+      { id: 'user-frank', name: 'Frank Rodriguez', email: 'frank.ops@3boxeshrms.com', role: 'employee' },
+      { id: 'user-grace', name: 'Grace Liu', email: 'grace.product@3boxeshrms.com', role: 'employee' },
     ];
 
     for (const u of additionalUsers) {
@@ -350,7 +350,7 @@ export async function GET() {
     // ============ DEMO EMPLOYEES (for login page demo accounts) ============
     const demoEmployees = [
       {
-        id: 'emp-hr-demo', employeeId: 'EMP-HR', firstName: 'Sarah', lastName: 'Johnson', email: 'hr@nexushrms.com',
+        id: 'emp-hr-demo', employeeId: 'EMP-HR', firstName: 'Sarah', lastName: 'Johnson', email: 'hr@3boxeshrms.com',
         phone: '+1-212-555-2001', userId: 'user-hr', departmentId: 'dept-hr', designationId: 'des-hr-manager',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2021-03-01'),
         dateOfBirth: new Date('1990-09-14'), gender: 'female', maritalStatus: 'single', nationality: 'American',
@@ -358,7 +358,7 @@ export async function GET() {
         salary: 115000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-manager-demo', employeeId: 'EMP-MGR', firstName: 'Priya', lastName: 'Sharma', email: 'manager@nexushrms.com',
+        id: 'emp-manager-demo', employeeId: 'EMP-MGR', firstName: 'Priya', lastName: 'Sharma', email: 'manager@3boxeshrms.com',
         phone: '+1-212-555-2002', userId: 'user-manager', departmentId: 'dept-ops', designationId: 'des-ops-manager',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2020-11-20'),
         dateOfBirth: new Date('1985-08-22'), gender: 'female', maritalStatus: 'married', nationality: 'Indian',
@@ -366,7 +366,7 @@ export async function GET() {
         salary: 105000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-employee-demo', employeeId: 'EMP-EMP', firstName: 'Raj', lastName: 'Patel', email: 'employee@nexushrms.com',
+        id: 'emp-employee-demo', employeeId: 'EMP-EMP', firstName: 'Raj', lastName: 'Patel', email: 'employee@3boxeshrms.com',
         phone: '+1-212-555-2003', userId: 'user-employee', departmentId: 'dept-eng', designationId: 'des-sr-eng',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2022-03-15'),
         dateOfBirth: new Date('1992-06-10'), gender: 'male', maritalStatus: 'single', nationality: 'Indian',
@@ -374,7 +374,7 @@ export async function GET() {
         salary: 145000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-recruiter-demo', employeeId: 'EMP-REC', firstName: 'Kim', lastName: 'Chen', email: 'recruiter@nexushrms.com',
+        id: 'emp-recruiter-demo', employeeId: 'EMP-REC', firstName: 'Kim', lastName: 'Chen', email: 'recruiter@3boxeshrms.com',
         phone: '+1-212-555-2004', userId: 'user-recruiter', departmentId: 'dept-recruitment', designationId: 'des-recruiter',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2023-01-10'),
         dateOfBirth: new Date('1990-11-05'), gender: 'female', maritalStatus: 'single', nationality: 'American',
@@ -394,7 +394,7 @@ export async function GET() {
     // ============ REGULAR EMPLOYEES ============
     const employees = [
       {
-        id: 'emp-admin', employeeId: 'EMP-001', firstName: 'Admin', lastName: 'User', email: 'admin@nexushrms.com',
+        id: 'emp-admin', employeeId: 'EMP-001', firstName: 'Admin', lastName: 'User', email: 'admin@3boxeshrms.com',
         phone: '+1-212-555-1001', userId: 'user-admin', departmentId: 'dept-hr', designationId: 'des-hr-manager',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2020-01-15'),
         dateOfBirth: new Date('1985-06-20'), gender: 'male', maritalStatus: 'married', nationality: 'American',
@@ -405,7 +405,7 @@ export async function GET() {
         salary: 125000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-sarah', employeeId: 'EMP-002', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.hr@nexushrms.com',
+        id: 'emp-sarah', employeeId: 'EMP-002', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.hr@3boxeshrms.com',
         phone: '+1-212-555-1002', userId: 'user-sarah', departmentId: 'dept-hr', designationId: 'des-hr-admin',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2021-03-01'),
         dateOfBirth: new Date('1990-09-14'), gender: 'female', maritalStatus: 'single', nationality: 'American',
@@ -416,7 +416,7 @@ export async function GET() {
         salary: 95000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-john', employeeId: 'EMP-003', firstName: 'John', lastName: 'Williams', email: 'john.manager@nexushrms.com',
+        id: 'emp-john', employeeId: 'EMP-003', firstName: 'John', lastName: 'Williams', email: 'john.manager@3boxeshrms.com',
         phone: '+1-212-555-1003', userId: 'user-john', departmentId: 'dept-eng', designationId: 'des-vp-eng',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2019-08-10'),
         dateOfBirth: new Date('1982-11-30'), gender: 'male', maritalStatus: 'married', nationality: 'American',
@@ -427,7 +427,7 @@ export async function GET() {
         salary: 220000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-alice', employeeId: 'EMP-004', firstName: 'Alice', lastName: 'Chen', email: 'alice.emp@nexushrms.com',
+        id: 'emp-alice', employeeId: 'EMP-004', firstName: 'Alice', lastName: 'Chen', email: 'alice.emp@3boxeshrms.com',
         phone: '+1-212-555-1004', userId: 'user-alice', departmentId: 'dept-eng', designationId: 'des-sr-eng',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2022-02-14'),
         dateOfBirth: new Date('1993-04-22'), gender: 'female', maritalStatus: 'single', nationality: 'American',
@@ -438,7 +438,7 @@ export async function GET() {
         salary: 150000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-bob', employeeId: 'EMP-005', firstName: 'Bob', lastName: 'Martinez', email: 'bob.dev@nexushrms.com',
+        id: 'emp-bob', employeeId: 'EMP-005', firstName: 'Bob', lastName: 'Martinez', email: 'bob.dev@3boxeshrms.com',
         phone: '+1-415-555-1005', userId: 'user-bob', departmentId: 'dept-eng', designationId: 'des-eng',
         branchId: sfBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2023-06-01'),
         dateOfBirth: new Date('1995-12-08'), gender: 'male', maritalStatus: 'single', nationality: 'American',
@@ -449,7 +449,7 @@ export async function GET() {
         salary: 110000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-carol', employeeId: 'EMP-006', firstName: 'Carol', lastName: 'Davis', email: 'carol.design@nexushrms.com',
+        id: 'emp-carol', employeeId: 'EMP-006', firstName: 'Carol', lastName: 'Davis', email: 'carol.design@3boxeshrms.com',
         phone: '+1-415-555-1006', userId: 'user-carol', departmentId: 'dept-design', designationId: 'des-sr-designer',
         branchId: sfBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2022-09-15'),
         dateOfBirth: new Date('1991-07-19'), gender: 'female', maritalStatus: 'married', nationality: 'American',
@@ -460,7 +460,7 @@ export async function GET() {
         salary: 125000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-david', employeeId: 'EMP-007', firstName: 'David', lastName: 'Kim', email: 'david.sales@nexushrms.com',
+        id: 'emp-david', employeeId: 'EMP-007', firstName: 'David', lastName: 'Kim', email: 'david.sales@3boxeshrms.com',
         phone: '+1-212-555-1007', userId: 'user-david', departmentId: 'dept-sales', designationId: 'des-sales-exec',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2023-01-10'),
         dateOfBirth: new Date('1992-03-25'), gender: 'male', maritalStatus: 'single', nationality: 'Korean-American',
@@ -471,7 +471,7 @@ export async function GET() {
         salary: 85000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-emma', employeeId: 'EMP-008', firstName: 'Emma', lastName: 'Thompson', email: 'emma.finance@nexushrms.com',
+        id: 'emp-emma', employeeId: 'EMP-008', firstName: 'Emma', lastName: 'Thompson', email: 'emma.finance@3boxeshrms.com',
         phone: '+1-212-555-1008', userId: 'user-emma', departmentId: 'dept-finance', designationId: 'des-finance-analyst',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2022-05-20'),
         dateOfBirth: new Date('1994-01-12'), gender: 'female', maritalStatus: 'single', nationality: 'British',
@@ -482,7 +482,7 @@ export async function GET() {
         salary: 95000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-frank', employeeId: 'EMP-009', firstName: 'Frank', lastName: 'Rodriguez', email: 'frank.ops@nexushrms.com',
+        id: 'emp-frank', employeeId: 'EMP-009', firstName: 'Frank', lastName: 'Rodriguez', email: 'frank.ops@3boxeshrms.com',
         phone: '+91-80-555-1009', userId: 'user-frank', departmentId: 'dept-ops', designationId: 'des-ops-manager',
         branchId: blrBranch.id, companyId: indiaCompany.id, dateOfJoining: new Date('2021-11-01'),
         dateOfBirth: new Date('1988-08-30'), gender: 'male', maritalStatus: 'married', nationality: 'Indian',
@@ -493,7 +493,7 @@ export async function GET() {
         salary: 2800000, salaryCurrency: 'INR', status: 'active',
       },
       {
-        id: 'emp-grace', employeeId: 'EMP-010', firstName: 'Grace', lastName: 'Liu', email: 'grace.product@nexushrms.com',
+        id: 'emp-grace', employeeId: 'EMP-010', firstName: 'Grace', lastName: 'Liu', email: 'grace.product@3boxeshrms.com',
         phone: '+1-415-555-1010', userId: 'user-grace', departmentId: 'dept-product', designationId: 'des-pm',
         branchId: sfBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2022-07-01'),
         dateOfBirth: new Date('1991-10-05'), gender: 'female', maritalStatus: 'single', nationality: 'Chinese-American',
@@ -504,7 +504,7 @@ export async function GET() {
         salary: 135000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-raj', employeeId: 'EMP-011', firstName: 'Raj', lastName: 'Patel', email: 'raj.dev@nexushrms.com',
+        id: 'emp-raj', employeeId: 'EMP-011', firstName: 'Raj', lastName: 'Patel', email: 'raj.dev@3boxeshrms.com',
         phone: '+91-80-555-1011', userId: null, departmentId: 'dept-eng', designationId: 'des-jr-eng',
         branchId: blrBranch.id, companyId: indiaCompany.id, dateOfJoining: new Date('2024-01-15'),
         dateOfBirth: new Date('1998-02-14'), gender: 'male', maritalStatus: 'single', nationality: 'Indian',
@@ -515,7 +515,7 @@ export async function GET() {
         salary: 1200000, salaryCurrency: 'INR', status: 'active',
       },
       {
-        id: 'emp-priya', employeeId: 'EMP-012', firstName: 'Priya', lastName: 'Sharma', email: 'priya.hr@nexushrms.com',
+        id: 'emp-priya', employeeId: 'EMP-012', firstName: 'Priya', lastName: 'Sharma', email: 'priya.hr@3boxeshrms.com',
         phone: '+91-22-555-1012', userId: null, departmentId: 'dept-hr', designationId: 'des-hr-admin',
         branchId: mumbaiBranch.id, companyId: indiaCompany.id, dateOfJoining: new Date('2023-04-01'),
         dateOfBirth: new Date('1996-06-18'), gender: 'female', maritalStatus: 'single', nationality: 'Indian',
@@ -526,7 +526,7 @@ export async function GET() {
         salary: 1500000, salaryCurrency: 'INR', status: 'active',
       },
       {
-        id: 'emp-james', employeeId: 'EMP-013', firstName: 'James', lastName: 'Wilson', email: 'james.sales@nexushrms.com',
+        id: 'emp-james', employeeId: 'EMP-013', firstName: 'James', lastName: 'Wilson', email: 'james.sales@3boxeshrms.com',
         phone: '+44-20-555-1013', userId: null, departmentId: 'dept-sales', designationId: 'des-sales-exec',
         branchId: londonBranch.id, companyId: ukCompany.id, dateOfJoining: new Date('2022-10-01'),
         dateOfBirth: new Date('1989-05-22'), gender: 'male', maritalStatus: 'married', nationality: 'British',
@@ -537,7 +537,7 @@ export async function GET() {
         salary: 72000, salaryCurrency: 'GBP', status: 'active',
       },
       {
-        id: 'emp-mike', employeeId: 'EMP-014', firstName: 'Mike', lastName: 'Brown', email: 'mike.eng@nexushrms.com',
+        id: 'emp-mike', employeeId: 'EMP-014', firstName: 'Mike', lastName: 'Brown', email: 'mike.eng@3boxeshrms.com',
         phone: '+1-212-555-1014', userId: null, departmentId: 'dept-eng', designationId: 'des-sr-eng',
         branchId: nyBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2021-06-15'),
         dateOfBirth: new Date('1990-09-03'), gender: 'male', maritalStatus: 'married', nationality: 'American',
@@ -548,7 +548,7 @@ export async function GET() {
         salary: 145000, salaryCurrency: 'USD', status: 'active',
       },
       {
-        id: 'emp-lisa', employeeId: 'EMP-015', firstName: 'Lisa', lastName: 'Anderson', email: 'lisa.marketing@nexushrms.com',
+        id: 'emp-lisa', employeeId: 'EMP-015', firstName: 'Lisa', lastName: 'Anderson', email: 'lisa.marketing@3boxeshrms.com',
         phone: '+1-415-555-1015', userId: null, departmentId: 'dept-marketing', designationId: 'des-marketing-mgr',
         branchId: sfBranch.id, companyId: usaCompany.id, dateOfJoining: new Date('2023-02-01'),
         dateOfBirth: new Date('1992-12-11'), gender: 'female', maritalStatus: 'single', nationality: 'American',
@@ -787,11 +787,11 @@ export async function GET() {
       { id: 'iv-1', jobApplicationId: 'ja-1', type: 'technical', date: new Date('2025-03-20'), time: '10:00 AM', duration: 60, location: 'Conference Room A', interviewer: 'user-manager', status: 'completed', feedback: 'Strong technical skills demonstrated. Good problem-solving approach.', score: 88, aiScore: 92, aiFeedback: 'Candidate demonstrated exceptional proficiency in React, Node.js, and TypeScript. Problem-solving approach was systematic and efficient. Communication skills rated 9/10. Key strengths: system design, algorithmic thinking, clean code practices.' },
       { id: 'iv-2', jobApplicationId: 'ja-1', type: 'hr', date: new Date('2025-03-21'), time: '3:00 PM', duration: 45, location: 'HR Office', interviewer: 'user-hr', status: 'completed', feedback: 'Good culture fit. Strong alignment with company values.', score: 85, aiScore: 89, aiFeedback: 'Candidate shows strong cultural alignment with organizational values. Leadership potential identified. Response consistency score: 94%. Behavioral indicators suggest high adaptability and team collaboration skills.' },
       { id: 'iv-3', jobApplicationId: 'ja-4', type: 'final', date: new Date('2025-03-18'), time: '2:00 PM', duration: 45, location: 'Video Call', interviewer: 'user-recruiter', status: 'completed', feedback: 'Excellent design sense and communication skills', score: 9, aiScore: 95, aiFeedback: 'Candidate demonstrated expert-level design thinking. Portfolio review score: 97%. Figma proficiency: outstanding. User research methodology: comprehensive. Strongly recommended for hire.' },
-      { id: 'iv-4', jobApplicationId: 'ja-7', type: 'technical', date: new Date('2025-03-22'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.nexushrms.com/interview-arun', interviewer: 'user-recruiter', status: 'scheduled' },
+      { id: 'iv-4', jobApplicationId: 'ja-7', type: 'technical', date: new Date('2025-03-22'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.3boxeshrms.com/interview-arun', interviewer: 'user-recruiter', status: 'scheduled' },
       { id: 'iv-5', jobApplicationId: 'ja-8', type: 'managerial', date: new Date('2025-03-15'), time: '1:00 PM', duration: 45, location: 'Executive Suite', interviewer: 'user-manager', status: 'completed', feedback: 'Strong technical and leadership abilities', score: 90, aiScore: 93, aiFeedback: 'Final assessment confirms strong fit. Leadership assessment: excellent. Cultural fit: 95%. Communication: outstanding. Salary expectation alignment: within range. Proceed to offer stage.' },
       { id: 'iv-6', jobApplicationId: 'ja-8', type: 'technical', date: new Date('2025-03-12'), time: '10:00 AM', duration: 60, location: 'Video Call', interviewer: 'user-recruiter', status: 'completed', feedback: 'Excellent full-stack knowledge and system design capabilities', score: 91, aiScore: 94, aiFeedback: 'Candidate demonstrated advanced proficiency across the full technology stack. System design score: 96%. Algorithm problem-solving: 92%. Code quality assessment: excellent. Recommended for managerial round.' },
-      { id: 'iv-7', jobApplicationId: 'ja-2', type: 'technical', date: new Date('2025-03-25'), time: '9:00 AM', duration: 60, meetingUrl: 'https://meet.nexushrms.com/interview-maria', interviewer: 'user-recruiter', status: 'scheduled' },
-      { id: 'iv-8', jobApplicationId: 'ja-10', type: 'technical', date: new Date('2025-03-28'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.nexushrms.com/interview-deepa', interviewer: 'user-recruiter', status: 'scheduled' },
+      { id: 'iv-7', jobApplicationId: 'ja-2', type: 'technical', date: new Date('2025-03-25'), time: '9:00 AM', duration: 60, meetingUrl: 'https://meet.3boxeshrms.com/interview-maria', interviewer: 'user-recruiter', status: 'scheduled' },
+      { id: 'iv-8', jobApplicationId: 'ja-10', type: 'technical', date: new Date('2025-03-28'), time: '11:00 AM', duration: 60, meetingUrl: 'https://meet.3boxeshrms.com/interview-deepa', interviewer: 'user-recruiter', status: 'scheduled' },
     ];
 
     for (const iv of interviews) {
@@ -1289,7 +1289,7 @@ export async function GET() {
       { id: 'ticket-1', ticketId: 'TK-0001', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-alice', requesterName: 'Alice Chen', subject: 'Laptop not connecting to VPN', description: 'My laptop cannot connect to the company VPN since Monday.', priority: 'high', status: 'in_progress', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez' },
       { id: 'ticket-2', ticketId: 'TK-0002', categoryId: 'tc-hr', requesterType: 'employee', requesterId: 'emp-bob', requesterName: 'Bob Martinez', subject: 'Payslip missing for last month', description: 'Did not receive payslip via email.', priority: 'medium', status: 'open' },
       { id: 'ticket-3', ticketId: 'TK-0003', categoryId: 'tc-payroll', requesterType: 'employee', requesterId: 'emp-david', requesterName: 'David Kim', subject: 'Overtime not reflected in salary', description: 'Overtime hours from last month missing from salary slip.', priority: 'high', status: 'open' },
-      { id: 'ticket-4', ticketId: 'TK-0004', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-grace', requesterName: 'Grace Liu', subject: 'Access request for Jira project', description: 'Need access to NEXUS-PROJ Jira project.', priority: 'low', status: 'resolved', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez', resolutionNotes: 'Access granted.', resolvedAt: new Date('2025-03-10') },
+      { id: 'ticket-4', ticketId: 'TK-0004', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-grace', requesterName: 'Grace Liu', subject: 'Access request for Jira project', description: 'Need access to 3BOXES-PROJ Jira project.', priority: 'low', status: 'resolved', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez', resolutionNotes: 'Access granted.', resolvedAt: new Date('2025-03-10') },
       { id: 'ticket-5', ticketId: 'TK-0005', categoryId: 'tc-general', requesterType: 'employee', requesterId: 'emp-emma', requesterName: 'Emma Thompson', subject: 'Parking space allocation', description: 'Requesting reserved parking space.', priority: 'low', status: 'closed', resolvedAt: new Date('2025-03-08'), closedAt: new Date('2025-03-09') },
     ];
     for (const tk of ticketData) { await prisma.ticket.upsert({ where: { id: tk.id }, update: {}, create: tk }); }

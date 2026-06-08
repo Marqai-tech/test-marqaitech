@@ -117,7 +117,7 @@ const SAMPLE_DOCUMENTS: DocDocument[] = [
     content: `# System Architecture Overview
 
 ## Introduction
-NEXUS HRMS is built on a modern SaaS multi-tenant architecture designed for scalability, security, and performance. The platform serves organizations of all sizes with enterprise-grade HR management capabilities.
+3 Boxes HRMS is built on a modern SaaS multi-tenant architecture designed for scalability, security, and performance. The platform serves organizations of all sizes with enterprise-grade HR management capabilities.
 
 ## Architecture Components
 
@@ -153,7 +153,7 @@ The platform uses a shared database with tenant isolation through application-le
 - RBAC with 5 role levels: super_admin, tenant_admin, hr_admin, manager, employee
 - JWT tokens with 24-hour expiry
 - Audit logging for all critical operations`,
-    summary: 'Complete architecture diagram and component breakdown of NEXUS HRMS SaaS platform',
+    summary: 'Complete architecture diagram and component breakdown of 3 Boxes HRMS SaaS platform',
     tags: 'architecture, system, infrastructure, SaaS',
     version: '2.1',
     author: 'Engineering Team',
@@ -227,7 +227,7 @@ Configure webhooks to receive real-time notifications for events like:
     content: `# Database Schema Documentation
 
 ## Entity Relationship Overview
-NEXUS HRMS uses a relational database model with over 50 interconnected entities organized into logical domains.
+3 Boxes HRMS uses a relational database model with over 50 interconnected entities organized into logical domains.
 
 ## Core Entities
 
@@ -279,7 +279,7 @@ npx prisma generate
     content: `# Employee Management Guide
 
 ## Overview
-The Employee Management module is the core of NEXUS HRMS, providing comprehensive tools for managing the complete employee lifecycle from onboarding to separation.
+The Employee Management module is the core of 3 Boxes HRMS, providing comprehensive tools for managing the complete employee lifecycle from onboarding to separation.
 
 ## Employee Lifecycle
 
@@ -333,7 +333,7 @@ The Employee Management module is the core of NEXUS HRMS, providing comprehensiv
     content: `# Payroll Processing Manual
 
 ## Payroll Cycle
-NEXUS HRMS supports monthly payroll processing with the following workflow:
+3 Boxes HRMS supports monthly payroll processing with the following workflow:
 
 ### Step 1: Pre-Processing
 - Verify attendance data for the month
@@ -601,7 +601,7 @@ Feedback is collected from:
     content: `# Data Protection Policy
 
 ## GDPR Compliance
-NEXUS HRMS is fully compliant with GDPR and other major data protection regulations.
+3 Boxes HRMS is fully compliant with GDPR and other major data protection regulations.
 
 ## Data Encryption
 
@@ -846,7 +846,7 @@ The AI Interview System leverages machine learning to enhance the recruitment pr
     content: `# AI Chatbot Configuration
 
 ## Getting Started
-The NEXUS AI Chatbot serves as an intelligent HR assistant that can answer employee queries, guide through processes, and automate routine tasks.
+The 3 Boxes AI Chatbot serves as an intelligent HR assistant that can answer employee queries, guide through processes, and automate routine tasks.
 
 ## Setup Guide
 
@@ -904,7 +904,7 @@ The NEXUS AI Chatbot serves as an intelligent HR assistant that can answer emplo
     content: `# Predictive Analytics Guide
 
 ## Overview
-NEXUS Predictive Analytics uses machine learning models to provide actionable insights for workforce planning, attrition prediction, and performance forecasting.
+3 Boxes Predictive Analytics uses machine learning models to provide actionable insights for workforce planning, attrition prediction, and performance forecasting.
 
 ## Available Models
 
@@ -965,7 +965,7 @@ NEXUS Predictive Analytics uses machine learning models to provide actionable in
     content: `# Employee Onboarding SOP
 
 ## Purpose
-This Standard Operating Procedure defines the step-by-step process for onboarding new employees into the organization using NEXUS HRMS.
+This Standard Operating Procedure defines the step-by-step process for onboarding new employees into the organization using 3 Boxes HRMS.
 
 ## Scope
 Applies to all new hires, rehires, and transfers across all departments and branches.
@@ -974,7 +974,7 @@ Applies to all new hires, rehires, and transfers across all departments and bran
 
 ### Day -5 to Day -1: Pre-Boarding
 - [ ] Send welcome email with first-day instructions
-- [ ] Create employee profile in NEXUS HRMS
+- [ ] Create employee profile in 3 Boxes HRMS
 - [ ] Assign employee ID and generate credentials
 - [ ] Set up email and communication accounts
 - [ ] Prepare workspace and equipment
@@ -987,7 +987,7 @@ Applies to all new hires, rehires, and transfers across all departments and bran
 - [ ] HR documentation (ID proofs, bank details, tax forms)
 - [ ] Company culture and values presentation
 - [ ] Safety and emergency procedures briefing
-- [ ] NEXUS HRMS portal walkthrough
+- [ ] 3 Boxes HRMS portal walkthrough
 
 ### Day 2-5: Department Integration
 - [ ] Team introductions and role overview
@@ -1008,7 +1008,7 @@ Applies to all new hires, rehires, and transfers across all departments and bran
 - [ ] Probation confirmation/extension decision
 
 ## Checklist Template
-Available in NEXUS HRMS under Onboarding > Templates
+Available in 3 Boxes HRMS under Onboarding > Templates
 
 ## Responsible Parties
 | Task | Owner |
@@ -1162,14 +1162,14 @@ Standard procedure for managing employee separations including resignation, term
   // Training Videos
   {
     id: 'doc-vid-1',
-    title: 'Getting Started with NEXUS HRMS',
+    title: 'Getting Started with 3 Boxes HRMS',
     slug: 'getting-started-nexus-hrms',
     categoryId: 'cat-training',
     category: { id: 'cat-training', name: 'Training Videos', slug: 'training-videos', icon: 'FiVideo', color: 'cyan' },
-    content: `# Getting Started with NEXUS HRMS
+    content: `# Getting Started with 3 Boxes HRMS
 
 ## Video Overview
-A comprehensive walkthrough of the NEXUS HRMS platform covering initial setup, configuration, and first steps for new administrators.
+A comprehensive walkthrough of the 3 Boxes HRMS platform covering initial setup, configuration, and first steps for new administrators.
 
 ## Video Chapters
 
@@ -1238,7 +1238,7 @@ Total: 45 minutes
     content: `# Attendance & Leave Management
 
 ## Video Overview
-Learn how to use the attendance tracking and leave management features in NEXUS HRMS, including shift management, overtime, and leave approval workflows.
+Learn how to use the attendance tracking and leave management features in 3 Boxes HRMS, including shift management, overtime, and leave approval workflows.
 
 ## Video Chapters
 
@@ -1276,7 +1276,7 @@ Learn how to use the attendance tracking and leave management features in NEXUS 
 Total: 40 minutes
 
 ## Prerequisites
-- Getting Started with NEXUS HRMS (recommended)`,
+- Getting Started with 3 Boxes HRMS (recommended)`,
     summary: 'How to mark attendance, apply for leaves, and manage shifts',
     tags: 'training, video, attendance, leave, shifts',
     version: '1.0',
@@ -1297,7 +1297,7 @@ Total: 40 minutes
     content: `# Payroll Setup & Processing
 
 ## Video Overview
-Complete walkthrough of payroll configuration and processing in NEXUS HRMS, from salary structure setup to payslip generation.
+Complete walkthrough of payroll configuration and processing in 3 Boxes HRMS, from salary structure setup to payslip generation.
 
 ## Video Chapters
 
@@ -1335,7 +1335,7 @@ Complete walkthrough of payroll configuration and processing in NEXUS HRMS, from
 Total: 50 minutes
 
 ## Prerequisites
-- Getting Started with NEXUS HRMS
+- Getting Started with 3 Boxes HRMS
 - Salary structure configuration completed`,
     summary: 'Complete payroll configuration and processing walkthrough',
     tags: 'training, video, payroll, salary, compliance',
@@ -1352,7 +1352,7 @@ Total: 50 minutes
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nexus_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

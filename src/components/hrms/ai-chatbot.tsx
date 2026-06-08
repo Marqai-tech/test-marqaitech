@@ -29,7 +29,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: '0',
     role: 'assistant',
-    content: 'Hello! 👋 I\'m your NEXUS HRMS AI Assistant. I can help you with:\n\n• **Leave & Attendance** queries\n• **Payroll & Compensation** questions\n• **Company Policies** information\n• **Recruitment** process guidance\n• **Benefits** and perks details\n\nHow can I assist you today?',
+    content: 'Hello! 👋 I\'m your 3 Boxes HRMS AI Assistant. I can help you with:\n\n• **Leave & Attendance** queries\n• **Payroll & Compensation** questions\n• **Company Policies** information\n• **Recruitment** process guidance\n• **Benefits** and perks details\n\nHow can I assist you today?',
     timestamp: new Date(),
   },
 ];
@@ -123,7 +123,7 @@ export function AIChatbot() {
                       <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center">
                         <Bot className="h-3 w-3 text-emerald-600" />
                       </div>
-                      <span className="text-[10px] font-medium text-muted-foreground">NEXUS AI</span>
+                      <span className="text-[10px] font-medium text-muted-foreground">3 Boxes AI</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 justify-end">
@@ -155,7 +155,7 @@ export function AIChatbot() {
                   <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center">
                     <Bot className="h-3 w-3 text-emerald-600" />
                   </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">NEXUS AI</span>
+                  <span className="text-[10px] font-medium text-muted-foreground">3 Boxes AI</span>
                 </div>
                 <div className="p-3 rounded-lg rounded-tl-none bg-muted">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

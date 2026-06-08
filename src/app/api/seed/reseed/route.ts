@@ -51,7 +51,7 @@ export async function POST(request: Request) {
           data: {
             name: 'Nexus HRMS Demo',
             slug: 'nexus-hrms-demo',
-            domain: 'demo.nexushrms.com',
+            domain: 'demo.3boxeshrms.com',
             plan: 'enterprise',
             status: 'active',
             country: 'US',
@@ -76,12 +76,12 @@ export async function POST(request: Request) {
 
       // Upsert all 6 demo users
       const demoUsers = [
-        { email: 'admin@nexushrms.com', name: 'Admin Nexus', role: 'super_admin', password: passwordHashes[0] },
-        { email: 'hr@nexushrms.com', name: 'Sarah Johnson', role: 'hr_admin', password: passwordHashes[1] },
-        { email: 'manager@nexushrms.com', name: 'Priya Sharma', role: 'manager', password: passwordHashes[2] },
-        { email: 'employee@nexushrms.com', name: 'Raj Patel', role: 'employee', password: passwordHashes[3] },
-        { email: 'recruiter@nexushrms.com', name: 'Kim Chen', role: 'recruiter', password: passwordHashes[4] },
-        { email: 'candidate@nexushrms.com', name: 'Alex Turner', role: 'candidate', password: passwordHashes[5] },
+        { email: 'admin@3boxeshrms.com', name: 'Admin 3Boxes', role: 'super_admin', password: passwordHashes[0] },
+        { email: 'hr@3boxeshrms.com', name: 'Sarah Johnson', role: 'hr_admin', password: passwordHashes[1] },
+        { email: 'manager@3boxeshrms.com', name: 'Priya Sharma', role: 'manager', password: passwordHashes[2] },
+        { email: 'employee@3boxeshrms.com', name: 'Raj Patel', role: 'employee', password: passwordHashes[3] },
+        { email: 'recruiter@3boxeshrms.com', name: 'Kim Chen', role: 'recruiter', password: passwordHashes[4] },
+        { email: 'candidate@3boxeshrms.com', name: 'Alex Turner', role: 'candidate', password: passwordHashes[5] },
       ];
 
       const upsertedUsers = [];
