@@ -24,9 +24,9 @@ async function main() {
   console.log('\n📋 Creating Tenant...');
   const tenant = await prisma.tenant.create({
     data: {
-      name: 'Nexus HRMS Demo',
-      slug: 'nexus-hrms-demo',
-      domain: 'demo.nexushrms.com',
+      name: '3 Boxes HRMS Demo',
+      slug: '3boxes-hrms-demo',
+      domain: 'demo.3boxeshrms.com',
       plan: 'enterprise',
       status: 'active',
       country: 'US',
@@ -154,22 +154,22 @@ async function main() {
 
   const [adminUser, hrUser, managerUser, employeeUser, recruiterUser, candidateUser] = await Promise.all([
     prisma.user.create({
-      data: { email: 'admin@nexushrms.com', password: passwordHashes[0], name: 'Admin Nexus', role: 'super_admin', status: 'active', tenantId: tenant.id },
+      data: { email: 'admin@3boxeshrms.com', password: passwordHashes[0], name: 'Admin 3Boxes', role: 'super_admin', status: 'active', tenantId: tenant.id },
     }),
     prisma.user.create({
-      data: { email: 'hr@nexushrms.com', password: passwordHashes[1], name: 'Sarah Johnson', role: 'hr_admin', status: 'active', tenantId: tenant.id },
+      data: { email: 'hr@3boxeshrms.com', password: passwordHashes[1], name: 'Sarah Johnson', role: 'hr_admin', status: 'active', tenantId: tenant.id },
     }),
     prisma.user.create({
-      data: { email: 'manager@nexushrms.com', password: passwordHashes[2], name: 'Priya Sharma', role: 'manager', status: 'active', tenantId: tenant.id },
+      data: { email: 'manager@3boxeshrms.com', password: passwordHashes[2], name: 'Priya Sharma', role: 'manager', status: 'active', tenantId: tenant.id },
     }),
     prisma.user.create({
-      data: { email: 'employee@nexushrms.com', password: passwordHashes[3], name: 'Raj Patel', role: 'employee', status: 'active', tenantId: tenant.id },
+      data: { email: 'employee@3boxeshrms.com', password: passwordHashes[3], name: 'Raj Patel', role: 'employee', status: 'active', tenantId: tenant.id },
     }),
     prisma.user.create({
-      data: { email: 'recruiter@nexushrms.com', password: passwordHashes[4], name: 'Kim Chen', role: 'recruiter', status: 'active', tenantId: tenant.id },
+      data: { email: 'recruiter@3boxeshrms.com', password: passwordHashes[4], name: 'Kim Chen', role: 'recruiter', status: 'active', tenantId: tenant.id },
     }),
     prisma.user.create({
-      data: { email: 'candidate@nexushrms.com', password: passwordHashes[5], name: 'Alex Turner', role: 'candidate', status: 'active', tenantId: tenant.id },
+      data: { email: 'candidate@3boxeshrms.com', password: passwordHashes[5], name: 'Alex Turner', role: 'candidate', status: 'active', tenantId: tenant.id },
     }),
   ]);
   console.log(`  ✓ Created 6 users: super_admin, hr_admin, manager, employee, recruiter, candidate`);
@@ -182,7 +182,7 @@ async function main() {
         employeeId: 'EMP001',
         firstName: 'Sarah',
         lastName: 'Johnson',
-        email: 'hr@nexushrms.com',
+        email: 'hr@3boxeshrms.com',
         phone: '+1-555-0101',
         userId: hrUser.id,
         departmentId: hrDept.id,
@@ -206,7 +206,7 @@ async function main() {
         employeeId: 'EMP002',
         firstName: 'Priya',
         lastName: 'Sharma',
-        email: 'manager@nexushrms.com',
+        email: 'manager@3boxeshrms.com',
         phone: '+1-555-0102',
         userId: managerUser.id,
         departmentId: opsDept.id,
@@ -230,7 +230,7 @@ async function main() {
         employeeId: 'EMP003',
         firstName: 'Raj',
         lastName: 'Patel',
-        email: 'employee@nexushrms.com',
+        email: 'employee@3boxeshrms.com',
         phone: '+1-555-0103',
         userId: employeeUser.id,
         departmentId: engDept.id,
@@ -254,7 +254,7 @@ async function main() {
         employeeId: 'EMP004',
         firstName: 'Kim',
         lastName: 'Chen',
-        email: 'recruiter@nexushrms.com',
+        email: 'recruiter@3boxeshrms.com',
         phone: '+1-555-0104',
         userId: recruiterUser.id,
         departmentId: recDept.id,
@@ -472,7 +472,7 @@ async function main() {
         time: '10:00 AM',
         duration: 60,
         location: 'Online',
-        meetingUrl: 'https://meet.nexushrms.com/interview-alex-tech',
+        meetingUrl: 'https://meet.3boxeshrms.com/interview-alex-tech',
         interviewer: recruiterEmployee.id,
         status: 'completed',
         feedback: 'Strong technical skills demonstrated. Good problem-solving approach. Excellent communication.',
@@ -490,7 +490,7 @@ async function main() {
         time: '2:00 PM',
         duration: 45,
         location: 'Online',
-        meetingUrl: 'https://meet.nexushrms.com/interview-alex-hr',
+        meetingUrl: 'https://meet.3boxeshrms.com/interview-alex-hr',
         interviewer: hrEmployee.id,
         status: 'completed',
         feedback: 'Good culture fit. Strong alignment with company values.',
@@ -508,7 +508,7 @@ async function main() {
         time: '11:00 AM',
         duration: 60,
         location: 'Online',
-        meetingUrl: 'https://meet.nexushrms.com/interview-sophie-tech',
+        meetingUrl: 'https://meet.3boxeshrms.com/interview-sophie-tech',
         interviewer: recruiterEmployee.id,
         status: 'scheduled',
       },
@@ -556,7 +556,7 @@ async function main() {
         time: '9:00 AM',
         duration: 60,
         location: 'Online',
-        meetingUrl: 'https://meet.nexushrms.com/interview-maya-tech',
+        meetingUrl: 'https://meet.3boxeshrms.com/interview-maya-tech',
         interviewer: recruiterEmployee.id,
         status: 'scheduled',
       },
@@ -678,10 +678,10 @@ async function main() {
   console.log(`  ✓ Interviews: ${interviewCount}`);
 
   // Verify password hashing works
-  const adminUserCheck = await prisma.user.findUnique({ where: { email: 'admin@nexushrms.com' } });
+  const adminUserCheck = await prisma.user.findUnique({ where: { email: 'admin@3boxeshrms.com' } });
   if (adminUserCheck) {
     const passwordMatch = await bcryptjs.compare('admin123', adminUserCheck.password);
-    console.log(`  ✓ Password verification (admin@nexushrms.com / admin123): ${passwordMatch ? 'PASS ✓' : 'FAIL ✗'}`);
+    console.log(`  ✓ Password verification (admin@3boxeshrms.com / admin123): ${passwordMatch ? 'PASS ✓' : 'FAIL ✗'}`);
   }
 
   console.log('\n✅ Database seeding completed successfully!');
@@ -689,12 +689,12 @@ async function main() {
   console.log('  ┌─────────────────┬───────────────────────────┬──────────────┐');
   console.log('  │ Role            │ Email                     │ Password     │');
   console.log('  ├─────────────────┼───────────────────────────┼──────────────┤');
-  console.log('  │ Super Admin     │ admin@nexushrms.com       │ admin123     │');
-  console.log('  │ HR Admin        │ hr@nexushrms.com          │ hr123        │');
-  console.log('  │ Manager         │ manager@nexushrms.com     │ manager123   │');
-  console.log('  │ Employee        │ employee@nexushrms.com    │ employee123  │');
-  console.log('  │ Recruiter       │ recruiter@nexushrms.com   │ recruiter123 │');
-  console.log('  │ Candidate       │ candidate@nexushrms.com   │ candidate123 │');
+  console.log('  │ Super Admin     │ admin@3boxeshrms.com       │ admin123     │');
+  console.log('  │ HR Admin        │ hr@3boxeshrms.com          │ hr123        │');
+  console.log('  │ Manager         │ manager@3boxeshrms.com     │ manager123   │');
+  console.log('  │ Employee        │ employee@3boxeshrms.com    │ employee123  │');
+  console.log('  │ Recruiter       │ recruiter@3boxeshrms.com   │ recruiter123 │');
+  console.log('  │ Candidate       │ candidate@3boxeshrms.com   │ candidate123 │');
   console.log('  └─────────────────┴───────────────────────────┴──────────────┘');
 }
 

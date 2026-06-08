@@ -40,7 +40,11 @@ export async function POST(request: Request) {
 
     try {
       // Find or create the tenant
-      let tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+      let tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
+
+      if (!tenant) {
+        tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+      }
 
       if (!tenant) {
         tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-corp' } });
@@ -49,8 +53,8 @@ export async function POST(request: Request) {
       if (!tenant) {
         tenant = await prisma.tenant.create({
           data: {
-            name: 'Nexus HRMS Demo',
-            slug: 'nexus-hrms-demo',
+            name: '3 Boxes HRMS Demo',
+            slug: '3boxes-hrms-demo',
             domain: 'demo.3boxeshrms.com',
             plan: 'enterprise',
             status: 'active',

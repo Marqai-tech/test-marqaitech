@@ -2,14 +2,14 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 const db = new PrismaClient();
 async function main() {
-  console.log('Seeding NEXUS HRMS...');
+  console.log('Seeding 3 Boxes HRMS...');
   const hp = await bcrypt.hash('admin123', 10);
   const p1 = await db.subscriptionPlan.upsert({where:{id:'plan-starter'},update:{},create:{id:'plan-starter',name:'Starter',planType:'starter',monthlyPrice:29,annualPrice:290,employeeLimit:50,companyLimit:1,branchLimit:5,status:'active'}});
   const p2 = await db.subscriptionPlan.upsert({where:{id:'plan-professional'},update:{},create:{id:'plan-professional',name:'Professional',planType:'professional',monthlyPrice:79,annualPrice:790,employeeLimit:200,companyLimit:3,branchLimit:20,payrollEnabled:true,recruitmentEnabled:true,attendanceEnabled:true,projectEnabled:true,clientPortalEnabled:true,status:'active'}});
   const p3 = await db.subscriptionPlan.upsert({where:{id:'plan-enterprise'},update:{},create:{id:'plan-enterprise',name:'Enterprise',planType:'enterprise',monthlyPrice:199,annualPrice:1990,employeeLimit:1000,companyLimit:10,branchLimit:100,payrollEnabled:true,recruitmentEnabled:true,attendanceEnabled:true,projectEnabled:true,clientPortalEnabled:true,vendorPortalEnabled:true,mobileAppEnabled:true,apiAccessEnabled:true,whiteLabelEnabled:true,status:'active'}});
-  const t = await db.tenant.upsert({where:{tenantId:'NEXUS-CORP'},update:{},create:{tenantId:'NEXUS-CORP',name:'NEXUS Corp',type:'enterprise',industry:'Technology',country:'India',currency:'INR',domain:'nexus',status:'active',employeeLimit:500,storageLimit:10000,aiCreditLimit:500}});
+  const t = await db.tenant.upsert({where:{tenantId:'3BOXES-CORP'},update:{},create:{tenantId:'3BOXES-CORP',name:'3 Boxes Corp',type:'enterprise',industry:'Technology',country:'India',currency:'INR',domain:'3boxes',status:'active',employeeLimit:500,storageLimit:10000,aiCreditLimit:500}});
   await db.subscription.upsert({where:{id:'sub-1'},update:{},create:{id:'sub-1',tenantId:t.id,planId:p3.id,startDate:new Date('2026-01-01'),endDate:new Date('2026-12-31'),status:'active',billingCycle:'annual',amount:1990}});
-  await db.user.upsert({where:{email:'admin@nexushrms.com'},update:{},create:{email:'admin@nexushrms.com',password:hp,name:'NEXUS Admin',role:'super_admin',isActive:true,tenantId:t.id}});
+  await db.user.upsert({where:{email:'admin@3boxeshrms.com'},update:{},create:{email:'admin@3boxeshrms.com',password:hp,name:'3Boxes Admin',role:'super_admin',isActive:true,tenantId:t.id}});
   const cs = [];
   for (const [code,name,legal,city] of [['NEXTECH','Nexus Technologies','Nexus Technologies Pvt Ltd','Mumbai'],['NEXSOL','Nexus Solutions','Nexus Solutions India Pvt Ltd','Hyderabad'],['NEXSTAFF','Nexus Staffing','Nexus Staffing Services Pvt Ltd','Pune']]) {
     cs.push(await db.company.upsert({where:{code},update:{},create:{tenantId:t.id,code,name,legalName:legal,country:'India',currency:'INR',address:`${city}, India`,adminEmail:`admin@${code.toLowerCase()}.com`,status:'active'}}));

@@ -19,7 +19,10 @@ export async function POST(request: Request) {
     console.log('[AI-Interview-Seed] Starting AI Interview data seeding...');
 
     // Find the tenant (try both slugs)
-    let tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+    let tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
+    if (!tenant) {
+      tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+    }
     if (!tenant) {
       tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-corp' } });
     }

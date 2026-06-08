@@ -16,8 +16,8 @@ function getAuthHeaders() {
 /* ── Demo Data ── */
 const companies = [
   { id: 'comp-1', name: '3 Boxes Technologies', code: '3BOXES', city: 'Mumbai', state: 'Maharashtra', status: 'Active', branches: 3, departments: 8, employees: 31, gst: '27AABCN1234F1Z5', phone: '+91 22 4567 8901' },
-  { id: 'comp-2', name: 'Nexus Solutions', code: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', status: 'Active', branches: 2, departments: 8, employees: 10, gst: '36AABCN5678F1Z3', phone: '+91 40 2345 6789' },
-  { id: 'comp-3', name: 'Nexus Staffing', code: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', status: 'Active', branches: 1, departments: 8, employees: 10, gst: '27AABCN9012F1Z1', phone: '+91 20 3456 7890' },
+  { id: 'comp-2', name: '3 Boxes Solutions', code: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', status: 'Active', branches: 2, departments: 8, employees: 10, gst: '36AABCN5678F1Z3', phone: '+91 40 2345 6789' },
+  { id: 'comp-3', name: '3 Boxes Staffing', code: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', status: 'Active', branches: 1, departments: 8, employees: 10, gst: '27AABCN9012F1Z1', phone: '+91 20 3456 7890' },
 ];
 
 const branches = [

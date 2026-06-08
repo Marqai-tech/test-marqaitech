@@ -37,11 +37,11 @@ export async function GET() {
 
     // ============ TENANT ============
     const tenant = await prisma.tenant.upsert({
-      where: { slug: 'nexus-corp' },
+      where: { slug: '3boxes-corp' },
       update: {},
       create: {
-        name: 'Nexus Corp',
-        slug: 'nexus-corp',
+        name: '3 Boxes Corp',
+        slug: '3boxes-corp',
         domain: '3boxeshrms.com',
         plan: 'enterprise',
         status: 'active',
@@ -57,7 +57,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'cg-americas',
-        name: 'Nexus Americas',
+        name: '3 Boxes Americas',
         tenantId: tenant.id,
       },
     });
@@ -67,7 +67,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'cg-asia-pacific',
-        name: 'Nexus Asia Pacific',
+        name: '3 Boxes Asia Pacific',
         tenantId: tenant.id,
       },
     });
@@ -78,7 +78,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-usa',
-        name: 'Nexus Tech Inc USA',
+        name: '3 Boxes Tech Inc USA',
         code: 'NTU',
         companyGroupId: americasGroup.id,
         registrationNo: 'US-NT-001',
@@ -126,7 +126,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-uk',
-        name: 'Nexus Solutions UK',
+        name: '3 Boxes Solutions UK',
         code: 'NSU',
         companyGroupId: americasGroup.id,
         registrationNo: 'UK-NS-001',
@@ -139,8 +139,8 @@ export async function GET() {
         state: 'England',
         zipCode: 'E14 5AB',
         phone: '+44-20-555-0100',
-        email: 'info@nexussolutionsuk.com',
-        website: 'https://nexussolutionsuk.com',
+        email: 'info@3boxessolutionsuk.com',
+        website: 'https://3boxessolutionsuk.com',
         status: 'active',
       },
     });
@@ -236,7 +236,7 @@ export async function GET() {
         address: '1 Canada Square, Level 28',
         zipCode: 'E14 5AB',
         phone: '+44-20-555-0501',
-        email: 'london@nexussolutionsuk.com',
+        email: 'london@3boxessolutionsuk.com',
         status: 'active',
       },
     });
@@ -1118,11 +1118,11 @@ export async function GET() {
 
     // ============ POLICIES ============
     const policies = [
-      { id: 'pol-1', title: 'Employee Code of Conduct', category: 'code_of_conduct', description: 'Guidelines for professional behavior and workplace conduct', content: 'This policy outlines the expected behavior and professional conduct for all employees of Nexus Corp...', version: '2.1', status: 'active', effectiveDate: new Date('2024-01-01') },
+      { id: 'pol-1', title: 'Employee Code of Conduct', category: 'code_of_conduct', description: 'Guidelines for professional behavior and workplace conduct', content: 'This policy outlines the expected behavior and professional conduct for all employees of 3 Boxes Corp...', version: '2.1', status: 'active', effectiveDate: new Date('2024-01-01') },
       { id: 'pol-2', title: 'Leave Policy', category: 'leave', description: 'Comprehensive leave management policy including all leave types', content: 'All full-time employees are entitled to the following leaves per calendar year...', version: '3.0', status: 'active', effectiveDate: new Date('2025-01-01') },
       { id: 'pol-3', title: 'Information Security Policy', category: 'it', description: 'Security guidelines for handling company and client data', content: 'All employees must adhere to the following information security practices...', version: '1.5', status: 'active', effectiveDate: new Date('2024-06-01') },
       { id: 'pol-4', title: 'Travel and Expense Policy', category: 'travel', description: 'Guidelines for business travel and expense reimbursement', content: 'This policy governs all business-related travel and associated expense reimbursements...', version: '2.0', status: 'active', effectiveDate: new Date('2024-03-01') },
-      { id: 'pol-5', title: 'Workplace Safety Policy', category: 'safety', description: 'Health and safety guidelines for all office locations', content: 'Nexus Corp is committed to providing a safe and healthy work environment...', version: '1.2', status: 'active', effectiveDate: new Date('2024-01-01') },
+      { id: 'pol-5', title: 'Workplace Safety Policy', category: 'safety', description: 'Health and safety guidelines for all office locations', content: '3 Boxes Corp is committed to providing a safe and healthy work environment...', version: '1.2', status: 'active', effectiveDate: new Date('2024-01-01') },
     ];
 
     for (const pol of policies) {
@@ -1250,7 +1250,7 @@ export async function GET() {
 
     // ============ PROJECTS ============
     const projectData = [
-      { id: 'proj-1', name: 'Nexus Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
+      { id: 'proj-1', name: '3 Boxes Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
       { id: 'proj-2', name: 'Mobile App Development', code: 'MAD', companyId: usaCompany.id, clientId: 'client-2', departmentId: 'dept-eng', projectType: 'client', billingType: 'fixed', currency: 'GBP', budgetAmount: 200000, estimatedHours: 3000, startDate: new Date('2025-03-01'), endDate: new Date('2025-09-30'), status: 'active', description: 'Cross-platform mobile app', progress: 20 },
       { id: 'proj-3', name: 'Internal HR Portal', code: 'IHRP', companyId: indiaCompany.id, departmentId: 'dept-eng', projectType: 'internal', billingType: 'non_billable', currency: 'INR', budgetAmount: 5000000, estimatedHours: 2000, startDate: new Date('2025-02-01'), status: 'active', description: 'Internal HR portal', progress: 50 },
     ];

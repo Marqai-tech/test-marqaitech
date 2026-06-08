@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Shield, Users, UserCheck, Building2, Truck, Hexagon, ArrowRight, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 
 const DEMO_LOGINS: { role: UserRole; name: string; email: string; password: string; icon: React.ReactNode; color: string }[] = [
-  { role: 'super_admin', name: 'Admin Nexus', email: 'admin@3boxeshrms.com', password: 'admin123', icon: <Shield className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' },
+  { role: 'super_admin', name: 'Admin 3Boxes', email: 'admin@3boxeshrms.com', password: 'admin123', icon: <Shield className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' },
   { role: 'company_hr_admin', name: 'Priya Sharma', email: 'sarah.j@3boxestech.com', password: 'sarah123', icon: <Users className="h-4 w-4" />, color: 'bg-purple-500 hover:bg-purple-600' },
   { role: 'employee', name: 'Amit Patel', email: 'emily.c@3boxestech.com', password: 'emily123', icon: <UserCheck className="h-4 w-4" />, color: 'bg-emerald-500 hover:bg-emerald-600' },
   { role: 'client', name: 'Acme Corp', email: 'hr@acme.com', password: 'acme123', icon: <Building2 className="h-4 w-4" />, color: 'bg-amber-500 hover:bg-amber-600' },
