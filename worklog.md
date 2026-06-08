@@ -71,3 +71,27 @@ Stage Summary:
 - AI Interview has sample data for testing (8 interviews, 4 completed with AI scores, 4 scheduled)
 - Recruiter and candidate accounts available for testing interview flow
 - API seed route creates demo users with update: { password } to fix previously wrong passwords
+
+---
+Task ID: 1-verify
+Agent: Main Agent
+Task: Verify seed execution and fix remaining issues
+
+Work Log:
+- Fixed attendance upsert conflict (removed hardcoded id from attendance create - let Prisma auto-generate)
+- Fixed undefined `users` variable in seed summary response (changed to `demoUsers.length + additionalUsers.length`)
+- Pushed both fixes to GitHub
+- Triggered seed endpoint on Vercel: `/api/seed` returned success with 15 users, 15 employees, 5 job postings, 10 job applications, 8 interviews, and much more
+- Verified all 6 demo logins work via API calls:
+  - admin@nexushrms.com / admin123 (super_admin) ✅
+  - hr@nexushrms.com / hr123 (hr_admin) ✅
+  - manager@nexushrms.com / manager123 (manager) ✅
+  - employee@nexushrms.com / employee123 (employee) ✅
+  - recruiter@nexushrms.com / recruiter123 (recruiter) ✅
+  - candidate@nexushrms.com / candidate123 (candidate) ✅
+
+Stage Summary:
+- All demo accounts now fully functional with bcrypt-hashed passwords
+- Database seeded with comprehensive sample data including AI Interview records
+- Recruiter and Candidate accounts created for AI interview testing
+- Login page updated with 6 demo accounts in a 3-column grid
