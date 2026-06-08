@@ -314,7 +314,7 @@ export default function DashboardLayout({
         }`}
       >
         <Header onSidebarToggle={handleSidebarToggle} />
-        <main className="p-6">
+        <main className={`${isMobile ? 'p-3' : 'p-6'}`}>
           {children}
         </main>
       </div>
