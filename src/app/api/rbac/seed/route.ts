@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 function corsHeaders() {
   return {
@@ -81,7 +85,7 @@ const MODULE_DEFINITIONS = [
 // Default permission actions per module
 const DEFAULT_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'approve'];
 
-// Modules that only need limited actions (view only for employees)
+// Modules that only need limited actions (view only)
 const LIMITED_ACTION_MODULES = ['dashboard', 'notifications', 'docs'];
 
 // Admin-only modules (not accessible to tenant_admin and below by default)
@@ -89,59 +93,16 @@ const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
 
 // System role definitions
 const SYSTEM_ROLES = [
-  {
-    key: 'super_admin',
-    name: 'Super Administrator',
-    description: 'Full system access across all tenants',
-    level: 0,
-    isSystem: true,
-    tenantId: null,
-  },
-  {
-    key: 'tenant_admin',
-    name: 'Tenant Administrator',
-    description: 'Full access within their tenant',
-    level: 1,
-    isSystem: true,
-  },
-  {
-    key: 'hr_admin',
-    name: 'HR Administrator',
-    description: 'HR management access within their tenant',
-    level: 2,
-    isSystem: true,
-  },
-  {
-    key: 'manager',
-    name: 'Manager',
-    description: 'Team management access',
-    level: 3,
-    isSystem: true,
-  },
-  {
-    key: 'employee',
-    name: 'Employee',
-    description: 'Basic employee self-service access',
-    level: 4,
-    isSystem: true,
-  },
-  {
-    key: 'recruiter',
-    name: 'Recruiter',
-    description: 'Recruitment module access',
-    level: 2,
-    isSystem: true,
-  },
-  {
-    key: 'candidate',
-    name: 'Candidate',
-    description: 'Job portal and interview access',
-    level: 5,
-    isSystem: true,
-  },
+  { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
+  { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
+  { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true },
+  { key: 'manager', name: 'Manager', description: 'Team management access', level: 3, isSystem: true },
+  { key: 'employee', name: 'Employee', description: 'Basic employee self-service access', level: 4, isSystem: true },
+  { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access', level: 2, isSystem: true },
+  { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access', level: 5, isSystem: true },
 ];
 
-// HR-relevant modules for hr_admin role
+// Module access lists per role
 const HR_ADMIN_MODULES = [
   'dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers',
   'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance',
@@ -150,32 +111,380 @@ const HR_ADMIN_MODULES = [
   'ai_assistant', 'docs', 'workflows', 'reports', 'notifications',
 ];
 
-// Manager-accessible modules
 const MANAGER_MODULES = [
   'dashboard', 'employees', 'recruitment', 'onboarding', 'attendance',
   'leave', 'timesheets', 'performance', 'training', 'engagement',
-  'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications',
-  'projects',
+  'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects',
 ];
 
-// Employee-accessible modules (mostly view + limited create/edit)
 const EMPLOYEE_MODULES = [
   'dashboard', 'employees', 'leave', 'attendance', 'timesheets',
   'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications',
   'expenses', 'travel', 'training',
 ];
 
-// Recruiter modules
 const RECRUITER_MODULES = [
   'dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal',
   'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant',
 ];
 
-// Candidate modules
-const CANDIDATE_MODULES = [
-  'job_portal', 'ai_interview', 'docs', 'notifications',
-];
+const CANDIDATE_MODULES = ['job_portal', 'ai_interview', 'docs', 'notifications'];
 
+/**
+ * Check if RBAC tables exist by attempting a simple query
+ */
+async function checkRBACTablesExist(): Promise<boolean> {
+  try {
+    await prisma.module.findFirst();
+    return true;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('table') || msg.includes('Invalid')) {
+      return false;
+    }
+    // If it's some other error, tables might exist but there's a different issue
+    return true;
+  }
+}
+
+/**
+ * Push schema to database using prisma db push
+ */
+async function pushSchema(): Promise<{ success: boolean; output: string }> {
+  try {
+    const { stdout, stderr } = await execAsync('npx prisma db push --accept-data-loss 2>&1', {
+      timeout: 60000,
+      env: {
+        ...process.env,
+        // Ensure the database URL is available
+      },
+    });
+    return { success: true, output: stdout + stderr };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return { success: false, output: msg };
+  }
+}
+
+/**
+ * Core RBAC seeding logic - used by both GET and POST handlers
+ */
+async function seedRBACData(userId?: string) {
+  let modulesCreated = 0;
+  let permissionsCreated = 0;
+  let rolesCreated = 0;
+  let rolePermissionsCreated = 0;
+  let userRoleAssignmentsCreated = 0;
+
+  // Step 1: Create or update modules
+  for (const modDef of MODULE_DEFINITIONS) {
+    const existingModule = await prisma.module.findUnique({
+      where: { key: modDef.key },
+    });
+
+    if (!existingModule) {
+      const createdModule = await prisma.module.create({
+        data: {
+          key: modDef.key,
+          name: modDef.name,
+          category: modDef.category,
+          icon: modDef.icon,
+          sortOrder: modDef.sortOrder,
+        },
+      });
+
+      // Create permissions for this module
+      const actions = LIMITED_ACTION_MODULES.includes(modDef.key) ? ['view'] : DEFAULT_ACTIONS;
+
+      for (const action of actions) {
+        await prisma.permission.create({
+          data: {
+            moduleId: createdModule.id,
+            action,
+            description: `${action} ${modDef.name.toLowerCase()}`,
+          },
+        });
+        permissionsCreated++;
+      }
+      modulesCreated++;
+    }
+  }
+
+  // Step 2: Create system roles
+  const createdRoles: Record<string, string> = {};
+
+  for (const roleDef of SYSTEM_ROLES) {
+    // Check if role already exists
+    let existingRole;
+    if (roleDef.tenantId === null) {
+      // Global roles (super_admin, tenant_admin) - look for null tenantId
+      existingRole = await prisma.role.findFirst({
+        where: { key: roleDef.key, tenantId: null, companyId: null },
+      });
+    } else {
+      // Tenant-scoped roles - find the tenant and check
+      const tenants = await prisma.tenant.findMany({ take: 1 });
+      if (tenants.length === 0) {
+        console.warn('No tenant found for role:', roleDef.key);
+        continue;
+      }
+      existingRole = await prisma.role.findFirst({
+        where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null },
+      });
+    }
+
+    if (!existingRole) {
+      // Determine tenantId for tenant-scoped roles
+      let roleTenantId = roleDef.tenantId;
+      if (roleTenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin') {
+        // For non-global system roles, find the first tenant
+        const tenants = await prisma.tenant.findMany({ take: 1 });
+        roleTenantId = tenants.length > 0 ? tenants[0].id : null;
+      }
+
+      const role = await prisma.role.create({
+        data: {
+          name: roleDef.name,
+          key: roleDef.key,
+          description: roleDef.description,
+          isSystem: roleDef.isSystem,
+          level: roleDef.level,
+          tenantId: roleTenantId,
+          status: 'active',
+          createdBy: userId || null,
+        },
+      });
+      createdRoles[roleDef.key] = role.id;
+      rolesCreated++;
+    } else {
+      createdRoles[roleDef.key] = existingRole.id;
+    }
+  }
+
+  // Step 3: Assign permissions to roles
+  const allModules = await prisma.module.findMany({
+    include: { permissions: true },
+  });
+
+  const moduleMap = new Map(allModules.map((m) => [m.key, m]));
+
+  // Helper: assign permissions for a set of module keys to a role
+  const assignPermissions = async (
+    roleId: string,
+    moduleKeys: string[],
+    allowedActions?: string[]
+  ): Promise<void> => {
+    for (const moduleKey of moduleKeys) {
+      const mod = moduleMap.get(moduleKey);
+      if (!mod) continue;
+
+      for (const perm of mod.permissions) {
+        if (allowedActions && !allowedActions.includes(perm.action)) continue;
+
+        // Check if already exists
+        try {
+          const existing = await prisma.rolePermission.findUnique({
+            where: {
+              roleId_permissionId: {
+                roleId,
+                permissionId: perm.id,
+              },
+            },
+          });
+
+          if (!existing) {
+            await prisma.rolePermission.create({
+              data: {
+                roleId,
+                permissionId: perm.id,
+                granted: true,
+              },
+            });
+            rolePermissionsCreated++;
+          }
+        } catch {
+          // Skip duplicate entries
+        }
+      }
+    }
+  };
+
+  // super_admin gets ALL permissions
+  if (createdRoles.super_admin) {
+    await assignPermissions(createdRoles.super_admin, MODULE_DEFINITIONS.map((m) => m.key));
+  }
+
+  // tenant_admin gets all permissions except admin-only modules
+  if (createdRoles.tenant_admin) {
+    const tenantAdminModules = MODULE_DEFINITIONS
+      .filter((m) => !ADMIN_ONLY_MODULES.includes(m.key))
+      .map((m) => m.key);
+    await assignPermissions(createdRoles.tenant_admin, tenantAdminModules);
+  }
+
+  // hr_admin gets HR-relevant permissions
+  if (createdRoles.hr_admin) {
+    await assignPermissions(createdRoles.hr_admin, HR_ADMIN_MODULES);
+  }
+
+  // manager gets view, create, edit, approve
+  if (createdRoles.manager) {
+    await assignPermissions(createdRoles.manager, MANAGER_MODULES, ['view', 'create', 'edit', 'approve']);
+  }
+
+  // employee: view-only for most, self-service for some
+  if (createdRoles.employee) {
+    const viewOnlyModules = EMPLOYEE_MODULES.filter(
+      (m) => !['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'].includes(m)
+    );
+    await assignPermissions(createdRoles.employee, viewOnlyModules, ['view']);
+
+    const selfServiceModules = ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'];
+    await assignPermissions(createdRoles.employee, selfServiceModules, ['view', 'create', 'edit']);
+  }
+
+  // recruiter gets recruitment permissions
+  if (createdRoles.recruiter) {
+    await assignPermissions(createdRoles.recruiter, RECRUITER_MODULES, ['view', 'create', 'edit', 'export']);
+  }
+
+  // candidate gets basic access
+  if (createdRoles.candidate) {
+    await assignPermissions(createdRoles.candidate, CANDIDATE_MODULES, ['view', 'create']);
+  }
+
+  // Step 4: Assign roles to existing users
+  const users = await prisma.user.findMany();
+  const roleKeyToUserRole: Record<string, string> = {
+    'super_admin': 'super_admin',
+    'hr_admin': 'hr_admin',
+    'manager': 'manager',
+    'employee': 'employee',
+    'recruiter': 'recruiter',
+    'candidate': 'candidate',
+  };
+
+  for (const user of users) {
+    const roleKey = roleKeyToUserRole[user.role];
+    if (!roleKey || !createdRoles[roleKey]) continue;
+
+    // Find the first company for company-scoped assignments
+    const companies = await prisma.company.findMany({ take: 1 });
+
+    try {
+      await prisma.userRoleAssignment.create({
+        data: {
+          userId: user.id,
+          roleId: createdRoles[roleKey],
+          companyId: companies.length > 0 && roleKey !== 'super_admin' && roleKey !== 'tenant_admin'
+            ? companies[0].id
+            : null,
+          assignedBy: userId || null,
+        },
+      });
+      userRoleAssignmentsCreated++;
+    } catch {
+      // Skip if already assigned
+    }
+  }
+
+  return {
+    modulesCreated,
+    permissionsCreated,
+    rolesCreated,
+    rolePermissionsCreated,
+    userRoleAssignmentsCreated,
+  };
+}
+
+/**
+ * GET handler - Allows seeding without auth for initial setup
+ * This is needed because you can't authenticate if there are no users/roles yet
+ */
+export async function GET() {
+  try {
+    // Check if RBAC tables exist
+    const tablesExist = await checkRBACTablesExist();
+
+    if (!tablesExist) {
+      console.log('RBAC tables do not exist. Attempting to push schema...');
+      const pushResult = await pushSchema();
+      if (!pushResult.success) {
+        return NextResponse.json(
+          {
+            error: 'Failed to create RBAC tables',
+            details: pushResult.output,
+            hint: 'The build script should include "prisma db push" to create tables automatically. Redeploy to trigger schema sync.',
+          },
+          { status: 500, headers: corsHeaders() }
+        );
+      }
+      console.log('Schema push result:', pushResult.output);
+    }
+
+    const result = await seedRBACData();
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'RBAC data seeded successfully',
+        data: result,
+      },
+      { headers: corsHeaders() }
+    );
+  } catch (error) {
+    console.error('RBAC seed error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    // Check if this is a "table does not exist" error
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
+      // Try to push schema automatically
+      console.log('Detected missing tables, attempting auto-push...');
+      const pushResult = await pushSchema();
+      if (pushResult.success) {
+        // Retry seeding after push
+        try {
+          const result = await seedRBACData();
+          return NextResponse.json(
+            {
+              success: true,
+              message: 'RBAC data seeded successfully after auto-creating tables',
+              schemaPushOutput: pushResult.output,
+              data: result,
+            },
+            { headers: corsHeaders() }
+          );
+        } catch (retryError) {
+          const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
+          return NextResponse.json(
+            { error: 'Failed to seed RBAC data after creating tables', details: retryMsg },
+            { status: 500, headers: corsHeaders() }
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          error: 'RBAC tables not found in database and auto-push failed.',
+          details: errorMessage,
+          pushError: pushResult.output,
+          hint: 'Redeploy the application - the build script now includes "prisma db push" to create tables automatically.',
+        },
+        { status: 500, headers: corsHeaders() }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to seed RBAC data', details: errorMessage, stack: errorStack },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
+/**
+ * POST handler - Requires auth (super_admin) for security
+ */
 export async function POST(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
@@ -206,210 +515,60 @@ export async function POST(request: Request) {
       );
     }
 
-    let modulesCreated = 0;
-    let permissionsCreated = 0;
-    let rolesCreated = 0;
-    let rolePermissionsCreated = 0;
-
-    // Step 1: Create or update modules
-    for (const modDef of MODULE_DEFINITIONS) {
-      const existingModule = await prisma.module.findUnique({
-        where: { key: modDef.key },
-      });
-
-      if (!existingModule) {
-        const createdModule = await prisma.module.create({
-          data: {
-            key: modDef.key,
-            name: modDef.name,
-            category: modDef.category,
-            icon: modDef.icon,
-            sortOrder: modDef.sortOrder,
+    // Check if RBAC tables exist
+    const tablesExist = await checkRBACTablesExist();
+    if (!tablesExist) {
+      console.log('RBAC tables do not exist. Attempting to push schema...');
+      const pushResult = await pushSchema();
+      if (!pushResult.success) {
+        return NextResponse.json(
+          {
+            error: 'Failed to create RBAC tables',
+            details: pushResult.output,
           },
-        });
-
-        // Create permissions for this module
-        const actions = LIMITED_ACTION_MODULES.includes(modDef.key)
-          ? ['view']
-          : DEFAULT_ACTIONS;
-
-        for (const action of actions) {
-          await prisma.permission.create({
-            data: {
-              moduleId: createdModule.id,
-              action,
-              description: `${action} ${modDef.name.toLowerCase()}`,
-            },
-          });
-          permissionsCreated++;
-        }
-        modulesCreated++;
+          { status: 500, headers: corsHeaders() }
+        );
       }
     }
 
-    // Step 2: Create system roles
-    const createdRoles: Record<string, string> = {};
-
-    for (const roleDef of SYSTEM_ROLES) {
-      // Check if role already exists (by key and null tenantId for super_admin, or just key for others)
-      const existingRole = await prisma.role.findFirst({
-        where: {
-          key: roleDef.key,
-          tenantId: roleDef.tenantId === null ? null : undefined,
-        },
-      });
-
-      if (!existingRole) {
-        const role = await prisma.role.create({
-          data: {
-            name: roleDef.name,
-            key: roleDef.key,
-            description: roleDef.description,
-            isSystem: roleDef.isSystem,
-            level: roleDef.level,
-            tenantId: roleDef.tenantId,
-            status: 'active',
-            createdBy: user.id,
-          },
-        });
-        createdRoles[roleDef.key] = role.id;
-        rolesCreated++;
-      } else {
-        createdRoles[roleDef.key] = existingRole.id;
-      }
-    }
-
-    // Step 3: Assign permissions to roles
-    const allModules = await prisma.module.findMany({
-      include: { permissions: true },
-    });
-
-    const moduleMap = new Map(allModules.map((m) => [m.key, m]));
-
-    // Helper: assign permissions for a set of module keys to a role
-    const assignPermissions = async (
-      roleId: string,
-      moduleKeys: string[],
-      allowedActions?: string[]
-    ): Promise<void> => {
-      for (const moduleKey of moduleKeys) {
-        const mod = moduleMap.get(moduleKey);
-        if (!mod) continue;
-
-        for (const perm of mod.permissions) {
-          if (allowedActions && !allowedActions.includes(perm.action)) continue;
-
-          // Check if already exists
-          const existing = await prisma.rolePermission.findUnique({
-            where: {
-              roleId_permissionId: {
-                roleId,
-                permissionId: perm.id,
-              },
-            },
-          });
-
-          if (!existing) {
-            await prisma.rolePermission.create({
-              data: {
-                roleId,
-                permissionId: perm.id,
-                granted: true,
-              },
-            });
-            rolePermissionsCreated++;
-          }
-        }
-      }
-    };
-
-    // super_admin gets ALL permissions
-    if (createdRoles.super_admin) {
-      await assignPermissions(createdRoles.super_admin, MODULE_DEFINITIONS.map((m) => m.key));
-    }
-
-    // tenant_admin gets all permissions except super_admin/tenant_admin/ai_admin modules
-    if (createdRoles.tenant_admin) {
-      const tenantAdminModules = MODULE_DEFINITIONS
-        .filter((m) => !ADMIN_ONLY_MODULES.includes(m.key))
-        .map((m) => m.key);
-      await assignPermissions(createdRoles.tenant_admin, tenantAdminModules);
-    }
-
-    // hr_admin gets HR-relevant permissions
-    if (createdRoles.hr_admin) {
-      await assignPermissions(createdRoles.hr_admin, HR_ADMIN_MODULES);
-    }
-
-    // manager gets manager-accessible permissions (view, create, edit only - no delete/export/approve for most)
-    if (createdRoles.manager) {
-      await assignPermissions(
-        createdRoles.manager,
-        MANAGER_MODULES,
-        ['view', 'create', 'edit', 'approve']
-      );
-    }
-
-    // employee gets basic permissions (mostly view, some create/edit)
-    if (createdRoles.employee) {
-      // For most modules, employee only gets view
-      const viewOnlyModules = EMPLOYEE_MODULES.filter(
-        (m) => !['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'].includes(m)
-      );
-      await assignPermissions(createdRoles.employee, viewOnlyModules, ['view']);
-
-      // For these modules, employee can also create/edit
-      const selfServiceModules = ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'];
-      await assignPermissions(
-        createdRoles.employee,
-        selfServiceModules,
-        ['view', 'create', 'edit']
-      );
-    }
-
-    // recruiter gets recruitment-related permissions
-    if (createdRoles.recruiter) {
-      await assignPermissions(
-        createdRoles.recruiter,
-        RECRUITER_MODULES,
-        ['view', 'create', 'edit', 'export']
-      );
-    }
-
-    // candidate gets candidate-accessible permissions (view only)
-    if (createdRoles.candidate) {
-      await assignPermissions(createdRoles.candidate, CANDIDATE_MODULES, ['view', 'create']);
-    }
+    const result = await seedRBACData(user.id);
 
     return NextResponse.json(
       {
         success: true,
         message: 'RBAC data seeded successfully',
-        data: {
-          modulesCreated,
-          permissionsCreated,
-          rolesCreated,
-          rolePermissionsCreated,
-        },
+        data: result,
       },
       { headers: corsHeaders() }
     );
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    // Check if this is a "table does not exist" error
+
+    // Check if this is a "table does not exist" error - auto-push and retry
     if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
-      return NextResponse.json(
-        { 
-          error: 'RBAC tables not found in database. Please run database migration first (prisma db push or prisma migrate deploy).',
-          details: errorMessage,
-          hint: 'Run: npx prisma db push'
-        },
-        { status: 500, headers: corsHeaders() }
-      );
+      const pushResult = await pushSchema();
+      if (pushResult.success) {
+        try {
+          const result = await seedRBACData();
+          return NextResponse.json(
+            {
+              success: true,
+              message: 'RBAC data seeded successfully after auto-creating tables',
+              data: result,
+            },
+            { headers: corsHeaders() }
+          );
+        } catch (retryError) {
+          const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
+          return NextResponse.json(
+            { error: 'Failed to seed RBAC data after creating tables', details: retryMsg },
+            { status: 500, headers: corsHeaders() }
+          );
+        }
+      }
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to seed RBAC data', details: errorMessage },
       { status: 500, headers: corsHeaders() }

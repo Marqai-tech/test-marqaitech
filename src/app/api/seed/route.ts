@@ -1333,6 +1333,151 @@ export async function GET() {
     // ============ FNF ============
     await prisma.fNFCalculation.upsert({ where: { id: 'fnf-1' }, update: {}, create: { id: 'fnf-1', employeeId: 'emp-admin', pendingSalary: 10416.67, leaveEncashment: 3472.22, bonus: 2000, totalEarnings: 15888.89, taxDeduction: 2383.33, totalDeductions: 2383.33, netAmount: 13505.56, currency: 'USD', status: 'pending' } });
 
+    // ============ RBAC - Modules & Permissions ============
+    let rbacModulesCreated = 0;
+    let rbacPermissionsCreated = 0;
+    let rbacRolesCreated = 0;
+    let rbacRolePermissionsCreated = 0;
+    let rbacUserRoleAssignmentsCreated = 0;
+
+    try {
+      const RBAC_MODULES = [
+        { key: 'dashboard', name: 'Dashboard', category: 'Core HR', icon: 'LayoutDashboard', sortOrder: 1 },
+        { key: 'employees', name: 'Employees', category: 'Core HR', icon: 'Users', sortOrder: 2 },
+        { key: 'company', name: 'Company', category: 'Core HR', icon: 'Building2', sortOrder: 3 },
+        { key: 'recruitment', name: 'Recruitment', category: 'Talent', icon: 'UserPlus', sortOrder: 4 },
+        { key: 'requisitions', name: 'Requisitions', category: 'Talent', icon: 'ClipboardList', sortOrder: 5 },
+        { key: 'offers', name: 'Offers', category: 'Talent', icon: 'FileText', sortOrder: 6 },
+        { key: 'job_portal', name: 'Job Portal', category: 'Talent', icon: 'Globe', sortOrder: 7 },
+        { key: 'ai_interview', name: 'AI Interview', category: 'Talent', icon: 'Bot', sortOrder: 8 },
+        { key: 'onboarding', name: 'Onboarding', category: 'Lifecycle', icon: 'UserCheck', sortOrder: 9 },
+        { key: 'preboarding', name: 'Preboarding', category: 'Lifecycle', icon: 'ClipboardCheck', sortOrder: 10 },
+        { key: 'attendance', name: 'Attendance', category: 'Time', icon: 'Clock', sortOrder: 11 },
+        { key: 'leave', name: 'Leave', category: 'Time', icon: 'CalendarOff', sortOrder: 12 },
+        { key: 'timesheets', name: 'Timesheets', category: 'Time', icon: 'Timer', sortOrder: 13 },
+        { key: 'payroll', name: 'Payroll', category: 'Compensation', icon: 'Banknote', sortOrder: 14 },
+        { key: 'salary_structures', name: 'Salary Structures', category: 'Compensation', icon: 'Coins', sortOrder: 15 },
+        { key: 'performance', name: 'Performance', category: 'Performance', icon: 'TrendingUp', sortOrder: 16 },
+        { key: 'training', name: 'Training', category: 'Performance', icon: 'GraduationCap', sortOrder: 17 },
+        { key: 'engagement', name: 'Engagement', category: 'Performance', icon: 'Heart', sortOrder: 18 },
+        { key: 'succession', name: 'Succession', category: 'Performance', icon: 'ArrowUpRight', sortOrder: 19 },
+        { key: 'projects', name: 'Projects', category: 'Operations', icon: 'FolderKanban', sortOrder: 20 },
+        { key: 'travel', name: 'Travel', category: 'Operations', icon: 'Plane', sortOrder: 21 },
+        { key: 'expenses', name: 'Expenses', category: 'Operations', icon: 'Receipt', sortOrder: 22 },
+        { key: 'assets', name: 'Assets', category: 'Operations', icon: 'Monitor', sortOrder: 23 },
+        { key: 'documents', name: 'Documents', category: 'Operations', icon: 'FileStack', sortOrder: 24 },
+        { key: 'clients', name: 'Clients', category: 'External', icon: 'Handshake', sortOrder: 25 },
+        { key: 'vendors', name: 'Vendors', category: 'External', icon: 'Truck', sortOrder: 26 },
+        { key: 'helpdesk', name: 'Helpdesk', category: 'Support', icon: 'Headphones', sortOrder: 27 },
+        { key: 'grievances', name: 'Grievances', category: 'Support', icon: 'AlertTriangle', sortOrder: 28 },
+        { key: 'ai_assistant', name: 'AI Assistant', category: 'Support', icon: 'Sparkles', sortOrder: 29 },
+        { key: 'docs', name: 'Documentation', category: 'Knowledge', icon: 'BookOpen', sortOrder: 30 },
+        { key: 'workflows', name: 'Workflows', category: 'Governance', icon: 'GitBranch', sortOrder: 31 },
+        { key: 'reports', name: 'Reports', category: 'Governance', icon: 'BarChart3', sortOrder: 32 },
+        { key: 'settings', name: 'Settings', category: 'Governance', icon: 'Settings', sortOrder: 33 },
+        { key: 'notifications', name: 'Notifications', category: 'Governance', icon: 'Bell', sortOrder: 34 },
+        { key: 'super_admin', name: 'Super Admin', category: 'Admin', icon: 'Shield', sortOrder: 35 },
+        { key: 'tenant_admin', name: 'Tenant Admin', category: 'Admin', icon: 'ShieldCheck', sortOrder: 36 },
+        { key: 'ai_admin', name: 'AI Admin', category: 'Admin', icon: 'Brain', sortOrder: 37 },
+      ];
+      const RBAC_LIMITED_MODULES = ['dashboard', 'notifications', 'docs'];
+      const RBAC_DEFAULT_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'approve'];
+      const RBAC_ADMIN_ONLY = ['super_admin', 'tenant_admin', 'ai_admin'];
+
+      // Create modules and permissions
+      for (const mod of RBAC_MODULES) {
+        const existing = await prisma.module.findUnique({ where: { key: mod.key } });
+        if (!existing) {
+          const created = await prisma.module.create({ data: mod });
+          const actions = RBAC_LIMITED_MODULES.includes(mod.key) ? ['view'] : RBAC_DEFAULT_ACTIONS;
+          for (const action of actions) {
+            await prisma.permission.create({ data: { moduleId: created.id, action, description: `${action} ${mod.name.toLowerCase()}` } });
+            rbacPermissionsCreated++;
+          }
+          rbacModulesCreated++;
+        }
+      }
+
+      // Create system roles
+      const RBAC_ROLES = [
+        { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
+        { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
+        { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true },
+        { key: 'manager', name: 'Manager', description: 'Team management access', level: 3, isSystem: true },
+        { key: 'employee', name: 'Employee', description: 'Basic employee self-service access', level: 4, isSystem: true },
+        { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access', level: 2, isSystem: true },
+        { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access', level: 5, isSystem: true },
+      ];
+
+      const createdRoleIds: Record<string, string> = {};
+      for (const roleDef of RBAC_ROLES) {
+        const roleTenantId = roleDef.tenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin' ? tenant.id : roleDef.tenantId ?? null;
+        const existing = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: roleTenantId, companyId: null } });
+        if (!existing) {
+          const role = await prisma.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: 'user-admin' } });
+          createdRoleIds[roleDef.key] = role.id;
+          rbacRolesCreated++;
+        } else {
+          createdRoleIds[roleDef.key] = existing.id;
+        }
+      }
+
+      // Assign permissions to roles
+      const allMods = await prisma.module.findMany({ include: { permissions: true } });
+      const modMap = new Map(allMods.map(m => [m.key, m]));
+
+      const assignPerms = async (roleId: string, modKeys: string[], actions?: string[]) => {
+        for (const mk of modKeys) {
+          const m = modMap.get(mk);
+          if (!m) continue;
+          for (const p of m.permissions) {
+            if (actions && !actions.includes(p.action)) continue;
+            try {
+              const existing = await prisma.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: p.id } } });
+              if (!existing) {
+                await prisma.rolePermission.create({ data: { roleId, permissionId: p.id, granted: true } });
+                rbacRolePermissionsCreated++;
+              }
+            } catch { /* skip duplicates */ }
+          }
+        }
+      };
+
+      const HR_MODS = ['dashboard','employees','company','recruitment','requisitions','offers','job_portal','ai_interview','onboarding','preboarding','attendance','leave','timesheets','payroll','salary_structures','performance','training','engagement','documents','helpdesk','grievances','ai_assistant','docs','workflows','reports','notifications'];
+      const MGR_MODS = ['dashboard','employees','recruitment','onboarding','attendance','leave','timesheets','performance','training','engagement','documents','helpdesk','ai_assistant','docs','notifications','projects'];
+      const EMP_MODS = ['dashboard','employees','leave','attendance','timesheets','documents','helpdesk','ai_assistant','docs','notifications','expenses','travel','training'];
+      const REC_MODS = ['dashboard','recruitment','requisitions','offers','job_portal','ai_interview','employees','docs','notifications','ai_assistant'];
+      const CAND_MODS = ['job_portal','ai_interview','docs','notifications'];
+
+      if (createdRoleIds.super_admin) await assignPerms(createdRoleIds.super_admin, RBAC_MODULES.map(m => m.key));
+      if (createdRoleIds.tenant_admin) await assignPerms(createdRoleIds.tenant_admin, RBAC_MODULES.filter(m => !RBAC_ADMIN_ONLY.includes(m.key)).map(m => m.key));
+      if (createdRoleIds.hr_admin) await assignPerms(createdRoleIds.hr_admin, HR_MODS);
+      if (createdRoleIds.manager) await assignPerms(createdRoleIds.manager, MGR_MODS, ['view','create','edit','approve']);
+      if (createdRoleIds.employee) {
+        const viewOnly = EMP_MODS.filter(m => !['leave','expenses','travel','timesheets','helpdesk','training'].includes(m));
+        await assignPerms(createdRoleIds.employee, viewOnly, ['view']);
+        await assignPerms(createdRoleIds.employee, ['leave','expenses','travel','timesheets','helpdesk','training'], ['view','create','edit']);
+      }
+      if (createdRoleIds.recruiter) await assignPerms(createdRoleIds.recruiter, REC_MODS, ['view','create','edit','export']);
+      if (createdRoleIds.candidate) await assignPerms(createdRoleIds.candidate, CAND_MODS, ['view','create']);
+
+      // Assign roles to users
+      const roleMapping: Record<string, string> = { super_admin: 'super_admin', hr_admin: 'hr_admin', manager: 'manager', employee: 'employee', recruiter: 'recruiter', candidate: 'candidate' };
+      for (const u of demoUsers) {
+        const rKey = roleMapping[u.role];
+        if (!rKey || !createdRoleIds[rKey]) continue;
+        try {
+          await prisma.userRoleAssignment.create({ data: { userId: u.id, roleId: createdRoleIds[rKey], companyId: rKey !== 'super_admin' && rKey !== 'tenant_admin' ? usaCompany.id : null, assignedBy: 'user-admin' } });
+          rbacUserRoleAssignmentsCreated++;
+        } catch { /* skip duplicates */ }
+      }
+
+      console.log(`RBAC seeded: ${rbacModulesCreated} modules, ${rbacPermissionsCreated} permissions, ${rbacRolesCreated} roles, ${rbacRolePermissionsCreated} role-permissions, ${rbacUserRoleAssignmentsCreated} user-role assignments`);
+    } catch (rbacError) {
+      console.error('RBAC seed warning (non-fatal):', rbacError instanceof Error ? rbacError.message : String(rbacError));
+      // RBAC seeding failure is non-fatal - main seed still succeeds
+    }
+
     return NextResponse.json(
       {
         message: 'Database seeded successfully',
@@ -1372,6 +1517,7 @@ export async function GET() {
           shifts: shifts.length,
           reimbursements: reimbursements.length,
           incidentReports: incidentReports.length,
+          rbac: { modulesCreated: rbacModulesCreated, permissionsCreated: rbacPermissionsCreated, rolesCreated: rbacRolesCreated, rolePermissionsCreated: rbacRolePermissionsCreated, userRoleAssignmentsCreated: rbacUserRoleAssignmentsCreated },
         },
       },
       { headers: corsHeaders() }
