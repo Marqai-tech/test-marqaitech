@@ -27,6 +27,7 @@ model Tenant {
   users         User[]
   notifications Notification[]
   subscriptions Subscription[]
+  roles         Role[]
 }
 
 model CompanyGroup {
@@ -175,6 +176,7 @@ model User {
   notifications      Notification[]
   auditLogs          AuditLog[]
   loginActivities    LoginActivity[]
+  roleAssignments    UserRoleAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1825,4 +1827,105 @@ model InterviewInvitation {
   @@index([setId])
   @@index([invitationToken])
   @@index([status])
+}
+
+// ============ RBAC - ROLE & PERMISSION MANAGEMENT ============
+
+model Role {
+  id          String @id @default(cuid())
+  name        String
+  key         String  // unique key like 'hr_admin', 'manager', custom roles
+  description String?
+  isSystem    Boolean @default(false) // system roles cannot be deleted
+  level       Int     @default(0) // hierarchy level: 0=super_admin, 1=tenant_admin, etc.
+
+  tenantId    String? // null for global/system roles (super_admin)
+  tenant      Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  companyId   String? // null for tenant-level roles, set for company-specific roles
+
+  status      String  @default("active")
+  createdBy   String? // userId who created this role
+
+  permissions RolePermission[]
+  userRoles   UserRoleAssignment[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, tenantId, companyId])
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([key])
+}
+
+model Module {
+  id          String @id @default(cuid())
+  key         String @unique // e.g. 'employees', 'recruitment', 'payroll'
+  name        String // display name
+  description String?
+  category    String // group: 'Core HR', 'Talent', 'Operations', etc.
+  icon        String? // icon name for UI
+  sortOrder   Int    @default(0)
+
+  permissions Permission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  moduleId    String
+  module      Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  action      String // 'view', 'create', 'edit', 'delete', 'export', 'approve'
+  description String?
+
+  rolePermissions RolePermission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([moduleId, action])
+  @@index([moduleId])
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  role         Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  granted      Boolean @default(true) // true=grant, false=deny (for override)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model UserRoleAssignment {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roleId    String
+  role      Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  companyId String? // specific company scope
+
+  assignedBy String? // userId who assigned
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, roleId, companyId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([companyId])
 }

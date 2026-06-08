@@ -44,6 +44,7 @@ import {
   FiSearch,
   FiCpu,
   FiLayers,
+  FiLock,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -71,6 +72,8 @@ const navSections: NavSection[] = [
       { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
       { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
+      { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },
+      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
     ],
   },
   {

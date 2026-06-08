@@ -22,15 +22,24 @@ interface UserInfo {
   tenant?: TenantInfo;
 }
 
+// Permissions: { moduleKey: { action: boolean } }
+type ModulePermissions = Record<string, boolean>;
+type UserPermissions = Record<string, ModulePermissions>;
+
 interface AuthState {
   user: UserInfo | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  permissions: UserPermissions;
+  permissionsLoaded: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
   setToken: (token: string) => void;
+  fetchPermissions: () => Promise<void>;
+  hasPermission: (moduleKey: string, action: string) => boolean;
+  canAccessModule: (moduleKey: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -38,6 +47,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   isAuthenticated: false,
   isLoading: true,
+  permissions: {},
+  permissionsLoaded: false,
 
   login: async (email: string, password: string): Promise<boolean> => {
     try {
@@ -66,6 +77,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      // Fetch permissions after login
+      get().fetchPermissions();
 
       return true;
     } catch (error: unknown) {
@@ -97,6 +111,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token: null,
         isAuthenticated: false,
         isLoading: false,
+        permissions: {},
+        permissionsLoaded: false,
       });
     }
   },
@@ -134,6 +150,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      // Fetch permissions after user is loaded
+      get().fetchPermissions();
     } catch (error) {
       console.error('Fetch user error:', error);
       if (typeof window !== 'undefined') {
@@ -153,6 +172,71 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('tb_token', token);
     }
     set({ token });
+  },
+
+  fetchPermissions: async () => {
+    try {
+      const { token, user } = get();
+      if (!token || !user) return;
+
+      // Super admin always has all permissions
+      if (user.role === 'super_admin') {
+        set({ permissionsLoaded: true });
+        return;
+      }
+
+      const res = await fetch('/api/rbac/my-permissions', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        set({
+          permissions: data.permissions || {},
+          permissionsLoaded: true,
+        });
+      } else {
+        // If RBAC not seeded yet, fall back to role-based defaults
+        set({ permissionsLoaded: true });
+      }
+    } catch (error) {
+      console.error('Fetch permissions error:', error);
+      set({ permissionsLoaded: true });
+    }
+  },
+
+  hasPermission: (moduleKey: string, action: string): boolean => {
+    const { user, permissions } = get();
+
+    // Super admin always has all permissions
+    if (user?.role === 'super_admin') return true;
+
+    // Check RBAC permissions
+    const modulePerms = permissions[moduleKey];
+    if (modulePerms && modulePerms[action] === true) {
+      return true;
+    }
+
+    return false;
+  },
+
+  canAccessModule: (moduleKey: string): boolean => {
+    const { user, permissions } = get();
+
+    // Super admin always has access
+    if (user?.role === 'super_admin') return true;
+
+    // Check if user has any permission for this module (at minimum 'view')
+    const modulePerms = permissions[moduleKey];
+    if (modulePerms && (modulePerms.view === true || modulePerms.read === true)) {
+      return true;
+    }
+
+    // Fallback: if permissions haven't been loaded yet, allow access
+    // (backward compatibility before RBAC is seeded)
+    return false;
   },
 }));
 
