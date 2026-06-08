@@ -674,7 +674,6 @@ export async function GET() {
           },
           update: {},
           create: {
-            id: `att-${attendanceCount}`,
             employeeId: empId,
             date,
             checkIn: new Date(date.getFullYear(), date.getMonth(), date.getDate(), checkInHour, checkInMin),
