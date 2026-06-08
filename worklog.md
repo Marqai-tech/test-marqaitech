@@ -140,3 +140,74 @@ Stage Summary:
 - Frontend shows detailed seed error messages
 - All routes gracefully return empty arrays when RBAC tables don't exist yet
 - Build passes cleanly
+
+---
+Task ID: 1
+Agent: Code Fix Agent
+Task: Fix RBAC seed route to use Neon SQL client instead of exec('npx prisma db push')
+
+Work Log:
+- Read existing file and worklog
+- Replaced entire /src/app/api/rbac/seed/route.ts with improved version
+- Removed child_process/exec imports (incompatible with Vercel serverless)
+- Added import of `neon` from `@neondatabase/serverless` for direct SQL execution
+- Created `getNeonClient()` function that reads POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL
+- Created `ensureRBACTablesExist()` that:
+  - First tries `prisma.module.findFirst()` to check if tables exist
+  - If tables missing, uses Neon SQL client to CREATE TABLE IF NOT EXISTS for all 5 RBAC tables
+  - Also creates foreign key constraints and indexes via Neon SQL tagged templates
+- Updated GET and POST handlers to call ensureRBACTablesExist() before seeding
+- Changed return type of ensureRBACTablesExist from boolean to { success: boolean; error?: string }
+- Verified no lint errors in the modified file
+- Committed and pushed to origin main
+
+Stage Summary:
+- RBAC seed route now works on Vercel serverless (no child_process dependency)
+- Direct Neon SQL client used for table creation when tables don't exist
+- Proper error reporting with details and hints when table creation fails
+- Pushed to GitHub as commit 19d055a
+
+---
+Task ID: 2-a
+Agent: Fix Agent
+Task: Fix prisma.config.ts (remove unsupported directUrl) and simplify RBAC seed route (remove raw SQL table creation)
+
+Work Log:
+- Read worklog.md to understand project history and context
+- Read current prisma.config.ts — confirmed it had `directUrl` field not supported by Prisma v7's defineConfig
+- Read current /src/app/api/rbac/seed/route.ts — confirmed it used raw SQL via `neon` client to create tables at runtime
+- Replaced prisma.config.ts: removed `directUrl` field, kept only `url` in datasource config
+- Replaced /src/app/api/rbac/seed/route.ts: removed all raw SQL table creation code (neon import, getNeonClient, ensureRBACTablesExist), simplified to Prisma-only approach with clear error messages telling users to redeploy if tables are missing
+- Verified no lint errors in modified files
+- Committed as 3616f12 and pushed to origin main
+
+Stage Summary:
+- prisma.config.ts: removed unsupported `directUrl` field, keeping only `url` for Prisma v7 compatibility
+- rbac/seed/route.ts: replaced raw SQL table creation with Prisma-only seeding; returns clear `tableMissing` flag and redeploy hint when tables don't exist
+- Both fixes pushed to GitHub (commit 3616f12), Vercel will auto-deploy
+
+---
+Task ID: 3
+Agent: Force-Sync Route Agent
+Task: Create RBAC force-sync API route that drops and recreates RBAC tables using Neon SQL client, then seeds data via Prisma
+
+Work Log:
+- Read worklog.md to understand project history and previous RBAC-related changes
+- Created directory /src/app/api/rbac/force-sync/
+- Created route.ts with the following functionality:
+  - Uses neon client from @neondatabase/serverless for direct SQL execution
+  - getNeonClient() reads POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL
+  - dropAndRecreateRBACTables() drops 5 RBAC tables in reverse dependency order (UserRoleAssignment, RolePermission, Role, Permission, Module) with CASCADE
+  - Then recreates all tables with proper columns, constraints, indexes, and foreign keys
+  - seedRBACData() seeds 37 modules, permissions, 7 system roles, role-permission mappings, and user-role assignments via Prisma
+  - Supports both GET and POST methods
+  - Includes CORS headers and OPTIONS handler
+  - Returns detailed error messages on failure
+- Verified lint passes (only pre-existing warnings, one minor unused `request` param warning in new file)
+- Committed as 0baa51a and pushed to origin main
+
+Stage Summary:
+- New /api/rbac/force-sync endpoint available for force-dropping and recreating stale RBAC tables
+- Solves the problem of Neon DB having stale tables from a previous schema that prevent prisma db push from working during Vercel builds
+- Uses Neon SQL client for DDL operations (DROP/CREATE TABLE), then Prisma for data seeding
+- Pushed to GitHub (commit 0baa51a), Vercel will auto-deploy
