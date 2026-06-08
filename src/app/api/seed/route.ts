@@ -1343,7 +1343,7 @@ export async function GET() {
           branches: 5,
           departments: 8,
           designations: 14,
-          users: users.length,
+          users: demoUsers.length + additionalUsers.length,
           employees: employees.length,
           leaveTypes: leaveTypes.length,
           leaveRequests: leaveRequests.length,
