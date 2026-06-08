@@ -1,0 +1,144 @@
+import { NextResponse } from 'next/server';
+import bcryptjs from 'bcryptjs';
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcryptjs.genSalt(12);
+  return bcryptjs.hash(password, salt);
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { secret } = body;
+
+    if (secret !== 'nexus-reseed-2025') {
+      return NextResponse.json({ error: 'Invalid reseed secret' }, { status: 403 });
+    }
+
+    console.log('[Reseed] Starting database reseed...');
+
+    // Create a PrismaClient that works with whatever DB is available
+    const { PrismaClient } = await import('@/generated/prisma/client');
+    const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
+    let prisma: InstanceType<typeof PrismaClient>;
+
+    if (connectionString && connectionString.startsWith('postgres')) {
+      // Use Neon adapter for PostgreSQL
+      try {
+        const { PrismaNeon } = await import('@prisma/adapter-neon');
+        const adapter = new PrismaNeon({ connectionString });
+        prisma = new PrismaClient({ adapter }) as InstanceType<typeof PrismaClient>;
+      } catch {
+        // Fallback to regular client
+        prisma = new PrismaClient({ datasourceUrl: connectionString }) as InstanceType<typeof PrismaClient>;
+      }
+    } else {
+      // Use regular PrismaClient for SQLite or other databases
+      prisma = new PrismaClient(connectionString ? { datasourceUrl: connectionString } : {}) as InstanceType<typeof PrismaClient>;
+    }
+
+    try {
+      // Find or create the tenant
+      let tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+
+      if (!tenant) {
+        tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-corp' } });
+      }
+
+      if (!tenant) {
+        tenant = await prisma.tenant.create({
+          data: {
+            name: 'Nexus HRMS Demo',
+            slug: 'nexus-hrms-demo',
+            domain: 'demo.nexushrms.com',
+            plan: 'enterprise',
+            status: 'active',
+            country: 'US',
+            currency: 'USD',
+            timezone: 'America/New_York',
+          },
+        });
+        console.log('[Reseed] Created tenant:', tenant.id);
+      } else {
+        console.log('[Reseed] Found existing tenant:', tenant.id, tenant.slug);
+      }
+
+      // Hash passwords for all demo users
+      const passwordHashes = await Promise.all([
+        hashPassword('admin123'),
+        hashPassword('hr123'),
+        hashPassword('manager123'),
+        hashPassword('employee123'),
+        hashPassword('recruiter123'),
+        hashPassword('candidate123'),
+      ]);
+
+      // Upsert all 6 demo users
+      const demoUsers = [
+        { email: 'admin@nexushrms.com', name: 'Admin Nexus', role: 'super_admin', password: passwordHashes[0] },
+        { email: 'hr@nexushrms.com', name: 'Sarah Johnson', role: 'hr_admin', password: passwordHashes[1] },
+        { email: 'manager@nexushrms.com', name: 'Priya Sharma', role: 'manager', password: passwordHashes[2] },
+        { email: 'employee@nexushrms.com', name: 'Raj Patel', role: 'employee', password: passwordHashes[3] },
+        { email: 'recruiter@nexushrms.com', name: 'Kim Chen', role: 'recruiter', password: passwordHashes[4] },
+        { email: 'candidate@nexushrms.com', name: 'Alex Turner', role: 'candidate', password: passwordHashes[5] },
+      ];
+
+      const upsertedUsers = [];
+      for (const userData of demoUsers) {
+        try {
+          const user = await prisma.user.upsert({
+            where: { email: userData.email },
+            update: {
+              password: userData.password,
+              name: userData.name,
+              role: userData.role,
+              status: 'active',
+              tenantId: tenant.id,
+            },
+            create: {
+              email: userData.email,
+              password: userData.password,
+              name: userData.name,
+              role: userData.role,
+              status: 'active',
+              tenantId: tenant.id,
+            },
+          });
+          upsertedUsers.push(user);
+        } catch (err) {
+          console.error('[Reseed] Error upserting user:', userData.email, err);
+        }
+      }
+
+      console.log('[Reseed] Upserted', upsertedUsers.length, 'demo users');
+
+      // Verify password works
+      let verifiedCount = 0;
+      const plainPasswords = ['admin123', 'hr123', 'manager123', 'employee123', 'recruiter123', 'candidate123'];
+      for (let i = 0; i < upsertedUsers.length; i++) {
+        try {
+          const match = await bcryptjs.compare(plainPasswords[i], upsertedUsers[i].password);
+          if (match) verifiedCount++;
+        } catch {
+          // skip
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Reseeded ${upsertedUsers.length} users. ${verifiedCount}/${upsertedUsers.length} passwords verified.`,
+        tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
+        users: upsertedUsers.map((u: any) => ({ id: u.id, email: u.email, role: u.role, status: u.status })),
+      });
+    } finally {
+      await prisma.$disconnect();
+    }
+  } catch (error) {
+    console.error('[Reseed] Error:', error);
+    return NextResponse.json(
+      { error: 'Reseed failed', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}

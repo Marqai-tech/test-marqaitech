@@ -135,6 +135,17 @@
   }
 }
 
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 @keyframes pulse-subtle {
   0%, 100% {
     opacity: 1;
@@ -172,6 +183,10 @@
 
 .animate-slide-in-down {
   animation: slideInDown 0.3s ease-out forwards;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease-out forwards;
 }
 
 .animate-pulse-subtle {
