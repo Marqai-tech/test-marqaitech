@@ -48,3 +48,39 @@ Stage Summary:
 - 7 categories + 21 articles are seeded with comprehensive content
 - Access rules are created for security docs (restricted to hr_admin+)
 - All 4 previously-404 pages (Company, AI Interview, Offers, Job Portal) confirmed to exist with correct routes
+
+---
+Task ID: pwa-mobile-app
+Agent: Main Agent
+Task: Redesign mobile app as PWA with direct install from login page, rebrand to 3 Boxes HRMS
+
+Work Log:
+- Installed @ducanh2912/next-pwa (later removed due to Turbopack incompatibility)
+- Switched to manual PWA setup with custom service worker
+- Generated AI-powered app icon for 3 Boxes HRMS (1024x1024)
+- Created all PWA icon sizes (16x16 through 512x512, favicon.ico, apple-touch-icon)
+- Created manifest.json with 3 Boxes HRMS branding, standalone display mode
+- Created sw.js service worker with network-first caching strategy
+- Created PWAInstallPrompt component with Android/iOS detection and install instructions
+- Created ServiceWorkerRegistration component for auto-registration
+- Completely redesigned login page for mobile-first with:
+  - 3 Boxes HRMS branding with triple FiBox icon
+  - "People · Process · Technology" tagline
+  - PWA install banner with smart detection
+  - "Install Mobile App" button below login form
+  - 6 demo accounts (Super Admin, HR Admin, Manager, Employee, Recruiter, Candidate)
+  - Updated emails to @3boxeshrms.com
+- Updated layout.tsx with PWA meta tags, viewport config, apple-mobile-web-app settings
+- Rebranded all components from NEXUS to 3 Boxes HRMS
+- Updated Sidebar branding with 3-boxes icon
+- Updated home page welcome text
+- Updated dashboard layout loading text
+- Reduced mobile padding in dashboard layout
+- Build verified locally, pushed to GitHub
+
+Stage Summary:
+- PWA fully set up: manifest.json, sw.js, service worker registration, install prompt
+- Login page redesigned for mobile-first with direct install button
+- All NEXUS branding replaced with 3 Boxes HRMS
+- Build successful, pushed to GitHub for Vercel auto-deployment
+- Users can now install the app directly from the login page on both Android and iOS
