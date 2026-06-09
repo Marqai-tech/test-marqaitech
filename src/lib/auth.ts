@@ -20,7 +20,8 @@ export async function createToken(payload: object): Promise<string> {
     .sign(JWT_SECRET);
 }
 
-export async function verifyToken(token: string) {
+export async function verifyToken(token: string | null | undefined) {
+  if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload;

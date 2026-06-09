@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
     const data = await prisma.statutoryComponent.create({
       data: {
         componentId: payrollComponent.id,
-        componentCode,
-        componentName,
+        componentCode: body.componentCode,
+        componentName: body.componentName,
         countryCode: body.countryCode || 'IND',
         authorityName: body.authorityName,
         authorityCode: body.authorityCode || null,

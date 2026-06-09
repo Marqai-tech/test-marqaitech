@@ -1,7 +1,7 @@
 import { PrismaClient } from '@/generated/prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+const globalForDb = globalThis as unknown as {
+  db: PrismaClient | undefined
 }
 
 // Priority: POSTGRES_PRISMA_URL (Neon pooled) > POSTGRES_URL (Neon direct) > DATABASE_URL (fallback)
@@ -75,7 +75,7 @@ function createFallbackProxy(): PrismaClient {
 }
 
 export const db =
-  globalForPrisma.prisma ??
+  globalForDb.db ??
   createPrismaClient()
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+if (process.env.NODE_ENV !== 'production') globalForDb.db = db

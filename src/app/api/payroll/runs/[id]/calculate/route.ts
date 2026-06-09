@@ -74,7 +74,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     let totalDeductions = 0;
     let totalNetPay = 0;
     let totalEmployerContrib = 0;
-    const transactionLines: Record<string, unknown>[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transactionLines: any[] = [];
 
     for (const employee of employees) {
       const employeeGrossPay: Record<string, number> = {};
