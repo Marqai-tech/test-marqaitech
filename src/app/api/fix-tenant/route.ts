@@ -24,7 +24,7 @@ export async function GET() {
     if (mainTenant) {
       const nameLower = (mainTenant.name || '').toLowerCase();
       const needsFix = nameLower.includes('eh2r') || nameLower.includes('ehhr') ||
-        !nameLower.includes('3 boxes') || mainTenant.slug !== '3boxes-corp';
+        nameLower.includes('nexus') || !nameLower.includes('3 boxes') || mainTenant.slug !== '3boxes-corp';
 
       if (needsFix) {
         mainTenant = await prisma.tenant.update({

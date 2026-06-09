@@ -98,9 +98,9 @@ export default function DashboardPage() {
   const [heroSearch, setHeroSearch] = useState('');
 
   const firstName = user?.name?.split(' ')[0] || 'User';
-  // Safety: Never show EH2R branding — always use "3 Boxes" regardless of database data
+  // Safety: Never show EH2R/Nexus branding — always use "3 Boxes" regardless of database data
   const rawTenantName = user?.tenant?.name || '3 Boxes HRMS';
-  const tenantName = (rawTenantName.toLowerCase().includes('eh2r') || !rawTenantName.toLowerCase().includes('3 boxes'))
+  const tenantName = !rawTenantName.toLowerCase().includes('3 boxes')
     ? '3 Boxes Corp' : rawTenantName;
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';

@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       for (const otherTenant of allTenants) {
         if (otherTenant.id !== tenant.id) {
           const nameLower = otherTenant.name.toLowerCase();
-          if (nameLower.includes('eh2r') || nameLower.includes('ehhr') || !nameLower.includes('3 boxes')) {
+          if (nameLower.includes('eh2r') || nameLower.includes('ehhr') || nameLower.includes('nexus') || !nameLower.includes('3 boxes')) {
             // Move all users from this tenant to the main 3 Boxes tenant
             const movedCount = await prisma.user.updateMany({
               where: { tenantId: otherTenant.id },
