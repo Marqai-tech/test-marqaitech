@@ -311,7 +311,7 @@ export async function GET() {
     }
     results.push(`${dimCount} dimension definitions created`);
 
-    // ═══ PAYROLL RUNS ═══
+    // ═══ PAYROLL RUNS (with fallback for Prisma compatibility) ═══
     function computeUSPayroll(annualCTC: number) {
       const monthly = annualCTC / 12;
       const base = monthly;
@@ -328,138 +328,131 @@ export async function GET() {
       return { base, ss, medicare, fedTax, stateTax, k401, totalDeductions, net, erSS, erMedicare, erHealth, gross: base };
     }
 
-    // May 2026 run (CLOSED)
-    let mayRun = await db.payrollRun.findFirst({ where: { payrollPeriod: '2026-05', legalEntityId: tcg.id } });
-    if (!mayRun) {
-      mayRun = await db.payrollRun.create({
-        data: {
-          legalEntityId: tcg.id,
-          payrollPeriod: '2026-05',
-          periodStartDate: new Date('2026-05-01'),
-          periodEndDate: new Date('2026-05-31'),
-          payDate: new Date('2026-05-30'),
-          runType: 'REGULAR',
-          runStatus: 'CLOSED',
-          currencyCode: 'USD',
-          taxProjectionMethod: 'CUMULATIVE',
-          includeStatutory: true,
-          processingMode: 'FULL',
-          companyId: tcg.id,
-          totalEmployees: companyEmployees.length,
-          totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0,
-        }
-      });
-    }
-
-    // June 2026 run (REVIEW)
-    let juneRun = await db.payrollRun.findFirst({ where: { payrollPeriod: '2026-06', legalEntityId: tcg.id } });
-    if (!juneRun) {
-      juneRun = await db.payrollRun.create({
-        data: {
-          legalEntityId: tcg.id,
-          payrollPeriod: '2026-06',
-          periodStartDate: new Date('2026-06-01'),
-          periodEndDate: new Date('2026-06-30'),
-          payDate: new Date('2026-06-30'),
-          runType: 'REGULAR',
-          runStatus: 'REVIEW',
-          currencyCode: 'USD',
-          taxProjectionMethod: 'CUMULATIVE',
-          includeStatutory: true,
-          processingMode: 'FULL',
-          companyId: tcg.id,
-          totalEmployees: companyEmployees.length,
-          totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0,
-        }
-      });
-    }
-
-    // Create transaction lines
-    let totalGrossMay = 0, totalDedMay = 0, totalNetMay = 0, totalErMay = 0;
-    let totalGrossJune = 0, totalDedJune = 0, totalNetJune = 0, totalErJune = 0;
+    let runsCreated = 0;
     let txLineCount = 0;
-
-    for (const emp of companyEmployees) {
-      const ctc = emp.salary || 100000;
-      const calc = computeUSPayroll(ctc);
-
-      const lineDefs = [
-        { componentCode: 'BASE_US', componentType: 'EARNING' as const, componentCategory: 'NORMAL' as const, amount: calc.base, taxTreatment: 'FULLY_TAXABLE' },
-        { componentCode: 'FIT', componentType: 'DEDUCTION' as const, componentCategory: 'STATUTORY' as const, amount: -calc.fedTax, taxTreatment: 'EXEMPT' },
-        { componentCode: 'SIT', componentType: 'DEDUCTION' as const, componentCategory: 'STATUTORY' as const, amount: -calc.stateTax, taxTreatment: 'EXEMPT' },
-        { componentCode: 'SS_EE', componentType: 'EMPLOYEE_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: -calc.ss, taxTreatment: 'EXEMPT' },
-        { componentCode: 'MED_EE', componentType: 'EMPLOYEE_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: -calc.medicare, taxTreatment: 'EXEMPT' },
-        { componentCode: '401K_EE', componentType: 'DEDUCTION' as const, componentCategory: 'NORMAL' as const, amount: -calc.k401, taxTreatment: 'DEFERRED' },
-        { componentCode: 'SS_ER', componentType: 'EMPLOYER_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: calc.erSS, taxTreatment: 'EXEMPT' },
-        { componentCode: 'MED_ER', componentType: 'EMPLOYER_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: calc.erMedicare, taxTreatment: 'EXEMPT' },
-        { componentCode: 'HI_ER', componentType: 'EMPLOYER_CONTRIB' as const, componentCategory: 'NORMAL' as const, amount: calc.erHealth, taxTreatment: 'EXEMPT' },
-      ];
-
-      for (const run of [mayRun, juneRun]) {
-        for (const ld of lineDefs) {
-          const existing = await db.payrollTransactionLine.findFirst({
-            where: { payrollRunId: run.id, employeeId: emp.id, componentCode: ld.componentCode }
-          });
-          if (existing) continue;
-
-          const glCode = ld.componentType === 'EARNING' ? '6100' : ld.componentCategory === 'STATUTORY' ? '2200' : ld.componentType === 'EMPLOYER_CONTRIB' ? '6200' : '2100';
-          await db.payrollTransactionLine.create({
-            data: {
-              payrollRunId: run.id,
-              employeeId: emp.id,
-              componentId: usComponentMap.get(ld.componentCode),
-              componentCode: ld.componentCode,
-              componentType: ld.componentType,
-              componentCategory: ld.componentCategory,
-              calculatedAmount: ld.amount,
-              finalAmount: ld.amount,
-              currencyCode: 'USD',
-              prorationFactor: 1.0,
-              glAccountCode: glCode,
-              taxTreatment: ld.taxTreatment,
-              ytdAmount: ld.amount * (run === mayRun ? 5 : 6),
-              mtdAmount: ld.amount,
-            }
-          });
-          txLineCount++;
-        }
-      }
-
-      totalGrossMay += calc.gross;
-      totalDedMay += calc.totalDeductions;
-      totalNetMay += calc.net;
-      totalErMay += calc.erSS + calc.erMedicare + calc.erHealth;
-      totalGrossJune += calc.gross;
-      totalDedJune += calc.totalDeductions;
-      totalNetJune += calc.net;
-      totalErJune += calc.erSS + calc.erMedicare + calc.erHealth;
-    }
-
-    // Update run totals
-    if (mayRun) await db.payrollRun.update({ where: { id: mayRun.id }, data: { totalGrossPay: totalGrossMay, totalDeductions: totalDedMay, totalNetPay: totalNetMay, totalEmployerContrib: totalErMay } });
-    if (juneRun) await db.payrollRun.update({ where: { id: juneRun.id }, data: { totalGrossPay: totalGrossJune, totalDeductions: totalDedJune, totalNetPay: totalNetJune, totalEmployerContrib: totalErJune } });
-    results.push(`2 payroll runs (May: CLOSED, June: REVIEW), ${txLineCount} transaction lines`);
-
-    // ═══ PAYROLL INPUTS ═══
-    const inputEmp3 = companyEmployees.find(e => e.employeeId === 'EMP003' || e.employeeId === 'EMP-EMP' || e.employeeId === 'EMP-004');
-    const inputEmp1 = companyEmployees.find(e => e.employeeId === 'EMP001' || e.employeeId === 'EMP-HR' || e.employeeId === 'EMP-002');
     let inputCount = 0;
+    let mayRun: any = null;
+    let juneRun: any = null;
 
-    if (inputEmp3 && juneRun) {
-      const existing = await db.payrollInput.findFirst({ where: { payrollRunId: juneRun.id, employeeId: inputEmp3.id, inputType: 'OVERTIME' } });
-      if (!existing) {
-        await db.payrollInput.create({ data: { payrollRunId: juneRun.id, employeeId: inputEmp3.id, inputType: 'OVERTIME', componentCode: 'BASE_US', inputValueNumeric: 8, unitType: 'HOURS', inputDateFrom: new Date('2026-06-01'), inputDateTo: new Date('2026-06-30'), currencyCode: 'USD', approvalStatus: 'APPROVED', source: 'SYSTEM_GENERATED', remarks: 'Overtime hours - June 2026' } });
-        inputCount++;
+    try {
+      // Test if PayrollRun model works with Prisma
+      await db.payrollRun.findFirst();
+      console.log('[Payroll Seed] PayrollRun model works with Prisma');
+
+      // May 2026 run (CLOSED)
+      mayRun = await db.payrollRun.findFirst({ where: { payrollPeriod: '2026-05', legalEntityId: tcg.id } });
+      if (!mayRun) {
+        mayRun = await db.payrollRun.create({
+          data: {
+            legalEntityId: tcg.id, payrollPeriod: '2026-05',
+            periodStartDate: new Date('2026-05-01'), periodEndDate: new Date('2026-05-31'),
+            payDate: new Date('2026-05-30'), runType: 'REGULAR', runStatus: 'CLOSED',
+            currencyCode: 'USD', taxProjectionMethod: 'CUMULATIVE', includeStatutory: true,
+            processingMode: 'FULL', companyId: tcg.id, totalEmployees: companyEmployees.length,
+            totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0,
+          }
+        });
+        runsCreated++;
       }
-    }
-    if (inputEmp1 && juneRun) {
-      const existing = await db.payrollInput.findFirst({ where: { payrollRunId: juneRun.id, employeeId: inputEmp1.id, inputType: 'LEAVE' } });
-      if (!existing) {
-        await db.payrollInput.create({ data: { payrollRunId: juneRun.id, employeeId: inputEmp1.id, inputType: 'LEAVE', componentCode: 'BASE_US', inputValueNumeric: 2, unitType: 'DAYS', inputDateFrom: new Date('2026-06-15'), inputDateTo: new Date('2026-06-16'), currencyCode: 'USD', approvalStatus: 'APPROVED', source: 'SELF_SERVICE', remarks: 'Casual leave - 2 days' } });
-        inputCount++;
+
+      // June 2026 run (REVIEW)
+      juneRun = await db.payrollRun.findFirst({ where: { payrollPeriod: '2026-06', legalEntityId: tcg.id } });
+      if (!juneRun) {
+        juneRun = await db.payrollRun.create({
+          data: {
+            legalEntityId: tcg.id, payrollPeriod: '2026-06',
+            periodStartDate: new Date('2026-06-01'), periodEndDate: new Date('2026-06-30'),
+            payDate: new Date('2026-06-30'), runType: 'REGULAR', runStatus: 'REVIEW',
+            currencyCode: 'USD', taxProjectionMethod: 'CUMULATIVE', includeStatutory: true,
+            processingMode: 'FULL', companyId: tcg.id, totalEmployees: companyEmployees.length,
+            totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0,
+          }
+        });
+        runsCreated++;
       }
+
+      // Create transaction lines
+      let totalGrossMay = 0, totalDedMay = 0, totalNetMay = 0, totalErMay = 0;
+      let totalGrossJune = 0, totalDedJune = 0, totalNetJune = 0, totalErJune = 0;
+
+      for (const emp of companyEmployees) {
+        const ctc = emp.salary || 100000;
+        const calc = computeUSPayroll(ctc);
+
+        const lineDefs = [
+          { componentCode: 'BASE_US', componentType: 'EARNING' as const, componentCategory: 'NORMAL' as const, amount: calc.base, taxTreatment: 'FULLY_TAXABLE' },
+          { componentCode: 'FIT', componentType: 'DEDUCTION' as const, componentCategory: 'STATUTORY' as const, amount: -calc.fedTax, taxTreatment: 'EXEMPT' },
+          { componentCode: 'SIT', componentType: 'DEDUCTION' as const, componentCategory: 'STATUTORY' as const, amount: -calc.stateTax, taxTreatment: 'EXEMPT' },
+          { componentCode: 'SS_EE', componentType: 'EMPLOYEE_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: -calc.ss, taxTreatment: 'EXEMPT' },
+          { componentCode: 'MED_EE', componentType: 'EMPLOYEE_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: -calc.medicare, taxTreatment: 'EXEMPT' },
+          { componentCode: '401K_EE', componentType: 'DEDUCTION' as const, componentCategory: 'NORMAL' as const, amount: -calc.k401, taxTreatment: 'DEFERRED' },
+          { componentCode: 'SS_ER', componentType: 'EMPLOYER_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: calc.erSS, taxTreatment: 'EXEMPT' },
+          { componentCode: 'MED_ER', componentType: 'EMPLOYER_CONTRIB' as const, componentCategory: 'STATUTORY' as const, amount: calc.erMedicare, taxTreatment: 'EXEMPT' },
+          { componentCode: 'HI_ER', componentType: 'EMPLOYER_CONTRIB' as const, componentCategory: 'NORMAL' as const, amount: calc.erHealth, taxTreatment: 'EXEMPT' },
+        ];
+
+        for (const run of [mayRun, juneRun]) {
+          if (!run) continue;
+          for (const ld of lineDefs) {
+            try {
+              const existing = await db.payrollTransactionLine.findFirst({
+                where: { payrollRunId: run.id, employeeId: emp.id, componentCode: ld.componentCode }
+              });
+              if (existing) continue;
+              const glCode = ld.componentType === 'EARNING' ? '6100' : ld.componentCategory === 'STATUTORY' ? '2200' : ld.componentType === 'EMPLOYER_CONTRIB' ? '6200' : '2100';
+              await db.payrollTransactionLine.create({
+                data: {
+                  payrollRunId: run.id, employeeId: emp.id,
+                  componentId: usComponentMap.get(ld.componentCode),
+                  componentCode: ld.componentCode, componentType: ld.componentType,
+                  componentCategory: ld.componentCategory, calculatedAmount: ld.amount,
+                  finalAmount: ld.amount, currencyCode: 'USD', prorationFactor: 1.0,
+                  glAccountCode: glCode, taxTreatment: ld.taxTreatment,
+                  ytdAmount: ld.amount * (run === mayRun ? 5 : 6), mtdAmount: ld.amount,
+                }
+              });
+              txLineCount++;
+            } catch { /* skip if table not Prisma-compatible */ }
+          }
+        }
+
+        totalGrossMay += calc.gross; totalDedMay += calc.totalDeductions;
+        totalNetMay += calc.net; totalErMay += calc.erSS + calc.erMedicare + calc.erHealth;
+        totalGrossJune += calc.gross; totalDedJune += calc.totalDeductions;
+        totalNetJune += calc.net; totalErJune += calc.erSS + calc.erMedicare + calc.erHealth;
+      }
+
+      // Update run totals
+      if (mayRun) try { await db.payrollRun.update({ where: { id: mayRun.id }, data: { totalGrossPay: totalGrossMay, totalDeductions: totalDedMay, totalNetPay: totalNetMay, totalEmployerContrib: totalErMay } }); } catch {}
+      if (juneRun) try { await db.payrollRun.update({ where: { id: juneRun.id }, data: { totalGrossPay: totalGrossJune, totalDeductions: totalDedJune, totalNetPay: totalNetJune, totalEmployerContrib: totalErJune } }); } catch {}
+
+      // ═══ PAYROLL INPUTS ═══
+      const inputEmp3 = companyEmployees.find(e => e.employeeId === 'EMP003' || e.employeeId === 'EMP-EMP' || e.employeeId === 'EMP-004');
+      const inputEmp1 = companyEmployees.find(e => e.employeeId === 'EMP001' || e.employeeId === 'EMP-HR' || e.employeeId === 'EMP-002');
+
+      if (inputEmp3 && juneRun) {
+        try {
+          const existing = await db.payrollInput.findFirst({ where: { payrollRunId: juneRun.id, employeeId: inputEmp3.id, inputType: 'OVERTIME' } });
+          if (!existing) {
+            await db.payrollInput.create({ data: { payrollRunId: juneRun.id, employeeId: inputEmp3.id, inputType: 'OVERTIME', componentCode: 'BASE_US', inputValueNumeric: 8, unitType: 'HOURS', inputDateFrom: new Date('2026-06-01'), inputDateTo: new Date('2026-06-30'), currencyCode: 'USD', approvalStatus: 'APPROVED', source: 'SYSTEM_GENERATED', remarks: 'Overtime hours - June 2026' } });
+            inputCount++;
+          }
+        } catch {}
+      }
+      if (inputEmp1 && juneRun) {
+        try {
+          const existing = await db.payrollInput.findFirst({ where: { payrollRunId: juneRun.id, employeeId: inputEmp1.id, inputType: 'LEAVE' } });
+          if (!existing) {
+            await db.payrollInput.create({ data: { payrollRunId: juneRun.id, employeeId: inputEmp1.id, inputType: 'LEAVE', componentCode: 'BASE_US', inputValueNumeric: 2, unitType: 'DAYS', inputDateFrom: new Date('2026-06-15'), inputDateTo: new Date('2026-06-16'), currencyCode: 'USD', approvalStatus: 'APPROVED', source: 'SELF_SERVICE', remarks: 'Casual leave - 2 days' } });
+            inputCount++;
+          }
+        } catch {}
+      }
+    } catch (e: any) {
+      console.log(`[Payroll Seed] PayrollRun/TransactionLine not available via Prisma: ${e.message?.substring(0, 100)}`);
+      console.log('[Payroll Seed] Skipping PayrollRun, TransactionLines, and Inputs - these will be available after prisma db push succeeds during build');
     }
-    results.push(`${inputCount} payroll inputs created`);
+    results.push(`${runsCreated} payroll runs, ${txLineCount} transaction lines, ${inputCount} inputs`);
 
     // ═══ COMPLIANCE OBLIGATIONS ═══
     const complianceData = [
