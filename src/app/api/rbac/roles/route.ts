@@ -77,10 +77,24 @@ export async function GET(request: Request) {
     const roles = await prisma.role.findMany({
       where,
       include: {
+        permissions: {
+          include: {
+            permission: {
+              include: {
+                module: true,
+              },
+            },
+          },
+        },
+        tenant: {
+          select: { id: true, name: true, slug: true },
+        },
+        company: {
+          select: { id: true, name: true, code: true },
+        },
         _count: {
           select: {
             userRoles: true,
-            permissions: true,
           },
         },
       },
@@ -98,8 +112,23 @@ export async function GET(request: Request) {
       companyId: role.companyId,
       status: role.status,
       createdBy: role.createdBy,
-      userCount: role._count.userRoles,
-      permissionCount: role._count.permissions,
+      permissions: role.permissions.map((rp) => ({
+        id: rp.id,
+        granted: rp.granted,
+        permission: {
+          id: rp.permission.id,
+          action: rp.permission.action,
+          module: {
+            id: rp.permission.module.id,
+            key: rp.permission.module.key,
+            name: rp.permission.module.name,
+            category: rp.permission.module.category,
+          },
+        },
+      })),
+      tenant: role.tenant || null,
+      company: role.company || null,
+      _count: { userRoles: role._count.userRoles },
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
     }));

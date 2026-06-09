@@ -134,16 +134,48 @@ export async function GET(
       })),
     }));
 
+    // Get tenant and company info for the role
+    const fullRole = await prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        tenant: { select: { id: true, name: true, slug: true } },
+        company: { select: { id: true, name: true, code: true } },
+        _count: { select: { userRoles: true } },
+      },
+    });
+
     return NextResponse.json(
       {
         role: {
           id: role.id,
           name: role.name,
           key: role.key,
+          description: role.description,
           isSystem: role.isSystem,
           level: role.level,
           tenantId: role.tenantId,
           companyId: role.companyId,
+          status: role.status,
+          createdBy: role.createdBy,
+          permissions: rolePermissions.map((rp) => ({
+            id: rp.id,
+            granted: rp.granted,
+            permission: {
+              id: rp.permission.id,
+              action: rp.permission.action,
+              module: {
+                id: rp.permission.module.id,
+                key: rp.permission.module.key,
+                name: rp.permission.module.name,
+                category: rp.permission.module.category,
+              },
+            },
+          })),
+          tenant: fullRole?.tenant || null,
+          company: fullRole?.company || null,
+          _count: { userRoles: fullRole?._count.userRoles || 0 },
+          createdAt: role.createdAt,
+          updatedAt: role.updatedAt,
         },
         modules: modulesWithPermissions,
         summary: {

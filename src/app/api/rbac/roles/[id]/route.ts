@@ -255,6 +255,120 @@ export async function PUT(
   }
 }
 
+// PATCH /api/rbac/roles/[id] - Partial update a role
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No token provided' },
+        { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId as string },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    // Only super_admin and tenant_admin can update roles
+    if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to update roles' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { name, description, level, status } = body;
+
+    const existingRole = await prisma.role.findUnique({
+      where: { id },
+    });
+
+    if (!existingRole) {
+      return NextResponse.json(
+        { error: 'Role not found' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    // Tenant admin can only update roles within their tenant
+    if (user.role === 'tenant_admin') {
+      if (existingRole.tenantId !== user.tenantId && existingRole.tenantId !== null) {
+        return NextResponse.json(
+          { error: 'Cannot update roles outside your tenant' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    }
+
+    // Build update data
+    const updateData: Record<string, unknown> = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (level !== undefined) updateData.level = level;
+    if (status !== undefined) {
+      if (existingRole.isSystem && status !== 'active') {
+        return NextResponse.json(
+          { error: 'System roles cannot be deactivated' },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      updateData.status = status;
+    }
+
+    const updatedRole = await prisma.role.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json(
+      {
+        role: {
+          id: updatedRole.id,
+          name: updatedRole.name,
+          key: updatedRole.key,
+          description: updatedRole.description,
+          isSystem: updatedRole.isSystem,
+          level: updatedRole.level,
+          tenantId: updatedRole.tenantId,
+          companyId: updatedRole.companyId,
+          status: updatedRole.status,
+          createdBy: updatedRole.createdBy,
+          createdAt: updatedRole.createdAt,
+          updatedAt: updatedRole.updatedAt,
+        },
+      },
+      { headers: corsHeaders() }
+    );
+  } catch (error) {
+    console.error('Patch role error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update role', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
 // DELETE /api/rbac/roles/[id] - Delete a role
 export async function DELETE(
   request: Request,
