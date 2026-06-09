@@ -1,29 +1,10 @@
-import { PrismaClient } from '@/generated/prisma/client';
-import { PrismaNeon } from '@prisma/adapter-neon';
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-function createPrismaClient() {
-  // Neon Vercel integration sets POSTGRES_PRISMA_URL and POSTGRES_URL
-  // Check those first, then fall back to DATABASE_URL
-  const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('No database connection string found. Set POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL');
-  }
-
-  const adapter = new PrismaNeon({ connectionString });
-  return new PrismaClient({ adapter });
-}
-
-function getPrismaClient(): PrismaClient {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = createPrismaClient();
-  }
-  return globalForPrisma.prisma;
-}
-
-export const prisma = getPrismaClient();
-
-export default prisma;
+/**
+ * Nexus HRMS — Re-export of the database client
+ *
+ * This file exists for backward compatibility with existing imports.
+ * All new code should import from '@/lib/db' directly.
+ *
+ * ⚠️  The canonical database client is in '@/lib/db'.
+ * ⚠️  Do NOT create a separate PrismaClient instance here.
+ */
+export { db as prisma, db as default } from '@/lib/db'

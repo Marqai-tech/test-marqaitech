@@ -9,9 +9,11 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
-    "db:seed": "prisma db seed",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:seed:payroll": "npx tsx prisma/seed-payroll.ts",
+    "db:seed:all": "npx tsx prisma/seed.ts && npx tsx prisma/seed-payroll.ts",
     "db:reset": "prisma migrate reset --force",
-    "db:setup": "prisma db push && prisma db seed"
+    "db:setup": "prisma db push && npx tsx prisma/seed.ts && npx tsx prisma/seed-payroll.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

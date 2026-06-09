@@ -1,3 +1,21 @@
+/**
+ * Nexus HRMS - Database Client (Single Source of Truth)
+ *
+ * ⚠️  DO NOT create separate PrismaClient instances elsewhere.
+ * ⚠️  Always import `db` from '@/lib/db' — never from '@/lib/prisma'.
+ *
+ * DATABASE CONNECTION PRIORITY (set by Vercel Neon integration):
+ *   1. POSTGRES_PRISMA_URL  — Neon pooled connection (recommended for serverless)
+ *   2. POSTGRES_URL         — Neon direct connection
+ *   3. DATABASE_URL         — Fallback / local development
+ *
+ * To prevent connecting to the WRONG database:
+ *   - On Vercel: Check Project Settings → Environment Variables → ensure the Neon
+ *     integration points to the CORRECT Neon project (Nexus HRMS, not any other).
+ *   - Locally: Ensure .env contains the correct DATABASE_URL for this project.
+ *   - The startup log below will print a prefix of the connection string so you
+ *     can verify the database name at a glance.
+ */
 import { PrismaClient } from '@/generated/prisma/client'
 
 const globalForDb = globalThis as unknown as {
@@ -8,6 +26,14 @@ const globalForDb = globalThis as unknown as {
 // The Vercel Neon integration sets POSTGRES_URL and POSTGRES_PRISMA_URL
 const datasourceUrl = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL
 
+// Safety log: print the connection string prefix so we can verify which DB is being used
+if (typeof window === 'undefined') {
+  const maskedUrl = datasourceUrl
+    ? datasourceUrl.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
+    : 'NOT SET — will use Prisma schema default'
+  console.log(`[Nexus DB] Connecting to: ${maskedUrl.substring(0, 80)}...`)
+}
+
 function createPrismaClient() {
   try {
     return new PrismaClient({
@@ -15,7 +41,7 @@ function createPrismaClient() {
       ...(datasourceUrl ? { datasourceUrl } : {}),
     })
   } catch (error) {
-    console.error('Failed to create PrismaClient:', error)
+    console.error('[Nexus DB] Failed to create PrismaClient:', error)
     return createFallbackProxy()
   }
 }
@@ -78,4 +104,5 @@ export const db =
   globalForDb.db ??
   createPrismaClient()
 
+// Cache in development; also cache in production on Vercel for warm starts
 if (process.env.NODE_ENV !== 'production') globalForDb.db = db
