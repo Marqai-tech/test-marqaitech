@@ -211,3 +211,28 @@ Stage Summary:
 - Solves the problem of Neon DB having stale tables from a previous schema that prevent prisma db push from working during Vercel builds
 - Uses Neon SQL client for DDL operations (DROP/CREATE TABLE), then Prisma for data seeding
 - Pushed to GitHub (commit 0baa51a), Vercel will auto-deploy
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix RBAC management and company RBAC pages throwing "This page couldn't load" errors
+
+Work Log:
+- Diagnosed root cause: Prisma schema had corrupted syntax in RBAC models (Permission and ProjectTask)
+  - `fields: oduleId]` missing opening bracket `[` before `moduleId`
+  - `fields: ilestoneId]` missing opening bracket `[` before `milestoneId`
+  - `@@unique(oduleId, action])` and `@@index(oduleId])` also corrupted
+- Fixed all corrupted schema patterns using Python byte-level replacement
+- Verified schema passes `npx prisma validate`
+- Generated new Prisma client with `npx prisma generate`
+- Fixed /api/rbac/roles GET endpoint to include permissions, tenant, company relations (frontend needs these)
+- Fixed /api/rbac/roles/[id]/permissions GET to return full role object with permissions, tenant, company, _count
+- Added PATCH handler to /api/rbac/roles/[id] (frontend was calling PATCH but only PUT existed)
+- Build verified successfully with `npx next build`
+- Pushed to Vercel via git push
+
+Stage Summary:
+- Root cause: Corrupted Prisma schema caused `prisma db push` to fail during Vercel build, so RBAC tables never got created
+- Schema now validates and generates correctly
+- API routes now return all data the frontend pages expect
+- All RBAC pages and API routes build without errors
+- Changes deployed to Vercel
