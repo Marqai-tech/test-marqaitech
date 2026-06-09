@@ -57,14 +57,23 @@ export async function POST(
 
     const { id: roleId } = await params;
     const body = await request.json();
-    const { userIds, companyId } = body as {
-      userIds: string[];
+    const { userId, userIds, companyId } = body as {
+      userId?: string;
+      userIds?: string[];
       companyId?: string;
     };
 
-    if (!Array.isArray(userIds) || userIds.length === 0) {
+    // Support both single userId and array of userIds
+    let targetUserIds: string[] = [];
+    if (userIds && Array.isArray(userIds)) {
+      targetUserIds = userIds;
+    } else if (userId) {
+      targetUserIds = [userId];
+    }
+
+    if (targetUserIds.length === 0) {
       return NextResponse.json(
-        { error: 'userIds must be a non-empty array of user IDs' },
+        { error: 'userId or userIds is required' },
         { status: 400, headers: corsHeaders() }
       );
     }
@@ -93,12 +102,12 @@ export async function POST(
 
     // Verify that all users exist and are within the allowed scope
     const targetUsers = await prisma.user.findMany({
-      where: { id: { in: userIds } },
+      where: { id: { in: targetUserIds } },
     });
 
-    if (targetUsers.length !== userIds.length) {
+    if (targetUsers.length !== targetUserIds.length) {
       const foundIds = new Set(targetUsers.map((u) => u.id));
-      const invalidIds = userIds.filter((id) => !foundIds.has(id));
+      const invalidIds = targetUserIds.filter((id) => !foundIds.has(id));
       return NextResponse.json(
         { error: `Users not found: ${invalidIds.join(', ')}` },
         { status: 400, headers: corsHeaders() }
@@ -120,7 +129,7 @@ export async function POST(
     const assignmentsCreated: string[] = [];
     const assignmentsSkipped: string[] = [];
 
-    for (const userId of userIds) {
+    for (const userId of targetUserIds) {
       try {
         await prisma.userRoleAssignment.create({
           data: {

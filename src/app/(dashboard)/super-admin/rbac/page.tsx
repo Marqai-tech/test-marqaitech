@@ -139,12 +139,16 @@ export default function SuperAdminRBACPage() {
   // Seed state
   const [seeding, setSeeding] = useState(false);
 
+  // Error state
+  const [error, setError] = useState<string | null>(null);
+
   // Tenants for filter
   const [tenants, setTenants] = useState<{ id: string; name: string; slug: string }[]>([]);
 
   // ─── Data Fetching ──────────────────────────────────────
   const fetchRoles = useCallback(async () => {
     try {
+      setError(null);
       setRolesLoading(true);
       const params = new URLSearchParams();
       if (roleSearch) params.set('search', roleSearch);
@@ -153,13 +157,20 @@ export default function SuperAdminRBACPage() {
       if (res.ok) {
         const data = await res.json();
         setRoles(data.roles || []);
+        if (data.needsSeed) {
+          toast('RBAC tables not found. Click "Seed RBAC Data" to initialize.', { icon: '⚠️', duration: 5000 });
+        }
       }
-    } catch { toast.error('Failed to load roles'); }
+    } catch {
+      toast.error('Failed to load roles');
+      setError('Failed to load roles. The database tables may not exist yet.');
+    }
     finally { setRolesLoading(false); }
   }, [roleSearch, tenantFilter]);
 
   const fetchModules = useCallback(async () => {
     try {
+      setError(null);
       setModulesLoading(true);
       const res = await fetch('/api/rbac/modules', { headers: getAuthHeaders() });
       if (res.ok) {
@@ -171,12 +182,16 @@ export default function SuperAdminRBACPage() {
         cats.forEach((c) => { exp[c as string] = true; });
         setExpandedCategories(exp);
       }
-    } catch { toast.error('Failed to load modules'); }
+    } catch {
+      toast.error('Failed to load modules');
+      setError('Failed to load modules. The database tables may not exist yet.');
+    }
     finally { setModulesLoading(false); }
   }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
+      setError(null);
       setUsersLoading(true);
       const params = new URLSearchParams();
       if (userTenantFilter) params.set('tenantId', userTenantFilter);
@@ -192,7 +207,10 @@ export default function SuperAdminRBACPage() {
         }
         setUsers(userList);
       }
-    } catch { toast.error('Failed to load users'); }
+    } catch {
+      toast.error('Failed to load users');
+      setError('Failed to load users. The database tables may not exist yet.');
+    }
     finally { setUsersLoading(false); }
   }, [userTenantFilter, userCompanyFilter, userSearch]);
 
@@ -383,6 +401,27 @@ export default function SuperAdminRBACPage() {
     finally { setSeeding(false); }
   };
 
+  // ─── Input helpers ──────────────────────────────────────
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const labelCls = 'block text-xs font-medium text-nexus-text-secondary mb-1';
+  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
+  const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
+  const btnSecondary = 'px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
+
+  // ─── Error UI ───────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <FiAlertTriangle className="w-16 h-16 text-red-400" />
+        <h2 className="text-xl font-semibold text-nexus-text-primary">Something went wrong</h2>
+        <p className="text-nexus-text-secondary text-center max-w-md">{error}</p>
+        <button onClick={() => { setError(null); fetchRoles(); fetchModules(); }} className={btnPrimary}>
+          <FiRefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
   // ─── Access Guard ───────────────────────────────────────
   if (user?.role !== 'super_admin') {
     return (
@@ -393,13 +432,6 @@ export default function SuperAdminRBACPage() {
       </div>
     );
   }
-
-  // ─── Input helpers ──────────────────────────────────────
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
-  const labelCls = 'block text-xs font-medium text-nexus-text-secondary mb-1';
-  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
-  const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
-  const btnSecondary = 'px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
 
   // ─── Grouped modules ────────────────────────────────────
   const categories = [...new Set(modules.map((m) => m.category))];

@@ -36,7 +36,7 @@ async function dropAndRecreateRBACTables(): Promise<{ success: boolean; error?: 
     // Recreate tables
     console.log('Creating RBAC tables...');
     
-    await sql`CREATE TABLE "Module" (
+    await sql`CREATE TABLE IF NOT EXISTS "Module" (
       "id" TEXT NOT NULL,
       "key" TEXT NOT NULL,
       "name" TEXT NOT NULL,
@@ -51,7 +51,7 @@ async function dropAndRecreateRBACTables(): Promise<{ success: boolean; error?: 
     
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS "Module_key_key" ON "Module"("key")`;
 
-    await sql`CREATE TABLE "Permission" (
+    await sql`CREATE TABLE IF NOT EXISTS "Permission" (
       "id" TEXT NOT NULL,
       "moduleId" TEXT NOT NULL,
       "action" TEXT NOT NULL,
@@ -64,9 +64,12 @@ async function dropAndRecreateRBACTables(): Promise<{ success: boolean; error?: 
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS "Permission_moduleId_action_key" ON "Permission"("moduleId", "action")`;
     await sql`CREATE INDEX IF NOT EXISTS "Permission_moduleId_idx" ON "Permission"("moduleId")`;
 
-    await sql`ALTER TABLE "Permission" ADD CONSTRAINT "Permission_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    // Add foreign key only if it doesn't exist
+    try {
+      await sql`ALTER TABLE "Permission" ADD CONSTRAINT "Permission_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    } catch { /* constraint may already exist */ }
 
-    await sql`CREATE TABLE "Role" (
+    await sql`CREATE TABLE IF NOT EXISTS "Role" (
       "id" TEXT NOT NULL,
       "name" TEXT NOT NULL,
       "key" TEXT NOT NULL,
@@ -87,9 +90,11 @@ async function dropAndRecreateRBACTables(): Promise<{ success: boolean; error?: 
     await sql`CREATE INDEX IF NOT EXISTS "Role_companyId_idx" ON "Role"("companyId")`;
     await sql`CREATE INDEX IF NOT EXISTS "Role_key_idx" ON "Role"("key")`;
 
-    await sql`ALTER TABLE "Role" ADD CONSTRAINT "Role_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    try {
+      await sql`ALTER TABLE "Role" ADD CONSTRAINT "Role_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    } catch { /* constraint may already exist */ }
 
-    await sql`CREATE TABLE "RolePermission" (
+    await sql`CREATE TABLE IF NOT EXISTS "RolePermission" (
       "id" TEXT NOT NULL,
       "roleId" TEXT NOT NULL,
       "permissionId" TEXT NOT NULL,
@@ -103,10 +108,14 @@ async function dropAndRecreateRBACTables(): Promise<{ success: boolean; error?: 
     await sql`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId")`;
     await sql`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId")`;
 
-    await sql`ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
-    await sql`ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    try {
+      await sql`ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    } catch { /* constraint may already exist */ }
+    try {
+      await sql`ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    } catch { /* constraint may already exist */ }
 
-    await sql`CREATE TABLE "UserRoleAssignment" (
+    await sql`CREATE TABLE IF NOT EXISTS "UserRoleAssignment" (
       "id" TEXT NOT NULL,
       "userId" TEXT NOT NULL,
       "roleId" TEXT NOT NULL,
@@ -122,8 +131,12 @@ async function dropAndRecreateRBACTables(): Promise<{ success: boolean; error?: 
     await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_roleId_idx" ON "UserRoleAssignment"("roleId")`;
     await sql`CREATE INDEX IF NOT EXISTS "UserRoleAssignment_companyId_idx" ON "UserRoleAssignment"("companyId")`;
 
-    await sql`ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
-    await sql`ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    try {
+      await sql`ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    } catch { /* constraint may already exist */ }
+    try {
+      await sql`ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
+    } catch { /* constraint may already exist */ }
 
     console.log('RBAC tables created successfully');
     return { success: true };

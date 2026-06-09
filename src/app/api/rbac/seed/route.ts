@@ -190,7 +190,7 @@ export async function POST(request: Request) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
-    if (!user || user.role !== 'super_admin') return NextResponse.json({ error: 'Only super administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
+    if (!user || (user.role !== 'super_admin' && user.role !== 'tenant_admin')) return NextResponse.json({ error: 'Only administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
     
     const result = await seedRBACData(user.id);
     return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });

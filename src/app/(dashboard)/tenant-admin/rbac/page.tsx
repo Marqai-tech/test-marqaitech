@@ -163,6 +163,9 @@ export default function TenantAdminRBACPage() {
   // Seed state
   const [seeding, setSeeding] = useState(false);
 
+  // Error state
+  const [error, setError] = useState<string | null>(null);
+
   // ─── Data Fetching ──────────────────────────────────────
   const fetchCompanies = useCallback(async () => {
     try {
@@ -178,6 +181,7 @@ export default function TenantAdminRBACPage() {
 
   const fetchRoles = useCallback(async () => {
     try {
+      setError(null);
       setRolesLoading(true);
       const params = new URLSearchParams();
       if (tenantId) params.set('tenantId', tenantId);
@@ -193,13 +197,20 @@ export default function TenantAdminRBACPage() {
         // Exclude super_admin roles for tenant admin
         roleList = roleList.filter((r) => r.key !== 'super_admin');
         setRoles(roleList);
+        if (data.needsSeed) {
+          toast('RBAC tables not found. Click "Seed RBAC Data" to initialize.', { icon: '⚠️', duration: 5000 });
+        }
       }
-    } catch { toast.error('Failed to load roles'); }
+    } catch {
+      toast.error('Failed to load roles');
+      setError('Failed to load roles. The database tables may not exist yet.');
+    }
     finally { setRolesLoading(false); }
   }, [tenantId, roleSearch, selectedCompanyId]);
 
   const fetchModules = useCallback(async () => {
     try {
+      setError(null);
       setModulesLoading(true);
       const res = await fetch('/api/rbac/modules', { headers: getAuthHeaders() });
       if (res.ok) {
@@ -210,12 +221,16 @@ export default function TenantAdminRBACPage() {
         cats.forEach((c) => { exp[c as string] = true; });
         setExpandedCategories(exp);
       }
-    } catch { toast.error('Failed to load modules'); }
+    } catch {
+      toast.error('Failed to load modules');
+      setError('Failed to load modules. The database tables may not exist yet.');
+    }
     finally { setModulesLoading(false); }
   }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
+      setError(null);
       setUsersLoading(true);
       const params = new URLSearchParams();
       if (tenantId) params.set('tenantId', tenantId);
@@ -226,7 +241,10 @@ export default function TenantAdminRBACPage() {
         const data = await res.json();
         setUsers(data.users || []);
       }
-    } catch { toast.error('Failed to load users'); }
+    } catch {
+      toast.error('Failed to load users');
+      setError('Failed to load users. The database tables may not exist yet.');
+    }
     finally { setUsersLoading(false); }
   }, [tenantId, userSearch, userCompanyFilter]);
 
@@ -386,6 +404,27 @@ export default function TenantAdminRBACPage() {
     finally { setSeeding(false); }
   };
 
+  // ─── Input helpers ──────────────────────────────────────
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400';
+  const labelCls = 'block text-xs font-medium text-nexus-text-secondary mb-1';
+  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white';
+  const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white hover:bg-teal-600 shadow-sm shadow-teal-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
+  const btnSecondary = 'px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
+
+  // ─── Error UI ───────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <FiAlertTriangle className="w-16 h-16 text-red-400" />
+        <h2 className="text-xl font-semibold text-nexus-text-primary">Something went wrong</h2>
+        <p className="text-nexus-text-secondary text-center max-w-md">{error}</p>
+        <button onClick={() => { setError(null); fetchRoles(); fetchModules(); }} className={btnPrimary}>
+          <FiRefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
   // ─── Access Guard ───────────────────────────────────────
   if (user?.role !== 'tenant_admin' && user?.role !== 'super_admin') {
     return (
@@ -396,13 +435,6 @@ export default function TenantAdminRBACPage() {
       </div>
     );
   }
-
-  // ─── Input helpers ──────────────────────────────────────
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400';
-  const labelCls = 'block text-xs font-medium text-nexus-text-secondary mb-1';
-  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white';
-  const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white hover:bg-teal-600 shadow-sm shadow-teal-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
-  const btnSecondary = 'px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
 
   const categories = [...new Set(modules.map((m) => m.category))];
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
