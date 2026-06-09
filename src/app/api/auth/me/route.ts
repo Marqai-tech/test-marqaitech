@@ -53,10 +53,12 @@ export async function GET(request: Request) {
       );
     }
 
-    // Auto-fix tenant name if it has EH2R or wrong branding
+    // Always ensure tenant name is "3 Boxes Corp" — never return EH2R or any wrong branding
     let tenantName = user.tenant.name;
     let tenantSlug = user.tenant.slug;
-    if (tenantName.toLowerCase().includes('eh2r') || !tenantName.toLowerCase().includes('3 boxes')) {
+    const nameLower = (tenantName || '').toLowerCase();
+    if (nameLower.includes('eh2r') || nameLower.includes('ehhr') ||
+        nameLower.includes('eh2r ai') || !nameLower.includes('3 boxes')) {
       try {
         const fixed = await prisma.tenant.update({
           where: { id: user.tenant.id },
@@ -67,6 +69,9 @@ export async function GET(request: Request) {
         console.log('[Auth/Me] Auto-fixed tenant name from', user.tenant.name, 'to', fixed.name);
       } catch (e) {
         console.error('[Auth/Me] Failed to auto-fix tenant name:', e);
+        // Force the correct name even if DB update fails
+        tenantName = '3 Boxes Corp';
+        tenantSlug = '3boxes-corp';
       }
     }
 

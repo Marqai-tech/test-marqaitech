@@ -64,6 +64,15 @@ export default function DashboardLayout({
     }
   }, [token, isAuthenticated, isLoading, router, fetchUser]);
 
+  // Auto-fix tenant branding on first load (ensure EH2R is never shown)
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {
+        // Silently fail — this is a non-critical background fix
+      });
+    }
+  }, [isAuthenticated]);
+
   // Fetch notifications when authenticated
   useEffect(() => {
     if (isAuthenticated) {

@@ -187,7 +187,7 @@ export default function HomePage() {
               <div className="h-10 w-px bg-white/10" />
               <div className="text-right">
                 <p className="text-xs text-blue-200/50 font-medium uppercase tracking-wider">Organization</p>
-                <p className="text-sm font-semibold text-white/90">{user?.tenantName || '3 Boxes Corp'}</p>
+                <p className="text-sm font-semibold text-white/90">{(() => { const n = user?.tenant?.name || user?.tenantName || '3 Boxes Corp'; return (n.toLowerCase().includes('eh2r') || !n.toLowerCase().includes('3 boxes')) ? '3 Boxes Corp' : n; })()}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
                 <FiShield className="w-5 h-5 text-blue-300" />
