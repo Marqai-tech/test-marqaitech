@@ -7,45 +7,57 @@ import { NextResponse } from 'next/server';
 import { execSync } from 'child_process';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    console.log('[Payroll Setup] Checking payroll tables...');
+    const url = new URL(request.url);
+    const force = url.searchParams.get('force') === 'true';
 
-    // Check if PayrollComponent table exists with correct schema
+    console.log(`[Payroll Setup] Checking payroll tables... (force=${force})`);
+
+    // Check if PayrollComponent table exists with correct Prisma schema
     let tablesReady = false;
-    try {
-      const count = await db.payrollComponent.count();
-      tablesReady = true;
-      console.log(`[Payroll Setup] PayrollComponent table exists (${count} records)`);
-    } catch (e: any) {
-      console.log(`[Payroll Setup] Tables not ready: ${e.message?.substring(0, 100)}`);
+    if (!force) {
+      try {
+        // Try a findFirst which tests column compatibility
+        await db.payrollComponent.findFirst();
+        tablesReady = true;
+        console.log('[Payroll Setup] Tables verified - Prisma can read them');
+      } catch (e: any) {
+        console.log(`[Payroll Setup] Tables not compatible: ${e.message?.substring(0, 100)}`);
+      }
     }
 
     if (!tablesReady) {
-      console.log('[Payroll Setup] Running prisma db push to create missing tables...');
+      console.log('[Payroll Setup] Dropping stale tables and recreating...');
       try {
-        // Set DATABASE_URL from available Neon env vars and run prisma db push
-        const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+        await createTablesViaRawSQL();
+      } catch (sqlError: any) {
+        console.error('[Payroll Setup] Raw SQL creation failed:', sqlError.message?.substring(0, 200));
+      }
+
+      // Now try prisma db push to fix any schema mismatches
+      console.log('[Payroll Setup] Running prisma db push to sync schema...');
+      try {
+        const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
         if (connectionString) {
-          process.env.DATABASE_URL = connectionString;
+          const output = execSync('npx prisma db push --accept-data-loss 2>&1', {
+            cwd: process.cwd(),
+            timeout: 60000,
+            env: { ...process.env, DATABASE_URL: connectionString },
+          });
+          console.log('[Payroll Setup] prisma db push output:', output.toString().substring(0, 500));
         }
-        const output = execSync('npx prisma db push --accept-data-loss 2>&1', {
-          cwd: process.cwd(),
-          timeout: 60000,
-          env: { ...process.env, DATABASE_URL: connectionString || process.env.DATABASE_URL },
-        });
-        console.log('[Payroll Setup] prisma db push output:', output.toString().substring(0, 500));
-        tablesReady = true;
       } catch (pushError: any) {
-        console.error('[Payroll Setup] prisma db push failed:', pushError.message?.substring(0, 200));
-        // Fallback: try creating tables via raw SQL
-        console.log('[Payroll Setup] Falling back to raw SQL table creation...');
-        try {
-          await createTablesViaRawSQL();
-          tablesReady = true;
-        } catch (sqlError: any) {
-          console.error('[Payroll Setup] Raw SQL also failed:', sqlError.message?.substring(0, 200));
-        }
+        console.error('[Payroll Setup] prisma db push note:', pushError.message?.substring(0, 200));
+      }
+
+      // Verify
+      try {
+        await db.payrollComponent.findFirst();
+        tablesReady = true;
+        console.log('[Payroll Setup] Tables verified after recreation');
+      } catch (e: any) {
+        console.error('[Payroll Setup] Still not working:', e.message?.substring(0, 100));
       }
     }
 
