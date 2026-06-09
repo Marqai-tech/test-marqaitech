@@ -17,29 +17,33 @@
  *     can verify the database name at a glance.
  */
 import { PrismaClient } from '@/generated/prisma/client'
+import { PrismaNeon } from '@prisma/adapter-neon'
 
 const globalForDb = globalThis as unknown as {
   db: PrismaClient | undefined
 }
 
 // Priority: POSTGRES_PRISMA_URL (Neon pooled) > POSTGRES_URL (Neon direct) > DATABASE_URL (fallback)
-// The Vercel Neon integration sets POSTGRES_URL and POSTGRES_PRISMA_URL
-const datasourceUrl = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL
+const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL
 
 // Safety log: print the connection string prefix so we can verify which DB is being used
-if (typeof window === 'undefined') {
-  const maskedUrl = datasourceUrl
-    ? datasourceUrl.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
-    : 'NOT SET — will use Prisma schema default'
+if (typeof window === 'undefined' && connectionString) {
+  const maskedUrl = connectionString.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
   console.log(`[Nexus DB] Connecting to: ${maskedUrl.substring(0, 80)}...`)
+} else if (!connectionString) {
+  console.log('[Nexus DB] WARNING: No connection string found! Set POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL')
 }
 
 function createPrismaClient() {
   try {
-    return new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
-      ...(datasourceUrl ? { datasourceUrl } : {}),
-    })
+    if (!connectionString) {
+      console.error('[Nexus DB] No connection string - returning fallback proxy')
+      return createFallbackProxy()
+    }
+
+    // Use Neon serverless adapter for Vercel compatibility
+    const adapter = new PrismaNeon({ connectionString })
+    return new PrismaClient({ adapter })
   } catch (error) {
     console.error('[Nexus DB] Failed to create PrismaClient:', error)
     return createFallbackProxy()
@@ -60,7 +64,15 @@ function createFallbackProxy(): PrismaClient {
         'shift', 'shiftMember', 'complianceItem', 'document', 'interview',
         'leavePolicy', 'payrollStructure', 'alumniRecord', 'workflowStepDef',
         'workflowStepInstance', 'role', 'module', 'permission', 'rolePermission',
-        'userRoleAssignment', 'tenant',
+        'userRoleAssignment', 'tenant', 'payrollComponent', 'statutoryComponent',
+        'cTCTemplate', 'cTCComponentMapping', 'taxSlabTable', 'taxSlabRateLine',
+        'payrollInput', 'payrollRun', 'payrollTransactionLine', 'currencyConfig',
+        'exchangeRate', 'dimensionDefinition', 'employeeDimensionAllocation',
+        'complianceObligation', 'complianceFiling', 'gLAccountMapping',
+        'fNFCalculation', 'salaryStructure', 'salaryComponent', 'payroll',
+        'leaveType', 'leaveBalance', 'leaveRequest', 'designation',
+        'jobPosting', 'jobApplication', 'companyGroup', 'subscriptionPlan',
+        'subscription',
       ]
 
       if (modelNames.includes(prop)) {
@@ -78,6 +90,7 @@ function createFallbackProxy(): PrismaClient {
               if (method === 'delete') return Promise.resolve({})
               if (method === 'deleteMany') return Promise.resolve({ count: 0 })
               if (method === 'updateMany') return Promise.resolve({ count: 0 })
+              if (method === 'upsert') return Promise.resolve({})
               return Promise.resolve(null)
             }
           }
