@@ -1929,3 +1929,462 @@ model UserRoleAssignment {
   @@index([roleId])
   @@index([companyId])
 }
+
+// ============ ADVANCED PAYROLL MODULE - MULTI-CURRENCY, MULTI-COUNTRY, MULTI-DIMENSIONAL ============
+
+// --- CTC Template & Component Mapping ---
+
+model CTCTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  countryCode      String   @default("IND") // ISO 3166-1 alpha-3
+  legalEntityId    String?  // NULL = applicable to all entities in country
+  currencyCode     String   @default("INR") // ISO 4217
+  ctcType          String   @default("ANNUAL") // ANNUAL, MONTHLY
+  effectiveFrom    DateTime @default(now())
+  effectiveTo      DateTime?
+  version          Int      @default(1)
+  status           String   @default("DRAFT") // DRAFT, ACTIVE, INACTIVE
+  isDefault        Boolean  @default(false)
+  basePayPct       Float?   // Default % of CTC allocated to base pay
+  createdBy        String?
+  companyId        String?  // Link to company for multi-tenant scope
+
+  componentMappings CTCComponentMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([countryCode])
+  @@index([status])
+  @@index([companyId])
+}
+
+model CTCComponentMapping {
+  id                 String   @id @default(cuid())
+  ctcTemplateId      String
+  ctcTemplate        CTCTemplate @relation(fields: [ctcTemplateId], references: [id], onDelete: Cascade)
+  componentId        String?  // FK to PayrollComponent
+  componentName      String
+  componentCategory  String   @default("EARNING") // EARNING, DEDUCTION, EMPLOYER_CONTRIBUTION, REIMBURSEMENT, BENEFIT_IN_KIND
+  allocationMethod   String   @default("PERCENTAGE_OF_CTC") // PERCENTAGE_OF_CTC, FIXED_AMOUNT, PERCENTAGE_OF_COMPONENT, FORMULA, PRORATA
+  allocationValue    Float    @default(0)
+  baseComponentId    String?  // Reference component when allocationMethod = PERCENTAGE_OF_COMPONENT
+  formulaExpression  String?  // Formula when allocationMethod = FORMULA
+  calculationSequence Int     @default(1)
+  isStatutory        Boolean  @default(false)
+  isTaxable          Boolean  @default(true)
+  taxExemptionLimit  Float?
+  frequency          String   @default("MONTHLY") // MONTHLY, QUARTERLY, ANNUAL, ONCE, VARIABLE
+  prorationRule      String?  // CALENDAR_DAYS, WORKING_DAYS, FIXED_MONTH
+  minAmount          Float?
+  maxAmount          Float?
+  roundingRule       String?  // NEAREST, UP, DOWN, NEAREST_10, NEAREST_100
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ctcTemplateId])
+  @@index([calculationSequence])
+}
+
+// --- Payroll Component Master ---
+
+model PayrollComponent {
+  id                  String   @id @default(cuid())
+  code                String   // Short code: BASIC, HRA, EPF_EE, PIT
+  name                String
+  componentType       String   // EARNING, DEDUCTION, EMPLOYER_CONTRIB, EMPLOYEE_CONTRIB, REIMBURSEMENT, BENEFIT_IN_KIND, INFORMATIONAL
+  componentCategory   String   // NORMAL, STATUTORY
+  countryCode         String   @default("IND")
+  calculationType     String   // FLAT_AMOUNT, PERCENTAGE, SLAB_BASED, FORMULA, LOOKUP_TABLE, MANUAL_ENTRY
+  defaultValue        Float?   // Default flat amount or percentage
+  percentageBase      String?  // Component code of base for percentage calc
+  formulaId           String?  // Reference to formula definition
+  slabTableId         String?  // Reference to slab/rate table
+  isTaxable           Boolean  @default(true)
+  taxTreatment        String?  // FULLY_TAXABLE, PARTIALLY_TAXABLE, EXEMPT, DEFERRED
+  exemptionSection    String?  // e.g. "80C", "80D", "401k"
+  maxExemptionAmt     Float?
+  affectsGross        Boolean  @default(true)
+  affectsNet          Boolean  @default(true)
+  affectsCTC          Boolean  @default(true)
+  paymentFrequency    String   @default("MONTHLY") // MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, ONE_TIME, VARIABLE
+  prorationApplicable Boolean  @default(true)
+  roundingRule        String?  // NEAREST, CEILING, FLOOR, NEAREST_10, NEAREST_100, BANKERS_ROUNDING
+  isActive            Boolean  @default(true)
+  effectiveFrom       DateTime @default(now())
+  effectiveTo         DateTime?
+  companyId           String?
+
+  statutoryDetails    StatutoryComponent[]
+  slabLines           TaxSlabRateLine[]
+  glMappings          GLAccountMapping[]
+  transactionLines    PayrollTransactionLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([code, countryCode])
+  @@index([countryCode])
+  @@index([componentCategory])
+  @@index([componentType])
+  @@index([companyId])
+}
+
+// --- Statutory Components ---
+
+model StatutoryComponent {
+  id                  String   @id @default(cuid())
+  componentId         String
+  component           PayrollComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  componentCode       String
+  componentName       String
+  countryCode         String
+  authorityName       String
+  authorityCode       String?
+  partyType           String   // EMPLOYEE, EMPLOYER, BOTH
+  calculationBasis    String   // GROSS_PAY, BASIC_PAY, SPECIFIC_COMPONENT, SLAB_BASED, FLAT_RATE
+  basisComponentId    String?  // Component ID when calculationBasis = SPECIFIC_COMPONENT
+  ratePercentage      Float?   // Contribution rate %
+  wageCeiling         Float?   // Maximum basis pay subject to contribution
+  maxContributionAmt  Float?
+  minContributionAmt  Float?
+  slabTableId         String?
+  remittanceFrequency String   @default("MONTHLY") // MONTHLY, QUARTERLY, ANNUAL, ON_DEMAND
+  remittanceDueDay    Int?     // Day of month for remittance
+  filingFrequency     String?  // MONTHLY, QUARTERLY, ANNUAL, HALF_YEARLY
+  filingFormat        String?  // ECR, FPS, W-2, IR8A
+  penaltyRatePct      Float?   // Penalty interest rate % per month
+  isChallanRequired   Boolean  @default(false)
+  challanFormat       String?
+  effectiveFrom       DateTime @default(now())
+  effectiveTo         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([componentId])
+  @@index([countryCode])
+}
+
+// --- Income Tax Slab Configuration ---
+
+model TaxSlabTable {
+  id              String   @id @default(cuid())
+  name            String
+  countryCode     String
+  taxYear         String
+  filingStatus    String?  // SINGLE, MARRIED_JOINT, MARRIED_SEPARATE, HEAD_OF_HOUSEHOLD, SENIOR_CITIZEN
+  regimeType      String?  // OLD, NEW, STANDARD
+  effectiveFrom   DateTime @default(now())
+  effectiveTo     DateTime?
+  companyId       String?
+
+  rateLines       TaxSlabRateLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([countryCode])
+  @@index([taxYear])
+}
+
+model TaxSlabRateLine {
+  id              String   @id @default(cuid())
+  slabTableId     String
+  slabTable       TaxSlabTable @relation(fields: [slabTableId], references: [id], onDelete: Cascade)
+  sequence        Int
+  incomeFrom      Float    @default(0)
+  incomeTo        Float?   // NULL = no upper limit
+  ratePercentage  Float    @default(0)
+  fixedAmount     Float?   // Fixed tax for cumulative calc
+  surchargeRate   Float?
+  cessRate        Float?   // Health/Education cess %
+
+  component       PayrollComponent? @relation(fields: [componentId], references: [id])
+  componentId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slabTableId])
+  @@index([sequence])
+}
+
+// --- Payroll Input Management ---
+
+model PayrollInput {
+  id                String   @id @default(cuid())
+  payrollRunId      String?  // FK to PayrollRun
+  payrollRun        PayrollRun? @relation(fields: [payrollRunId], references: [id])
+  employeeId        String
+  inputType         String   // ATTENDANCE, LEAVE, OVERTIME, VARIABLE_PAY, ONE_TIME, REIMBURSEMENT, LOAN, INVESTMENT, TAX_ADJ, ORG_CHANGE
+  componentCode     String
+  inputValueNumeric Float?
+  unitType          String?  // AMOUNT, DAYS, HOURS, PERCENTAGE
+  inputDateFrom     DateTime?
+  inputDateTo       DateTime?
+  currencyCode      String?  @default("USD")
+  exchangeRate      Float?
+  approvalStatus    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedBy        String?
+  approvalDate      DateTime?
+  source            String   @default("MANUAL") // MANUAL, BULK_UPLOAD, API_INTEGRATION, SELF_SERVICE, SYSTEM_GENERATED
+  referenceDocument String?
+  remarks           String?
+  createdBy         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([payrollRunId])
+  @@index([inputType])
+  @@index([approvalStatus])
+}
+
+// --- Multi-Currency Processing ---
+
+model CurrencyConfig {
+  id                  String   @id @default(cuid())
+  legalEntityId       String
+  baseCurrency        String   @default("USD")
+  payrollCurrency     String   @default("USD")
+  reportingCurrency   String?
+  exchangeRateSource  String   @default("MANUAL") // CENTRAL_BANK, REUTERS, BLOOMBERG, MANUAL, CUSTOM_API
+  rateType            String   @default("SPOT") // SPOT, MONTHLY_AVERAGE, CUSTOM, CONTRACTUAL
+  autoFetchEnabled    Boolean  @default(false)
+  fetchFrequency      String?  // DAILY, WEEKLY, MONTHLY, ON_DEMAND
+  roundingPrecision   Int      @default(2)
+  roundingRule        String   @default("NEAREST") // NEAREST, UP, DOWN, BANKERS
+  gainLossAccount     String?  // GL account for exchange rate gains/losses
+  companyId           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([legalEntityId])
+  @@index([companyId])
+}
+
+model ExchangeRate {
+  id              String   @id @default(cuid())
+  fromCurrency    String
+  toCurrency      String
+  exchangeRate    Float
+  rateDate        DateTime
+  rateType        String   @default("SPOT") // SPOT, MONTHLY_AVERAGE, QUARTERLY_AVERAGE, CUSTOM, CONTRACTUAL
+  source          String   @default("Manual Entry")
+  inverseRate     Float?
+  isActive        Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fromCurrency, toCurrency, rateDate])
+  @@index([isActive])
+}
+
+// --- Multi-Dimensional Allocation ---
+
+model DimensionDefinition {
+  id                String   @id @default(cuid())
+  code              String   // DEPT, CC, PROJ, LOC, BU
+  name              String
+  dimensionType     String   @default("STANDARD") // STANDARD, CUSTOM
+  hierarchyEnabled  Boolean  @default(false)
+  allocationMethod  String   @default("PERCENTAGE") // PERCENTAGE, AMOUNT, HEADCOUNT, FTE
+  isMandatory       Boolean  @default(false)
+  allowMultiple     Boolean  @default(true)
+  maxAllocations    Int?
+  effectiveFrom     DateTime @default(now())
+  companyId         String?
+
+  allocations       EmployeeDimensionAllocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([companyId])
+}
+
+model EmployeeDimensionAllocation {
+  id               String   @id @default(cuid())
+  employeeId       String
+  dimensionId      String
+  dimension        DimensionDefinition @relation(fields: [dimensionId], references: [id], onDelete: Cascade)
+  dimensionValueId String   // e.g. Department = "Engineering", CC = "CC-1001"
+  allocationPct    Float    @default(100)
+  allocationAmount Float?
+  effectiveFrom    DateTime @default(now())
+  effectiveTo      DateTime?
+  isPrimary        Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([dimensionId])
+}
+
+// --- Payroll Run (Processing Workflow) ---
+
+model PayrollRun {
+  id                  String   @id @default(cuid())
+  legalEntityId       String
+  payrollPeriod       String   // e.g. "2026-06"
+  periodStartDate     DateTime
+  periodEndDate       DateTime
+  payDate             DateTime
+  runType             String   @default("REGULAR") // REGULAR, OFF_CYCLE, SUPPLEMENTAL, FINAL_SETTLEMENT, CORRECTION
+  runStatus           String   @default("OPEN") // OPEN, INPUT_COLLECTION, PROCESSING, REVIEW, APPROVED, ACCOUNTING, DISBURSED, CLOSED
+  currencyCode        String   @default("USD")
+  exchangeRateDate    DateTime?
+  taxProjectionMethod String   @default("CUMULATIVE") // CUMULATIVE, NON_CUMULATIVE, ANNUALIZED
+  includeStatutory    Boolean  @default(true)
+  processingMode      String   @default("FULL") // FULL, DELTA
+  initiatedBy         String?
+  companyId           String?
+  totalEmployees      Int      @default(0)
+  totalGrossPay       Float    @default(0)
+  totalDeductions     Float    @default(0)
+  totalNetPay         Float    @default(0)
+  totalEmployerContrib Float   @default(0)
+
+  transactionLines    PayrollTransactionLine[]
+  payrollInputs       PayrollInput[]
+  complianceFilings   ComplianceFiling[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([legalEntityId, payrollPeriod, runType])
+  @@index([runStatus])
+  @@index([companyId])
+  @@index([payrollPeriod])
+}
+
+// --- Payroll Transaction Line ---
+
+model PayrollTransactionLine {
+  id                    String   @id @default(cuid())
+  payrollRunId          String
+  payrollRun            PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId            String
+  componentId           String?
+  component             PayrollComponent? @relation(fields: [componentId], references: [id])
+  componentCode         String
+  componentType         String   // EARNING, DEDUCTION, EMPLOYER_CONTRIB, EMPLOYEE_CONTRIB, REIMBURSEMENT, INFO
+  componentCategory     String   // NORMAL, STATUTORY
+  calculatedAmount      Float    @default(0)
+  overrideAmount        Float?
+  finalAmount           Float    @default(0)
+  currencyCode          String   @default("USD")
+  exchangeRate          Float?
+  baseCurrencyAmount    Float?
+  ytdAmount             Float    @default(0)
+  mtdAmount             Float    @default(0)
+  prorationFactor       Float?   // 1.0 = full period
+  inputSourceId         String?
+  formulaTrace          String?  // JSON trace for audit
+  dimensionSplitJson    String?  // JSON: {"DEPT": {"ENG": 0.6, "SALES": 0.4}}
+  glAccountCode         String?
+  costCenterCode        String?
+  isReversal            Boolean  @default(false)
+  reversedTransactionId String?
+  taxTreatment          String?  // FULLY_TAXABLE, PARTIALLY_TAXABLE, EXEMPT, PRE_TAX, POST_TAX
+  statutoryReference    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@index([componentCode])
+  @@index([componentType])
+}
+
+// --- Compliance Management ---
+
+model ComplianceObligation {
+  id                  String   @id @default(cuid())
+  name                String
+  countryCode         String
+  authorityName       String
+  filingType          String   // RETURN, CHALLAN, CERTIFICATE, REGISTRATION, REPORT, DECLARATION
+  frequency           String   // MONTHLY, QUARTERLY, HALF_YEARLY, ANNUAL, ONE_TIME
+  dueDateRule         String   // e.g. "D+15" = 15th of following month
+  graceDays           Int?
+  penaltyType         String?  // FIXED_AMOUNT, PERCENTAGE_PER_DAY, PERCENTAGE_PER_MONTH, PROGRESSIVE
+  penaltyValue        Float?
+  responsibleRole     String   @default("PAYROLL_ADMIN")
+  escalationRole      String?
+  reminderDaysBefore  String?  // Comma-separated: "7,3,1"
+  autoGenerate        Boolean  @default(false)
+  filingFormat        String?
+  isActive            Boolean  @default(true)
+  companyId           String?
+
+  filings             ComplianceFiling[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([countryCode])
+  @@index([isActive])
+  @@index([companyId])
+}
+
+model ComplianceFiling {
+  id                  String   @id @default(cuid())
+  complianceId        String
+  compliance          ComplianceObligation @relation(fields: [complianceId], references: [id], onDelete: Cascade)
+  payrollRunId        String?
+  payrollRun          PayrollRun? @relation(fields: [payrollRunId], references: [id])
+  filingPeriod        String
+  filingStatus        String   @default("GENERATED") // GENERATED, UNDER_REVIEW, SUBMITTED, ACKNOWLEDGED, REJECTED, PENALTY_APPLIED
+  generatedDate       DateTime @default(now())
+  submittedDate       DateTime?
+  acknowledgementRef  String?
+  filingAmount        Float?
+  penaltyAmount       Float?
+  filePath            String?
+  submittedBy         String?
+  reviewedBy          String?
+  rejectionReason     String?
+  resubmissionDate    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([complianceId])
+  @@index([filingStatus])
+  @@index([filingPeriod])
+}
+
+// --- GL Account Mapping ---
+
+model GLAccountMapping {
+  id                  String   @id @default(cuid())
+  legalEntityId       String
+  componentId         String
+  component           PayrollComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  debitAccount        String
+  creditAccount       String
+  costCenterSource    String   @default("EMPLOYEE_DEFAULT") // EMPLOYEE_DEFAULT, COMPONENT_SPECIFIC, DIMENSION_SPLIT
+  specificCostCenter  String?
+  postingType         String   @default("ACTUAL") // ACCRUAL, ACTUAL, BOTH
+  intercompanyAccount String?
+  effectiveFrom       DateTime @default(now())
+  effectiveTo         DateTime?
+  companyId           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([legalEntityId])
+  @@index([componentId])
+  @@index([companyId])
+}
