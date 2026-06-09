@@ -14,14 +14,15 @@ export async function GET(request: Request) {
 
     console.log(`[Payroll Setup] Checking payroll tables... (force=${force})`);
 
-    // Check if PayrollComponent table exists with correct Prisma schema
+    // Check if payroll tables exist AND Prisma can read them properly
     let tablesReady = false;
     if (!force) {
       try {
-        // Try a findFirst which tests column compatibility
+        // Test both PayrollComponent and PayrollRun to verify full compatibility
         await db.payrollComponent.findFirst();
+        await db.payrollRun.findFirst();
         tablesReady = true;
-        console.log('[Payroll Setup] Tables verified - Prisma can read them');
+        console.log('[Payroll Setup] All tables verified - Prisma can read them');
       } catch (e: any) {
         console.log(`[Payroll Setup] Tables not compatible: ${e.message?.substring(0, 100)}`);
       }
@@ -51,9 +52,10 @@ export async function GET(request: Request) {
         console.error('[Payroll Setup] prisma db push note:', pushError.message?.substring(0, 200));
       }
 
-      // Verify
+      // Verify both tables work with Prisma
       try {
         await db.payrollComponent.findFirst();
+        await db.payrollRun.findFirst();
         tablesReady = true;
         console.log('[Payroll Setup] Tables verified after recreation');
       } catch (e: any) {
