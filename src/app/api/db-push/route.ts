@@ -260,6 +260,55 @@ export async function POST() {
       `CREATE INDEX IF NOT EXISTS "ComplianceFiling_obligationId_idx" ON "ComplianceFiling"("obligationId")`,
     ];
 
+    // Add missing columns to existing tables (Prisma db push might have missed these)
+    const alterTableStatements = [
+      // PayrollRun - add missing columns if they don't exist
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "exchangeRateDate" TIMESTAMP(3)`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "taxProjectionMethod" TEXT NOT NULL DEFAULT 'CUMULATIVE'`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "includeStatutory" BOOLEAN NOT NULL DEFAULT true`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "processingMode" TEXT NOT NULL DEFAULT 'FULL'`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "initiatedBy" TEXT`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalEmployees" INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalGrossPay" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalDeductions" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalNetPay" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalEmployerContrib" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+      // Add unique constraint for PayrollRun if not exists
+      `ALTER TABLE "PayrollRun" DROP CONSTRAINT IF EXISTS "PayrollRun_legalEntityId_payrollPeriod_runType_key"`,
+      `ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_legalEntityId_payrollPeriod_runType_key" UNIQUE ("legalEntityId", "payrollPeriod", "runType")`,
+      // Add missing indexes for PayrollRun
+      `CREATE INDEX IF NOT EXISTS "PayrollRun_runStatus_idx" ON "PayrollRun"("runStatus")`,
+      `CREATE INDEX IF NOT EXISTS "PayrollRun_companyId_idx" ON "PayrollRun"("companyId")`,
+      `CREATE INDEX IF NOT EXISTS "PayrollRun_payrollPeriod_idx" ON "PayrollRun"("payrollPeriod")`,
+      // PayrollTransactionLine - add employee relation if missing
+      `ALTER TABLE "PayrollTransactionLine" ADD COLUMN IF NOT EXISTS "ytdAmount" DOUBLE PRECISION`,
+      `ALTER TABLE "PayrollTransactionLine" ADD COLUMN IF NOT EXISTS "mtdAmount" DOUBLE PRECISION`,
+      // PayrollInput - add missing columns
+      `ALTER TABLE "PayrollInput" ADD COLUMN IF NOT EXISTS "source" TEXT`,
+      `ALTER TABLE "PayrollInput" ADD COLUMN IF NOT EXISTS "remarks" TEXT`,
+      // Add unique constraint for PayrollComponent if missing
+      `ALTER TABLE "PayrollComponent" DROP CONSTRAINT IF EXISTS "PayrollComponent_code_countryCode_key"`,
+      `ALTER TABLE "PayrollComponent" ADD CONSTRAINT "PayrollComponent_code_countryCode_key" UNIQUE ("code", "countryCode")`,
+    ];
+
+    let altersExecuted = 0;
+    for (const sql of alterTableStatements) {
+      try {
+        await db.$executeRawUnsafe(sql);
+        altersExecuted++;
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        // Column might already exist or constraint might already exist, that's fine
+        if (!errMsg.includes('already exists') && !errMsg.includes('already has')) {
+          // Log unusual errors
+          const desc = sql.substring(0, 80);
+          console.log(`[DB Push] ALTER skipped: ${desc} - ${errMsg.substring(0, 100)}`);
+        }
+      }
+    }
+    results.push(`✅ Applied ${altersExecuted} ALTER TABLE statements`);
+
     // Add foreign key constraints separately
     const fkStatements = [
       `ALTER TABLE "PayrollHold" DROP CONSTRAINT IF EXISTS "PayrollHold_employeeId_fkey"`,
