@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiUsers, FiCalendar, FiClock, FiDollarSign, FiBriefcase, FiTarget,
   FiDownload, FiSearch, FiStar, FiChevronDown, FiChevronUp, FiX,
@@ -9,11 +9,15 @@ import {
   FiUserCheck, FiUserX, FiGift, FiClock as FiClockIcon,
   FiSun, FiMoon, FiZap, FiLayers, FiPieChart, FiRepeat,
   FiArrowRight, FiRefreshCw, FiDatabase, FiSliders,
+  FiBook, FiCreditCard, FiPackage, FiFolder, FiHelpCircle,
+  FiTool, FiClipboard, FiMonitor,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import RoleAccessGuard from '@/components/RoleAccessGuard';
+import { getReportAccess, canAccessStatutoryReports, canAccessAIReports } from '@/lib/roleAccess';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -132,6 +136,56 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
       { id: 'goal_achievement', name: 'Goal Achievement Report', description: 'Goal completion rates and progress tracking', module: 'Performance', icon: FiTarget, comingSoon: true },
     ],
   },
+  {
+    module: 'Training',
+    moduleIcon: FiBook,
+    moduleColor: 'teal',
+    reports: [
+      { id: 'training_completion', name: 'Training Completion Report', description: 'Track training course completion rates across employees and departments', module: 'Training', icon: FiCheckCircle, apiEndpoint: '/api/reports', apiType: 'training_report' },
+      { id: 'assessment_scores', name: 'Assessment Scores Report', description: 'Employee assessment and certification scores analysis', module: 'Training', icon: FiBarChart2, comingSoon: true },
+      { id: 'compliance_training', name: 'Compliance Training Status', description: 'Mandatory compliance training completion and overdue status', module: 'Training', icon: FiShield, comingSoon: true },
+    ],
+  },
+  {
+    module: 'Expenses',
+    moduleIcon: FiCreditCard,
+    moduleColor: 'orange',
+    reports: [
+      { id: 'expense_summary', name: 'Expense Summary Report', description: 'Organization-wide expense claims summary by category and status', module: 'Expenses', icon: FiCreditCard, apiEndpoint: '/api/reports', apiType: 'expense_report' },
+      { id: 'dept_expenses', name: 'Department-wise Expenses', description: 'Expense distribution and trends by department', module: 'Expenses', icon: FiPieChart, comingSoon: true },
+      { id: 'policy_violations', name: 'Policy Violations Report', description: 'Expense claims that violate company policy rules', module: 'Expenses', icon: FiAlertTriangle, comingSoon: true },
+    ],
+  },
+  {
+    module: 'Assets',
+    moduleIcon: FiPackage,
+    moduleColor: 'slate',
+    reports: [
+      { id: 'asset_inventory', name: 'Asset Inventory Report', description: 'Complete inventory of company assets with assignment details', module: 'Assets', icon: FiPackage, apiEndpoint: '/api/reports', apiType: 'asset_report' },
+      { id: 'asset_allocation', name: 'Asset Allocation Report', description: 'Asset-to-employee allocation and utilization summary', module: 'Assets', icon: FiClipboard, comingSoon: true },
+      { id: 'maintenance_schedule', name: 'Maintenance Schedule Report', description: 'Upcoming asset maintenance, warranty expiry, and renewal schedule', module: 'Assets', icon: FiTool, comingSoon: true },
+    ],
+  },
+  {
+    module: 'Projects',
+    moduleIcon: FiFolder,
+    moduleColor: 'indigo',
+    reports: [
+      { id: 'project_utilization', name: 'Project Utilization Report', description: 'Employee utilization rates across active projects', module: 'Projects', icon: FiMonitor, apiEndpoint: '/api/reports', apiType: 'project_report' },
+      { id: 'time_tracking', name: 'Time Tracking Report', description: 'Hours logged by employees across projects and tasks', module: 'Projects', icon: FiClock, comingSoon: true },
+      { id: 'budget_vs_actual', name: 'Budget vs Actual Report', description: 'Project budget allocation compared to actual spending', module: 'Projects', icon: FiDollarSign, comingSoon: true },
+    ],
+  },
+  {
+    module: 'Helpdesk',
+    moduleIcon: FiHelpCircle,
+    moduleColor: 'pink',
+    reports: [
+      { id: 'ticket_volume', name: 'Ticket Volume Report', description: 'Support ticket volume trends by category, priority, and channel', module: 'Helpdesk', icon: FiBarChart2, apiEndpoint: '/api/reports', apiType: 'helpdesk_report' },
+      { id: 'resolution_time', name: 'Resolution Time Report', description: 'Average ticket resolution time by agent and category', module: 'Helpdesk', icon: FiClock, comingSoon: true },
+      { id: 'sla_compliance', name: 'SLA Compliance Report', description: 'Service level agreement compliance rates and breach analysis', module: 'Helpdesk', icon: FiShield, comingSoon: true },
+    ],
+  },
 ];
 
 const statutoryReports: StatutoryReportDef[] = [
@@ -163,6 +217,11 @@ const moduleBadgeColors: Record<string, string> = {
   Payroll: 'bg-emerald-50 text-emerald-700',
   Recruitment: 'bg-purple-50 text-purple-700',
   Performance: 'bg-rose-50 text-rose-700',
+  Training: 'bg-teal-50 text-teal-700',
+  Expenses: 'bg-orange-50 text-orange-700',
+  Assets: 'bg-slate-100 text-slate-700',
+  Projects: 'bg-indigo-50 text-indigo-700',
+  Helpdesk: 'bg-pink-50 text-pink-700',
 };
 
 const moduleIconBg: Record<string, string> = {
@@ -172,6 +231,11 @@ const moduleIconBg: Record<string, string> = {
   Payroll: 'bg-emerald-50 text-emerald-500',
   Recruitment: 'bg-purple-50 text-purple-500',
   Performance: 'bg-rose-50 text-rose-500',
+  Training: 'bg-teal-50 text-teal-500',
+  Expenses: 'bg-orange-50 text-orange-500',
+  Assets: 'bg-slate-100 text-slate-500',
+  Projects: 'bg-indigo-50 text-indigo-500',
+  Helpdesk: 'bg-pink-50 text-pink-500',
 };
 
 /* ── Statutory Row ── */
@@ -222,6 +286,11 @@ function handleExportCSV(rows: Record<string, unknown>[], filename: string) {
 /* ── Component ── */
 export default function ReportsPage() {
   const { user } = useAuthStore();
+  const userRole = user?.role || 'employee';
+  const reportAccess = getReportAccess(userRole);
+  const isSelfOnly = reportAccess === 'self' || reportAccess === 'none';
+  const canSeeStatutory = canAccessStatutoryReports(userRole);
+  const canSeeAI = canAccessAIReports(userRole);
   const [activeTab, setActiveTab] = useState<MainTab>('standard');
   const [analytics, setAnalytics] = useState<Record<string, Record<string, unknown>> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -518,25 +587,43 @@ export default function ReportsPage() {
     ];
   };
 
-  // Filtered reports based on search
-  const filteredStandardReports = standardReports.map(group => ({
-    ...group,
-    reports: group.reports.filter(r =>
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.module.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
-  })).filter(group => group.reports.length > 0);
+  // Role-filtered module access for standard reports
+  const roleFilteredModules = useMemo(() => {
+    // Employees only see Leave, Attendance, Payroll (payslips), and Training related reports
+    if (isSelfOnly) return new Set(['Leave', 'Attendance', 'Payroll', 'Training']);
+    // Managers see all modules including team-relevant ones
+    if (reportAccess === 'team') return new Set(['Employee', 'Leave', 'Attendance', 'Payroll', 'Recruitment', 'Performance', 'Training', 'Expenses', 'Projects', 'Helpdesk']);
+    // Full access sees everything
+    return null; // null means no filter
+  }, [isSelfOnly, reportAccess]);
 
-  const filteredStatutoryReports = statutoryReports.filter(r =>
-    r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.authority.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtered reports based on search AND role
+  const filteredStandardReports = standardReports
+    .filter(group => !roleFilteredModules || roleFilteredModules.has(group.module))
+    .map(group => ({
+      ...group,
+      reports: group.reports.filter(r =>
+        (r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.module.toLowerCase().includes(searchQuery.toLowerCase()))
+        // For employees, filter out reports that require org-wide access
+        && (!isSelfOnly || ['leave_balance', 'daily_attendance', 'payroll_summary'].includes(r.id))
+      ),
+    })).filter(group => group.reports.length > 0);
 
-  const filteredAIReports = aiReports.filter(r =>
-    r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStatutoryReports = canSeeStatutory
+    ? statutoryReports.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.authority.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
+
+  const filteredAIReports = canSeeAI
+    ? aiReports.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
 
   // Favorite reports across all tabs
   const favoriteStandardReports = standardReports.flatMap(g => g.reports).filter(r => favorites.has(r.id));
@@ -797,9 +884,167 @@ export default function ReportsPage() {
       );
     }
 
+    // Training Report
+    if (report.apiType === 'training_report') {
+      const d = data as Record<string, unknown>;
+      const byCategory = (d.byCategory || {}) as Record<string, number>;
+      const byStatus = (d.byStatus || {}) as Record<string, number>;
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Courses</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalCourses as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-teal-700">Completion Rate</p><p className="text-2xl font-bold text-teal-700">{(d.completionRate as number) || 0}%</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-amber-700">Overdue Training</p><p className="text-2xl font-bold text-amber-700">{(d.overdue as number) || 0}</p></div>
+          </div>
+          {Object.keys(byCategory).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Training by Category</h3>
+              <div className="space-y-3">{Object.entries(byCategory).map(([name, count]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-teal-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          {Object.keys(byStatus).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Training by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `training_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-4 h-4" /> Export CSV
+          </button>
+        </div>
+      );
+    }
+
+    // Expense Report
+    if (report.apiType === 'expense_report') {
+      const d = data as Record<string, unknown>;
+      const byCategory = (d.byCategory || {}) as Record<string, number>;
+      const byStatus = (d.byStatus || {}) as Record<string, number>;
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Claims</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalClaims as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-orange-700">Total Amount</p><p className="text-2xl font-bold text-orange-700">{fmtCurrency((d.totalAmount as number) || 0)}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Approved</p><p className="text-2xl font-bold text-emerald-700">{(d.approved as number) || 0}</p></div>
+          </div>
+          {Object.keys(byCategory).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Expenses by Category</h3>
+              <div className="space-y-3">{Object.entries(byCategory).map(([name, amount]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{fmtCurrency(amount)}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-orange-500 rounded-full" style={{ width: `${(amount / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          {Object.keys(byStatus).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Claims by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Amount: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `expense_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-4 h-4" /> Export CSV
+          </button>
+        </div>
+      );
+    }
+
+    // Asset Report
+    if (report.apiType === 'asset_report') {
+      const d = data as Record<string, unknown>;
+      const byType = (d.byType || {}) as Record<string, number>;
+      const byStatus = (d.byStatus || {}) as Record<string, number>;
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Assets</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalAssets as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Allocated</p><p className="text-2xl font-bold text-emerald-700">{(d.allocated as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-slate-700">Available</p><p className="text-2xl font-bold text-slate-700">{(d.available as number) || 0}</p></div>
+          </div>
+          {Object.keys(byType).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Assets by Type</h3>
+              <div className="space-y-3">{Object.entries(byType).map(([name, count]) => { const max = Math.max(...Object.values(byType), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-slate-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          {Object.keys(byStatus).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Assets by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          <button onClick={() => handleExportCSV([...Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `asset_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-4 h-4" /> Export CSV
+          </button>
+        </div>
+      );
+    }
+
+    // Project Report
+    if (report.apiType === 'project_report') {
+      const d = data as Record<string, unknown>;
+      const byStatus = (d.byStatus || {}) as Record<string, number>;
+      const utilization = (d.utilization || {}) as Record<string, number>;
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Active Projects</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.activeProjects as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-indigo-700">Avg Utilization</p><p className="text-2xl font-bold text-indigo-700">{(d.avgUtilization as number) || 0}%</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-blue-700">Team Members</p><p className="text-2xl font-bold text-blue-700">{(d.teamMembers as number) || 0}</p></div>
+          </div>
+          {Object.keys(utilization).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Utilization by Project</h3>
+              <div className="space-y-3">{Object.entries(utilization).map(([name, pct]) => { return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{pct as number}%</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min((pct as number), 100)}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          {Object.keys(byStatus).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Projects by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          <button onClick={() => handleExportCSV([...Object.entries(utilization).map(([k, v]) => ({ Project: k, Utilization: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `project_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-4 h-4" /> Export CSV
+          </button>
+        </div>
+      );
+    }
+
+    // Helpdesk Report
+    if (report.apiType === 'helpdesk_report') {
+      const d = data as Record<string, unknown>;
+      const byCategory = (d.byCategory || {}) as Record<string, number>;
+      const byPriority = (d.byPriority || {}) as Record<string, number>;
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Tickets</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalTickets as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Resolved</p><p className="text-2xl font-bold text-emerald-700">{(d.resolved as number) || 0}</p></div>
+            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-pink-700">Avg Resolution (h)</p><p className="text-2xl font-bold text-pink-700">{(d.avgResolutionTime as number) || 0}</p></div>
+          </div>
+          {Object.keys(byCategory).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Tickets by Category</h3>
+              <div className="space-y-3">{Object.entries(byCategory).map(([name, count]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-pink-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          {Object.keys(byPriority).length > 0 && (
+            <div className="nexus-card p-6">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Tickets by Priority</h3>
+              <div className="space-y-3">{Object.entries(byPriority).map(([name, count]) => { const max = Math.max(...Object.values(byPriority), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            </div>
+          )}
+          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byPriority).map(([k, v]) => ({ Priority: k, Count: v }))], `helpdesk_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-4 h-4" /> Export CSV
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="nexus-card p-6 text-center">
-        <p className="text-nexus-text-secondary">Report generated. View the data above.</p>
+        <p className="text-nexus-text-secondary">Report generated. Export the data using the button below.</p>
+        <button onClick={() => { try { const d = data as Record<string, unknown>; const rows = Object.entries(d).map(([k, v]) => ({ Key: k, Value: typeof v === 'object' ? JSON.stringify(v) : String(v ?? '') })); handleExportCSV(rows, `${report.id}_${filterYear}_${filterMonth}`); } catch { toast.error('Export failed'); } }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <FiDownload className="w-4 h-4" /> Export CSV
+        </button>
       </div>
     );
   };
@@ -890,6 +1135,7 @@ export default function ReportsPage() {
 
   /* ── Main Render ── */
   return (
+    <RoleAccessGuard allowedRoles={['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee', 'finance', 'it_admin']} moduleKey="reports">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -975,13 +1221,13 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation — filtered by role */}
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
         {([
-          { key: 'standard' as MainTab, label: 'Standard Reports', icon: FiFileText },
-          { key: 'statutory' as MainTab, label: 'Statutory Reports', icon: FiShield },
-          { key: 'ai' as MainTab, label: 'AI Reports', icon: FiCpu },
-        ]).map(tab => {
+          { key: 'standard' as MainTab, label: 'Standard Reports', icon: FiFileText, visible: true },
+          { key: 'statutory' as MainTab, label: 'Statutory Reports', icon: FiShield, visible: canSeeStatutory },
+          { key: 'ai' as MainTab, label: 'AI Reports', icon: FiCpu, visible: canSeeAI },
+        ]).filter(tab => tab.visible).map(tab => {
           const IconComp = tab.icon;
           return (
             <button
@@ -1365,5 +1611,6 @@ export default function ReportsPage() {
         </div>
       )}
     </div>
+    </RoleAccessGuard>
   );
 }

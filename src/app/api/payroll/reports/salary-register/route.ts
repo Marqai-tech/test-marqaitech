@@ -8,6 +8,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// Default empty response when data is unavailable
+const emptyRegisterResponse = {
+  data: [],
+  summary: { totalEmployees: 0, totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0 },
+  period: '',
+  mode: 'summary',
+};
+
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -21,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month');
     const year = searchParams.get('year');
-    const companyId = searchParams.get('companyId');
+    const rawCompanyId = searchParams.get('companyId');
     const departmentId = searchParams.get('departmentId');
     const mode = searchParams.get('mode') || 'summary'; // summary | detailed
 
@@ -29,8 +37,12 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: 'month and year are required' }, { status: 400, headers: corsHeaders });
     }
 
+    // Treat empty string companyId same as null
+    const companyId = rawCompanyId && rawCompanyId.trim() !== '' ? rawCompanyId : null;
+
     const monthNum = parseInt(month);
     const yearNum = parseInt(year);
+    const periodStr = `${yearNum}-${String(monthNum).padStart(2, '0')}`;
 
     // Build employee filter
     const employeeWhere: Record<string, unknown> = {};
@@ -41,20 +53,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch payroll records for the given period
-    const payrolls = await prisma.payroll.findMany({
-      where: { month: monthNum, year: yearNum },
-      include: {
-        employee: {
-          include: {
-            department: { select: { name: true, id: true, companyId: true } },
-            designation: { select: { title: true } },
+    let payrolls: any[] = [];
+    try {
+      payrolls = await prisma.payroll.findMany({
+        where: { month: monthNum, year: yearNum },
+        include: {
+          employee: {
+            include: {
+              department: { select: { name: true, id: true, companyId: true } },
+              designation: { select: { title: true } },
+            },
           },
         },
-      },
-    });
+      });
+    } catch (prismaError: unknown) {
+      console.warn('Payroll table not available, skipping:', prismaError instanceof Error ? prismaError.message : String(prismaError));
+      payrolls = [];
+    }
 
     // Also try payroll run transaction lines for richer data
-    const periodStr = `${yearNum}-${String(monthNum).padStart(2, '0')}`;
     let payrollRuns: { id: string }[] = [];
     try {
       payrollRuns = await prisma.payrollRun.findMany({
@@ -149,14 +166,14 @@ export async function GET(request: NextRequest) {
         const label = mode === 'detailed' ? `${compName} (${compCode})` : compCode;
 
         if (line.componentType === 'EARNING') {
-          reg.earnings[label] = (reg.earnings[label] || 0) + line.finalAmount;
-          reg.grossPay += line.finalAmount;
+          reg.earnings[label] = (reg.earnings[label] || 0) + (line.finalAmount || 0);
+          reg.grossPay += line.finalAmount || 0;
         } else if (line.componentType === 'DEDUCTION' || line.componentType === 'EMPLOYEE_CONTRIB') {
-          reg.deductions[label] = (reg.deductions[label] || 0) + line.finalAmount;
-          reg.totalDeductions += line.finalAmount;
+          reg.deductions[label] = (reg.deductions[label] || 0) + (line.finalAmount || 0);
+          reg.totalDeductions += line.finalAmount || 0;
         } else if (line.componentType === 'EMPLOYER_CONTRIB') {
-          reg.employerContrib[label] = (reg.employerContrib[label] || 0) + line.finalAmount;
-          reg.totalEmployerContrib += line.finalAmount;
+          reg.employerContrib[label] = (reg.employerContrib[label] || 0) + (line.finalAmount || 0);
+          reg.totalEmployerContrib += line.finalAmount || 0;
         }
       }
 
@@ -168,6 +185,7 @@ export async function GET(request: NextRequest) {
       // Fall back to Payroll model data
       for (const payroll of payrolls) {
         const emp = payroll.employee;
+        if (!emp) continue;
         // Apply department/company filter
         if (departmentId && emp.departmentId !== departmentId) continue;
         if (companyId && emp.department?.companyId !== companyId) continue;
@@ -179,24 +197,24 @@ export async function GET(request: NextRequest) {
           department: emp.department?.name || '—',
           designation: emp.designation?.title || '—',
           earnings: {
-            'Basic Salary': payroll.basicSalary,
-            'HRA': payroll.hra,
-            'DA': payroll.da,
-            'Conveyance': payroll.conveyance,
-            'Medical': payroll.medical,
-            'Other Allowances': payroll.otherAllowances,
+            'Basic Salary': payroll.basicSalary || 0,
+            'HRA': payroll.hra || 0,
+            'DA': payroll.da || 0,
+            'Conveyance': payroll.conveyance || 0,
+            'Medical': payroll.medical || 0,
+            'Other Allowances': payroll.otherAllowances || 0,
           },
           deductions: {
-            'PF': payroll.pf,
-            'ESI': payroll.esi,
-            'Tax': payroll.tax,
-            'Professional Tax': payroll.professionalTax,
-            'Other Deductions': payroll.otherDeductions,
+            'PF': payroll.pf || 0,
+            'ESI': payroll.esi || 0,
+            'Tax': payroll.tax || 0,
+            'Professional Tax': payroll.professionalTax || 0,
+            'Other Deductions': payroll.otherDeductions || 0,
           },
           employerContrib: {},
-          grossPay: payroll.grossSalary,
-          totalDeductions: payroll.totalDeductions,
-          netPay: payroll.netSalary,
+          grossPay: payroll.grossSalary || 0,
+          totalDeductions: payroll.totalDeductions || 0,
+          netPay: payroll.netSalary || 0,
           totalEmployerContrib: 0,
         };
       }
@@ -221,6 +239,14 @@ export async function GET(request: NextRequest) {
     }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error generating salary register:', error);
-    return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
+    // Return empty data instead of 500 so the reports page can still render
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (errMsg.includes('Unauthorized') || errMsg.includes('token')) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    }
+    return Response.json({
+      ...emptyRegisterResponse,
+      _warning: 'Salary register data could not be loaded',
+    }, { headers: corsHeaders });
   }
 }

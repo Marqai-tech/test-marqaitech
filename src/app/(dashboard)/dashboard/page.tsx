@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiUsers,
@@ -18,6 +18,8 @@ import {
   FiInfo,
   FiGift,
   FiSearch,
+  FiFileText,
+  FiHeart,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -25,6 +27,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import RoleAccessGuard from '@/components/RoleAccessGuard';
+import { getDashboardAccess, canRoleAccessModule } from '@/lib/roleAccess';
 
 interface DashboardStats {
   totalEmployees: number;
@@ -99,6 +103,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [heroSearch, setHeroSearch] = useState('');
 
+  const userRole = user?.role || 'employee';
+  const dashboardAccess = getDashboardAccess(userRole);
+  const isSelfService = dashboardAccess === 'self';
+  const isTeamView = dashboardAccess === 'team';
+  const isFullAccess = dashboardAccess === 'full';
+
   const firstName = user?.name?.split(' ')[0] || 'User';
   // Safety: Never show EH2R/Nexus branding — always use "3 Boxes" regardless of database data
   const rawTenantName = user?.tenant?.name || '3 Boxes HRMS';
@@ -108,24 +118,27 @@ export default function DashboardPage() {
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  // Module search suggestions for the hero search bar
-  const moduleSuggestions = [
-    { label: 'Employees', href: '/employees', icon: '👥' },
-    { label: 'Recruitment', href: '/recruitment', icon: '💼' },
-    { label: 'Attendance', href: '/attendance', icon: '🕐' },
-    { label: 'Leave Management', href: '/leave', icon: '📅' },
-    { label: 'Payroll', href: '/payroll', icon: '💵' },
-    { label: 'Performance', href: '/performance', icon: '📈' },
-    { label: 'Onboarding', href: '/onboarding', icon: '🚀' },
-    { label: 'Training', href: '/training', icon: '🎓' },
-    { label: 'Documents', href: '/documents', icon: '📄' },
-    { label: 'Helpdesk', href: '/helpdesk', icon: '🎧' },
-    { label: 'Projects', href: '/projects', icon: '📁' },
-    { label: 'Expenses', href: '/expenses', icon: '💳' },
-    { label: 'Reports', href: '/reports', icon: '📊' },
-    { label: 'Settings', href: '/settings', icon: '⚙️' },
-    { label: 'AI Assistant', href: '/ai-assistant', icon: '🤖' },
-  ];
+  // Module search suggestions — filtered by role access
+  const moduleSuggestions = useMemo(() => {
+    const allSuggestions = [
+      { label: 'Employees', href: '/employees', icon: '👥', moduleKey: 'employees' },
+      { label: 'Recruitment', href: '/recruitment', icon: '💼', moduleKey: 'recruitment' },
+      { label: 'Attendance', href: '/attendance', icon: '🕐', moduleKey: 'attendance' },
+      { label: 'Leave Management', href: '/leave', icon: '📅', moduleKey: 'leave' },
+      { label: 'Payroll', href: '/payroll', icon: '💵', moduleKey: 'payroll' },
+      { label: 'Performance', href: '/performance', icon: '📈', moduleKey: 'performance' },
+      { label: 'Onboarding', href: '/onboarding', icon: '🚀', moduleKey: 'onboarding' },
+      { label: 'Training', href: '/training', icon: '🎓', moduleKey: 'training' },
+      { label: 'Documents', href: '/documents', icon: '📄', moduleKey: 'docs' },
+      { label: 'Helpdesk', href: '/helpdesk', icon: '🎧', moduleKey: 'helpdesk' },
+      { label: 'Projects', href: '/projects', icon: '📁', moduleKey: 'projects' },
+      { label: 'Expenses', href: '/expenses', icon: '💳', moduleKey: 'expenses' },
+      { label: 'Reports', href: '/reports', icon: '📊', moduleKey: 'reports' },
+      { label: 'Settings', href: '/settings', icon: '⚙️', moduleKey: 'settings' },
+      { label: 'AI Assistant', href: '/ai-assistant', icon: '🤖', moduleKey: 'dashboard' },
+    ];
+    return allSuggestions.filter(s => canRoleAccessModule(userRole, s.moduleKey));
+  }, [userRole]);
 
   const filteredSuggestions = heroSearch.trim()
     ? moduleSuggestions.filter(m => m.label.toLowerCase().includes(heroSearch.toLowerCase()))
@@ -228,14 +241,40 @@ export default function DashboardPage() {
     });
   }, [fetchDashboardData, fetchNotifications]);
 
-  const statCards = [
-    { label: 'Total Employees', value: stats?.totalEmployees ?? 0, change: '+12%', changeType: 'up' as const, icon: <FiUsers className="w-5 h-5" />, color: 'blue' },
-    { label: 'Active Leaves', value: stats?.activeLeaves ?? 0, change: '-5%', changeType: 'down' as const, icon: <FiCalendar className="w-5 h-5" />, color: 'amber' },
-    { label: 'Open Positions', value: stats?.openPositions ?? 0, change: '+3', changeType: 'up' as const, icon: <FiBriefcase className="w-5 h-5" />, color: 'violet' },
-    { label: 'Pending Payroll', value: stats?.pendingPayroll ?? 0, change: '+2', changeType: 'up' as const, icon: <FiDollarSign className="w-5 h-5" />, color: 'emerald' },
-    { label: 'Attendance Rate', value: `${stats?.attendanceRate ?? 0}%`, change: '+2%', changeType: 'up' as const, icon: <FiClock className="w-5 h-5" />, color: 'cyan' },
-    { label: 'Training Programs', value: stats?.trainingPrograms ?? 0, change: '+1', changeType: 'up' as const, icon: <FiBookOpen className="w-5 h-5" />, color: 'rose' },
-  ];
+  // Role-based stat cards
+  const statCards = useMemo(() => {
+    if (isSelfService) {
+      // Employee: personal stats only
+      return [
+        { label: 'My Leave Balance', value: stats?.activeLeaves ?? 0, change: 'Personal', changeType: 'up' as const, icon: <FiCalendar className="w-5 h-5" />, color: 'amber' },
+        { label: 'My Attendance', value: `${stats?.attendanceRate ?? 0}%`, change: 'This month', changeType: 'up' as const, icon: <FiClock className="w-5 h-5" />, color: 'cyan' },
+        { label: 'My Payslips', value: stats?.pendingPayroll ?? 0, change: 'Available', changeType: 'up' as const, icon: <FiFileText className="w-5 h-5" />, color: 'emerald' },
+        { label: 'My Training', value: stats?.trainingPrograms ?? 0, change: 'Enrolled', changeType: 'up' as const, icon: <FiBookOpen className="w-5 h-5" />, color: 'rose' },
+        { label: 'My Goals', value: 0, change: 'In progress', changeType: 'up' as const, icon: <FiTrendingUp className="w-5 h-5" />, color: 'blue' },
+        { label: 'My Tickets', value: 0, change: 'Open', changeType: 'up' as const, icon: <FiInfo className="w-5 h-5" />, color: 'violet' },
+      ];
+    }
+    if (isTeamView) {
+      // Manager: team-focused stats
+      return [
+        { label: 'Team Members', value: stats?.totalEmployees ?? 0, change: 'Reportees', changeType: 'up' as const, icon: <FiUsers className="w-5 h-5" />, color: 'blue' },
+        { label: 'Team on Leave', value: stats?.activeLeaves ?? 0, change: 'Today', changeType: 'down' as const, icon: <FiCalendar className="w-5 h-5" />, color: 'amber' },
+        { label: 'Open Positions', value: stats?.openPositions ?? 0, change: '+3', changeType: 'up' as const, icon: <FiBriefcase className="w-5 h-5" />, color: 'violet' },
+        { label: 'Team Attendance', value: `${stats?.attendanceRate ?? 0}%`, change: '+2%', changeType: 'up' as const, icon: <FiClock className="w-5 h-5" />, color: 'cyan' },
+        { label: 'Pending Approvals', value: stats?.pendingPayroll ?? 0, change: 'Action needed', changeType: 'up' as const, icon: <FiCheckCircle className="w-5 h-5" />, color: 'emerald' },
+        { label: 'Team Training', value: stats?.trainingPrograms ?? 0, change: '+1', changeType: 'up' as const, icon: <FiBookOpen className="w-5 h-5" />, color: 'rose' },
+      ];
+    }
+    // Full access: org-wide stats
+    return [
+      { label: 'Total Employees', value: stats?.totalEmployees ?? 0, change: '+12%', changeType: 'up' as const, icon: <FiUsers className="w-5 h-5" />, color: 'blue' },
+      { label: 'Active Leaves', value: stats?.activeLeaves ?? 0, change: '-5%', changeType: 'down' as const, icon: <FiCalendar className="w-5 h-5" />, color: 'amber' },
+      { label: 'Open Positions', value: stats?.openPositions ?? 0, change: '+3', changeType: 'up' as const, icon: <FiBriefcase className="w-5 h-5" />, color: 'violet' },
+      { label: 'Pending Payroll', value: stats?.pendingPayroll ?? 0, change: '+2', changeType: 'up' as const, icon: <FiDollarSign className="w-5 h-5" />, color: 'emerald' },
+      { label: 'Attendance Rate', value: `${stats?.attendanceRate ?? 0}%`, change: '+2%', changeType: 'up' as const, icon: <FiClock className="w-5 h-5" />, color: 'cyan' },
+      { label: 'Training Programs', value: stats?.trainingPrograms ?? 0, change: '+1', changeType: 'up' as const, icon: <FiBookOpen className="w-5 h-5" />, color: 'rose' },
+    ];
+  }, [isSelfService, isTeamView, stats]);
 
   function getColorClasses(color: string) {
     const map: Record<string, { bg: string; icon: string; ring: string }> = {
@@ -373,18 +412,18 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Quick Access Module Pills */}
+          {/* Quick Access Module Pills — filtered by role */}
           <div className="mt-6 flex flex-wrap gap-2">
             {[
-              { label: 'Employees', href: '/employees', color: 'from-blue-500/20 to-blue-600/10 border-blue-400/20 text-blue-300' },
-              { label: 'Attendance', href: '/attendance', color: 'from-cyan-500/20 to-cyan-600/10 border-cyan-400/20 text-cyan-300' },
-              { label: 'Leave', href: '/leave', color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-400/20 text-emerald-300' },
-              { label: 'Payroll', href: '/payroll', color: 'from-green-500/20 to-green-600/10 border-green-400/20 text-green-300' },
-              { label: 'Recruitment', href: '/recruitment', color: 'from-violet-500/20 to-violet-600/10 border-violet-400/20 text-violet-300' },
-              { label: 'Performance', href: '/performance', color: 'from-amber-500/20 to-amber-600/10 border-amber-400/20 text-amber-300' },
-              { label: 'AI Assistant', href: '/ai-assistant', color: 'from-purple-500/20 to-purple-600/10 border-purple-400/20 text-purple-300' },
-              { label: 'Reports', href: '/reports', color: 'from-rose-500/20 to-rose-600/10 border-rose-400/20 text-rose-300' },
-            ].map((pill) => (
+              { label: 'Employees', href: '/employees', color: 'from-blue-500/20 to-blue-600/10 border-blue-400/20 text-blue-300', moduleKey: 'employees' },
+              { label: 'Attendance', href: '/attendance', color: 'from-cyan-500/20 to-cyan-600/10 border-cyan-400/20 text-cyan-300', moduleKey: 'attendance' },
+              { label: 'Leave', href: '/leave', color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-400/20 text-emerald-300', moduleKey: 'leave' },
+              { label: 'Payroll', href: '/payroll', color: 'from-green-500/20 to-green-600/10 border-green-400/20 text-green-300', moduleKey: 'payroll' },
+              { label: 'Recruitment', href: '/recruitment', color: 'from-violet-500/20 to-violet-600/10 border-violet-400/20 text-violet-300', moduleKey: 'recruitment' },
+              { label: 'Performance', href: '/performance', color: 'from-amber-500/20 to-amber-600/10 border-amber-400/20 text-amber-300', moduleKey: 'performance' },
+              { label: 'AI Assistant', href: '/ai-assistant', color: 'from-purple-500/20 to-purple-600/10 border-purple-400/20 text-purple-300', moduleKey: 'dashboard' },
+              { label: 'Reports', href: '/reports', color: 'from-rose-500/20 to-rose-600/10 border-rose-400/20 text-rose-300', moduleKey: 'reports' },
+            ].filter(pill => canRoleAccessModule(userRole, pill.moduleKey)).map((pill) => (
               <button
                 key={pill.href}
                 onClick={() => router.push(pill.href)}
@@ -506,18 +545,20 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions — filtered by role */}
         <div className="nexus-card p-6">
           <h2 className="text-lg font-semibold text-nexus-text-primary mb-4">Quick Actions</h2>
           <div className="space-y-2">
             {[
-              { label: 'Add Employee', icon: <FiUserPlus className="w-4 h-4" />, color: 'text-blue-500', href: '/employees' },
-              { label: 'Post a Job', icon: <FiBriefcase className="w-4 h-4" />, color: 'text-violet-500', href: '/recruitment' },
-              { label: 'Apply Leave', icon: <FiCalendar className="w-4 h-4" />, color: 'text-amber-500', href: '/leave' },
-              { label: 'Mark Attendance', icon: <FiClock className="w-4 h-4" />, color: 'text-cyan-500', href: '/attendance' },
-              { label: 'View Payroll', icon: <FiDollarSign className="w-4 h-4" />, color: 'text-emerald-500', href: '/payroll' },
-              { label: 'Performance', icon: <FiTrendingUp className="w-4 h-4" />, color: 'text-rose-500', href: '/performance' },
-            ].map((action) => (
+              { label: 'Add Employee', icon: <FiUserPlus className="w-4 h-4" />, color: 'text-blue-500', href: '/employees', roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+              { label: 'Post a Job', icon: <FiBriefcase className="w-4 h-4" />, color: 'text-violet-500', href: '/recruitment', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
+              { label: 'Apply Leave', icon: <FiCalendar className="w-4 h-4" />, color: 'text-amber-500', href: '/leave', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee', 'recruiter', 'finance', 'it_admin'] },
+              { label: 'Mark Attendance', icon: <FiClock className="w-4 h-4" />, color: 'text-cyan-500', href: '/attendance', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee', 'recruiter', 'finance', 'it_admin'] },
+              { label: 'View Payroll', icon: <FiDollarSign className="w-4 h-4" />, color: 'text-emerald-500', href: '/payroll', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'finance'] },
+              { label: 'My Performance', icon: <FiTrendingUp className="w-4 h-4" />, color: 'text-rose-500', href: '/performance', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'] },
+              { label: 'Submit Expense', icon: <FiFileText className="w-4 h-4" />, color: 'text-green-500', href: '/expenses', roles: ['employee', 'manager'] },
+              { label: 'Raise Ticket', icon: <FiHeart className="w-4 h-4" />, color: 'text-pink-500', href: '/helpdesk', roles: ['employee', 'manager', 'recruiter'] },
+            ].filter(action => action.roles.includes(userRole)).map((action) => (
               <button
                 key={action.label}
                 onClick={() => router.push(action.href)}
@@ -531,11 +572,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Bottom Grid */}
+      {/* Bottom Grid — Department Distribution only for full/team access */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Department Distribution */}
+        {/* Department Distribution — hidden for self-service employees */}
+        <RoleAccessGuard allowedRoles={['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'finance', 'recruiter', 'it_admin']} moduleKey="employees" fallback={<div className="nexus-card p-6"><h2 className="text-lg font-semibold text-nexus-text-primary mb-4">My Profile</h2><div className="py-8 text-center"><FiUsers className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">View and update your personal information in the Employees module</p><button onClick={() => router.push('/employees')} className="mt-3 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors">Go to My Profile</button></div></div>}>
         <div className="nexus-card p-6">
-          <h2 className="text-lg font-semibold text-nexus-text-primary mb-4">Department Distribution</h2>
+          <h2 className="text-lg font-semibold text-nexus-text-primary mb-4">{isFullAccess ? 'Department Distribution' : 'Team Distribution'}</h2>
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -572,6 +614,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        </RoleAccessGuard>
 
         {/* Upcoming Birthdays */}
         <div className="nexus-card p-6">

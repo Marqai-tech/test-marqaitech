@@ -1830,6 +1830,400 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
     workflowTitle: 'Reporting & Analytics Workflow',
     workflowSubtitle: 'Generate, customize, and schedule reports for data-driven decisions',
   },
+
+  // ---------------------------------------------------------------------------
+  // SEPARATION
+  // ---------------------------------------------------------------------------
+  separation: {
+    moduleKey: 'separation',
+    tips: [
+      {
+        title: 'Initiate Separation Request',
+        description: 'Start the separation process by creating a separation record specifying the type (resignation, termination, retirement), notice period, and last working day. The system auto-triggers the offboarding workflow.',
+        roles: ['hr_admin', 'tenant_admin', 'super_admin'],
+      },
+      {
+        title: 'Submit Resignation',
+        description: 'Employees can submit their resignation through the self-service portal. Specify the reason, proposed last working day, and attach any supporting documents for manager review.',
+        roles: ['employee'],
+      },
+      {
+        title: 'Approve Separation Requests',
+        description: 'Managers review resignation requests from their team members, discuss retention options if applicable, and approve or request changes to the last working day.',
+        roles: ['manager'],
+      },
+      {
+        title: 'Exit Interview & Feedback',
+        description: 'Schedule and conduct exit interviews to gather valuable feedback about the workplace, management, and culture. Insights help improve retention strategies.',
+        roles: ['hr_admin', 'manager'],
+      },
+      {
+        title: 'Full & Final Settlement',
+        description: 'Process the F&F settlement including pending salary, leave encashment, bonus, deductions, loan recoveries, and asset returns. The system auto-calculates based on configured rules.',
+        roles: ['hr_admin', 'finance', 'tenant_admin'],
+      },
+      {
+        title: 'Knowledge Transfer & Handover',
+        description: 'Ensure a structured knowledge transfer process before the employee departs. Assign handover tasks, document critical processes, and reassign responsibilities to team members.',
+        roles: ['manager', 'employee'],
+      },
+    ],
+    workflowSteps: [
+      {
+        step: 1,
+        title: 'Submit Resignation',
+        description: 'Employee submits resignation with reason and proposed last working day',
+        route: '/separation',
+        roles: ['employee'],
+      },
+      {
+        step: 1,
+        title: 'Create Separation Record',
+        description: 'HR initiates a separation record for the employee with type, notice period, and last day',
+        route: '/separation',
+        roles: ['hr_admin', 'tenant_admin'],
+      },
+      {
+        step: 2,
+        title: 'Manager Review',
+        description: 'Review and approve the separation request, confirm or adjust the last working day',
+        route: '/separation',
+        roles: ['manager'],
+      },
+      {
+        step: 3,
+        title: 'HR Approval',
+        description: 'HR reviews and approves the separation, confirms notice period compliance',
+        route: '/separation',
+        roles: ['hr_admin'],
+      },
+      {
+        step: 4,
+        title: 'Knowledge Transfer',
+        description: 'Assign handover tasks and ensure knowledge transfer to team members',
+        route: '/separation',
+        roles: ['manager', 'employee'],
+      },
+      {
+        step: 5,
+        title: 'Exit Interview',
+        description: 'Schedule and conduct the exit interview to collect feedback',
+        route: '/separation',
+        roles: ['hr_admin'],
+      },
+      {
+        step: 6,
+        title: 'Asset Recovery',
+        description: 'Collect all company assets (laptop, ID card, access cards) and revoke system access',
+        route: '/assets',
+        roles: ['it_admin', 'hr_admin'],
+      },
+      {
+        step: 7,
+        title: 'F&F Settlement',
+        description: 'Process full and final settlement including leave encashment, pending dues, and recoveries',
+        route: '/fnf',
+        roles: ['hr_admin', 'finance'],
+      },
+      {
+        step: 8,
+        title: 'Offboard & Archive',
+        description: 'Deactivate accounts, archive employee records, and generate separation documents',
+        route: '/separation',
+        roles: ['hr_admin', 'it_admin'],
+      },
+    ],
+    workflowTitle: 'Employee Separation Workflow',
+    workflowSubtitle: 'Manage the complete exit process from resignation to final settlement',
+  },
+
+  // ---------------------------------------------------------------------------
+  // GRIEVANCES
+  // ---------------------------------------------------------------------------
+  grievances: {
+    moduleKey: 'grievances',
+    tips: [
+      {
+        title: 'File a Grievance',
+        description: 'Employees can confidentially raise grievances related to workplace issues, harassment, discrimination, or policy violations. The system ensures anonymity when required and routes to the appropriate committee.',
+        roles: ['employee'],
+      },
+      {
+        title: 'Grievance Categories & Priority',
+        description: 'Grievances are categorized (workplace conflict, harassment, policy violation, safety concern) and prioritized (critical, high, medium, low) to ensure timely resolution based on severity.',
+      },
+      {
+        title: 'Investigation & Resolution',
+        description: 'HR admins and designated committee members investigate grievances through interviews, document reviews, and evidence collection. All actions are tracked with timestamps for compliance.',
+        roles: ['hr_admin', 'tenant_admin'],
+      },
+      {
+        title: 'Manager Awareness',
+        description: 'Managers are notified of grievances in their team (unless confidential) and may be asked to provide context or participate in resolution discussions.',
+        roles: ['manager'],
+      },
+      {
+        title: 'Escalation Mechanism',
+        description: 'If a grievance is not resolved within the defined SLA, it is automatically escalated to higher authorities. Multi-level escalation ensures no grievance goes unaddressed.',
+        roles: ['hr_admin', 'tenant_admin', 'super_admin'],
+      },
+      {
+        title: 'Compliance & Audit Trail',
+        description: 'All grievance actions are logged with full audit trails for legal compliance. Reports show resolution rates, average time-to-resolution, and category trends for organizational improvement.',
+        roles: ['hr_admin', 'finance', 'tenant_admin', 'super_admin'],
+      },
+    ],
+    workflowSteps: [
+      {
+        step: 1,
+        title: 'File Grievance',
+        description: 'Employee submits a grievance with category, description, priority, and supporting evidence',
+        route: '/grievances',
+        roles: ['employee'],
+      },
+      {
+        step: 1,
+        title: 'Review Open Grievances',
+        description: 'Review pending grievances assigned to you or your department',
+        route: '/grievances',
+        roles: ['hr_admin', 'manager'],
+      },
+      {
+        step: 2,
+        title: 'Acknowledge & Assign',
+        description: 'HR acknowledges receipt and assigns an investigator or committee member',
+        route: '/grievances',
+        roles: ['hr_admin'],
+      },
+      {
+        step: 3,
+        title: 'Investigate',
+        description: 'Conduct investigation through interviews, evidence review, and fact-finding',
+        route: '/grievances',
+        roles: ['hr_admin'],
+      },
+      {
+        step: 4,
+        title: 'Manager Input',
+        description: 'Provide context or information about the team situation related to the grievance',
+        route: '/grievances',
+        roles: ['manager'],
+      },
+      {
+        step: 5,
+        title: 'Propose Resolution',
+        description: 'Document findings and propose a resolution plan with corrective actions',
+        route: '/grievances',
+        roles: ['hr_admin'],
+      },
+      {
+        step: 6,
+        title: 'Approve Resolution',
+        description: 'Review and approve the proposed resolution; escalate if unsatisfied',
+        route: '/grievances',
+        roles: ['hr_admin', 'tenant_admin'],
+      },
+      {
+        step: 7,
+        title: 'Implement & Close',
+        description: 'Implement corrective actions, notify the employee, and formally close the grievance',
+        route: '/grievances',
+        roles: ['hr_admin'],
+      },
+    ],
+    workflowTitle: 'Grievance Handling Workflow',
+    workflowSubtitle: 'Ensure fair, confidential, and timely resolution of workplace concerns',
+  },
+
+  // ---------------------------------------------------------------------------
+  // TIMESHEETS
+  // ---------------------------------------------------------------------------
+  timesheets: {
+    moduleKey: 'timesheets',
+    tips: [
+      {
+        title: 'Daily Time Logging',
+        description: 'Log your daily work hours against projects, tasks, or billable codes. The timesheet interface allows quick entry with start/end times or total hours per activity.',
+        roles: ['employee'],
+      },
+      {
+        title: 'Weekly Timesheet Submission',
+        description: 'Complete and submit your weekly timesheet by the deadline. The system highlights missing days, incomplete entries, and overtime hours before submission.',
+        roles: ['employee'],
+      },
+      {
+        title: 'Approve Team Timesheets',
+        description: 'Review and approve timesheets submitted by your team members. Check for accuracy, flag discrepancies, and ensure hours align with project allocations.',
+        roles: ['manager'],
+      },
+      {
+        title: 'Project & Billing Integration',
+        description: 'Timesheets integrate with project management and billing. Billable hours flow into client invoices, and project dashboards show actual vs. estimated effort.',
+        roles: ['manager', 'finance', 'hr_admin'],
+      },
+      {
+        title: 'Timesheet Policies & Compliance',
+        description: 'Configure timesheet submission deadlines, approval workflows, overtime rules, and compliance requirements. Enforce mandatory submission for regulated industries.',
+        roles: ['hr_admin', 'tenant_admin', 'super_admin'],
+      },
+      {
+        title: 'Time Tracking Reports',
+        description: 'Generate reports on time utilization, project profitability, employee productivity, and billing accuracy. Identify trends in overtime, under-utilization, and project overruns.',
+        roles: ['hr_admin', 'finance', 'manager', 'tenant_admin'],
+      },
+    ],
+    workflowSteps: [
+      {
+        step: 1,
+        title: 'Configure Timesheet Policies',
+        description: 'Set up submission frequency, deadlines, billable codes, and approval rules',
+        route: '/timesheets',
+        roles: ['hr_admin', 'tenant_admin'],
+      },
+      {
+        step: 1,
+        title: 'Log Daily Hours',
+        description: 'Enter your work hours against projects and tasks for the day',
+        route: '/timesheets',
+        roles: ['employee'],
+      },
+      {
+        step: 2,
+        title: 'Review Weekly Summary',
+        description: 'Review your weekly timesheet for completeness and accuracy before submission',
+        route: '/timesheets',
+        roles: ['employee'],
+      },
+      {
+        step: 3,
+        title: 'Submit Timesheet',
+        description: 'Submit the completed weekly timesheet for manager approval',
+        route: '/timesheets',
+        roles: ['employee'],
+      },
+      {
+        step: 4,
+        title: 'Manager Approval',
+        description: 'Review and approve or reject timesheets from team members with comments',
+        route: '/timesheets',
+        roles: ['manager'],
+      },
+      {
+        step: 5,
+        title: 'HR Review (if flagged)',
+        description: 'Review flagged timesheets with overtime, compliance issues, or discrepancies',
+        route: '/timesheets',
+        roles: ['hr_admin'],
+      },
+      {
+        step: 6,
+        title: 'Sync with Payroll & Billing',
+        description: 'Approved timesheet data flows into payroll for overtime calculation and billing for client invoicing',
+        route: '/payroll',
+        roles: ['hr_admin', 'finance'],
+      },
+      {
+        step: 7,
+        title: 'Generate Time Reports',
+        description: 'Analyze time utilization, project costing, and productivity metrics',
+        route: '/reports',
+        roles: ['manager', 'hr_admin', 'finance'],
+      },
+    ],
+    workflowTitle: 'Timesheet Management Workflow',
+    workflowSubtitle: 'Track, approve, and report employee time for accurate billing and payroll',
+  },
+
+  // ---------------------------------------------------------------------------
+  // DOCS (Documentation Hub)
+  // ---------------------------------------------------------------------------
+  docs: {
+    moduleKey: 'docs',
+    tips: [
+      {
+        title: 'Centralized Knowledge Base',
+        description: 'The documentation hub serves as a single source of truth for company policies, SOPs, process guides, and best practices. Search across all categories to find what you need instantly.',
+      },
+      {
+        title: 'Browse by Category',
+        description: 'Documents are organized into categories like HR Policies, IT Guidelines, Finance Procedures, and Safety Protocols. Use the category tree to navigate or search by keyword.',
+        roles: ['employee', 'manager'],
+      },
+      {
+        title: 'Create & Publish Articles',
+        description: 'HR admins and content owners can create rich-text articles with images, tables, and embedded media. Use the draft-review-publish workflow to ensure quality before articles go live.',
+        roles: ['hr_admin', 'tenant_admin', 'it_admin'],
+      },
+      {
+        title: 'Access-Controlled Content',
+        description: 'Control who can view, edit, and manage documents based on role, department, or location. Sensitive policies like compensation guidelines can be restricted to authorized personnel only.',
+        roles: ['hr_admin', 'tenant_admin', 'super_admin'],
+      },
+      {
+        title: 'Version History & Audit',
+        description: 'Every document edit is tracked with version history. Compare versions, revert changes, and see who modified what and when for full compliance traceability.',
+        roles: ['hr_admin', 'it_admin', 'tenant_admin'],
+      },
+      {
+        title: 'Employee Self-Service Access',
+        description: 'Employees can access company handbooks, benefits guides, leave policies, and IT setup instructions without contacting HR, reducing support tickets significantly.',
+        roles: ['employee'],
+      },
+    ],
+    workflowSteps: [
+      {
+        step: 1,
+        title: 'Browse Documentation',
+        description: 'Search or browse the knowledge base to find the information you need',
+        route: '/docs',
+        roles: ['employee', 'manager'],
+      },
+      {
+        step: 1,
+        title: 'Create Document Category',
+        description: 'Set up categories and access rules for organizing documentation',
+        route: '/docs',
+        roles: ['hr_admin', 'it_admin', 'tenant_admin'],
+      },
+      {
+        step: 2,
+        title: 'Write New Article',
+        description: 'Create a new article with rich content, images, and formatting',
+        route: '/docs',
+        roles: ['hr_admin', 'it_admin', 'tenant_admin'],
+      },
+      {
+        step: 3,
+        title: 'Set Access Permissions',
+        description: 'Define who can view and edit the document based on role or department',
+        route: '/docs',
+        roles: ['hr_admin', 'tenant_admin'],
+      },
+      {
+        step: 4,
+        title: 'Review & Publish',
+        description: 'Submit for review, get approval, and publish the article to the knowledge base',
+        route: '/docs',
+        roles: ['hr_admin', 'it_admin', 'tenant_admin'],
+      },
+      {
+        step: 5,
+        title: 'Maintain & Update',
+        description: 'Regularly review and update published documents to keep content current',
+        route: '/docs',
+        roles: ['hr_admin', 'it_admin'],
+      },
+      {
+        step: 6,
+        title: 'Track Usage & Feedback',
+        description: 'Monitor article views, search analytics, and user feedback to improve documentation',
+        route: '/docs',
+        roles: ['hr_admin', 'tenant_admin'],
+      },
+    ],
+    workflowTitle: 'Documentation Hub Workflow',
+    workflowSubtitle: 'Create, organize, and maintain your company knowledge base',
+  },
 };
 
 // ============================================================================

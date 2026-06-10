@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getDataScope } from '@/lib/roleAccess';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,17 +15,46 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    const userRole = (decoded.role as string) || 'employee';
+    const userId = decoded.userId as string;
+    const scope = getDataScope(userRole);
+    const isSelfOnly = scope === 'self';
+    const isTeam = scope === 'team';
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'employee_report';
 
+    // Build employee filter based on role
+    let employeeFilter: Record<string, unknown> = { status: 'active' };
+
+    if (isSelfOnly && userId) {
+      employeeFilter = { userId, status: 'active' };
+    } else if (isTeam && userId) {
+      const ownEmp = await prisma.employee.findFirst({
+        where: { userId, status: 'active' },
+        select: { departmentId: true },
+      });
+      if (ownEmp) {
+        employeeFilter = { departmentId: ownEmp.departmentId, status: 'active' };
+      }
+    }
+
+    // Exclude super_admin users from HR admin view
+    if (userRole === 'hr_admin') {
+      employeeFilter = {
+        ...employeeFilter,
+        user: { role: { not: 'super_admin' } },
+      };
+    }
+
     switch (type) {
       case 'employee_report': {
-        const totalEmployees = await prisma.employee.count({ where: { status: 'active' } });
+        const totalEmployees = await prisma.employee.count({ where: employeeFilter });
         const newHires30d = await prisma.employee.count({
-          where: { dateOfJoining: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+          where: { ...employeeFilter, dateOfJoining: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
         });
         const deptData = await prisma.employee.findMany({
-          where: { status: 'active' },
+          where: employeeFilter,
           select: { department: { select: { name: true } }, designation: { select: { title: true } } },
         });
         const deptMap: Record<string, number> = {};
@@ -32,18 +62,19 @@ export async function GET(request: NextRequest) {
           const name = e.department?.name || 'Unknown';
           deptMap[name] = (deptMap[name] || 0) + 1;
         });
-        const separated = await prisma.employee.count({ where: { status: { in: ['terminated', 'resigned'] } } });
+        const separated = isSelfOnly ? 0 : await prisma.employee.count({ where: { status: { in: ['terminated', 'resigned'] } } });
         const employees = await prisma.employee.findMany({
-          where: { status: 'active' },
+          where: employeeFilter,
           select: { employeeId: true, firstName: true, lastName: true, email: true, department: { select: { name: true } }, designation: { select: { title: true } }, dateOfJoining: true, status: true },
-          take: 100,
+          take: isSelfOnly ? 1 : 100,
           orderBy: { createdAt: 'desc' },
         });
-        return NextResponse.json({ type, headcount: totalEmployees, newHires: newHires30d, attrition: separated, departmentDistribution: deptMap, employees });
+        return NextResponse.json({ type, headcount: totalEmployees, newHires: newHires30d, attrition: separated, departmentDistribution: deptMap, employees, dataScope: scope });
       }
 
       case 'leave_report': {
         const leaveRequests = await prisma.leaveRequest.findMany({
+          where: isSelfOnly ? { employee: { userId } } : isTeam ? { employee: employeeFilter } : {},
           select: { leaveType: { select: { name: true } }, status: true, startDate: true, endDate: true, employee: { select: { firstName: true, lastName: true, department: { select: { name: true } } } } },
           take: 200,
           orderBy: { createdAt: 'desc' },
@@ -60,13 +91,16 @@ export async function GET(request: NextRequest) {
           const dept = lr.employee?.department?.name || 'Unknown';
           deptLeave[dept] = (deptLeave[dept] || 0) + 1;
         });
-        return NextResponse.json({ type, byType, byStatus, departmentAverages: deptLeave, records: leaveRequests, total: leaveRequests.length });
+        return NextResponse.json({ type, byType, byStatus, departmentAverages: deptLeave, records: leaveRequests, total: leaveRequests.length, dataScope: scope });
       }
 
       case 'attendance_report': {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const attendance = await prisma.attendance.findMany({
-          where: { date: { gte: thirtyDaysAgo } },
+          where: {
+            date: { gte: thirtyDaysAgo },
+            ...(isSelfOnly ? { employee: { userId } } : isTeam ? { employee: employeeFilter } : {}),
+          },
           select: { status: true, workHours: true, overtime: true, employee: { select: { firstName: true, lastName: true, department: { select: { name: true } } } }, date: true },
           take: 500,
           orderBy: { date: 'desc' },
@@ -77,11 +111,16 @@ export async function GET(request: NextRequest) {
         const totalOvertime = attendance.reduce((sum, a) => sum + (a.overtime || 0), 0);
         const present = attendance.filter((a) => ['present', 'late'].includes(a.status)).length;
         const rate = attendance.length > 0 ? ((present / attendance.length) * 100).toFixed(1) : '0';
-        return NextResponse.json({ type, attendanceRate: parseFloat(rate), lateArrivals, totalOvertime, byStatus, records: attendance, total: attendance.length });
+        return NextResponse.json({ type, attendanceRate: parseFloat(rate), lateArrivals, totalOvertime, byStatus, records: attendance, total: attendance.length, dataScope: scope });
       }
 
       case 'payroll_report': {
+        // Payroll data is sensitive — only accessible to hr_admin, finance, tenant_admin, super_admin
+        if (isSelfOnly) {
+          return NextResponse.json({ type, totalGross: 0, totalNet: 0, departmentCosts: {}, monthOverMonth: {}, records: [], total: 0, dataScope: scope, message: 'Self-service payroll view - use payslips endpoint' });
+        }
         const payrolls = await prisma.payroll.findMany({
+          where: isTeam ? { employee: employeeFilter } : {},
           select: { month: true, year: true, grossSalary: true, netSalary: true, totalDeductions: true, status: true, currency: true, employee: { select: { firstName: true, lastName: true, department: { select: { name: true } } } } },
           take: 500,
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -101,10 +140,14 @@ export async function GET(request: NextRequest) {
         });
         const totalGross = payrolls.reduce((s, p) => s + p.grossSalary, 0);
         const totalNet = payrolls.reduce((s, p) => s + p.netSalary, 0);
-        return NextResponse.json({ type, totalGross, totalNet, departmentCosts: deptCost, monthOverMonth: byMonth, records: payrolls, total: payrolls.length });
+        return NextResponse.json({ type, totalGross, totalNet, departmentCosts: deptCost, monthOverMonth: byMonth, records: payrolls, total: payrolls.length, dataScope: scope });
       }
 
       case 'recruitment_report': {
+        // Recruitment reports restricted for self-only
+        if (isSelfOnly) {
+          return NextResponse.json({ type, openPositions: 0, totalApplications: 0, sourceEffectiveness: {}, byStatus: {}, timeToFill: 'N/A', records: [], dataScope: scope, message: 'Recruitment reports not available for self-service' });
+        }
         const openPositions = await prisma.jobPosting.count({ where: { status: 'open' } });
         const applications = await prisma.jobApplication.findMany({
           select: { source: true, status: true, appliedDate: true, jobPosting: { select: { title: true, department: { select: { name: true } } } } },
@@ -117,7 +160,7 @@ export async function GET(request: NextRequest) {
         applications.forEach((a) => { byStatus[a.status] = (byStatus[a.status] || 0) + 1; });
         const hired = applications.filter((a) => a.status === 'hired').length;
         const timeToFill = applications.length > 0 && hired > 0 ? '21 days avg' : 'N/A';
-        return NextResponse.json({ type, openPositions, totalApplications: applications.length, sourceEffectiveness: bySource, byStatus, timeToFill, records: applications });
+        return NextResponse.json({ type, openPositions, totalApplications: applications.length, sourceEffectiveness: bySource, byStatus, timeToFill, records: applications, dataScope: scope });
       }
 
       default:

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
+import { canManageDocs } from '@/lib/roleAccess';
 import {
   FiBookOpen, FiSearch, FiFileText, FiCode, FiGitBranch, FiShield,
   FiZap, FiClipboard, FiPlay, FiLock, FiUnlock, FiEye, FiChevronRight,
@@ -164,7 +165,7 @@ function getCategoryColorClass(color: string) {
 
 export default function DocsPage() {
   const { user, token } = useAuthStore();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const canEditDocs = canManageDocs(user?.role || 'employee');
 
   // State
   const [categories, setCategories] = useState<DocCategory[]>([]);
@@ -251,7 +252,7 @@ export default function DocsPage() {
 
   // Fetch access rules for an article
   const fetchAccessRules = useCallback(async (articleId: string) => {
-    if (!token || !isSuperAdmin) return;
+    if (!token || !canEditDocs) return;
     try {
       const res = await fetch(`/api/docs/access?articleId=${articleId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -263,7 +264,7 @@ export default function DocsPage() {
     } catch {
       toast.error('Failed to fetch access rules');
     }
-  }, [token, isSuperAdmin]);
+  }, [token, canEditDocs]);
 
   // Load article detail
   const loadArticle = useCallback(async (articleId: string) => {
@@ -569,7 +570,7 @@ export default function DocsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isSuperAdmin && (
+            {canEditDocs && (
               <>
                 <button
                   onClick={async () => { await autoInitialize(); fetchCategories(); fetchArticles(); }}
@@ -1088,7 +1089,7 @@ export default function DocsPage() {
                     )}
                   </div>
                 </div>
-                {isSuperAdmin && (
+                {canEditDocs && (
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => openAccessPanel(selectedArticle)}
@@ -1159,7 +1160,7 @@ export default function DocsPage() {
                   <p className="text-nexus-text-muted text-sm mb-4">
                     {searchQuery ? 'Try adjusting your search query' : 'No documentation articles match your current filters'}
                   </p>
-                  {isSuperAdmin && (
+                  {canEditDocs && (
                     <button
                       onClick={async () => { await autoInitialize(); fetchCategories(); fetchArticles(); }}
                       className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-bold hover:bg-violet-700"
@@ -1198,7 +1199,7 @@ export default function DocsPage() {
                               </span>
                             )}
                           </div>
-                          {isSuperAdmin && (
+                          {canEditDocs && (
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                               <button
                                 onClick={() => loadArticle(article.id).then(() => {

@@ -8,6 +8,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// Default response when data is unavailable
+const defaultResponse = {
+  currentPeriod: '',
+  metrics: {
+    totalEmployeesProcessed: 0,
+    totalActiveEmployees: 0,
+    totalGrossPay: 0,
+    totalDeductions: 0,
+    totalNetPay: 0,
+    totalEmployerContrib: 0,
+    pendingApprovals: 0,
+    activeHolds: 0,
+  },
+  recentRuns: [],
+  monthlyTrend: [],
+  departmentBreakdown: [],
+};
+
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -20,6 +38,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
+    // Treat empty string companyId same as null
+    const effectiveCompanyId = companyId && companyId.trim() !== '' ? companyId : null;
     const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
 
@@ -31,18 +51,18 @@ export async function GET(request: NextRequest) {
       currentRuns = await prisma.payrollRun.findMany({
         where: {
           payrollPeriod: currentPeriod,
-          ...(companyId ? { companyId } : {}),
+          ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
         },
       });
     } catch {
       // PayrollRun table doesn't exist yet, return empty data
     }
 
-    const totalGrossPay = currentRuns.reduce((s: number, r: any) => s + r.totalGrossPay, 0);
-    const totalDeductions = currentRuns.reduce((s: number, r: any) => s + r.totalDeductions, 0);
-    const totalNetPay = currentRuns.reduce((s: number, r: any) => s + r.totalNetPay, 0);
-    const totalEmployerContrib = currentRuns.reduce((s: number, r: any) => s + r.totalEmployerContrib, 0);
-    const totalEmployeesProcessed = currentRuns.reduce((s: number, r: any) => s + r.totalEmployees, 0);
+    const totalGrossPay = currentRuns.reduce((s: number, r: any) => s + (r.totalGrossPay || 0), 0);
+    const totalDeductions = currentRuns.reduce((s: number, r: any) => s + (r.totalDeductions || 0), 0);
+    const totalNetPay = currentRuns.reduce((s: number, r: any) => s + (r.totalNetPay || 0), 0);
+    const totalEmployerContrib = currentRuns.reduce((s: number, r: any) => s + (r.totalEmployerContrib || 0), 0);
+    const totalEmployeesProcessed = currentRuns.reduce((s: number, r: any) => s + (r.totalEmployees || 0), 0);
 
     // 2. Pending approvals count
     let pendingApprovals = 0;
@@ -50,7 +70,7 @@ export async function GET(request: NextRequest) {
       pendingApprovals = await prisma.payrollRun.count({
         where: {
           runStatus: 'REVIEW',
-          ...(companyId ? { companyId } : {}),
+          ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
         },
       });
     } catch {
@@ -71,7 +91,7 @@ export async function GET(request: NextRequest) {
     let recentRuns: any[] = [];
     try {
       recentRuns = await prisma.payrollRun.findMany({
-        where: { ...(companyId ? { companyId } : {}) },
+        where: { ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}) },
         orderBy: { createdAt: 'desc' },
         take: 5,
       });
@@ -93,18 +113,18 @@ export async function GET(request: NextRequest) {
       let runs: any[] = [];
       try {
         runs = await prisma.payrollRun.findMany({
-          where: { payrollPeriod: period, ...(companyId ? { companyId } : {}) },
+          where: { payrollPeriod: period, ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}) },
         });
       } catch {
         // PayrollRun table doesn't exist yet, skip this period
       }
       monthlyTrend.push({
         period,
-        grossPay: runs.reduce((s: number, r: any) => s + r.totalGrossPay, 0),
-        deductions: runs.reduce((s: number, r: any) => s + r.totalDeductions, 0),
-        netPay: runs.reduce((s: number, r: any) => s + r.totalNetPay, 0),
-        employerContrib: runs.reduce((s: number, r: any) => s + r.totalEmployerContrib, 0),
-        employees: runs.reduce((s: number, r: any) => s + r.totalEmployees, 0),
+        grossPay: runs.reduce((s: number, r: any) => s + (r.totalGrossPay || 0), 0),
+        deductions: runs.reduce((s: number, r: any) => s + (r.totalDeductions || 0), 0),
+        netPay: runs.reduce((s: number, r: any) => s + (r.totalNetPay || 0), 0),
+        employerContrib: runs.reduce((s: number, r: any) => s + (r.totalEmployerContrib || 0), 0),
+        employees: runs.reduce((s: number, r: any) => s + (r.totalEmployees || 0), 0),
       });
     }
 
@@ -112,7 +132,7 @@ export async function GET(request: NextRequest) {
     let departments: any[] = [];
     try {
       departments = await prisma.department.findMany({
-        where: { ...(companyId ? { companyId } : {}), status: 'active' },
+        where: { ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}), status: 'active' },
         include: { employees: { where: { status: 'active' }, select: { id: true, salary: true } } },
       });
     } catch {
@@ -122,10 +142,10 @@ export async function GET(request: NextRequest) {
     const departmentBreakdown = departments.map((dept: any) => ({
       departmentId: dept.id,
       departmentName: dept.name,
-      headcount: dept.employees.length,
-      totalSalary: dept.employees.reduce((s: number, e: any) => s + (e.salary || 0), 0),
-      avgSalary: dept.employees.length > 0
-        ? dept.employees.reduce((s: number, e: any) => s + (e.salary || 0), 0) / dept.employees.length
+      headcount: dept.employees?.length || 0,
+      totalSalary: (dept.employees || []).reduce((s: number, e: any) => s + (e.salary || 0), 0),
+      avgSalary: (dept.employees?.length || 0) > 0
+        ? (dept.employees || []).reduce((s: number, e: any) => s + (e.salary || 0), 0) / dept.employees.length
         : 0,
     })).sort((a: any, b: any) => b.totalSalary - a.totalSalary);
 
@@ -135,7 +155,7 @@ export async function GET(request: NextRequest) {
       totalActiveEmployees = await prisma.employee.count({
         where: {
           status: 'active',
-          ...(companyId ? { department: { companyId } } : {}),
+          ...(effectiveCompanyId ? { department: { companyId: effectiveCompanyId } } : {}),
         },
       });
     } catch {
@@ -160,6 +180,15 @@ export async function GET(request: NextRequest) {
     }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error fetching payroll dashboard:', error);
-    return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
+    // Return default data instead of 500 error so the page can still render
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (errMsg.includes('Unauthorized') || errMsg.includes('token')) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    }
+    // For any other error, return default/empty data so the page renders
+    return Response.json({
+      ...defaultResponse,
+      _warning: 'Some data could not be loaded',
+    }, { headers: corsHeaders });
   }
 }

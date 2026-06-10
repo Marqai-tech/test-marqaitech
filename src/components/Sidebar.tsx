@@ -48,12 +48,14 @@ import {
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
+import { canRoleAccessModule } from '@/lib/roleAccess';
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
   roles?: string[];
+  moduleKey?: string; // NEW: maps to roleAccess MODULE_ACCESS keys
   isNew?: boolean;
 }
 
@@ -69,66 +71,66 @@ const navSections: NavSection[] = [
     label: 'Platform',
     items: [
       { label: 'Home', href: '/home', icon: <FiGrid className="w-5 h-5" /> },
-      { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
-      { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
+      { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, moduleKey: 'super_admin' },
+      { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, moduleKey: 'tenant_admin', isNew: true },
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
-      { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },
-      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
+      { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, moduleKey: 'rbac' },
+      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, moduleKey: 'rbac', isNew: true },
     ],
   },
   {
     key: 'core-hr',
     label: 'Core HR',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: <FiHome className="w-5 h-5" /> },
-      { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'] },
-      { label: 'Company Management', href: '/company', icon: <FiLayers className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'] },
+      { label: 'Dashboard', href: '/dashboard', icon: <FiHome className="w-5 h-5" />, moduleKey: 'dashboard' },
+      { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, moduleKey: 'employees' },
+      { label: 'Company Management', href: '/company', icon: <FiLayers className="w-5 h-5" />, moduleKey: 'company' },
     ],
   },
   {
     key: 'talent-acquisition',
     label: 'Talent Acquisition',
     items: [
-      { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
-      { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'recruiter'] },
-      { label: 'Offers', href: '/offers', icon: <FiStar className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
+      { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, moduleKey: 'recruitment' },
+      { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-5 h-5" />, moduleKey: 'recruitment' },
+      { label: 'Offers', href: '/offers', icon: <FiStar className="w-5 h-5" />, moduleKey: 'recruitment' },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-5 h-5" /> },
-      { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
+      { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-5 h-5" />, moduleKey: 'recruitment' },
     ],
   },
   {
     key: 'employee-lifecycle',
     label: 'Employee Lifecycle',
     items: [
-      { label: 'Onboarding', href: '/onboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Preboarding', href: '/preboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'], isNew: true },
-      { label: 'Separation', href: '/separation', icon: <FiLogOut className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'F&F Settlement', href: '/fnf', icon: <FiTruck className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'finance'] },
+      { label: 'Onboarding', href: '/onboarding', icon: <FiUserPlus className="w-5 h-5" />, moduleKey: 'onboarding' },
+      { label: 'Preboarding', href: '/preboarding', icon: <FiUserPlus className="w-5 h-5" />, moduleKey: 'onboarding', isNew: true },
+      { label: 'Separation', href: '/separation', icon: <FiLogOut className="w-5 h-5" />, moduleKey: 'separation' },
+      { label: 'F&F Settlement', href: '/fnf', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'separation' },
     ],
   },
   {
     key: 'time-attendance',
     label: 'Time & Attendance',
     items: [
-      { label: 'Attendance', href: '/attendance', icon: <FiClock className="w-5 h-5" /> },
-      { label: 'Leave Management', href: '/leave', icon: <FiCalendar className="w-5 h-5" /> },
-      { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-5 h-5" /> },
+      { label: 'Attendance', href: '/attendance', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Leave Management', href: '/leave', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
+      { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-5 h-5" />, moduleKey: 'attendance' },
     ],
   },
   {
     key: 'compensation',
     label: 'Compensation',
     items: [
-      { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'finance'] },
+      { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll' },
     ],
   },
   {
     key: 'performance-growth',
     label: 'Performance & Growth',
     items: [
-      { label: 'Performance', href: '/performance', icon: <FiTrendingUp className="w-5 h-5" /> },
-      { label: 'Training', href: '/training', icon: <FiBookOpen className="w-5 h-5" /> },
-      { label: 'Engagement', href: '/engagement', icon: <FiHeart className="w-5 h-5" />, isNew: true },
+      { label: 'Performance', href: '/performance', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'performance' },
+      { label: 'Training', href: '/training', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'training' },
+      { label: 'Engagement', href: '/engagement', icon: <FiHeart className="w-5 h-5" />, moduleKey: 'engagement', isNew: true },
       { label: 'Succession Planning', href: '/succession', icon: <FiTarget className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'], isNew: true },
     ],
   },
@@ -136,27 +138,27 @@ const navSections: NavSection[] = [
     key: 'operations',
     label: 'Operations',
     items: [
-      { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" /> },
-      { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" /> },
-      { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" /> },
-      { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Documents', href: '/documents', icon: <FiFileText className="w-5 h-5" /> },
+      { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
+      { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" />, moduleKey: 'travel' },
+      { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'expenses' },
+      { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, moduleKey: 'assets' },
+      { label: 'Documents', href: '/documents', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'docs' },
     ],
   },
   {
     key: 'external-relations',
     label: 'External Relations',
     items: [
-      { label: 'Clients', href: '/clients', icon: <FiGlobe className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'] },
-      { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'Clients', href: '/clients', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'company' },
+      { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'company' },
     ],
   },
   {
     key: 'support-intelligence',
     label: 'Support & Intelligence',
     items: [
-      { label: 'Helpdesk', href: '/helpdesk', icon: <FiHelpCircle className="w-5 h-5" /> },
-      { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-5 h-5" /> },
+      { label: 'Helpdesk', href: '/helpdesk', icon: <FiHelpCircle className="w-5 h-5" />, moduleKey: 'helpdesk' },
+      { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-5 h-5" />, moduleKey: 'grievances' },
       { label: 'AI Assistant', href: '/ai-assistant', icon: <FiMessageCircle className="w-5 h-5" /> },
     ],
   },
@@ -164,16 +166,16 @@ const navSections: NavSection[] = [
     key: 'knowledge-base',
     label: 'Knowledge Base',
     items: [
-      { label: 'Documentation Hub', href: '/docs', icon: <FiBookOpen className="w-5 h-5" />, isNew: true },
+      { label: 'Documentation Hub', href: '/docs', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'docs', isNew: true },
     ],
   },
   {
     key: 'governance',
     label: 'Governance',
     items: [
-      { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Reports & Analytics', href: '/reports', icon: <FiBarChart2 className="w-5 h-5" /> },
-      { label: 'Settings & Configuration', href: '/settings', icon: <FiSettings className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-5 h-5" />, moduleKey: 'settings' },
+      { label: 'Reports & Analytics', href: '/reports', icon: <FiBarChart2 className="w-5 h-5" />, moduleKey: 'reports' },
+      { label: 'Settings & Configuration', href: '/settings', icon: <FiSettings className="w-5 h-5" />, moduleKey: 'settings' },
       { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-5 h-5" /> },
     ],
   },
@@ -190,13 +192,20 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
   const { user, logout } = useAuthStore();
   const userRole = user?.role || 'employee';
 
-  // Filter sections based on user role
+  // Filter sections based on user role — uses both explicit roles and canRoleAccessModule
   const filteredSections = useMemo(() => {
     return navSections
       .map((section) => ({
         ...section,
         items: section.items.filter(
-          (item) => !item.roles || item.roles.includes(userRole)
+          (item) => {
+            // If moduleKey is provided, use centralized role access check
+            if (item.moduleKey) {
+              return canRoleAccessModule(userRole, item.moduleKey);
+            }
+            // Fallback to explicit roles array
+            return !item.roles || item.roles.includes(userRole);
+          }
         ),
       }))
       .filter((section) => section.items.length > 0);

@@ -30,7 +30,6 @@ import {
   FiChevronUp,
   FiInfo,
 } from 'react-icons/fi';
-import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 
@@ -415,13 +414,23 @@ export default function PayrollManagementPage() {
     }
   };
 
+  /* Safely extract array length from API response data */
+  const safeArrayLen = (data: Record<string, unknown> | null, ...keys: string[]): number => {
+    if (!data) return 0;
+    for (const key of keys) {
+      const arr = data[key];
+      if (Array.isArray(arr)) return arr.length;
+    }
+    return 0;
+  };
+
   /* Fetch summary stats */
   const fetchStats = useCallback(async () => {
     try {
       setLoadingStats(true);
       const headers = getAuthHeaders();
 
-      const [empRes, ctcRes, runsRes, complianceRes, compRes, statRes, taxRes, payMethodRes, inputsRes, validationsRes, payslipsRes] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         fetch('/api/employees?limit=1', { headers }),
         fetch('/api/payroll/ctc-templates?limit=1', { headers }),
         fetch('/api/payroll/runs?limit=100', { headers }),
@@ -434,6 +443,8 @@ export default function PayrollManagementPage() {
         fetch('/api/payroll/validations?limit=1', { headers }),
         fetch('/api/payroll/payslips?limit=1', { headers }),
       ]);
+
+      const [empRes, ctcRes, runsRes, complianceRes, compRes, statRes, taxRes, payMethodRes, inputsRes, validationsRes, payslipsRes] = results;
 
       const empData = await safeParse(empRes);
       const ctcData = await safeParse(ctcRes);
@@ -452,40 +463,50 @@ export default function PayrollManagementPage() {
       let pendingPayrollRuns = 0;
       let openComplianceItems = 0;
 
-      if (empData) {
-        totalEmployees = (empData.pagination as { total?: number })?.total || (empData.employees as unknown[])?.length || 0;
-      }
+      try {
+        if (empData) {
+          totalEmployees = (empData.pagination as { total?: number })?.total || (empData.employees as unknown[])?.length || 0;
+        }
+      } catch { /* ignore parse error */ }
 
-      if (ctcData) {
-        const templates = (ctcData.templates || ctcData.ctcTemplates || []) as Array<{ status?: string }>;
-        activeCTCTemplates = templates.filter(t => t.status === 'active').length || templates.length || 0;
-      }
+      try {
+        if (ctcData) {
+          const templates = (ctcData.templates || ctcData.ctcTemplates || []) as Array<{ status?: string }>;
+          activeCTCTemplates = templates.filter(t => t.status === 'active').length || templates.length || 0;
+        }
+      } catch { /* ignore parse error */ }
 
-      const runs = ((runsData?.runs || runsData?.payrollRuns || []) as Array<{ status?: string }>) || [];
+      const runs = (() => {
+        try {
+          return ((runsData?.runs || runsData?.payrollRuns || []) as Array<{ status?: string }>) || [];
+        } catch { return []; }
+      })();
       pendingPayrollRuns = runs.filter(
         (r) => r.status === 'draft' || r.status === 'processing' || r.status === 'pending'
       ).length;
 
-      if (complianceData) {
-        const items = (complianceData.compliance || complianceData.items || []) as Array<{ status?: string }>;
-        openComplianceItems = items.filter(
-          (c) => c.status === 'pending' || c.status === 'overdue' || c.status === 'open'
-        ).length;
-      }
+      try {
+        if (complianceData) {
+          const items = (complianceData.compliance || complianceData.items || []) as Array<{ status?: string }>;
+          openComplianceItems = items.filter(
+            (c) => c.status === 'pending' || c.status === 'overdue' || c.status === 'open'
+          ).length;
+        }
+      } catch { /* ignore parse error */ }
 
       setStats({ totalEmployees, activeCTCTemplates, pendingPayrollRuns, openComplianceItems });
 
       // Workflow data - safely check for data existence
-      const hasComponents = compData ? ((compData.components as unknown[])?.length || 0) > 0 : false;
-      const hasStatutory = statData ? ((statData.components as unknown[])?.length || (statData.statutory as unknown[])?.length || 0) > 0 : false;
+      const hasComponents = safeArrayLen(compData, 'components') > 0;
+      const hasStatutory = safeArrayLen(statData, 'components', 'statutory') > 0;
       const hasCTCTemplates = activeCTCTemplates > 0;
-      const hasTaxSlabs = taxData ? ((taxData.taxSlabs as unknown[])?.length || (taxData.slabs as unknown[])?.length || 0) > 0 : false;
-      const hasPaymentMethods = payMethodData ? ((payMethodData.paymentMethods as unknown[])?.length || (payMethodData.methods as unknown[])?.length || 0) > 0 : false;
-      const hasInputs = inputsData ? ((inputsData.inputs as unknown[])?.length || (inputsData.payrollInputs as unknown[])?.length || 0) > 0 : false;
-      const hasValidations = validationsData ? ((validationsData.validations as unknown[])?.length || 0) > 0 : false;
+      const hasTaxSlabs = safeArrayLen(taxData, 'taxSlabs', 'slabs') > 0;
+      const hasPaymentMethods = safeArrayLen(payMethodData, 'paymentMethods', 'methods') > 0;
+      const hasInputs = safeArrayLen(inputsData, 'inputs', 'payrollInputs') > 0;
+      const hasValidations = safeArrayLen(validationsData, 'validations') > 0;
       const hasPayrollRuns = runs.length > 0;
       const hasApprovedRuns = runs.some((r) => r.status === 'approved' || r.status === 'completed');
-      const hasPayslips = payslipsData ? ((payslipsData.payslips as unknown[])?.length || 0) > 0 : false;
+      const hasPayslips = safeArrayLen(payslipsData, 'payslips') > 0;
       const hasCompliance = openComplianceItems > 0;
       const hasClosedRuns = runs.some((r) => r.status === 'closed' || r.status === 'disbursed');
 
@@ -506,6 +527,8 @@ export default function PayrollManagementPage() {
     } catch (err) {
       console.error('Payroll summary error:', err);
       // Don't show toast for individual API failures - the page should still render
+      // Ensure default state is set so the page renders even on total failure
+      setStats({ totalEmployees: 0, activeCTCTemplates: 0, pendingPayrollRuns: 0, openComplianceItems: 0 });
     } finally {
       setLoadingStats(false);
     }

@@ -9,6 +9,8 @@
  *   5. Payroll Holds (notice period / disciplinary holds)
  *   6. Payroll Validations (pre-payroll checks)
  *   7. Bank Payment Files (NACH/NEFT format)
+ *   8. FNF Calculations (full & final settlement samples)
+ *   9. Additional Payroll Inputs (attendance, variable pay, one-time bonus)
  */
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -32,7 +34,7 @@ export async function POST() {
     // ─── Fetch existing data ──────────────────────────────────────
     const companies = await db.company.findMany({ include: { branches: true } });
     const employees = await db.employee.findMany();
-    let payrollRuns: any[] = [];
+    let payrollRuns: { id: string; runStatus: string; payrollPeriod: string | null; periodStartDate: Date; periodEndDate: Date; companyId: string; [key: string]: unknown }[] = [];
     try {
       payrollRuns = await db.payrollRun.findMany();
     } catch {
@@ -682,6 +684,239 @@ export async function POST() {
     console.log(`  ✓ Created ${bpfCreated} bank payment files`);
 
     // ══════════════════════════════════════════════════════════════
+    // 8. FNF CALCULATIONS
+    // ══════════════════════════════════════════════════════════════
+    console.log('\n📋 Creating FNF Calculations...');
+
+    // Use some employees for FNF settlement samples
+    const fnfEmployeePool = allSeededEmployees.slice(0, Math.min(3, allSeededEmployees.length));
+    const fnfDefs = [
+      {
+        pendingSalary: 8333,
+        leaveEncashment: 15000,
+        bonus: 20000,
+        incentives: 5000,
+        reimbursements: 3200,
+        noticeRecovery: 0,
+        assetRecovery: 0,
+        loanRecovery: 4280,
+        taxDeduction: 8500,
+        otherRecoveries: 500,
+        totalEarnings: 131533,
+        totalDeductions: 13280,
+        netAmount: 118253,
+        currency: 'INR',
+        status: 'approved',
+        remarks: 'FNF settlement for resigned employee - all dues cleared',
+      },
+      {
+        pendingSalary: 12500,
+        leaveEncashment: 10000,
+        bonus: 0,
+        incentives: 3000,
+        reimbursements: 1500,
+        noticeRecovery: 25000,
+        assetRecovery: 5000,
+        loanRecovery: 9268,
+        taxDeduction: 12000,
+        otherRecoveries: 0,
+        totalEarnings: 27000,
+        totalDeductions: 51268,
+        netAmount: -24268,
+        currency: 'USD',
+        status: 'pending',
+        remarks: 'FNF settlement pending - notice period not served, recovery exceeds dues',
+      },
+      {
+        pendingSalary: 6667,
+        leaveEncashment: 8000,
+        bonus: 0,
+        incentives: 0,
+        reimbursements: 0,
+        noticeRecovery: 0,
+        assetRecovery: 0,
+        loanRecovery: 0,
+        taxDeduction: 4600,
+        otherRecoveries: 0,
+        totalEarnings: 14667,
+        totalDeductions: 4600,
+        netAmount: 10067,
+        currency: 'USD',
+        status: 'paid',
+        paidAt: new Date('2026-05-15'),
+        remarks: 'FNF settlement completed - payment disbursed via direct deposit',
+      },
+    ];
+
+    let fnfCreated = 0;
+    for (let i = 0; i < fnfDefs.length; i++) {
+      if (i >= fnfEmployeePool.length) break;
+      const emp = fnfEmployeePool[i];
+      const fnf = fnfDefs[i];
+
+      const existing = await db.fNFCalculation.findFirst({
+        where: { employeeId: emp.id },
+      });
+      if (existing) continue;
+
+      const approver = allSeededEmployees.find(e => e.id !== emp.id);
+
+      await db.fNFCalculation.create({
+        data: {
+          employeeId: emp.id,
+          pendingSalary: fnf.pendingSalary,
+          leaveEncashment: fnf.leaveEncashment,
+          bonus: fnf.bonus,
+          incentives: fnf.incentives,
+          reimbursements: fnf.reimbursements,
+          noticeRecovery: fnf.noticeRecovery,
+          assetRecovery: fnf.assetRecovery,
+          loanRecovery: fnf.loanRecovery,
+          taxDeduction: fnf.taxDeduction,
+          otherRecoveries: fnf.otherRecoveries,
+          totalEarnings: fnf.totalEarnings,
+          totalDeductions: fnf.totalDeductions,
+          netAmount: fnf.netAmount,
+          currency: fnf.currency,
+          status: fnf.status,
+          approvedBy: fnf.status === 'approved' || fnf.status === 'paid' ? approver?.id : null,
+          approvedAt: fnf.status === 'approved' || fnf.status === 'paid' ? new Date('2026-05-10') : null,
+          paidAt: fnf.paidAt || null,
+          remarks: fnf.remarks,
+        },
+      });
+      fnfCreated++;
+    }
+    results.fnfCalculations = fnfCreated;
+    console.log(`  ✓ Created ${fnfCreated} FNF calculations`);
+
+    // ══════════════════════════════════════════════════════════════
+    // 9. ADDITIONAL PAYROLL INPUTS (attendance, variable pay, one-time bonus)
+    // ══════════════════════════════════════════════════════════════
+    console.log('\n📋 Creating Additional Payroll Inputs...');
+
+    let additionalInputCount = 0;
+
+    // Find the latest payroll run for inputs
+    const latestRun = payrollRuns.length > 0
+      ? payrollRuns.sort((a, b) => new Date(b.periodEndDate).getTime() - new Date(a.periodEndDate).getTime())[0]
+      : null;
+
+    if (latestRun && allSeededEmployees.length > 0) {
+      // Attendance input - present days for a few employees
+      const attendanceEmp1 = allSeededEmployees[0];
+      const attendanceEmp2 = allSeededEmployees.length > 1 ? allSeededEmployees[1] : null;
+
+      if (attendanceEmp1) {
+        const existingAtt = await db.payrollInput.findFirst({
+          where: { payrollRunId: latestRun.id, employeeId: attendanceEmp1.id, inputType: 'ATTENDANCE' },
+        });
+        if (!existingAtt) {
+          await db.payrollInput.create({
+            data: {
+              payrollRunId: latestRun.id,
+              employeeId: attendanceEmp1.id,
+              inputType: 'ATTENDANCE',
+              componentCode: 'BASE_US',
+              inputValueNumeric: 22,
+              unitType: 'DAYS',
+              inputDateFrom: new Date('2026-06-01'),
+              inputDateTo: new Date('2026-06-30'),
+              currencyCode: 'USD',
+              approvalStatus: 'APPROVED',
+              source: 'SYSTEM_GENERATED',
+              remarks: 'Present days - June 2026',
+            },
+          });
+          additionalInputCount++;
+        }
+      }
+
+      if (attendanceEmp2) {
+        const existingAtt2 = await db.payrollInput.findFirst({
+          where: { payrollRunId: latestRun.id, employeeId: attendanceEmp2.id, inputType: 'ATTENDANCE' },
+        });
+        if (!existingAtt2) {
+          await db.payrollInput.create({
+            data: {
+              payrollRunId: latestRun.id,
+              employeeId: attendanceEmp2.id,
+              inputType: 'ATTENDANCE',
+              componentCode: 'BASE_US',
+              inputValueNumeric: 20,
+              unitType: 'DAYS',
+              inputDateFrom: new Date('2026-06-01'),
+              inputDateTo: new Date('2026-06-30'),
+              currencyCode: 'USD',
+              approvalStatus: 'APPROVED',
+              source: 'SYSTEM_GENERATED',
+              remarks: 'Present days - June 2026 (2 days leave)',
+            },
+          });
+          additionalInputCount++;
+        }
+      }
+
+      // Variable pay input
+      const variablePayEmp = allSeededEmployees.length > 2 ? allSeededEmployees[2] : allSeededEmployees[0];
+      if (variablePayEmp) {
+        const existingVP = await db.payrollInput.findFirst({
+          where: { payrollRunId: latestRun.id, employeeId: variablePayEmp.id, inputType: 'VARIABLE_PAY' },
+        });
+        if (!existingVP) {
+          await db.payrollInput.create({
+            data: {
+              payrollRunId: latestRun.id,
+              employeeId: variablePayEmp.id,
+              inputType: 'VARIABLE_PAY',
+              componentCode: 'BONUS',
+              inputValueNumeric: 2500,
+              unitType: 'AMOUNT',
+              inputDateFrom: new Date('2026-06-01'),
+              inputDateTo: new Date('2026-06-30'),
+              currencyCode: 'USD',
+              approvalStatus: 'APPROVED',
+              source: 'MANUAL',
+              remarks: 'Quarterly variable pay - Q2 2026',
+            },
+          });
+          additionalInputCount++;
+        }
+      }
+
+      // One-time bonus input
+      const bonusEmp = allSeededEmployees.length > 3 ? allSeededEmployees[3] : allSeededEmployees[0];
+      if (bonusEmp) {
+        const existingBonus = await db.payrollInput.findFirst({
+          where: { payrollRunId: latestRun.id, employeeId: bonusEmp.id, inputType: 'ONE_TIME_BONUS' },
+        });
+        if (!existingBonus) {
+          await db.payrollInput.create({
+            data: {
+              payrollRunId: latestRun.id,
+              employeeId: bonusEmp.id,
+              inputType: 'ONE_TIME_BONUS',
+              componentCode: 'BONUS',
+              inputValueNumeric: 5000,
+              unitType: 'AMOUNT',
+              inputDateFrom: new Date('2026-06-15'),
+              inputDateTo: new Date('2026-06-15'),
+              currencyCode: 'USD',
+              approvalStatus: 'APPROVED',
+              source: 'MANUAL',
+              remarks: 'Referral bonus - successful hire referral',
+            },
+          });
+          additionalInputCount++;
+        }
+      }
+    } else {
+      console.log('[Full Payroll Seed] No payroll runs found, skipping additional payroll inputs');
+    }
+    results.additionalPayrollInputs = additionalInputCount;
+    console.log(`  ✓ Created ${additionalInputCount} additional payroll inputs`);
+
+    // ══════════════════════════════════════════════════════════════
     // COMPLETE
     // ══════════════════════════════════════════════════════════════
     console.log('\n[Full Payroll Seed] Complete!');
@@ -702,6 +937,8 @@ export async function POST() {
           payrollHolds: results.payrollHolds,
           payrollValidations: results.payrollValidations,
           bankPaymentFiles: results.bankPaymentFiles,
+          fnfCalculations: results.fnfCalculations,
+          additionalPayrollInputs: results.additionalPayrollInputs,
         },
       },
       { headers: corsHeaders() }

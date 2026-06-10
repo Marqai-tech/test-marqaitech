@@ -45,9 +45,13 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId');
-    const companyId = searchParams.get('companyId');
+    const rawTenantId = searchParams.get('tenantId');
+    const rawCompanyId = searchParams.get('companyId');
     const search = searchParams.get('search');
+
+    // Treat empty string same as null (no filter)
+    const tenantId = rawTenantId && rawTenantId.trim() !== '' ? rawTenantId : null;
+    const companyId = rawCompanyId && rawCompanyId.trim() !== '' ? rawCompanyId : null;
 
     // Build where clause based on user role using AND to combine conditions properly
     const andConditions: Record<string, unknown>[] = [];
@@ -63,6 +67,7 @@ export async function GET(request: Request) {
           ],
         });
       }
+      // If no tenantId filter, super_admin sees ALL roles (no condition added)
     } else {
       // Tenant admin and below can only see roles for their tenant
       andConditions.push({
@@ -235,11 +240,11 @@ export async function POST(request: Request) {
     }
 
     // Determine the tenantId for the new role
-    let roleTenantId: string | null = null;
+    // Treat empty string same as null
+    let roleTenantId: string | null = (tenantId && tenantId.trim() !== '') ? tenantId : null;
 
     if (user.role === 'super_admin') {
-      // Super admin can create roles for any tenant
-      roleTenantId = tenantId || null;
+      // Super admin can create roles for any tenant (roleTenantId already set above)
     } else {
       // Tenant admin can only create roles for their own tenant
       roleTenantId = user.tenantId;

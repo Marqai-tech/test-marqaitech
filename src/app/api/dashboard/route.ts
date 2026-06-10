@@ -1,51 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getDataScope } from '@/lib/roleAccess';
 
 // Demo data fallback when database is unavailable
-function getDemoDashboardData() {
+function getDemoDashboardData(role: string) {
+  const scope = getDataScope(role);
+  const isSelfOnly = scope === 'self';
+  const isTeam = scope === 'team';
+
   return {
     stats: {
-      totalEmployees: 10,
-      newHires: 2,
-      openPositions: 3,
+      totalEmployees: isSelfOnly ? 1 : isTeam ? 5 : 10,
+      newHires: isSelfOnly ? 0 : 2,
+      openPositions: isSelfOnly ? 0 : isTeam ? 1 : 3,
       attendanceRate: 94,
-      pendingApprovals: 5,
+      pendingApprovals: isSelfOnly ? 0 : 5,
       unreadNotifications: 3,
+      dataScope: scope,
     },
     recentActivities: [
       { id: '1', action: 'LOGIN', entity: 'User', details: 'Rajesh Kumar logged in', createdAt: new Date().toISOString(), user: { name: 'Rajesh Kumar', email: 'rajesh.kumar@3boxestech.com', avatar: null } },
       { id: '2', action: 'CREATE', entity: 'Leave', details: 'Ananya Gupta requested casual leave', createdAt: new Date(Date.now() - 3600000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@3boxestech.com', avatar: null } },
       { id: '3', action: 'APPROVE', entity: 'ExpenseClaim', details: 'Expense claim approved for ₹8,500', createdAt: new Date(Date.now() - 7200000).toISOString(), user: { name: 'Meera Joshi', email: 'meera.joshi@3boxestech.com', avatar: null } },
-      { id: '4', action: 'CREATE', entity: 'Employee', details: 'New employee Vikram Singh onboarded', createdAt: new Date(Date.now() - 86400000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@3boxestech.com', avatar: null } },
-      { id: '5', action: 'UPDATE', entity: 'Attendance', details: 'Check-out recorded for Deepa Iyer', createdAt: new Date(Date.now() - 90000000).toISOString(), user: { name: 'Deepa Iyer', email: 'deepa.iyer@3boxestech.com', avatar: null } },
     ],
-    recentNotifications: [
-      { id: 'notif-1', title: 'Leave Request', message: 'Ananya Gupta requested leave for June 1-5', type: 'leave', category: 'approval', isRead: false, createdAt: new Date(Date.now() - 1800000).toISOString() },
-      { id: 'notif-2', title: 'Expense Claim', message: 'Rajesh Kumar submitted an expense claim of ₹12,500', type: 'expense', category: 'approval', isRead: false, createdAt: new Date(Date.now() - 5400000).toISOString() },
-      { id: 'notif-3', title: 'Attendance Alert', message: 'Amit Patel checked in late today', type: 'attendance', category: 'alert', isRead: true, createdAt: new Date(Date.now() - 7200000).toISOString() },
-    ],
-    departmentStats: [
+    recentNotifications: [],
+    departmentStats: isSelfOnly ? [] : [
       { departmentId: 'dept-1', departmentName: 'Engineering', count: 3 },
       { departmentId: 'dept-2', departmentName: 'Human Resources', count: 1 },
       { departmentId: 'dept-3', departmentName: 'Design', count: 1 },
-      { departmentId: 'dept-4', departmentName: 'Finance', count: 2 },
-      { departmentId: 'dept-5', departmentName: 'Marketing', count: 1 },
-      { departmentId: 'dept-6', departmentName: 'Sales', count: 1 },
-      { departmentId: 'dept-7', departmentName: 'Operations', count: 1 },
     ],
   };
 }
 
 export async function GET(req: NextRequest) {
   try {
+    // Get user role from token for role-based filtering
+    const token = getTokenFromHeaders(req);
+    let userRole = 'employee';
+    let userId: string | null = null;
+
+    if (token) {
+      const decoded = await verifyToken(token);
+      if (decoded) {
+        userRole = (decoded.role as string) || 'employee';
+        userId = (decoded.userId as string) || null;
+      }
+    }
+
+    const scope = getDataScope(userRole);
+    const isSelfOnly = scope === 'self';
+
     const { db } = await import('@/lib/db');
     const url = new URL(req.url);
     const companyId = url.searchParams.get('companyId');
 
     const companyFilter = companyId ? { companyId } : {};
 
-    // Total employees
+    // For self-only access (employee), find the user's own employee record
+    let employeeFilter: Record<string, unknown> = { ...companyFilter, status: 'active' };
+
+    if (isSelfOnly && userId) {
+      // Employee can only see their own data
+      employeeFilter = { ...companyFilter, userId, status: 'active' };
+    } else if (scope === 'team' && userId) {
+      // Manager: find employees in the same department
+      const ownEmp = await db.employee.findFirst({
+        where: { userId, status: 'active' },
+        select: { departmentId: true },
+      });
+      if (ownEmp) {
+        employeeFilter = { ...companyFilter, departmentId: ownEmp.departmentId, status: 'active' };
+      }
+    }
+
+    // Total employees (scoped by role)
     const totalEmployees = await db.employee.count({
-      where: { ...companyFilter, status: 'active' },
+      where: employeeFilter,
     });
 
     // New hires this month
@@ -53,13 +83,13 @@ export async function GET(req: NextRequest) {
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const newHires = await db.employee.count({
       where: {
-        ...companyFilter,
+        ...employeeFilter,
         joiningDate: { gte: firstOfMonth },
       },
     });
 
     // Open positions
-    const openPositions = await db.job.count({
+    const openPositions = isSelfOnly ? 0 : await db.job.count({
       where: {
         ...companyFilter,
         status: 'open',
@@ -73,7 +103,7 @@ export async function GET(req: NextRequest) {
       where: {
         date: { gte: today },
         status: 'present',
-        employee: companyFilter,
+        employee: employeeFilter,
       },
     });
     const expectedAttendance = totalEmployees || 1;
@@ -83,19 +113,19 @@ export async function GET(req: NextRequest) {
     const pendingLeaves = await db.leave.count({
       where: {
         status: 'pending',
-        employee: companyFilter,
+        employee: employeeFilter,
       },
     });
     const pendingExpenses = await db.expenseClaim.count({
       where: {
         status: 'pending',
-        employee: companyFilter,
+        employee: employeeFilter,
       },
     });
     const pendingTravel = await db.travelRequest.count({
       where: {
         status: 'pending',
-        employee: companyFilter,
+        employee: employeeFilter,
       },
     });
     const pendingApprovals = pendingLeaves + pendingExpenses + pendingTravel;
@@ -112,15 +142,15 @@ export async function GET(req: NextRequest) {
     });
 
     // Notifications count
-    const userId = url.searchParams.get('userId');
+    const reqUserId = url.searchParams.get('userId') || userId;
     let unreadNotifications = 0;
     let recentNotifications: unknown[] = [];
-    if (userId) {
+    if (reqUserId) {
       unreadNotifications = await db.notification.count({
-        where: { userId, isRead: false },
+        where: { userId: reqUserId, isRead: false },
       });
       recentNotifications = await db.notification.findMany({
-        where: { userId },
+        where: { userId: reqUserId },
         take: 5,
         orderBy: { createdAt: 'desc' },
       });
@@ -129,7 +159,7 @@ export async function GET(req: NextRequest) {
     // Department distribution
     const departmentDistribution = await db.employee.groupBy({
       by: ['departmentId'],
-      where: { ...companyFilter, status: 'active' },
+      where: employeeFilter,
       _count: { id: true },
     });
 
@@ -154,6 +184,7 @@ export async function GET(req: NextRequest) {
         attendanceRate,
         pendingApprovals,
         unreadNotifications,
+        dataScope: scope,
       },
       recentActivities,
       recentNotifications,
@@ -162,6 +193,6 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Dashboard error - returning demo data:', error);
     // Return demo data instead of 500 error
-    return NextResponse.json(getDemoDashboardData());
+    return NextResponse.json(getDemoDashboardData('employee'));
   }
 }

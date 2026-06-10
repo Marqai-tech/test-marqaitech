@@ -308,7 +308,8 @@ export default function TenantAdminRBACPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success(editingRoleId ? 'Role updated' : 'Role created');
       handleCancelForm();
-      fetchRoles();
+      // Small delay to ensure database has committed the transaction before refreshing
+      setTimeout(() => fetchRoles(), 300);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Operation failed'); }
     finally { setSubmittingRole(false); }
   };

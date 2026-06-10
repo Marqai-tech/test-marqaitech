@@ -19,6 +19,8 @@ import {
   FiInfo,
   FiCheck,
   FiMenu,
+  FiBriefcase,
+  FiTrendingUp,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -290,6 +292,86 @@ const employeeSections: SettingSection[] = [
   },
 ];
 
+const recruitmentSections: SettingSection[] = [
+  {
+    title: 'Application Defaults',
+    description: 'Configure default recruitment application settings',
+    icon: <FiBriefcase className="w-5 h-5" />,
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-500',
+    fields: [
+      { key: 'recruitment_default_application_source', label: 'Default Application Source', type: 'select', defaultValue: 'company_website', description: 'Default source attributed to new job applications', options: [{ value: 'company_website', label: 'Company Website' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'naukri', label: 'Naukri' }, { value: 'indeed', label: 'Indeed' }, { value: 'referral', label: 'Employee Referral' }, { value: 'other', label: 'Other' }] },
+      { key: 'recruitment_auto_reject_days', label: 'Auto-reject After (days without response)', type: 'number', defaultValue: 30, description: 'Automatically reject applications with no response after this many days', min: 7, max: 180 },
+    ],
+  },
+  {
+    title: 'Offer & Onboarding',
+    description: 'Offer letter and new hire onboarding defaults',
+    icon: <FiUserCheck className="w-5 h-5" />,
+    iconBg: 'bg-teal-50',
+    iconColor: 'text-teal-500',
+    fields: [
+      { key: 'recruitment_offer_letter_template', label: 'Offer Letter Template', type: 'select', defaultValue: 'standard', description: 'Default offer letter template for new hires', options: [{ value: 'standard', label: 'Standard Offer Letter' }, { value: 'senior', label: 'Senior/Executive Offer' }, { value: 'intern', label: 'Internship Offer' }, { value: 'contract', label: 'Contract Offer' }] },
+      { key: 'recruitment_probation_default_months', label: 'Probation Period for New Hires (months)', type: 'number', defaultValue: 6, description: 'Default probation period applied to all new hires from recruitment', min: 0, max: 24 },
+      { key: 'recruitment_offer_expiry_days', label: 'Offer Expiry Days', type: 'number', defaultValue: 7, description: 'Number of days before an offer letter expires if not accepted', min: 1, max: 30 },
+    ],
+  },
+  {
+    title: 'Pipeline & Process',
+    description: 'Recruitment pipeline and workflow defaults',
+    icon: <FiSettings className="w-5 h-5" />,
+    iconBg: 'bg-slate-100',
+    iconColor: 'text-slate-500',
+    fields: [
+      { key: 'recruitment_auto_screening', label: 'Auto-screening Enabled', type: 'toggle', defaultValue: false, description: 'Automatically screen applications based on predefined criteria' },
+      { key: 'recruitment_min_interview_score', label: 'Minimum Interview Score to Advance', type: 'number', defaultValue: 3, description: 'Minimum score (out of 5) required to advance to next interview round', min: 1, max: 5 },
+      { key: 'recruitment_background_check_required', label: 'Background Check Required', type: 'toggle', defaultValue: true, description: 'Require background verification before final offer' },
+      { key: 'recruitment_requisition_approval_levels', label: 'Requisition Approval Levels', type: 'number', defaultValue: 2, description: 'Number of approval levels required for a job requisition', min: 1, max: 5 },
+    ],
+  },
+];
+
+const performanceSections: SettingSection[] = [
+  {
+    title: 'Review Cycle',
+    description: 'Configure performance review cycle settings',
+    icon: <FiCalendar className="w-5 h-5" />,
+    iconBg: 'bg-violet-50',
+    iconColor: 'text-violet-500',
+    fields: [
+      { key: 'performance_review_cycle_frequency', label: 'Review Cycle Frequency', type: 'select', defaultValue: 'quarterly', description: 'How often performance reviews are conducted', options: [{ value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' }, { value: 'semi_annual', label: 'Semi-Annual' }, { value: 'annual', label: 'Annual' }] },
+      { key: 'performance_rating_scale', label: 'Rating Scale', type: 'select', defaultValue: '1-5', description: 'Scale used for performance ratings', options: [{ value: '1-3', label: '1-3 (Meets/Exceeds/Below)' }, { value: '1-5', label: '1-5 (Standard 5-point)' }, { value: '1-10', label: '1-10 (Granular 10-point)' }] },
+      { key: 'performance_review_window_days', label: 'Review Window (days)', type: 'number', defaultValue: 14, description: 'Number of days the review form stays open for completion', min: 3, max: 60 },
+    ],
+  },
+  {
+    title: 'Appraisal Methods',
+    description: 'Configure self-appraisal and 360-degree feedback settings',
+    icon: <FiTrendingUp className="w-5 h-5" />,
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-500',
+    fields: [
+      { key: 'performance_self_appraisal_enabled', label: 'Self-Appraisal Enabled', type: 'toggle', defaultValue: true, description: 'Allow employees to submit self-appraisals as part of the review process' },
+      { key: 'performance_360_feedback_enabled', label: '360-degree Feedback Enabled', type: 'toggle', defaultValue: false, description: 'Collect feedback from peers, subordinates, and cross-functional colleagues' },
+      { key: 'performance_calibration_required', label: 'Calibration Session Required', type: 'toggle', defaultValue: true, description: 'Require a calibration session to normalize ratings across teams before finalization' },
+      { key: 'performance_goal_setting_enabled', label: 'Goal Setting (OKR/MB0) Enabled', type: 'toggle', defaultValue: true, description: 'Enable goal or objective setting as part of the performance cycle' },
+    ],
+  },
+  {
+    title: 'Feedback & Improvement',
+    description: 'Continuous feedback and performance improvement settings',
+    icon: <FiUsers className="w-5 h-5" />,
+    iconBg: 'bg-cyan-50',
+    iconColor: 'text-cyan-500',
+    fields: [
+      { key: 'performance_continuous_feedback', label: 'Continuous Feedback Enabled', type: 'toggle', defaultValue: true, description: 'Allow managers and peers to give real-time feedback outside of review cycles' },
+      { key: 'performance_pip_enabled', label: 'Performance Improvement Plan (PIP)', type: 'toggle', defaultValue: true, description: 'Enable formal PIP process for underperforming employees' },
+      { key: 'performance_pip_duration_days', label: 'PIP Default Duration (days)', type: 'number', defaultValue: 30, description: 'Default duration for a Performance Improvement Plan', min: 7, max: 180 },
+      { key: 'performance_rating_visibility', label: 'Rating Visibility', type: 'select', defaultValue: 'manager_only', description: 'Who can see the final performance rating', options: [{ value: 'manager_only', label: 'Manager Only' }, { value: 'employee_and_manager', label: 'Employee & Manager' }, { value: 'team_visible', label: 'Team Visible' }] },
+    ],
+  },
+];
+
 /* ──────────────────────────────────────────────
    Toggle Switch Component
    ────────────────────────────────────────────── */
@@ -487,7 +569,7 @@ function SettingsSectionCard({
 /* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'company' | 'roles' | 'notifications';
+type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
 
 interface NavItem {
   key: TabKey;
@@ -501,6 +583,8 @@ const navItems: NavItem[] = [
   { key: 'leave', label: 'Leave', icon: <FiCalendar className="w-4 h-4" /> },
   { key: 'attendance', label: 'Attendance', icon: <FiClock className="w-4 h-4" /> },
   { key: 'employee', label: 'Employee', icon: <FiUsers className="w-4 h-4" /> },
+  { key: 'recruitment', label: 'Recruitment', icon: <FiBriefcase className="w-4 h-4" /> },
+  { key: 'performance', label: 'Performance', icon: <FiTrendingUp className="w-4 h-4" /> },
   { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
@@ -573,7 +657,7 @@ export default function SettingsPage() {
 
   /* Get default value for a field */
   const getDefaultValue = useCallback((key: string): string | number | boolean => {
-    const allSections = [...payrollSections, ...leaveSections, ...attendanceSections, ...employeeSections];
+    const allSections = [...payrollSections, ...leaveSections, ...attendanceSections, ...employeeSections, ...recruitmentSections, ...performanceSections];
     for (const section of allSections) {
       const field = section.fields.find((f) => f.key === key);
       if (field) return field.defaultValue;
@@ -590,7 +674,7 @@ export default function SettingsPage() {
   /* Start editing a section */
   const handleStartEdit = useCallback((sectionKey: string) => {
     // Build a draft from current settings
-    const allSections = [...payrollSections, ...leaveSections, ...attendanceSections, ...employeeSections];
+    const allSections = [...payrollSections, ...leaveSections, ...attendanceSections, ...employeeSections, ...recruitmentSections, ...performanceSections];
     const section = allSections.find((s) => s.title === sectionKey);
     if (!section) return;
     const draft: Record<string, string | number | boolean> = {};
@@ -981,6 +1065,34 @@ export default function SettingsPage() {
                 <p className="text-xs text-nexus-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
               </div>
               {renderModuleSections(employeeSections)}
+            </div>
+          )}
+
+          {/* Recruitment Tab */}
+          {activeTab === 'recruitment' && (
+            <div className="space-y-2">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                  <FiBriefcase className="w-5 h-5 text-amber-500" />
+                  Recruitment Settings
+                </h2>
+                <p className="text-xs text-nexus-text-muted mt-0.5">Configure hiring pipeline, offer letters, and application defaults</p>
+              </div>
+              {renderModuleSections(recruitmentSections)}
+            </div>
+          )}
+
+          {/* Performance Tab */}
+          {activeTab === 'performance' && (
+            <div className="space-y-2">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                  <FiTrendingUp className="w-5 h-5 text-violet-500" />
+                  Performance Settings
+                </h2>
+                <p className="text-xs text-nexus-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
+              </div>
+              {renderModuleSections(performanceSections)}
             </div>
           )}
 

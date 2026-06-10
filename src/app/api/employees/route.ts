@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getDataScope } from '@/lib/roleAccess';
 
 function corsHeaders() {
   return {
@@ -32,6 +33,12 @@ export async function GET(request: Request) {
       );
     }
 
+    const userRole = (decoded.role as string) || 'employee';
+    const userId = decoded.userId as string;
+    const scope = getDataScope(userRole);
+    const isSelfOnly = scope === 'self';
+    const isTeam = scope === 'team';
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -50,6 +57,25 @@ export async function GET(request: Request) {
         { employeeId: { contains: search, mode: 'insensitive' } },
       ];
     }
+
+    // Apply role-based data scoping
+    if (isSelfOnly) {
+      // Employee can only see their own record
+      where.userId = userId;
+    } else if (isTeam) {
+      // Manager can see employees in their department
+      const ownEmp = await prisma.employee.findFirst({
+        where: { userId, status: 'active' },
+        select: { departmentId: true },
+      });
+      if (ownEmp) {
+        where.departmentId = ownEmp.departmentId;
+      }
+    } else if (userRole === 'hr_admin') {
+      // HR admin can see all employees except super_admin users
+      where.user = { role: { not: 'super_admin' } };
+    }
+    // super_admin and tenant_admin see all (no additional filter)
 
     const [employees, total] = await Promise.all([
       prisma.employee.findMany({
@@ -78,6 +104,7 @@ export async function GET(request: Request) {
           total,
           totalPages: Math.ceil(total / limit),
         },
+        dataScope: scope,
       },
       { headers: corsHeaders() }
     );
@@ -105,6 +132,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Invalid or expired token' },
         { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    // Only admin roles can create employees
+    const userRole = (decoded.role as string) || 'employee';
+    const scope = getDataScope(userRole);
+    if (scope === 'self') {
+      return NextResponse.json(
+        { error: 'You do not have permission to create employees' },
+        { status: 403, headers: corsHeaders() }
       );
     }
 
