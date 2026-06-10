@@ -26,9 +26,55 @@ export async function POST() {
 
     const results: string[] = [];
 
+    // First, drop and recreate tables that have WRONG schema (old schema from a different model)
+    // PayrollRun had old columns: month, year, status, totalAmount, employeeCount
+    // Prisma expects: legalEntityId, payrollPeriod, runType, runStatus, etc.
+    const dropAndRecreateStatements = [
+      // Drop PayrollRun and recreate with correct schema
+      `DROP TABLE IF EXISTS "PayrollRun" CASCADE`,
+    ];
+
+    for (const sql of dropAndRecreateStatements) {
+      try {
+        await db.$executeRawUnsafe(sql);
+        results.push('✅ Dropped old PayrollRun table');
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        results.push(`⚠️ Drop failed: ${errMsg.substring(0, 100)}`);
+      }
+    }
+
     // Define CREATE TABLE statements for missing tables
     // These match the Prisma schema definitions exactly
     const createTableStatements = [
+      // PayrollRun (recreated with correct schema matching Prisma)
+      `CREATE TABLE IF NOT EXISTS "PayrollRun" (
+        "id" TEXT NOT NULL,
+        "legalEntityId" TEXT NOT NULL,
+        "payrollPeriod" TEXT NOT NULL,
+        "periodStartDate" TIMESTAMP(3) NOT NULL,
+        "periodEndDate" TIMESTAMP(3) NOT NULL,
+        "payDate" TIMESTAMP(3) NOT NULL,
+        "runType" TEXT NOT NULL DEFAULT 'REGULAR',
+        "runStatus" TEXT NOT NULL DEFAULT 'OPEN',
+        "currencyCode" TEXT NOT NULL DEFAULT 'USD',
+        "exchangeRateDate" TIMESTAMP(3),
+        "taxProjectionMethod" TEXT NOT NULL DEFAULT 'CUMULATIVE',
+        "includeStatutory" BOOLEAN NOT NULL DEFAULT true,
+        "processingMode" TEXT NOT NULL DEFAULT 'FULL',
+        "initiatedBy" TEXT,
+        "companyId" TEXT,
+        "totalEmployees" INTEGER NOT NULL DEFAULT 0,
+        "totalGrossPay" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "totalDeductions" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "totalNetPay" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "totalEmployerContrib" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "PayrollRun_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "PayrollRun_legalEntityId_payrollPeriod_runType_key" UNIQUE ("legalEntityId", "payrollPeriod", "runType")
+      )`,
+
       // PayrollHold
       `CREATE TABLE IF NOT EXISTS "PayrollHold" (
         "id" TEXT NOT NULL,
@@ -243,6 +289,9 @@ export async function POST() {
 
     // Create indexes separately
     const indexStatements = [
+      `CREATE INDEX IF NOT EXISTS "PayrollRun_runStatus_idx" ON "PayrollRun"("runStatus")`,
+      `CREATE INDEX IF NOT EXISTS "PayrollRun_companyId_idx" ON "PayrollRun"("companyId")`,
+      `CREATE INDEX IF NOT EXISTS "PayrollRun_payrollPeriod_idx" ON "PayrollRun"("payrollPeriod")`,
       `CREATE INDEX IF NOT EXISTS "PayrollHold_employeeId_idx" ON "PayrollHold"("employeeId")`,
       `CREATE INDEX IF NOT EXISTS "PayrollHold_status_idx" ON "PayrollHold"("status")`,
       `CREATE INDEX IF NOT EXISTS "BankPaymentFile_payrollRunId_idx" ON "BankPaymentFile"("payrollRunId")`,
@@ -262,25 +311,6 @@ export async function POST() {
 
     // Add missing columns to existing tables (Prisma db push might have missed these)
     const alterTableStatements = [
-      // PayrollRun - add missing columns if they don't exist
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "exchangeRateDate" TIMESTAMP(3)`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "taxProjectionMethod" TEXT NOT NULL DEFAULT 'CUMULATIVE'`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "includeStatutory" BOOLEAN NOT NULL DEFAULT true`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "processingMode" TEXT NOT NULL DEFAULT 'FULL'`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "initiatedBy" TEXT`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalEmployees" INTEGER NOT NULL DEFAULT 0`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalGrossPay" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalDeductions" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalNetPay" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-      `ALTER TABLE "PayrollRun" ADD COLUMN IF NOT EXISTS "totalEmployerContrib" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-      // Add unique constraint for PayrollRun if not exists
-      `ALTER TABLE "PayrollRun" DROP CONSTRAINT IF EXISTS "PayrollRun_legalEntityId_payrollPeriod_runType_key"`,
-      `ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_legalEntityId_payrollPeriod_runType_key" UNIQUE ("legalEntityId", "payrollPeriod", "runType")`,
-      // Add missing indexes for PayrollRun
-      `CREATE INDEX IF NOT EXISTS "PayrollRun_runStatus_idx" ON "PayrollRun"("runStatus")`,
-      `CREATE INDEX IF NOT EXISTS "PayrollRun_companyId_idx" ON "PayrollRun"("companyId")`,
-      `CREATE INDEX IF NOT EXISTS "PayrollRun_payrollPeriod_idx" ON "PayrollRun"("payrollPeriod")`,
       // PayrollTransactionLine - add employee relation if missing
       `ALTER TABLE "PayrollTransactionLine" ADD COLUMN IF NOT EXISTS "ytdAmount" DOUBLE PRECISION`,
       `ALTER TABLE "PayrollTransactionLine" ADD COLUMN IF NOT EXISTS "mtdAmount" DOUBLE PRECISION`,
