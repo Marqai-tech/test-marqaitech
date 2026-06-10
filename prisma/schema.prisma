@@ -73,6 +73,7 @@ model Company {
   projects        Project[]
   salaryStructures SalaryStructure[]
   requisitions    Requisition[]
+  roles           Role[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1849,6 +1850,7 @@ model Role {
   tenant      Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   companyId   String? // null for tenant-level roles, set for company-specific roles
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   status      String  @default("active")
   createdBy   String? // userId who created this role
