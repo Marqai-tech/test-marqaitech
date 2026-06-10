@@ -829,3 +829,41 @@ Stage Summary:
 - CSV export confirmed working for all report types including new ones and fallback
 - ModuleTips and ModuleWorkflow already present and verified
 - Deployed to https://nexus-hrms-mu.vercel.app/
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix RBAC role creation bug - roles created but not displayed
+
+Work Log:
+- Investigated RBAC API routes and frontend pages
+- Found root cause: Role model had companyId field but NO company relation defined in Prisma schema
+- GET /api/rbac/roles endpoint tried to include company: { select: ... } but relation didn't exist
+- This caused Prisma to throw an error, making the roles list return empty/500
+- Also affected GET /api/rbac/roles/[id]/permissions endpoint
+- Added company Company? @relation to Role model and roles Role[] to Company model
+- Regenerated Prisma client and pushed to Vercel
+
+Stage Summary:
+- Fixed missing Prisma relation that caused RBAC role listing to fail
+- Roles should now display correctly in both view and permissions sections
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix payroll module errors and duplicate structures
+
+Work Log:
+- Investigated payroll page, API routes, and Prisma schema
+- Found payroll page made 11 parallel API calls that failed silently
+- Created /api/payroll/summary endpoint consolidating all 11 queries into one
+- Updated payroll page to use new summary endpoint
+- Added safeQuery wrapper for each Prisma query in summary endpoint
+- Fixed duplicate F&F pages by redirecting /fnf to /payroll/fnf
+- Added missing Prisma relations: BankPaymentFile->PayrollRun, BankPaymentFile->Company, PayrollDefinition->Company
+- Added reverse relations to Company and PayrollRun models
+- Pushed all fixes to Vercel
+
+Stage Summary:
+- Payroll summary now loads from single resilient endpoint
+- Duplicate F&F page consolidated
+- Missing Prisma relations added for data integrity
