@@ -12,10 +12,9 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-// ─── India Tax Slab Calculation (New Regime FY 2024-25) ───
+// ─── India Tax Slab Calculation ───
 function calculateIndiaIncomeTax(annualTaxableIncome: number, regime: string = 'new'): number {
   if (regime === 'old') {
-    // Old regime simplified slabs
     if (annualTaxableIncome <= 250000) return 0;
     if (annualTaxableIncome <= 500000) return (annualTaxableIncome - 250000) * 0.05;
     if (annualTaxableIncome <= 1000000) return 12500 + (annualTaxableIncome - 500000) * 0.2;
@@ -52,71 +51,94 @@ function calculateIndiaIncomeTax(annualTaxableIncome: number, regime: string = '
   return Math.round(tax);
 }
 
-// ─── Standard India CTC Breakdown ───
-function calculateIndiaCTCBreakdown(ctcAnnual: number) {
-  // 1. Basic Salary: 40% of CTC
+// ─── Standard India CTC Breakdown (with optional PF/ESI) ───
+function calculateIndiaCTCBreakdown(ctcAnnual: number, options?: { includePF?: boolean; includeESI?: boolean }) {
+  const includePF = options?.includePF !== false;
+  const includeESI = options?.includeESI !== false;
+
   const basicAnnual = Math.round(ctcAnnual * 0.40);
   const basicMonthly = Math.round(basicAnnual / 12);
 
-  // 2. HRA: 50% of Basic (Metro) or 40% of Basic (Non-Metro) — using 40% of Basic here
   const hraAnnual = Math.round(basicAnnual * 0.40);
   const hraMonthly = Math.round(hraAnnual / 12);
 
-  // 3. Special Allowance: Balancing figure to reach Gross
-  // We'll compute gross first then derive special allowance
-
-  // 4. Employer Contributions & Benefits (part of CTC but not in hand)
-  const employerPFAnnual = Math.round(basicAnnual * 0.12); // 12% of basic
+  const employerPFAnnual = includePF ? Math.round(basicAnnual * 0.12) : 0;
   const employerPFMonthly = Math.round(employerPFAnnual / 12);
 
-  const gratuityAnnual = Math.round(basicAnnual * 0.0481); // ~4.81% of basic
+  const gratuityAnnual = Math.round(basicAnnual * 0.0481);
   const gratuityMonthly = Math.round(gratuityAnnual / 12);
 
-  // 5. Performance Bonus / Variable Pay: 10% of CTC (annual)
   const variablePayAnnual = Math.round(ctcAnnual * 0.10);
   const variablePayMonthly = Math.round(variablePayAnnual / 12);
 
-  // 6. LTA: ~1.67% of CTC (annual, typically once a year)
   const ltaAnnual = Math.round(ctcAnnual * 0.0167);
   const ltaMonthly = Math.round(ltaAnnual / 12);
 
-  // 7. Medical Allowance: Fixed ₹1,250/month = ₹15,000/year
   const medicalAnnual = 15000;
   const medicalMonthly = 1250;
 
-  // 8. Conveyance Allowance: Fixed ₹1,600/month = ₹19,200/year
   const conveyanceAnnual = 19200;
   const conveyanceMonthly = 1600;
 
-  // Gross Salary = CTC - Employer Contributions (PF + Gratuity)
-  const employerContributions = employerPFAnnual + gratuityAnnual;
-  const grossAnnual = ctcAnnual - employerContributions;
+  // Iterate to solve ESI (which depends on gross)
+  let employerESIAnnual = 0;
+  let grossAnnual = 0;
+  let esiApplicable = false;
 
-  // Special Allowance = Gross - (Basic + HRA + LTA + Variable + Medical + Conveyance)
+  for (let i = 0; i < 3; i++) {
+    const empContribs = employerPFAnnual + gratuityAnnual + employerESIAnnual;
+    grossAnnual = ctcAnnual - empContribs;
+    const grossMonthly = Math.round(grossAnnual / 12);
+    esiApplicable = includeESI && grossMonthly <= 21000;
+    employerESIAnnual = esiApplicable ? Math.round(grossAnnual * 0.0325) : 0;
+  }
+
+  // Final gross
+  const employerContributionsTotal = employerPFAnnual + gratuityAnnual + employerESIAnnual;
+  grossAnnual = ctcAnnual - employerContributionsTotal;
   const specialAllowanceAnnual = Math.max(0, grossAnnual - (basicAnnual + hraAnnual + ltaAnnual + variablePayAnnual + medicalAnnual + conveyanceAnnual));
   const specialAllowanceMonthly = Math.round(specialAllowanceAnnual / 12);
 
-  // ─── Employee Deductions ───
-  const employeePFAnnual = employerPFAnnual; // 12% of basic (employee share)
-  const employeePFMonthly = employerPFMonthly;
+  // Employee Deductions
+  const employeePFAnnual = includePF ? employerPFAnnual : 0;
+  const employeePFMonthly = Math.round(employeePFAnnual / 12);
 
-  const professionalTaxAnnual = 2400; // ₹200/month
+  const professionalTaxAnnual = 2400;
   const professionalTaxMonthly = 200;
 
-  // Taxable Income for TDS calculation
-  // Standard deduction ₹50,000 (new regime)
+  const employeeESIAnnual = esiApplicable ? Math.round(grossAnnual * 0.0075) : 0;
+  const employeeESIMonthly = Math.round(employeeESIAnnual / 12);
+
   const standardDeduction = 50000;
-  const taxableIncome = Math.max(0, grossAnnual - employeePFAnnual - professionalTaxAnnual - standardDeduction);
+  const taxableIncome = Math.max(0, grossAnnual - employeePFAnnual - employeeESIAnnual - professionalTaxAnnual - standardDeduction);
   const tdsAnnual = calculateIndiaIncomeTax(taxableIncome, 'new');
   const tdsMonthly = Math.round(tdsAnnual / 12);
 
-  // Total Deductions
-  const totalDeductionsAnnual = employeePFAnnual + professionalTaxAnnual + tdsAnnual;
-  const totalDeductionsMonthly = employeePFMonthly + professionalTaxMonthly + tdsMonthly;
+  const totalDeductionsAnnual = employeePFAnnual + employeeESIAnnual + professionalTaxAnnual + tdsAnnual;
+  const totalDeductionsMonthly = employeePFMonthly + employeeESIMonthly + professionalTaxMonthly + tdsMonthly;
 
-  // Net Take-Home
   const netAnnual = grossAnnual - totalDeductionsAnnual;
   const netMonthly = Math.round(netAnnual / 12);
+
+  // Build employer contributions
+  const employerContribsObj: Record<string, { annual: number; monthly: number; pctOfCTC: string }> = {
+    employerPF: { annual: employerPFAnnual, monthly: employerPFMonthly, pctOfCTC: ((employerPFAnnual / ctcAnnual) * 100).toFixed(1) },
+    gratuity: { annual: gratuityAnnual, monthly: gratuityMonthly, pctOfCTC: ((gratuityAnnual / ctcAnnual) * 100).toFixed(1) },
+  };
+  if (esiApplicable) {
+    employerContribsObj.employerESI = { annual: employerESIAnnual, monthly: Math.round(employerESIAnnual / 12), pctOfCTC: ((employerESIAnnual / ctcAnnual) * 100).toFixed(1) };
+  }
+
+  // Build deductions
+  const deductionsObj: Record<string, { annual: number; monthly: number; pctOfGross: string; taxableIncome?: number }> = {};
+  if (includePF) {
+    deductionsObj.employeePF = { annual: employeePFAnnual, monthly: employeePFMonthly, pctOfGross: ((employeePFAnnual / grossAnnual) * 100).toFixed(1) };
+  }
+  if (esiApplicable) {
+    deductionsObj.employeeESI = { annual: employeeESIAnnual, monthly: employeeESIMonthly, pctOfGross: ((employeeESIAnnual / grossAnnual) * 100).toFixed(1) };
+  }
+  deductionsObj.professionalTax = { annual: professionalTaxAnnual, monthly: professionalTaxMonthly, pctOfGross: ((professionalTaxAnnual / grossAnnual) * 100).toFixed(1) };
+  deductionsObj.incomeTax = { annual: tdsAnnual, monthly: tdsMonthly, pctOfGross: ((tdsAnnual / grossAnnual) * 100).toFixed(1), taxableIncome };
 
   return {
     country: 'India',
@@ -124,8 +146,6 @@ function calculateIndiaCTCBreakdown(ctcAnnual: number) {
     currency: 'INR',
     ctcAnnual,
     ctcMonthly: Math.round(ctcAnnual / 12),
-
-    // Earnings
     earnings: {
       basic: { annual: basicAnnual, monthly: basicMonthly, pctOfCTC: ((basicAnnual / ctcAnnual) * 100).toFixed(1) },
       hra: { annual: hraAnnual, monthly: hraMonthly, pctOfCTC: ((hraAnnual / ctcAnnual) * 100).toFixed(1) },
@@ -135,30 +155,17 @@ function calculateIndiaCTCBreakdown(ctcAnnual: number) {
       medicalAllowance: { annual: medicalAnnual, monthly: medicalMonthly, pctOfCTC: ((medicalAnnual / ctcAnnual) * 100).toFixed(1) },
       conveyanceAllowance: { annual: conveyanceAnnual, monthly: conveyanceMonthly, pctOfCTC: ((conveyanceAnnual / ctcAnnual) * 100).toFixed(1) },
     },
-
     grossSalary: { annual: grossAnnual, monthly: Math.round(grossAnnual / 12) },
-
-    // Employer Contributions (part of CTC, not received in hand)
-    employerContributions: {
-      employerPF: { annual: employerPFAnnual, monthly: employerPFMonthly, pctOfCTC: ((employerPFAnnual / ctcAnnual) * 100).toFixed(1) },
-      gratuity: { annual: gratuityAnnual, monthly: gratuityMonthly, pctOfCTC: ((gratuityAnnual / ctcAnnual) * 100).toFixed(1) },
-    },
-
-    // Employee Deductions (from gross)
-    deductions: {
-      employeePF: { annual: employeePFAnnual, monthly: employeePFMonthly, pctOfGross: ((employeePFAnnual / grossAnnual) * 100).toFixed(1) },
-      professionalTax: { annual: professionalTaxAnnual, monthly: professionalTaxMonthly, pctOfGross: ((professionalTaxAnnual / grossAnnual) * 100).toFixed(1) },
-      incomeTax: { annual: tdsAnnual, monthly: tdsMonthly, pctOfGross: ((tdsAnnual / grossAnnual) * 100).toFixed(1), taxableIncome },
-    },
-
+    employerContributions: employerContribsObj,
+    deductions: deductionsObj,
     totalDeductions: { annual: totalDeductionsAnnual, monthly: totalDeductionsMonthly },
     netTakeHome: { annual: netAnnual, monthly: netMonthly },
+    meta: { includePF, includeESI, esiApplicable },
   };
 }
 
 // ─── US CTC Breakdown ───
 function calculateUSCTCBreakdown(ctcAnnual: number) {
-  // US Standard Breakdown
   const baseSalaryAnnual = Math.round(ctcAnnual * 0.70);
   const baseSalaryMonthly = Math.round(baseSalaryAnnual / 12);
 
@@ -171,21 +178,19 @@ function calculateUSCTCBreakdown(ctcAnnual: number) {
   const healthInsuranceAnnual = Math.round(ctcAnnual * 0.05);
   const healthInsuranceMonthly = Math.round(healthInsuranceAnnual / 12);
 
-  const retirement401kEmployerAnnual = Math.round(baseSalaryAnnual * 0.05); // 5% employer match
+  const retirement401kEmployerAnnual = Math.round(baseSalaryAnnual * 0.05);
   const retirement401kEmployerMonthly = Math.round(retirement401kEmployerAnnual / 12);
 
   const otherBenefitsAnnual = Math.round(ctcAnnual * 0.05);
   const otherBenefitsMonthly = Math.round(otherBenefitsAnnual / 12);
 
-  // Gross = Base + Bonus (what employee sees as cash compensation)
   const grossAnnual = baseSalaryAnnual + bonusAnnual;
   const grossMonthly = Math.round(grossAnnual / 12);
 
-  // Employee deductions
-  const federalTaxAnnual = Math.round(ctcAnnual * 0.15); // Simplified
+  const federalTaxAnnual = Math.round(ctcAnnual * 0.15);
   const federalTaxMonthly = Math.round(federalTaxAnnual / 12);
 
-  const stateTaxAnnual = Math.round(ctcAnnual * 0.05); // Simplified
+  const stateTaxAnnual = Math.round(ctcAnnual * 0.05);
   const stateTaxMonthly = Math.round(stateTaxAnnual / 12);
 
   const socialSecurityAnnual = Math.round(Math.min(baseSalaryAnnual, 168600) * 0.062);
@@ -194,10 +199,10 @@ function calculateUSCTCBreakdown(ctcAnnual: number) {
   const medicareAnnual = Math.round(baseSalaryAnnual * 0.0145);
   const medicareMonthly = Math.round(medicareAnnual / 12);
 
-  const healthInsuranceEmployeeAnnual = Math.round(healthInsuranceAnnual * 0.3); // Employee pays ~30%
+  const healthInsuranceEmployeeAnnual = Math.round(healthInsuranceAnnual * 0.3);
   const healthInsuranceEmployeeMonthly = Math.round(healthInsuranceEmployeeAnnual / 12);
 
-  const retirement401kEmployeeAnnual = Math.round(baseSalaryAnnual * 0.05); // 5% employee contribution
+  const retirement401kEmployeeAnnual = Math.round(baseSalaryAnnual * 0.05);
   const retirement401kEmployeeMonthly = Math.round(retirement401kEmployeeAnnual / 12);
 
   const totalDeductionsAnnual = federalTaxAnnual + stateTaxAnnual + socialSecurityAnnual + medicareAnnual + healthInsuranceEmployeeAnnual + retirement401kEmployeeAnnual;
@@ -212,21 +217,17 @@ function calculateUSCTCBreakdown(ctcAnnual: number) {
     currency: 'USD',
     ctcAnnual,
     ctcMonthly: Math.round(ctcAnnual / 12),
-
     earnings: {
       baseSalary: { annual: baseSalaryAnnual, monthly: baseSalaryMonthly, pctOfCTC: ((baseSalaryAnnual / ctcAnnual) * 100).toFixed(1) },
       annualBonus: { annual: bonusAnnual, monthly: bonusMonthly, pctOfCTC: ((bonusAnnual / ctcAnnual) * 100).toFixed(1) },
       stockOptions: { annual: stockOptionsAnnual, monthly: stockOptionsMonthly, pctOfCTC: ((stockOptionsAnnual / ctcAnnual) * 100).toFixed(1) },
     },
-
     grossSalary: { annual: grossAnnual, monthly: Math.round(grossAnnual / 12) },
-
     employerContributions: {
       healthInsurance: { annual: healthInsuranceAnnual, monthly: healthInsuranceMonthly, pctOfCTC: ((healthInsuranceAnnual / ctcAnnual) * 100).toFixed(1) },
       retirement401k: { annual: retirement401kEmployerAnnual, monthly: retirement401kEmployerMonthly, pctOfCTC: ((retirement401kEmployerAnnual / ctcAnnual) * 100).toFixed(1) },
       otherBenefits: { annual: otherBenefitsAnnual, monthly: otherBenefitsMonthly, pctOfCTC: ((otherBenefitsAnnual / ctcAnnual) * 100).toFixed(1) },
     },
-
     deductions: {
       federalTax: { annual: federalTaxAnnual, monthly: federalTaxMonthly, pctOfGross: ((federalTaxAnnual / grossAnnual) * 100).toFixed(1) },
       stateTax: { annual: stateTaxAnnual, monthly: stateTaxMonthly, pctOfGross: ((stateTaxAnnual / grossAnnual) * 100).toFixed(1) },
@@ -235,7 +236,6 @@ function calculateUSCTCBreakdown(ctcAnnual: number) {
       healthInsurance: { annual: healthInsuranceEmployeeAnnual, monthly: healthInsuranceEmployeeMonthly, pctOfGross: ((healthInsuranceEmployeeAnnual / grossAnnual) * 100).toFixed(1) },
       retirement401k: { annual: retirement401kEmployeeAnnual, monthly: retirement401kEmployeeMonthly, pctOfGross: ((retirement401kEmployeeAnnual / grossAnnual) * 100).toFixed(1) },
     },
-
     totalDeductions: { annual: totalDeductionsAnnual, monthly: totalDeductionsMonthly },
     netTakeHome: { annual: netAnnual, monthly: netMonthly },
   };
@@ -264,7 +264,6 @@ function calculateFromTemplate(
 
   let grossAnnual = 0;
 
-  // First pass: calculate earnings and employer contributions
   for (const mapping of template.componentMappings) {
     let amount = 0;
     switch (mapping.allocationMethod) {
@@ -272,9 +271,7 @@ function calculateFromTemplate(
         amount = (effectiveCTC * mapping.allocationValue) / 100;
         break;
       case 'FIXED_AMOUNT':
-        amount = mapping.frequency === 'MONTHLY'
-          ? mapping.allocationValue * 12
-          : mapping.allocationValue;
+        amount = mapping.frequency === 'MONTHLY' ? mapping.allocationValue * 12 : mapping.allocationValue;
         break;
       case 'PERCENTAGE_OF_COMPONENT': {
         const basePct = template.basePayPct ?? 40;
@@ -296,19 +293,16 @@ function calculateFromTemplate(
     } else if (mapping.componentCategory === 'EMPLOYER_CONTRIBUTION') {
       employerContributions.push({ name: mapping.componentName, annual, monthly, pctOfCTC });
     } else if (mapping.componentCategory === 'DEDUCTION') {
-      // Will compute pctOfGross after we know gross
       deductions.push({ name: mapping.componentName, annual, monthly, pctOfGross: '0', category: mapping.componentCategory });
     }
   }
 
-  // If no earnings defined but we have basePayPct, create a basic structure
   if (earnings.length === 0 && template.basePayPct) {
     const basicAnnual = Math.round((effectiveCTC * template.basePayPct) / 100);
     earnings.push({ name: 'Basic Salary', annual: basicAnnual, monthly: Math.round(basicAnnual / 12), pctOfCTC: template.basePayPct.toString(), category: 'EARNING' });
     grossAnnual = basicAnnual;
   }
 
-  // Update deduction pctOfGross
   for (const d of deductions) {
     d.pctOfGross = grossAnnual > 0 ? ((d.annual / grossAnnual) * 100).toFixed(1) : '0';
   }
@@ -328,6 +322,7 @@ function calculateFromTemplate(
     deductions,
     totalDeductions: { annual: totalDeductionsAnnual, monthly: Math.round(totalDeductionsAnnual / 12) },
     netTakeHome: { annual: netAnnual, monthly: netMonthly },
+    meta: { includePF: true, includeESI: false, esiApplicable: false },
   };
 }
 
@@ -338,7 +333,7 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const { ctcAmount, countryCode = 'IND', ctcType = 'ANNUAL', templateId } = body;
+    const { ctcAmount, countryCode = 'IND', ctcType = 'ANNUAL', templateId, includePF = true, includeESI = true } = body;
 
     if (!ctcAmount || ctcAmount <= 0) {
       return Response.json({ error: 'CTC amount must be greater than 0' }, { status: 400, headers: corsHeaders });
@@ -346,7 +341,6 @@ export async function POST(request: NextRequest) {
 
     const effectiveCTC = ctcType === 'MONTHLY' ? ctcAmount * 12 : ctcAmount;
 
-    // If templateId is provided, use template-based calculation
     if (templateId) {
       const template = await prisma.cTCTemplate.findUnique({
         where: { id: templateId },
@@ -361,18 +355,16 @@ export async function POST(request: NextRequest) {
       return Response.json({ data: result }, { headers: corsHeaders });
     }
 
-    // Default calculations based on country
     let result;
     switch (countryCode) {
       case 'IND':
-        result = calculateIndiaCTCBreakdown(effectiveCTC);
+        result = calculateIndiaCTCBreakdown(effectiveCTC, { includePF, includeESI });
         break;
       case 'USA':
         result = calculateUSCTCBreakdown(effectiveCTC);
         break;
       default:
-        // Fallback to India calculation
-        result = calculateIndiaCTCBreakdown(effectiveCTC);
+        result = calculateIndiaCTCBreakdown(effectiveCTC, { includePF, includeESI });
     }
 
     return Response.json({ data: result }, { headers: corsHeaders });
@@ -382,7 +374,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET: Return available templates for the CTC calculator
 export async function GET(request: NextRequest) {
   try {
     const token = getTokenFromHeaders(request);

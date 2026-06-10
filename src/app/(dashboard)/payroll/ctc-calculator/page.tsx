@@ -144,6 +144,7 @@ const IND_EARNING_LABELS: Record<string, string> = {
 
 const IND_EMPLOYER_LABELS: Record<string, string> = {
   employerPF: 'Employer PF Contribution',
+  employerESI: 'Employer ESI Contribution',
   gratuity: 'Gratuity',
   healthInsurance: 'Health Insurance (Employer)',
   retirement401k: '401(k) Employer Match',
@@ -152,6 +153,7 @@ const IND_EMPLOYER_LABELS: Record<string, string> = {
 
 const IND_DEDUCTION_LABELS: Record<string, string> = {
   employeePF: 'Employee PF Contribution',
+  employeeESI: 'Employee ESI Contribution',
   professionalTax: 'Professional Tax',
   incomeTax: 'Income Tax (TDS)',
   federalTax: 'Federal Income Tax',
@@ -173,6 +175,8 @@ export default function CTCCalculatorPage() {
   const [ctcType, setCtcType] = useState<'ANNUAL' | 'MONTHLY'>('ANNUAL');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [useCustomTemplate, setUseCustomTemplate] = useState(false);
+  const [includePF, setIncludePF] = useState(true);
+  const [includeESI, setIncludeESI] = useState(true);
 
   // Result state
   const [result, setResult] = useState<CTCCalculationResult | null>(null);
@@ -229,6 +233,11 @@ export default function CTCCalculatorPage() {
         payload.templateId = selectedTemplateId;
       }
 
+      if (countryCode === 'IND') {
+        payload.includePF = includePF;
+        payload.includeESI = includeESI;
+      }
+
       const res = await fetch('/api/payroll/ctc-calculator', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -248,7 +257,7 @@ export default function CTCCalculatorPage() {
     } finally {
       setCalculating(false);
     }
-  }, [ctcAmount, countryCode, ctcType, useCustomTemplate, selectedTemplateId]);
+  }, [ctcAmount, countryCode, ctcType, useCustomTemplate, selectedTemplateId, includePF, includeESI]);
 
   // Auto-calculate on Enter key
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -415,6 +424,42 @@ export default function CTCCalculatorPage() {
                   ))}
                 </div>
               </div>
+
+              {/* PF/ESI Checkboxes */}
+              {countryCode === 'IND' && (
+                <div className="mb-4 space-y-2">
+                  <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={includePF}
+                      onChange={(e) => { setIncludePF(e.target.checked); setResult(null); }}
+                      className="rounded border-nexus-border accent-blue-500"
+                    />
+                    Include Provident Fund (PF)
+                    <span className="relative group">
+                      <FiInfo className="w-3.5 h-3.5 text-nexus-text-muted cursor-help" />
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-[10px] text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        Provident Fund - 12% of basic salary each from employer and employee
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={includeESI}
+                      onChange={(e) => { setIncludeESI(e.target.checked); setResult(null); }}
+                      className="rounded border-nexus-border accent-blue-500"
+                    />
+                    Include Employee State Insurance (ESI)
+                    <span className="relative group">
+                      <FiInfo className="w-3.5 h-3.5 text-nexus-text-muted cursor-help" />
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-[10px] text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        Employee State Insurance - Applicable for gross salary up to ₹21,000/month
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
 
               {/* Template Selection */}
               <div className="mb-4">

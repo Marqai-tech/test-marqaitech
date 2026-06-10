@@ -18,10 +18,103 @@ import {
   FiUpload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+// ─── Employee Policies Tab Component ───
+function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
+  const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+  const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+  const [travelPolicies, setTravelPolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+  const [salaryStructures, setSalaryStructures] = useState<Array<{ id: string; name: string }>>([]);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const fetchPolicies = useCallback(async () => {
+    try {
+      const [polRes, lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
+        fetch(`/api/employees/${employeeId}/policies`, { headers: getAuthHeaders() }),
+        fetch('/api/policies?category=leave', { headers: getAuthHeaders() }),
+        fetch('/api/policies?category=attendance', { headers: getAuthHeaders() }),
+        fetch('/api/policies?category=travel', { headers: getAuthHeaders() }),
+        fetch('/api/salary-structures', { headers: getAuthHeaders() }),
+      ]);
+      if (polRes.status === 'fulfilled' && polRes.value.ok) { const d = await polRes.value.json(); setPolicies(d.data); }
+      if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies((d.policies || d.data || [])); }
+      if (apRes.status === 'fulfilled' && apRes.value.ok) { const d = await apRes.value.json(); setAttendancePolicies((d.policies || d.data || [])); }
+      if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies((d.policies || d.data || [])); }
+      if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures((d.salaryStructures || d.data || [])); }
+    } catch { /* silently */ }
+  }, [employeeId]);
+
+  useEffect(() => { queueMicrotask(() => fetchPolicies()); }, [fetchPolicies]);
+
+  const handleSave = async (field: string, value: string | null) => {
+    setSaving(field);
+    try {
+      const res = await fetch(`/api/employees/${employeeId}/policies`, {
+        method: 'PUT', headers: getAuthHeaders(),
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (res.ok) { toast.success('Updated'); fetchPolicies(); }
+      else { toast.error('Failed'); }
+    } catch { toast.error('Failed'); }
+    finally { setSaving(null); }
+  };
+
+  const policyDropdown = (label: string, field: string, items: Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>, currentId: string | null | undefined, icon: React.ReactNode) => (
+    <div className="nexus-card p-4">
+      <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">{icon}{label}</h4>
+      <select
+        value={currentId || ''}
+        onChange={e => handleSave(field, e.target.value || null)}
+        disabled={!isAdmin || saving === field}
+        className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+      >
+        <option value="">— Not Assigned —</option>
+        {items.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+      </select>
+      {currentId && items.find(p => p.id === currentId) && (
+        <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-nexus-border text-xs text-nexus-text-secondary">
+          <p><span className="font-medium">Title:</span> {items.find(p => p.id === currentId)?.title}</p>
+          <p><span className="font-medium">Version:</span> {items.find(p => p.id === currentId)?.version}</p>
+          {items.find(p => p.id === currentId)?.effectiveDate && <p><span className="font-medium">Effective:</span> {new Date(items.find(p => p.id === currentId)!.effectiveDate!).toLocaleDateString()}</p>}
+        </div>
+      )}
+      {saving === field && <p className="text-xs text-blue-500 mt-2">Saving...</p>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Policy & Structure Mappings</h3>
+      {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-blue-500" />)}
+        {policyDropdown('Attendance Policy', 'attendancePolicyId', attendancePolicies, policies?.attendancePolicyId, <FiClock className="w-4 h-4 text-emerald-500" />)}
+        {policyDropdown('Travel Policy', 'travelPolicyId', travelPolicies, policies?.travelPolicyId, <FiBriefcase className="w-4 h-4 text-amber-500" />)}
+        <div className="nexus-card p-4">
+          <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Structure</h4>
+          <select
+            value={policies?.salaryStructureId || ''}
+            onChange={e => handleSave('salaryStructureId', e.target.value || null)}
+            disabled={!isAdmin || saving === 'salaryStructureId'}
+            className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+          >
+            <option value="">— Not Assigned —</option>
+            {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          {saving === 'salaryStructureId' && <p className="text-xs text-blue-500 mt-2">Saving...</p>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function formatDate(d: string | null | undefined) {
@@ -93,7 +186,7 @@ interface EmployeeData {
   assetAssignments?: Array<{ id: string; status: string; assignedDate: string; asset: { id: string; name: string; assetTag: string; category: string } }>;
 }
 
-const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll'] as const;
+const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Policies'] as const;
 type TabName = typeof tabs[number];
 
 export default function EmployeeDetailPage() {
@@ -540,6 +633,9 @@ export default function EmployeeDetailPage() {
               )}
             </div>
           )}
+
+          {/* ── Policies Tab ── */}
+          {activeTab === 'Policies' && <EmployeePoliciesTab employeeId={employee.id} />}
 
           {/* ── Payroll Tab ── */}
           {activeTab === 'Payroll' && (

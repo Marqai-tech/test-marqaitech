@@ -1,59 +1,53 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Build CTC Calculator in Payroll module with automatic salary breakdown
+Task: Examine project structure and uploaded design template
 
 Work Log:
-- Explored project structure: Next.js 16 App Router, Prisma + Neon PostgreSQL, shadcn/ui
-- Found existing CTC Templates system (CTCTemplate + CTCComponentMapping models in Prisma)
-- Identified that no CTC Calculator existed - only template definitions, no actual per-employee calculations
-- Created API route at /api/payroll/ctc-calculator with India and US CTC breakdown calculations
-- India calculation includes: Basic (40%), HRA (40% of Basic), Special Allowance, LTA, Variable Pay, Medical, Conveyance
-- Employer contributions: PF (12% of basic), Gratuity (4.81% of basic)
-- Employee deductions: PF, Professional Tax, Income Tax (new regime FY 2024-25 with Section 87A rebate)
-- US calculation includes: Base Salary, Bonus, Stock Options, 401k, Health Insurance, Social Security, Medicare
-- Template-based calculation support using existing CTC templates from the database
-- Created CTC Calculator frontend page at /payroll/ctc-calculator with:
-  - Country selection (IND, USA, GBR, SGP, UAE, AUS)
-  - Annual/Monthly CTC toggle
-  - Quick CTC presets (India: 3LPA to 1Cr, US: $50K to $300K)
-  - CTC Template selection option
-  - Visual breakdown with progress bars (Earnings, Employer Contributions, Deductions)
-  - Complete salary structure table
-  - CTC to In-Hand flow diagram
-  - Quick summary sidebar with composition visualization
-  - Apply structure to employee button for admins
-- Added CTC Calculator tile to Payroll landing page subModules array
-- Added CTC Calculator to Sidebar under Compensation section with NEW badge
-- Build verified successfully with webpack
+- Extracted HRMS-APP Canada V 2.1.zip design template
+- Examined 97 HTML template files for design patterns
+- Reviewed existing Prisma schema (2683 lines)
+- Reviewed existing payroll module files (22 pages)
+- Reviewed CTC Calculator page and API (already had PF/ESI support)
+- Reviewed Statutory Components page
+- Reviewed Reports page (already had LWF and Standard Reports)
+- Reviewed Employee detail page (already had Policies tab)
+- Reviewed IncomeTaxDeclaration model (already in schema)
 
 Stage Summary:
-- Created /src/app/api/payroll/ctc-calculator/route.ts (API with India/US/template calculations)
-- Created /src/app/(dashboard)/payroll/ctc-calculator/page.tsx (interactive calculator UI)
-- Modified /src/app/(dashboard)/payroll/page.tsx (added CTC Calculator tile)
-- Modified /src/components/Sidebar.tsx (added CTC Calculator nav item)
+- Project has extensive existing infrastructure
+- CTC Calculator already has PF/ESI optional checkboxes
+- Reports page already has LWF tab and Standard Reports tab
+- Employee detail page already has Policies tab with policy dropdowns
+- IncomeTaxDeclaration model already exists in Prisma schema
+- Key missing items: Income Tax Calculator page + API, Gratuity page + API, Employee Policies API route
 
 ---
-Task ID: 2
+Task ID: 2-6
 Agent: Main Agent
-Task: Debug RBAC role creation display bug - roles created but not listed in view/permissions
+Task: Build CTC Calculator enhancements, Income Tax Calculator, Gratuity Calculator, Statutory Reports enhancements, Employee Policies
 
 Work Log:
-- Investigated RBAC-related files: API routes, frontend pages, Prisma schema
-- Identified root cause: Caching issue on Vercel deployment
-  - Frontend fetch calls didn't use cache: 'no-store'
-  - API route didn't set Cache-Control headers
-  - API route didn't export 'dynamic = force-dynamic'
-  - Post-creation fetch delay (300ms) was too short for Neon serverless DB replication
-- Applied fixes:
-  - Added 'export const dynamic = force-dynamic' to /api/rbac/roles/route.ts
-  - Added Cache-Control: no-store, no-cache, must-revalidate headers to GET response
-  - Added cache: 'no-store' to all fetch calls in super-admin and tenant-admin RBAC pages
-  - Added cache-busting timestamp (_t parameter) to fetch URLs
-  - Increased post-creation fetch delay from 300ms to 500ms
+- CTC Calculator: Already has PF/ESI checkboxes, API support - verified and confirmed working
+- Created Income Tax Calculator API: /api/payroll/income-tax/route.ts (POST for calculation, GET for tax slabs)
+- Created Income Tax Declarations API: /api/payroll/income-tax-declarations/route.ts (GET/POST)
+- Created Income Tax Declarations [id] API: /api/payroll/income-tax-declarations/[id]/route.ts (GET/PUT/DELETE)
+- Created Gratuity Calculator API: /api/payroll/gratuity/route.ts (POST for calculation, GET for reference info)
+- Created Employee Policies API: /api/employees/[id]/policies/route.ts (GET/PUT)
+- Created Income Tax page: /(dashboard)/payroll/income-tax/page.tsx (Tax Calculator + Declaration management)
+- Created Gratuity page: /(dashboard)/payroll/gratuity/page.tsx (Gratuity calculator with projection table)
+- Added Income Tax and Gratuity tiles to Payroll main page
+- Verified Reports page already has LWF and Standard Reports tabs
+- Verified Employee detail page already has Policies tab with dropdowns
+- Prisma schema: Employee model already has leavePolicyId, attendancePolicyId, travelPolicyId, salaryStructureId fields
+- Successfully built project with no errors
 
 Stage Summary:
-- Modified /src/app/api/rbac/roles/route.ts (cache headers + dynamic export)
-- Modified /src/app/(dashboard)/super-admin/rbac/page.tsx (cache bust + no-store fetch)
-- Modified /src/app/(dashboard)/tenant-admin/rbac/page.tsx (cache bust + no-store fetch)
-- Both changes deployed to Vercel via git push
+- All major features implemented and building successfully
+- New routes: /payroll/income-tax, /payroll/gratuity, /api/payroll/income-tax, /api/payroll/gratuity, /api/payroll/income-tax-declarations, /api/employees/[id]/policies
+- Income Tax Calculator: Full Old/New regime comparison, deduction inputs, slab breakdown
+- Income Tax Declarations: CRUD with DRAFT→SUBMITTED→APPROVED/REJECTED flow, employee self-service and HR/admin
+- Gratuity Calculator: Act-covered and non-covered formulas, projection table, tax implications, eligibility check
+- CTC Calculator: Already had PF/ESI optional checkboxes
+- Reports: Already had LWF and Standard Reports tabs
+- Employee Policies: Already had tab and UI; added backend API route

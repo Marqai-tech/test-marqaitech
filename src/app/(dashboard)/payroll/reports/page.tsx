@@ -5,6 +5,7 @@ import {
   FiFileText, FiDownload, FiClock, FiCheckCircle, FiAlertTriangle,
   FiSearch, FiDollarSign, FiTrendingUp, FiUsers,
   FiBarChart2, FiShield, FiDatabase, FiRefreshCw,
+  FiPrinter, FiCreditCard, FiFile, FiTrendingUp as FiTrendUp,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -72,8 +73,8 @@ interface Company {
 }
 
 // --- Tab Type ---
-type ReportTab = 'register' | 'statutory' | 'dashboard';
-type StatutoryType = 'PF' | 'ESI' | 'PT' | 'TDS';
+type ReportTab = 'register' | 'statutory' | 'dashboard' | 'standard';
+type StatutoryType = 'PF' | 'ESI' | 'PT' | 'TDS' | 'LWF';
 
 // --- Currency ---
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -303,6 +304,7 @@ export default function PayrollReportsPage() {
         {([
           { key: 'register', label: 'Salary Register', icon: FiDatabase },
           { key: 'statutory', label: 'Statutory Reports', icon: FiShield },
+          { key: 'standard', label: 'Standard Reports', icon: FiFile },
           { key: 'dashboard', label: 'Payroll Dashboard', icon: FiBarChart2 },
         ] as { key: ReportTab; label: string; icon: React.ComponentType<{ className?: string }> }[]).map(tab => {
           const IconComp = tab.icon;
@@ -478,7 +480,7 @@ export default function PayrollReportsPage() {
         <div className="space-y-4">
           {/* Type Tabs */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
-            {(['PF', 'ESI', 'PT', 'TDS'] as StatutoryType[]).map(type => (
+            {(['PF', 'ESI', 'PT', 'TDS', 'LWF'] as StatutoryType[]).map(type => (
               <button
                 key={type}
                 onClick={() => setStatutoryType(type)}
@@ -596,6 +598,51 @@ export default function PayrollReportsPage() {
               <p className="text-sm text-nexus-text-muted mt-1">Select type and period, then click Load</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========== STANDARD REPORTS ========== */}
+      {activeTab === 'standard' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { title: 'Payslip Summary', icon: FiFileText, desc: 'Month-wise summary of all payslips processed', color: 'blue' },
+              { title: 'Bank Payment Report', icon: FiCreditCard, desc: 'Employee bank details and net pay for bank file generation', color: 'emerald' },
+              { title: 'Tax Summary Report', icon: FiBarChart2, desc: 'Annual tax summary for all employees', color: 'amber' },
+              { title: 'CTC Report', icon: FiDollarSign, desc: 'Employee CTC breakdown and composition', color: 'purple' },
+              { title: 'Arrears Report', icon: FiTrendingUp, desc: 'Arrears paid to employees', color: 'rose' },
+              { title: 'Reimbursement Report', icon: FiCreditCard, desc: 'Reimbursements processed and pending', color: 'teal' },
+            ].map((report) => {
+              const colorMap: Record<string, { bg: string; icon: string; ring: string }> = {
+                blue: { bg: 'bg-blue-500/10', icon: 'text-blue-500', ring: 'ring-blue-500/20' },
+                emerald: { bg: 'bg-emerald-500/10', icon: 'text-emerald-500', ring: 'ring-emerald-500/20' },
+                amber: { bg: 'bg-amber-500/10', icon: 'text-amber-500', ring: 'ring-amber-500/20' },
+                purple: { bg: 'bg-purple-500/10', icon: 'text-purple-500', ring: 'ring-purple-500/20' },
+                rose: { bg: 'bg-rose-500/10', icon: 'text-rose-500', ring: 'ring-rose-500/20' },
+                teal: { bg: 'bg-teal-500/10', icon: 'text-teal-500', ring: 'ring-teal-500/20' },
+              };
+              const c = colorMap[report.color] || colorMap.blue;
+              const IconComp = report.icon;
+              return (
+                <div key={report.title} className="nexus-card nexus-card-hover p-5 group cursor-pointer">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center ${c.icon} ring-1 ${c.ring} flex-shrink-0`}>
+                      <IconComp className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-nexus-text-primary">{report.title}</h3>
+                      <p className="text-xs text-nexus-text-muted mt-1">{report.desc}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="nexus-card p-8 text-center">
+            <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+            <p className="text-nexus-text-secondary font-medium">Standard Reports</p>
+            <p className="text-sm text-nexus-text-muted mt-1">Select a report type above to generate. Each report supports filtering by month/year/company and can be exported to CSV or printed.</p>
+          </div>
         </div>
       )}
 

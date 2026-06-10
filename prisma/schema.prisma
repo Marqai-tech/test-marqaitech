@@ -236,6 +236,12 @@ model Employee {
   salary         Float?
   salaryCurrency String @default("USD")
 
+  // Policy & Structure Mappings
+  leavePolicyId      String?
+  attendancePolicyId String?
+  travelPolicyId     String?
+  salaryStructureId  String?
+
   // Relations
   leaveBalances     LeaveBalance[]
   leaveRequests     LeaveRequest[]
@@ -269,6 +275,7 @@ model Employee {
   payrollHolds      PayrollHold[]
   transactionLines  PayrollTransactionLine[]
   payrollInputs     PayrollInput[]
+  taxDeclarations   IncomeTaxDeclaration[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2610,4 +2617,66 @@ model PayrollValidation {
 
   @@index([payrollRunId])
   @@index([companyId])
+}
+
+// ============ INCOME TAX DECLARATION ============
+
+model IncomeTaxDeclaration {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  financialYear     String   // e.g. "2024-25"
+  regimeType        String   @default("NEW") // OLD, NEW
+
+  // Section 80C
+  section80C_PPF            Float @default(0)
+  section80C_ELSS           Float @default(0)
+  section80C_LIC            Float @default(0)
+  section80C_HomeLoanPrincipal Float @default(0)
+  section80C_Other          Float @default(0)
+  section80C_Total          Float @default(0)
+
+  // Section 80D
+  section80D_Self           Float @default(0)
+  section80D_Parents        Float @default(0)
+  section80D_Total          Float @default(0)
+
+  // Section 80CCD
+  section80CCD_NPS          Float @default(0)
+
+  // Section 24(b)
+  section24b_HomeLoanInterest Float @default(0)
+
+  // HRA
+  hra_ActualHRA             Float @default(0)
+  hra_RentPaid              Float @default(0)
+  hra_IsMetro               Boolean @default(false)
+  hra_ExemptionCalc         Float @default(0)
+
+  // Other
+  section80E_EducationLoan  Float @default(0)
+  section80G_Donations      Float @default(0)
+  section80TTA_SavingsInterest Float @default(0)
+  otherDeductions           Float @default(0)
+
+  // Computed
+  totalDeductions           Float @default(0)
+  taxableIncome             Float @default(0)
+  estimatedTax              Float @default(0)
+
+  // Status
+  status                    String @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED
+  submittedAt               DateTime?
+  reviewedBy                String?
+  reviewedAt                DateTime?
+  reviewComments            String?
+
+  createdBy                 String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([financialYear])
+  @@index([status])
 }
