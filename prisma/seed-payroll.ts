@@ -881,6 +881,104 @@ async function main() {
   console.log(`  ✓ Created legacy payroll records for ${tcgEmployees.length} employees (May + June 2026)`);
 
   // ══════════════════════════════════════════════════════════════
+  // 14. PAYROLL DEFINITIONS
+  // ══════════════════════════════════════════════════════════════
+  console.log('\n📋 Creating Payroll Definitions...');
+
+  const payrollDefinitions = [
+    { name: 'India Monthly Payroll', companyId: mpi.id, payFrequency: 'MONTHLY', processingCutOff: 25, paymentDay: 1, currencyCode: 'INR', countryCode: 'IN', allowDirectDeposit: true, allowCheque: true, allowCash: false, costingSegments: JSON.stringify(['department', 'cost_center', 'location']), status: 'active', effectiveFrom: new Date('2025-04-01') },
+    { name: 'US Bi-Weekly Payroll', companyId: tcg.id, payFrequency: 'BI_WEEKLY', processingCutOff: 15, paymentDay: 15, currencyCode: 'USD', countryCode: 'US', allowDirectDeposit: true, allowCheque: false, allowCash: false, costingSegments: JSON.stringify(['department', 'location']), status: 'active', effectiveFrom: new Date('2025-01-01') },
+    { name: 'UK Monthly Payroll', companyId: hfs.id, payFrequency: 'MONTHLY', processingCutOff: 20, paymentDay: 28, currencyCode: 'GBP', countryCode: 'GB', allowDirectDeposit: true, allowCheque: true, allowCash: false, costingSegments: JSON.stringify(['department', 'project']), status: 'active', effectiveFrom: new Date('2025-04-01') },
+  ];
+
+  let payrollDefCreated = 0;
+  for (const pd of payrollDefinitions) {
+    const existing = await prisma.payrollDefinition.findFirst({ where: { name: pd.name, companyId: pd.companyId } });
+    if (existing) continue;
+    await prisma.payrollDefinition.create({ data: pd });
+    payrollDefCreated++;
+  }
+  console.log(`  ✓ Created ${payrollDefCreated} payroll definitions`);
+
+  // ══════════════════════════════════════════════════════════════
+  // 15. EMPLOYEE PAYMENT METHODS
+  // ══════════════════════════════════════════════════════════════
+  console.log('\n📋 Creating Employee Payment Methods...');
+
+  let paymentMethodsCreated = 0;
+  for (const emp of employees.slice(0, 10)) {
+    const existing = await prisma.employeePaymentMethod.findFirst({ where: { employeeId: emp.id, isPrimary: true } });
+    if (existing) continue;
+
+    // Primary payment method (full salary)
+    await prisma.employeePaymentMethod.create({
+      data: {
+        employeeId: emp.id,
+        paymentType: 'DIRECT_DEPOSIT',
+        bankName: emp.bankName || 'HDFC Bank',
+        bankAccountNo: emp.bankAccountNo || `${Math.floor(10000000000 + Math.random() * 90000000000)}`,
+        bankIfscCode: emp.bankIfscCode || 'HDFC0001234',
+        bankBranch: emp.city || 'Mumbai',
+        accountType: 'SALARY',
+        currencyCode: emp.salaryCurrency || 'INR',
+        splitType: null,
+        splitValue: null,
+        isPrimary: true,
+        priority: 1,
+        status: 'active',
+      },
+    });
+    paymentMethodsCreated++;
+  }
+  console.log(`  ✓ Created ${paymentMethodsCreated} employee payment methods`);
+
+  // ══════════════════════════════════════════════════════════════
+  // 16. LOANS
+  // ══════════════════════════════════════════════════════════════
+  console.log('\n📋 Creating Sample Loans...');
+
+  const loanData = [
+    { loanType: 'PERSONAL', loanAmount: 100000, interestRate: 10, tenureMonths: 12, emiAmount: 8791.59, outstandingBalance: 100000, disbursedAmount: 100000, disbursedDate: new Date('2026-01-15'), startDate: new Date('2026-01-15'), endDate: new Date('2027-01-15'), recoveredAmount: 35166.36, remainingEmis: 8, status: 'active' },
+    { loanType: 'EMERGENCY', loanAmount: 50000, interestRate: 8, tenureMonths: 6, emiAmount: 8553.74, outstandingBalance: 50000, disbursedAmount: 50000, disbursedDate: new Date('2026-03-01'), startDate: new Date('2026-03-01'), endDate: new Date('2026-09-01'), recoveredAmount: 17107.48, remainingEmis: 4, status: 'active' },
+    { loanType: 'HOUSING', loanAmount: 500000, interestRate: 7.5, tenureMonths: 60, emiAmount: 10015.87, outstandingBalance: 500000, disbursedAmount: 500000, disbursedDate: new Date('2025-06-01'), startDate: new Date('2025-06-01'), endDate: new Date('2030-06-01'), recoveredAmount: 120190.44, remainingEmis: 48, status: 'active' },
+    { loanType: 'FESTIVAL', loanAmount: 25000, interestRate: 0, tenureMonths: 10, emiAmount: 2500, outstandingBalance: 25000, disbursedAmount: 25000, disbursedDate: new Date('2026-04-01'), startDate: new Date('2026-04-01'), endDate: new Date('2027-02-01'), recoveredAmount: 5000, remainingEmis: 8, status: 'active' },
+    { loanType: 'EDUCATION', loanAmount: 200000, interestRate: 5, tenureMonths: 36, emiAmount: 5994.25, outstandingBalance: 200000, disbursedAmount: 200000, status: 'pending' },
+  ];
+
+  let loansCreated = 0;
+  for (let i = 0; i < Math.min(loanData.length, employees.length); i++) {
+    const emp = employees[i];
+    const loan = loanData[i];
+    const existing = await prisma.loan.findFirst({ where: { employeeId: emp.id, loanType: loan.loanType } });
+    if (existing) continue;
+    await prisma.loan.create({ data: { employeeId: emp.id, ...loan } });
+    loansCreated++;
+  }
+  console.log(`  ✓ Created ${loansCreated} sample loans`);
+
+  // ══════════════════════════════════════════════════════════════
+  // 17. OVERTIME RECORDS
+  // ══════════════════════════════════════════════════════════════
+  console.log('\n📋 Creating Sample Overtime Records...');
+
+  let overtimeCreated = 0;
+  const otDates = [new Date('2026-05-15'), new Date('2026-05-22'), new Date('2026-06-01'), new Date('2026-06-05')];
+  for (let i = 0; i < Math.min(otDates.length, employees.length); i++) {
+    const emp = employees[i];
+    const date = otDates[i];
+    const hours = 2 + Math.random() * 4;
+    const rate = (emp.salary || 50000) / 30 / 8; // Daily rate / 8 hours
+    const amount = Math.round(hours * rate * 100) / 100;
+    const existing = await prisma.overtimeRecord.findUnique({ where: { employeeId_date: { employeeId: emp.id, date } } });
+    if (existing) continue;
+    await prisma.overtimeRecord.create({
+      data: { employeeId: emp.id, date, hours: Math.round(hours * 10) / 10, rateType: 'HOURLY_RATE', rate: Math.round(rate * 100) / 100, amount, reason: 'Project deadline delivery', status: i < 2 ? 'approved' : 'pending' },
+    });
+    overtimeCreated++;
+  }
+  console.log(`  ✓ Created ${overtimeCreated} overtime records`);
+
+  // ══════════════════════════════════════════════════════════════
   // SUMMARY
   // ══════════════════════════════════════════════════════════════
   console.log('\n' + '═'.repeat(60));
@@ -902,6 +1000,10 @@ async function main() {
     ✅ ${complianceObligations.length} Compliance Obligations + ${complianceFilings.length} Filings
     ✅ ${glMappings.length} GL Account Mappings
     ✅ ${tcgEmployees.length * 2} Legacy Payroll Records (May + June)
+    ✅ ${payrollDefCreated} Payroll Definitions
+    ✅ ${paymentMethodsCreated} Employee Payment Methods
+    ✅ ${loansCreated} Loans
+    ✅ ${overtimeCreated} Overtime Records
   `);
 }
 

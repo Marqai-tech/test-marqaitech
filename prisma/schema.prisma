@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
 }
 
 // ============ SaaS MULTI-TENANT CORE ============
@@ -261,6 +260,10 @@ model Employee {
   reimbursements    Reimbursement[]
   projectAllocations ProjectAllocation[]
   fnfCalculations   FNFCalculation[]
+  employeePaymentMethods EmployeePaymentMethod[]
+  loans             Loan[]
+  overtimeRecords   OvertimeRecord[]
+  payrollHolds      PayrollHold[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2387,5 +2390,212 @@ model GLAccountMapping {
 
   @@index([legalEntityId])
   @@index([componentId])
+  @@index([companyId])
+}
+
+// ============ INDIAN PAYROLL - ADDITIONAL MODELS ============
+
+// Payroll Definition - Pay frequency, cut-off dates, payment methods at payroll level
+model PayrollDefinition {
+  id                String   @id @default(cuid())
+  name              String
+  companyId         String
+  payFrequency      String   @default("MONTHLY") // DAILY, WEEKLY, BI_WEEKLY, SEMI_MONTHLY, MONTHLY, QUARTERLY, SEMI_ANNUALLY, ANNUALLY
+  processingCutOff  Int      @default(25) // Day of month for processing cut-off
+  paymentDay        Int      @default(1) // Day of month for payment
+  currencyCode      String   @default("INR")
+  countryCode       String   @default("IN")
+
+  // Allowed payment methods for this payroll
+  allowDirectDeposit Boolean  @default(true)
+  allowCheque        Boolean  @default(false)
+  allowCash          Boolean  @default(false)
+
+  // Costing segments
+  costingSegments    String?  // JSON: e.g. ["department","cost_center","location"]
+
+  status             String   @default("active") // active, inactive
+  effectiveFrom      DateTime @default(now())
+  effectiveTo        DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+}
+
+// Employee Payment Method - Bank details with split payment support
+model EmployeePaymentMethod {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  paymentType       String   @default("DIRECT_DEPOSIT") // DIRECT_DEPOSIT, CHEQUE, CASH
+  bankName          String?
+  bankAccountNo     String?
+  bankIfscCode      String?
+  bankBranch        String?
+  accountType       String?  // SAVINGS, CURRENT, SALARY
+  currencyCode      String   @default("INR")
+
+  // Split payment support (multiple accounts)
+  splitType         String?  // PERCENTAGE, FIXED_AMOUNT
+  splitValue        Float?   // Percentage or fixed amount for this method
+  isPrimary         Boolean  @default(true)
+  priority          Int      @default(1)
+
+  effectiveFrom     DateTime @default(now())
+  effectiveTo       DateTime?
+  status            String   @default("active") // active, inactive
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// Loan Management - Full loan lifecycle
+model Loan {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  loanType          String   // PERSONAL, EMERGENCY, HOUSING, VEHICLE, EDUCATION, FESTIVAL, OTHER
+  loanAmount        Float
+  interestRate      Float    @default(0)
+  tenureMonths      Int
+  emiAmount         Float
+  outstandingBalance Float
+  disbursedAmount   Float
+  disbursedDate     DateTime?
+  startDate         DateTime
+  endDate           DateTime?
+  recoveredAmount   Float    @default(0)
+  remainingEmis     Int
+
+  status            String   @default("pending") // pending, approved, active, completed, cancelled, defaulted
+  approvedBy        String?
+  approvedAt        DateTime?
+
+  // Recovery tracking
+  recoverySchedule  String?  // JSON: array of {month, year, amount, status}
+
+  remarks           String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([loanType])
+}
+
+// Overtime Management
+model OvertimeRecord {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date              DateTime
+  hours             Float    @default(0)
+  rateType          String   @default("FLAT") // FLAT, PERCENTAGE_OF_BASIC, HOURLY_RATE
+  rate              Float    @default(0)
+  amount            Float    @default(0)
+
+  reason            String?
+  project           String?
+  approvedBy        String?
+  approvedAt        DateTime?
+  status            String   @default("pending") // pending, approved, rejected, processed
+
+  payrollRunId      String?  // Linked to payroll run when processed
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([status])
+  @@index([date])
+}
+
+// Payroll Hold - Hold/suspend employee payroll
+model PayrollHold {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  holdType          String   // FULL_HOLD, PARTIAL_HOLD, DEDUCTION_ONLY
+  reason            String
+  holdFromPeriod    String   // e.g. "2026-06"
+  holdToPeriod      String?  // NULL = indefinite
+  heldComponents    String?  // JSON array of component codes to hold (for partial hold)
+
+  releasedDate      DateTime?
+  releasedBy        String?
+  status            String   @default("active") // active, released, cancelled
+
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// Bank Payment File - Generated bank files for salary disbursement
+model BankPaymentFile {
+  id                String   @id @default(cuid())
+  payrollRunId      String
+  fileName          String
+  fileFormat        String   @default("NACH") // NACH, NEFT, RTGS, CUSTOM
+  bankCode          String?
+  totalAmount       Float    @default(0)
+  totalRecords      Int      @default(0)
+  fileContent       String?  // Base64 encoded or JSON
+
+  generatedBy       String?
+  generatedAt       DateTime @default(now())
+  status            String   @default("generated") // generated, submitted, acknowledged, rejected
+
+  companyId         String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([payrollRunId])
+  @@index([status])
+  @@index([companyId])
+}
+
+// Pre-Payroll Validation Result
+model PayrollValidation {
+  id                String   @id @default(cuid())
+  payrollRunId      String?
+  companyId         String?
+
+  validationType    String   // PRE_PAYROLL, POST_PAYROLL
+  status            String   @default("pending") // pending, completed, failed
+
+  // Validation results as JSON
+  missingPaymentMethods  String?  // JSON array of employee IDs
+  missingSalaryBasis     String?  // JSON array of employee IDs
+  heldEmployees          String?  // JSON array of employee IDs
+  newJoiners             String?  // JSON array of employee IDs
+  terminations           String?  // JSON array of employee IDs
+  errors                 String?  // JSON array of error objects
+  warnings               String?  // JSON array of warning objects
+
+  totalEmployees     Int      @default(0)
+  validEmployees     Int      @default(0)
+  invalidEmployees   Int      @default(0)
+
+  runBy              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([payrollRunId])
   @@index([companyId])
 }

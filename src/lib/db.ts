@@ -72,7 +72,8 @@ function createFallbackProxy(): PrismaClient {
         'fNFCalculation', 'salaryStructure', 'salaryComponent', 'payroll',
         'leaveType', 'leaveBalance', 'leaveRequest', 'designation',
         'jobPosting', 'jobApplication', 'companyGroup', 'subscriptionPlan',
-        'subscription',
+        'subscription', 'payrollDefinition', 'employeePaymentMethod', 'loan',
+        'overtimeRecord', 'payrollHold', 'bankPaymentFile', 'payrollValidation',
       ]
 
       if (modelNames.includes(prop)) {

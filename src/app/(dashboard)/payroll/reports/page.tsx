@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { FiFileText, FiDownload, FiClock, FiCheckCircle, FiAlertTriangle, FiFilter, FiSearch } from 'react-icons/fi';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  FiFileText, FiDownload, FiClock, FiCheckCircle, FiAlertTriangle,
+  FiSearch, FiDollarSign, FiTrendingUp, FiUsers,
+  FiBarChart2, FiShield, FiDatabase, FiRefreshCw,
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 function getAuthHeaders() {
@@ -9,226 +13,802 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-// --- Report Categories ---
-interface ReportDefinition {
-  code: string;
+// --- Types ---
+interface SalaryRegisterRow {
+  employeeId: string;
   name: string;
-  description: string;
-  category: 'input' | 'standard' | 'normal' | 'statutory';
-  format: string[];
-  filters: string[];
-  country?: string;
+  empCode: string;
+  department: string;
+  designation: string;
+  earnings: Record<string, number>;
+  deductions: Record<string, number>;
+  employerContrib: Record<string, number>;
+  grossPay: number;
+  totalDeductions: number;
+  netPay: number;
+  totalEmployerContrib: number;
 }
 
-const INPUT_REPORTS: ReportDefinition[] = [
-  { code: 'RPT_AT_SUM', name: 'Attendance Summary Report', description: 'Verify attendance data before payroll run — present days, absent days, leaves, holidays', category: 'input', format: ['PDF', 'Excel'], filters: ['Department', 'Location', 'Period'] },
-  { code: 'RPT_MISS_INP', name: 'Missing Inputs Report', description: 'Identify employees with missing or incomplete payroll inputs', category: 'input', format: ['PDF', 'Excel'], filters: ['Input Type', 'Department', 'Period'] },
-  { code: 'RPT_INP_VAR', name: 'Input Variance Report', description: 'Compare current period inputs against previous period to detect anomalies', category: 'input', format: ['PDF', 'Excel'], filters: ['Department', 'Variance Threshold', 'Period'] },
-  { code: 'RPT_OT_SUM', name: 'Overtime Summary Report', description: 'Review overtime hours and cost before processing', category: 'input', format: ['PDF', 'Excel'], filters: ['Department', 'OT Type', 'Period'] },
-  { code: 'RPT_LE_ENC', name: 'Leave Encashment Report', description: 'List of leave encashments to be processed in current period', category: 'input', format: ['PDF', 'Excel'], filters: ['Leave Type', 'Department', 'Period'] },
-  { code: 'RPT_INV_DEC', name: 'Investment Declaration Report', description: 'Employee tax-saving declarations for TDS calculation', category: 'input', format: ['PDF', 'Excel'], filters: ['Section', 'Proof Status', 'Period'] },
-];
+interface StatutoryRow {
+  employeeId: string;
+  name: string;
+  empCode: string;
+  department: string;
+  [key: string]: unknown;
+}
 
-const STANDARD_REPORTS: ReportDefinition[] = [
-  { code: 'RPT_PAY_REG', name: 'Payroll Register', description: 'Complete payroll calculation detail for all employees in the period', category: 'standard', format: ['PDF', 'Excel'], filters: ['Department', 'Location', 'Cost Center', 'Period', 'Currency'] },
-  { code: 'RPT_PAY_SUM', name: 'Payroll Summary Report', description: 'Aggregated payroll cost by component across the organization', category: 'standard', format: ['PDF', 'Excel'], filters: ['Department', 'Entity', 'Country', 'Period', 'Currency'] },
-  { code: 'RPT_DEPT_PAY', name: 'Department-Wise Payroll', description: 'Payroll cost breakdown by department with headcount', category: 'standard', format: ['PDF', 'Excel'], filters: ['Department', 'Entity', 'Location', 'Period'] },
-  { code: 'RPT_CC_PAY', name: 'Cost Center Report', description: 'Payroll cost allocation by cost center with dimensional split', category: 'standard', format: ['PDF', 'Excel'], filters: ['Cost Center', 'Entity', 'Period', 'Currency'] },
-  { code: 'RPT_BANK_DISB', name: 'Bank Disbursement Report', description: 'Payment file summary for bank upload and reconciliation', category: 'standard', format: ['PDF', 'Excel', 'Bank File'], filters: ['Bank', 'Currency', 'Period'] },
-  { code: 'RPT_PAYSLIP', name: 'Payslip Register', description: 'Bulk payslip generation and delivery confirmation', category: 'standard', format: ['PDF (per employee)'], filters: ['Department', 'Period', 'Delivery Status'] },
-  { code: 'RPT_CTC_REG', name: 'Salary Register (CTC)', description: 'CTC breakdown for all employees with component-wise split', category: 'standard', format: ['PDF', 'Excel'], filters: ['Department', 'Grade', 'Entity', 'Period'] },
-  { code: 'RPT_GL_POST', name: 'GL Posting Report', description: 'Journal entries generated from payroll for GL integration', category: 'standard', format: ['PDF', 'Excel', 'CSV'], filters: ['Entity', 'Period', 'GL Range', 'Currency'] },
-  { code: 'RPT_CURR_CONV', name: 'Currency Conversion Report', description: 'Details of all cross-currency conversions applied in payroll', category: 'standard', format: ['PDF', 'Excel'], filters: ['Currency Pair', 'Entity', 'Period'] },
-  { code: 'RPT_NEW_JOIN', name: 'New Joiner Payroll Report', description: 'Payroll details for employees joining in current period', category: 'standard', format: ['PDF', 'Excel'], filters: ['Department', 'Period'] },
-  { code: 'RPT_FINAL_SET', name: 'Exit/Final Settlement Report', description: 'Full and final settlement calculations for separated employees', category: 'standard', format: ['PDF', 'Excel'], filters: ['Department', 'Separation Type', 'Period'] },
-];
+interface DashboardMetrics {
+  totalEmployeesProcessed: number;
+  totalActiveEmployees: number;
+  totalGrossPay: number;
+  totalDeductions: number;
+  totalNetPay: number;
+  totalEmployerContrib: number;
+  pendingApprovals: number;
+  activeHolds: number;
+}
 
-const NORMAL_REPORTS: ReportDefinition[] = [
-  { code: 'RPT_MOM_TREND', name: 'Month-over-Month Payroll Trend', description: 'Track payroll cost trends across months — headcount, gross, net, statutory, MoM variance', category: 'normal', format: ['PDF', 'Excel'], filters: ['Department', 'Entity', 'Year', 'Currency'] },
-  { code: 'RPT_SAL_DIST', name: 'Salary Structure Distribution', description: 'Analyze salary distribution across bands/grades', category: 'normal', format: ['PDF', 'Excel'], filters: ['Department', 'Grade', 'Entity'] },
-  { code: 'RPT_COMP_COST', name: 'Component-wise Cost Analysis', description: 'Detailed breakdown of payroll cost by component over time', category: 'normal', format: ['PDF', 'Excel'], filters: ['Department', 'Component Type', 'Period Range'] },
-  { code: 'RPT_EMP_HIST', name: 'Employee Pay History', description: 'Historical payroll details for individual employees', category: 'normal', format: ['PDF', 'Excel'], filters: ['Employee', 'Period Range'] },
-  { code: 'RPT_HC_COST', name: 'Headcount Cost Report', description: 'Average cost per employee by dimension', category: 'normal', format: ['PDF', 'Excel'], filters: ['Department', 'Location', 'Period', 'Currency'] },
-  { code: 'RPT_PRORATE', name: 'Proration Report', description: 'Details of mid-period joins, exits, and salary changes', category: 'normal', format: ['PDF', 'Excel'], filters: ['Department', 'Period'] },
-  { code: 'RPT_LOAN_ADV', name: 'Loan and Advance Report', description: 'Outstanding loan balances and EMI tracking', category: 'normal', format: ['PDF', 'Excel'], filters: ['Loan Type', 'Department', 'Status'] },
-  { code: 'RPT_OT_ANALYSIS', name: 'Overtime Cost Analysis', description: 'Overtime cost trends and patterns by department', category: 'normal', format: ['PDF', 'Excel'], filters: ['Department', 'Period Range'] },
-];
+interface MonthlyTrend {
+  period: string;
+  grossPay: number;
+  deductions: number;
+  netPay: number;
+  employerContrib: number;
+  employees: number;
+}
 
-const STATUTORY_REPORTS: ReportDefinition[] = [
-  { code: 'IND_PF_ECR', name: 'PF ECR (Electronic Challan cum Return)', description: 'Monthly PF return in ECR format for EPFO', category: 'statutory', format: ['CSV (ECR format)'], filters: ['Period'], country: 'India' },
-  { code: 'IND_ESI_RET', name: 'ESI Half-Yearly Return', description: 'Half-yearly ESI return for ESIC', category: 'statutory', format: ['Online portal'], filters: ['Period'], country: 'India' },
-  { code: 'IND_TDS_24Q', name: 'TDS Return (Form 24Q)', description: 'Quarterly TDS return in NSDL format', category: 'statutory', format: ['TXT (NSDL format)'], filters: ['Quarter'], country: 'India' },
-  { code: 'IND_FORM16', name: 'Form 16 (TDS Certificate)', description: 'Annual TDS certificate for employees', category: 'statutory', format: ['PDF (prescribed format)'], filters: ['Year'], country: 'India' },
-  { code: 'IND_PTAX_RET', name: 'Professional Tax Return', description: 'Monthly/annual professional tax return', category: 'statutory', format: ['State-specific format'], filters: ['Period', 'State'], country: 'India' },
-  { code: 'US_W2', name: 'W-2 Wage Statement', description: 'Annual wage statement for IRS/SSA', category: 'statutory', format: ['EFW2 (SSA format)'], filters: ['Year'], country: 'United States' },
-  { code: 'US_941', name: '941 Quarterly Return', description: 'Quarterly federal tax return for IRS', category: 'statutory', format: ['IRS e-file'], filters: ['Quarter'], country: 'United States' },
-  { code: 'US_1095C', name: '1095-C (ACA Reporting)', description: 'Annual ACA reporting form', category: 'statutory', format: ['AIR format'], filters: ['Year'], country: 'United States' },
-  { code: 'UK_P60', name: 'P60 (End of Year Certificate)', description: 'Annual end-of-year certificate for HMRC', category: 'statutory', format: ['PDF (prescribed)'], filters: ['Year'], country: 'United Kingdom' },
-  { code: 'UK_P11D', name: 'P11D (Benefits in Kind)', description: 'Annual benefits in kind report for HMRC', category: 'statutory', format: ['Online / PDF'], filters: ['Year'], country: 'United Kingdom' },
-  { code: 'UK_FPS', name: 'FPS (Full Payment Submission)', description: 'Per-pay-period RTI submission to HMRC', category: 'statutory', format: ['RTI XML'], filters: ['Period'], country: 'United Kingdom' },
-  { code: 'SG_IR8A', name: 'IR8A (Tax Return)', description: 'Annual income tax return for IRAS', category: 'statutory', format: ['AIS (Auto-Inclusion Scheme)'], filters: ['Year'], country: 'Singapore' },
-  { code: 'SG_CPF_RET', name: 'CPF Contribution Report', description: 'Monthly CPF contribution report', category: 'statutory', format: ['CPF EZPay format'], filters: ['Period'], country: 'Singapore' },
-  { code: 'SG_SDL_FWL', name: 'SDL/FWL Return', description: 'Monthly SkillsFuture Levy and Foreign Worker Levy return', category: 'statutory', format: ['CPF EZPay / MOM format'], filters: ['Period'], country: 'Singapore' },
-];
+interface DepartmentBreakdown {
+  departmentId: string;
+  departmentName: string;
+  headcount: number;
+  totalSalary: number;
+  avgSalary: number;
+}
 
-type ReportCategory = 'input' | 'standard' | 'normal' | 'statutory';
+interface Company {
+  id: string;
+  name: string;
+  code: string | null;
+}
 
-function getCategoryBadge(category: ReportCategory) {
-  const map: Record<ReportCategory, { badge: string; label: string }> = {
-    input: { badge: 'nexus-badge nexus-badge-info', label: 'Input' },
-    standard: { badge: 'nexus-badge nexus-badge-success', label: 'Standard' },
-    normal: { badge: 'nexus-badge nexus-badge-warning', label: 'Normal' },
-    statutory: { badge: 'nexus-badge nexus-badge-error', label: 'Statutory' },
+// --- Tab Type ---
+type ReportTab = 'register' | 'statutory' | 'dashboard';
+type StatutoryType = 'PF' | 'ESI' | 'PT' | 'TDS';
+
+// --- Currency ---
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', INR: '₹', GBP: '£', SGD: 'S$', AED: 'د.إ', AUD: 'A$',
+};
+const fmtCurrency = (amount: number, currency = 'USD') => {
+  const symbol = CURRENCY_SYMBOLS[currency] || '$';
+  return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+// --- Mini Chart Component (bar chart) ---
+function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; value: number }[]; label: string; color?: string }) {
+  const maxVal = Math.max(...data.map(d => d.value), 1);
+  const barColors: Record<string, string> = {
+    blue: 'bg-blue-400',
+    green: 'bg-emerald-400',
+    red: 'bg-red-400',
+    amber: 'bg-amber-400',
   };
-  return map[category];
+  const barColor = barColors[color] || barColors.blue;
+
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-nexus-text-secondary mb-2">{label}</h4>
+      <div className="flex items-end gap-1 h-24">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div
+              className={`w-full rounded-t ${barColor} transition-all`}
+              style={{ height: `${Math.max((d.value / maxVal) * 80, 2)}px` }}
+              title={`${d.label}: ${fmtCurrency(d.value)}`}
+            />
+            <span className="text-[9px] text-nexus-text-muted truncate w-full text-center">{d.label.slice(5)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function PayrollReportsPage() {
-  const [activeTab, setActiveTab] = useState<ReportCategory | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [generating, setGenerating] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ReportTab>('register');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const allReports = [...INPUT_REPORTS, ...STANDARD_REPORTS, ...NORMAL_REPORTS, ...STATUTORY_REPORTS];
+  // Salary Register state
+  const [registerMonth, setRegisterMonth] = useState(new Date().getMonth() + 1);
+  const [registerYear, setRegisterYear] = useState(new Date().getFullYear());
+  const [registerCompanyId, setRegisterCompanyId] = useState('');
+  const [registerDepartmentId, setRegisterDepartmentId] = useState('');
+  void setRegisterDepartmentId;
+  const [registerMode, setRegisterMode] = useState<'summary' | 'detailed'>('summary');
+  const [registerData, setRegisterData] = useState<SalaryRegisterRow[]>([]);
+  const [registerSummary, setRegisterSummary] = useState({ totalEmployees: 0, totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0 });
 
-  const filteredReports = allReports.filter(r => {
-    if (activeTab !== 'all' && r.category !== activeTab) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q) || r.code.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  // Statutory state
+  const [statutoryType, setStatutoryType] = useState<StatutoryType>('PF');
+  const [statutoryMonth, setStatutoryMonth] = useState(new Date().getMonth() + 1);
+  const [statutoryYear, setStatutoryYear] = useState(new Date().getFullYear());
+  const [statutoryCompanyId, setStatutoryCompanyId] = useState('');
+  const [statutoryData, setStatutoryData] = useState<StatutoryRow[]>([]);
+  const [statutoryTotals, setStatutoryTotals] = useState<Record<string, number>>({});
+  const [statutoryColumns, setStatutoryColumns] = useState<string[]>([]);
 
-  const handleGenerate = async (report: ReportDefinition) => {
-    setGenerating(report.code);
+  // Dashboard state
+  const [dashboardCompanyId, setDashboardCompanyId] = useState('');
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
+  const [deptBreakdown, setDeptBreakdown] = useState<DepartmentBreakdown[]>([]);
+
+  // Fetch companies
+  const fetchCompanies = useCallback(async () => {
     try {
-      // In a full implementation, this would call /api/payroll/reports/generate
-      // For now, show a toast indicating the report generation request
-      toast.success(`Generating ${report.name}... This will be available for download shortly.`);
+      const res = await fetch('/api/companies?limit=100', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const list = data.companies || data.data || [];
+        setCompanies(list.map((c: Record<string, unknown>) => ({
+          id: c.id as string,
+          name: c.name as string,
+          code: (c.code as string) || null,
+        })));
+      }
     } catch {
-      toast.error('Failed to generate report');
+      // Silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => fetchCompanies());
+  }, [fetchCompanies]);
+
+  // Load Salary Register
+  const loadSalaryRegister = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        month: String(registerMonth),
+        year: String(registerYear),
+        mode: registerMode,
+      });
+      if (registerCompanyId) params.set('companyId', registerCompanyId);
+      if (registerDepartmentId) params.set('departmentId', registerDepartmentId);
+
+      const res = await fetch(`/api/payroll/reports/salary-register?${params}`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to load');
+      }
+      const data = await res.json();
+      setRegisterData(data.data || []);
+      setRegisterSummary(data.summary || { totalEmployees: 0, totalGrossPay: 0, totalDeductions: 0, totalNetPay: 0, totalEmployerContrib: 0 });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load salary register');
     } finally {
-      setTimeout(() => setGenerating(null), 2000);
+      setLoading(false);
     }
   };
 
-  const tabs: { key: ReportCategory | 'all'; label: string; count: number; icon: React.ComponentType<{ className?: string }> }[] = [
-    { key: 'all', label: 'All Reports', count: allReports.length, icon: FiFileText },
-    { key: 'input', label: 'Input Reports', count: INPUT_REPORTS.length, icon: FiFilter },
-    { key: 'standard', label: 'Standard Reports', count: STANDARD_REPORTS.length, icon: FiCheckCircle },
-    { key: 'normal', label: 'Normal Reports', count: NORMAL_REPORTS.length, icon: FiClock },
-    { key: 'statutory', label: 'Statutory Reports', count: STATUTORY_REPORTS.length, icon: FiAlertTriangle },
-  ];
+  // Load Statutory Report
+  const loadStatutoryReport = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        type: statutoryType,
+        month: String(statutoryMonth),
+        year: String(statutoryYear),
+      });
+      if (statutoryCompanyId) params.set('companyId', statutoryCompanyId);
+
+      const res = await fetch(`/api/payroll/reports/statutory?${params}`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to load');
+      }
+      const data = await res.json();
+      setStatutoryData(data.data || []);
+      setStatutoryTotals(data.totals || {});
+
+      // Derive columns from first row
+      if (data.data && data.data.length > 0) {
+        const excludeKeys = new Set(['employeeId', 'name', 'empCode', 'department']);
+        const cols = Object.keys(data.data[0]).filter(k => !excludeKeys.has(k));
+        setStatutoryColumns(cols);
+      } else {
+        setStatutoryColumns([]);
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load statutory report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load Dashboard
+  const loadDashboard = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (dashboardCompanyId) params.set('companyId', dashboardCompanyId);
+
+      const res = await fetch(`/api/payroll/dashboard?${params}`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to load');
+      }
+      const data = await res.json();
+      setDashboardMetrics(data.metrics);
+      setMonthlyTrend(data.monthlyTrend || []);
+      setDeptBreakdown(data.departmentBreakdown || []);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Export to CSV
+  const handleExportCSV = (rows: Record<string, unknown>[], filename: string) => {
+    if (rows.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => headers.map(h => {
+        const val = row[h];
+        if (typeof val === 'object' && val !== null) return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+        return `"${String(val ?? '').replace(/"/g, '""')}"`;
+      }).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported');
+  };
+
+  // Month options
+  const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: new Date(2024, i).toLocaleString('default', { month: 'long' }) }));
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-slate-500" />
-            Payroll Reports
+            Payroll Reports & Dashboard
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Generate payroll, statutory, and compliance reports across all categories</p>
+          <p className="text-nexus-text-secondary mt-1">Salary register, statutory reports, and payroll analytics</p>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {tabs.slice(1).map(tab => {
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
+        {([
+          { key: 'register', label: 'Salary Register', icon: FiDatabase },
+          { key: 'statutory', label: 'Statutory Reports', icon: FiShield },
+          { key: 'dashboard', label: 'Payroll Dashboard', icon: FiBarChart2 },
+        ] as { key: ReportTab; label: string; icon: React.ComponentType<{ className?: string }> }[]).map(tab => {
           const IconComp = tab.icon;
           return (
-            <div key={tab.key} className="nexus-card nexus-card-hover p-4 cursor-pointer" onClick={() => setActiveTab(tab.key)}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center"><IconComp className="w-5 h-5 text-slate-500" /></div>
-                <div>
-                  <p className="text-xs font-medium text-nexus-text-secondary">{tab.label}</p>
-                  <p className="text-xl font-bold text-nexus-text-primary">{tab.count}</p>
-                </div>
-              </div>
-            </div>
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+              }`}
+            >
+              <IconComp className="w-4 h-4" />
+              {tab.label}
+            </button>
           );
         })}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}
-          >
-            {tab.label} ({tab.count})
-          </button>
-        ))}
-      </div>
-
-      {/* Search */}
-      <div className="nexus-card p-4">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input
-            type="text"
-            placeholder="Search reports by name, code, or description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-          />
-        </div>
-      </div>
-
-      {/* Reports Grid */}
-      {filteredReports.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No reports found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Try adjusting your search or filter criteria</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredReports.map(report => {
-            const catInfo = getCategoryBadge(report.category);
-            return (
-              <div key={report.code} className="nexus-card nexus-card-hover p-5 flex flex-col">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary truncate">{report.name}</h3>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={catInfo.badge}>{catInfo.label}</span>
-                      {report.country && <span className="nexus-badge nexus-badge-purple">{report.country}</span>}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-nexus-text-muted mb-3 leading-relaxed flex-1">{report.description}</p>
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Available Formats</p>
-                  <div className="flex flex-wrap gap-1">
-                    {report.format.map(f => (
-                      <span key={f} className="px-2 py-0.5 bg-slate-100 rounded text-xs text-nexus-text-secondary">{f}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Filters</p>
-                  <div className="flex flex-wrap gap-1">
-                    {report.filters.map(f => (
-                      <span key={f} className="px-2 py-0.5 border border-nexus-border rounded text-xs text-nexus-text-muted">{f}</span>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleGenerate(report)}
-                  disabled={generating === report.code}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+      {/* ========== SALARY REGISTER ========== */}
+      {activeTab === 'register' && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="nexus-card p-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Month</label>
+                <select
+                  value={registerMonth}
+                  onChange={(e) => setRegisterMonth(parseInt(e.target.value))}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
                 >
-                  <FiDownload className="w-4 h-4" />
-                  {generating === report.code ? 'Generating...' : 'Generate Report'}
-                </button>
+                  {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
               </div>
-            );
-          })}
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Year</label>
+                <input
+                  type="number"
+                  value={registerYear}
+                  onChange={(e) => setRegisterYear(parseInt(e.target.value))}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+                <select
+                  value={registerCompanyId}
+                  onChange={(e) => setRegisterCompanyId(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                >
+                  <option value="">All Companies</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Mode</label>
+                <select
+                  value={registerMode}
+                  onChange={(e) => setRegisterMode(e.target.value as 'summary' | 'detailed')}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                >
+                  <option value="summary">Summary</option>
+                  <option value="detailed">Detailed</option>
+                </select>
+              </div>
+              <button
+                onClick={loadSalaryRegister}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors whitespace-nowrap"
+              >
+                {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiSearch className="w-4 h-4" />}
+                Load
+              </button>
+            </div>
+          </div>
+
+          {/* Summary Cards */}
+          {registerData.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+              <div className="nexus-card p-4 text-center">
+                <p className="text-xs font-medium text-nexus-text-secondary">Employees</p>
+                <p className="text-xl font-bold text-nexus-text-primary">{registerSummary.totalEmployees}</p>
+              </div>
+              <div className="nexus-card p-4 text-center">
+                <p className="text-xs font-medium text-emerald-700">Gross Pay</p>
+                <p className="text-lg font-bold text-emerald-700">{fmtCurrency(registerSummary.totalGrossPay)}</p>
+              </div>
+              <div className="nexus-card p-4 text-center">
+                <p className="text-xs font-medium text-red-700">Deductions</p>
+                <p className="text-lg font-bold text-red-700">{fmtCurrency(registerSummary.totalDeductions)}</p>
+              </div>
+              <div className="nexus-card p-4 text-center">
+                <p className="text-xs font-medium text-blue-700">Net Pay</p>
+                <p className="text-lg font-bold text-blue-700">{fmtCurrency(registerSummary.totalNetPay)}</p>
+              </div>
+              <div className="nexus-card p-4 text-center">
+                <p className="text-xs font-medium text-purple-700">Employer Contrib</p>
+                <p className="text-lg font-bold text-purple-700">{fmtCurrency(registerSummary.totalEmployerContrib)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Export */}
+          {registerData.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const exportRows = registerData.map(r => ({
+                    empCode: r.empCode,
+                    name: r.name,
+                    department: r.department,
+                    designation: r.designation,
+                    grossPay: r.grossPay,
+                    totalDeductions: r.totalDeductions,
+                    netPay: r.netPay,
+                    totalEmployerContrib: r.totalEmployerContrib,
+                  }));
+                  handleExportCSV(exportRows, `salary_register_${registerYear}_${registerMonth}`);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+              >
+                <FiDownload className="w-4 h-4" /> Export CSV
+              </button>
+            </div>
+          )}
+
+          {/* Table */}
+          {registerData.length > 0 ? (
+            <div className="nexus-card overflow-hidden">
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-nexus-border bg-slate-50">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Emp Code</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Gross Pay</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Deductions</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Net Pay</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Employer Contrib</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-nexus-border/50">
+                    {registerData.map((row) => (
+                      <tr key={row.employeeId} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{row.empCode}</td>
+                        <td className="px-3 py-2 text-sm text-nexus-text-primary">{row.name}</td>
+                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{row.department}</td>
+                        <td className="px-3 py-2 text-sm text-right text-emerald-700 font-medium">{fmtCurrency(row.grossPay)}</td>
+                        <td className="px-3 py-2 text-sm text-right text-red-700">{fmtCurrency(row.totalDeductions)}</td>
+                        <td className="px-3 py-2 text-sm text-right font-semibold text-nexus-text-primary">{fmtCurrency(row.netPay)}</td>
+                        <td className="px-3 py-2 text-sm text-right text-purple-700">{fmtCurrency(row.totalEmployerContrib)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : !loading && (
+            <div className="nexus-card p-12 text-center">
+              <FiDatabase className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+              <p className="text-nexus-text-secondary font-medium">No data loaded</p>
+              <p className="text-sm text-nexus-text-muted mt-1">Select filters and click Load to view salary register</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== STATUTORY REPORTS ========== */}
+      {activeTab === 'statutory' && (
+        <div className="space-y-4">
+          {/* Type Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
+            {(['PF', 'ESI', 'PT', 'TDS'] as StatutoryType[]).map(type => (
+              <button
+                key={type}
+                onClick={() => setStatutoryType(type)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  statutoryType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Filters */}
+          <div className="nexus-card p-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Month</label>
+                <select
+                  value={statutoryMonth}
+                  onChange={(e) => setStatutoryMonth(parseInt(e.target.value))}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                >
+                  {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Year</label>
+                <input
+                  type="number"
+                  value={statutoryYear}
+                  onChange={(e) => setStatutoryYear(parseInt(e.target.value))}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+                <select
+                  value={statutoryCompanyId}
+                  onChange={(e) => setStatutoryCompanyId(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                >
+                  <option value="">All Companies</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={loadStatutoryReport}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors whitespace-nowrap"
+              >
+                {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiSearch className="w-4 h-4" />}
+                Load
+              </button>
+              {statutoryData.length > 0 && (
+                <button
+                  onClick={() => handleExportCSV(statutoryData as unknown as Record<string, unknown>[], `${statutoryType}_report_${statutoryYear}_${statutoryMonth}`)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                >
+                  <FiDownload className="w-4 h-4" /> Export CSV
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Totals */}
+          {Object.keys(statutoryTotals).length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {Object.entries(statutoryTotals).map(([key, value]) => (
+                <div key={key} className="nexus-card p-4 text-center">
+                  <p className="text-xs font-medium text-nexus-text-secondary">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                  <p className="text-lg font-bold text-nexus-text-primary">{typeof value === 'number' ? fmtCurrency(value) : String(value)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Table */}
+          {statutoryData.length > 0 ? (
+            <div className="nexus-card overflow-hidden">
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-nexus-border bg-slate-50">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Emp Code</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
+                      {statutoryColumns.map(col => (
+                        <th key={col} className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">{col.replace(/([A-Z])/g, ' $1').trim()}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-nexus-border/50">
+                    {statutoryData.map((row) => (
+                      <tr key={row.employeeId} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{row.empCode}</td>
+                        <td className="px-3 py-2 text-sm text-nexus-text-primary">{row.name}</td>
+                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{row.department}</td>
+                        {statutoryColumns.map(col => (
+                          <td key={col} className="px-3 py-2 text-sm text-right text-nexus-text-primary">
+                            {typeof row[col] === 'number' ? fmtCurrency(row[col] as number) : String(row[col] ?? '—')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : !loading && (
+            <div className="nexus-card p-12 text-center">
+              <FiShield className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+              <p className="text-nexus-text-secondary font-medium">No data loaded</p>
+              <p className="text-sm text-nexus-text-muted mt-1">Select type and period, then click Load</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== PAYROLL DASHBOARD ========== */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-4">
+          {/* Company Filter */}
+          <div className="nexus-card p-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+                <select
+                  value={dashboardCompanyId}
+                  onChange={(e) => setDashboardCompanyId(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                >
+                  <option value="">All Companies</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={loadDashboard}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors whitespace-nowrap"
+              >
+                {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiRefreshCw className="w-4 h-4" />}
+                Load Dashboard
+              </button>
+            </div>
+          </div>
+
+          {dashboardMetrics ? (
+            <>
+              {/* Key Metrics Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <FiUsers className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Employees Processed</p>
+                      <p className="text-xl font-bold text-nexus-text-primary">{dashboardMetrics.totalEmployeesProcessed}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                      <FiDollarSign className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Total Gross Pay</p>
+                      <p className="text-lg font-bold text-emerald-700">{fmtCurrency(dashboardMetrics.totalGrossPay)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                      <FiTrendingUp className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Total Deductions</p>
+                      <p className="text-lg font-bold text-red-700">{fmtCurrency(dashboardMetrics.totalDeductions)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                      <FiCheckCircle className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Total Net Pay</p>
+                      <p className="text-lg font-bold text-green-700">{fmtCurrency(dashboardMetrics.totalNetPay)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                      <FiShield className="w-5 h-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Employer Contrib</p>
+                      <p className="text-lg font-bold text-purple-700">{fmtCurrency(dashboardMetrics.totalEmployerContrib)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                      <FiClock className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Pending Approvals</p>
+                      <p className="text-xl font-bold text-amber-700">{dashboardMetrics.pendingApprovals}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center">
+                      <FiAlertTriangle className="w-5 h-5 text-rose-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Active Holds</p>
+                      <p className="text-xl font-bold text-rose-700">{dashboardMetrics.activeHolds}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="nexus-card nexus-card-hover p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center">
+                      <FiUsers className="w-5 h-5 text-sky-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-nexus-text-secondary">Active Employees</p>
+                      <p className="text-xl font-bold text-sky-700">{dashboardMetrics.totalActiveEmployees}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Monthly Trend */}
+                <div className="nexus-card p-6">
+                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Monthly Payroll Trend (6 months)</h3>
+                  {monthlyTrend.length > 0 ? (
+                    <MiniBarChart
+                      data={monthlyTrend.map(t => ({ label: t.period, value: t.netPay }))}
+                      label="Net Pay Trend"
+                      color="green"
+                    />
+                  ) : (
+                    <p className="text-sm text-nexus-text-muted text-center py-8">No trend data available</p>
+                  )}
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-nexus-border">
+                          <th className="text-left px-2 py-1 text-xs font-medium text-nexus-text-secondary">Period</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Gross</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Deductions</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Net</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Emp Count</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monthlyTrend.map(t => (
+                          <tr key={t.period} className="border-b border-nexus-border/30 hover:bg-slate-50/50">
+                            <td className="px-2 py-1.5 font-medium text-nexus-text-primary">{t.period}</td>
+                            <td className="px-2 py-1.5 text-right text-emerald-700">{fmtCurrency(t.grossPay)}</td>
+                            <td className="px-2 py-1.5 text-right text-red-700">{fmtCurrency(t.deductions)}</td>
+                            <td className="px-2 py-1.5 text-right font-semibold text-nexus-text-primary">{fmtCurrency(t.netPay)}</td>
+                            <td className="px-2 py-1.5 text-right text-nexus-text-secondary">{t.employees}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Department Breakdown */}
+                <div className="nexus-card p-6">
+                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Department-wise Salary Breakdown</h3>
+                  {deptBreakdown.length > 0 ? (
+                    <>
+                      <MiniBarChart
+                        data={deptBreakdown.slice(0, 8).map(d => ({ label: d.departmentName, value: d.totalSalary }))}
+                        label="Total Salary by Department"
+                        color="blue"
+                      />
+                      <div className="mt-4 overflow-x-auto max-h-64 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-nexus-border">
+                              <th className="text-left px-2 py-1 text-xs font-medium text-nexus-text-secondary">Department</th>
+                              <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Headcount</th>
+                              <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Total Salary</th>
+                              <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Avg Salary</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deptBreakdown.map(d => (
+                              <tr key={d.departmentId} className="border-b border-nexus-border/30 hover:bg-slate-50/50">
+                                <td className="px-2 py-1.5 font-medium text-nexus-text-primary">{d.departmentName}</td>
+                                <td className="px-2 py-1.5 text-right text-nexus-text-secondary">{d.headcount}</td>
+                                <td className="px-2 py-1.5 text-right font-semibold text-nexus-text-primary">{fmtCurrency(d.totalSalary)}</td>
+                                <td className="px-2 py-1.5 text-right text-nexus-text-secondary">{fmtCurrency(d.avgSalary)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-nexus-text-muted text-center py-8">No department data available</p>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : !loading && (
+            <div className="nexus-card p-12 text-center">
+              <FiBarChart2 className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+              <p className="text-nexus-text-secondary font-medium">Dashboard not loaded</p>
+              <p className="text-sm text-nexus-text-muted mt-1">Click Load Dashboard to view payroll metrics</p>
+            </div>
+          )}
         </div>
       )}
     </div>
