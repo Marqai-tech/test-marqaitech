@@ -62,8 +62,9 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (dbError: unknown) {
-      console.error('PayrollRun table not available:', dbError);
-      return Response.json({ error: 'PayrollRun table is not available' }, { status: 503, headers: corsHeaders });
+      const errMsg = dbError instanceof Error ? dbError.message : String(dbError);
+      console.error('PayrollRun create error:', errMsg);
+      return Response.json({ error: `Failed to create payroll run: ${errMsg.substring(0, 200)}` }, { status: 503, headers: corsHeaders });
     }
 
     return Response.json({ data, message: 'Payroll run created successfully' }, { headers: corsHeaders });
