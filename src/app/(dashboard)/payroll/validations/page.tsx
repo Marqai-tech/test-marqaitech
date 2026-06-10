@@ -145,7 +145,7 @@ function CategoryCard({
                     <td className="px-3 py-2 text-sm text-nexus-text-secondary">{emp.department || '—'}</td>
                     <td className="px-3 py-2 text-sm text-nexus-text-secondary">{emp.designation || '—'}</td>
                     <td className="px-3 py-2 text-sm text-nexus-text-muted">
-                      {emp.holdReason || emp.separationType || (emp as Record<string, unknown>).dateOfJoining ? new Date((emp as Record<string, unknown>).dateOfJoining as string).toLocaleDateString() : '—'}
+                      {emp.holdReason || emp.separationType || emp.dateOfJoining ? new Date(emp.dateOfJoining as string).toLocaleDateString() : '—'}
                     </td>
                   </tr>
                 ))}

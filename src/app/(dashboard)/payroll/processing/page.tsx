@@ -224,6 +224,10 @@ export default function PayrollProcessingPage() {
       if (res.ok) {
         const data = await res.json();
         setRuns(Array.isArray(data) ? data : data.data || []);
+      } else {
+        let errorMsg = 'Failed to load payroll runs';
+        try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }
+        toast.error(errorMsg);
       }
     } catch {
       toast.error('Failed to load payroll runs');

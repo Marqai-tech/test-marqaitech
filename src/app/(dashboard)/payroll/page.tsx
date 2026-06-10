@@ -25,9 +25,14 @@ import {
   FiClipboard,
   FiLock,
   FiCheckSquare,
+  FiCheck,
+  FiChevronDown,
+  FiChevronUp,
+  FiInfo,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -229,6 +234,102 @@ const subModules: SubModuleTile[] = [
   },
 ];
 
+/* ── Payroll Workflow Steps ── */
+interface WorkflowStep {
+  step: number;
+  title: string;
+  description: string;
+  route: string;
+  statKey: string; // key in workflowData
+}
+
+const workflowSteps: WorkflowStep[] = [
+  {
+    step: 1,
+    title: 'Setup Components',
+    description: 'Configure earnings, deductions, and allowances in Component Master',
+    route: '/payroll/components',
+    statKey: 'hasComponents',
+  },
+  {
+    step: 2,
+    title: 'Setup Statutory',
+    description: 'Configure PF, ESI, PT, TDS in Statutory Components',
+    route: '/payroll/statutory',
+    statKey: 'hasStatutory',
+  },
+  {
+    step: 3,
+    title: 'Create CTC Templates',
+    description: 'Define salary structures using CTC Templates',
+    route: '/payroll/ctc-templates',
+    statKey: 'hasCTCTemplates',
+  },
+  {
+    step: 4,
+    title: 'Configure Tax Slabs',
+    description: 'Set up progressive tax slab rates',
+    route: '/payroll/tax-slabs',
+    statKey: 'hasTaxSlabs',
+  },
+  {
+    step: 5,
+    title: 'Set Payment Methods',
+    description: 'Configure employee bank details and payment preferences',
+    route: '/payroll/payment-methods',
+    statKey: 'hasPaymentMethods',
+  },
+  {
+    step: 6,
+    title: 'Collect Inputs',
+    description: 'Gather attendance, leave, OT, and variable pay data',
+    route: '/payroll/inputs',
+    statKey: 'hasInputs',
+  },
+  {
+    step: 7,
+    title: 'Run Validations',
+    description: 'Pre-payroll validation to check for data issues',
+    route: '/payroll/validations',
+    statKey: 'hasValidations',
+  },
+  {
+    step: 8,
+    title: 'Process Payroll',
+    description: 'Create and run payroll cycle',
+    route: '/payroll/processing',
+    statKey: 'hasPayrollRuns',
+  },
+  {
+    step: 9,
+    title: 'Review & Approve',
+    description: 'Review calculations and approve payroll',
+    route: '/payroll/processing',
+    statKey: 'hasApprovedRuns',
+  },
+  {
+    step: 10,
+    title: 'Generate Payslips',
+    description: 'Generate employee payslips',
+    route: '/payroll/payslips',
+    statKey: 'hasPayslips',
+  },
+  {
+    step: 11,
+    title: 'File Compliance',
+    description: 'Complete statutory filings',
+    route: '/payroll/compliance',
+    statKey: 'hasCompliance',
+  },
+  {
+    step: 12,
+    title: 'Close Period',
+    description: 'Close the payroll period',
+    route: '/payroll/processing',
+    statKey: 'hasClosedRuns',
+  },
+];
+
 /* ── Stats type ── */
 interface SummaryStats {
   totalEmployees: number;
@@ -236,6 +337,45 @@ interface SummaryStats {
   pendingPayrollRuns: number;
   openComplianceItems: number;
 }
+
+interface WorkflowData {
+  hasComponents: boolean;
+  hasStatutory: boolean;
+  hasCTCTemplates: boolean;
+  hasTaxSlabs: boolean;
+  hasPaymentMethods: boolean;
+  hasInputs: boolean;
+  hasValidations: boolean;
+  hasPayrollRuns: boolean;
+  hasApprovedRuns: boolean;
+  hasPayslips: boolean;
+  hasCompliance: boolean;
+  hasClosedRuns: boolean;
+}
+
+/* ── Payroll Tips ── */
+const payrollTips = [
+  {
+    title: 'Configure Components First',
+    description: 'Start by configuring Component Master and Statutory Components before processing payroll',
+  },
+  {
+    title: 'Standardize with CTC Templates',
+    description: 'Use CTC Templates to standardize salary structures across your organization',
+  },
+  {
+    title: 'Run Validations Early',
+    description: 'Run Pre-Payroll Validations before processing to catch data issues early',
+  },
+  {
+    title: 'Follow the Lifecycle',
+    description: 'Payroll runs follow a lifecycle: Open → Input Collection → Processing → Review → Approved → Disbursed → Closed',
+  },
+  {
+    title: 'Verify with Reports',
+    description: 'Check the Reports & Dashboard after processing to verify payroll accuracy',
+  },
+];
 
 /* ── Component ── */
 export default function PayrollManagementPage() {
@@ -249,6 +389,21 @@ export default function PayrollManagementPage() {
     openComplianceItems: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [workflowData, setWorkflowData] = useState<WorkflowData>({
+    hasComponents: false,
+    hasStatutory: false,
+    hasCTCTemplates: false,
+    hasTaxSlabs: false,
+    hasPaymentMethods: false,
+    hasInputs: false,
+    hasValidations: false,
+    hasPayrollRuns: false,
+    hasApprovedRuns: false,
+    hasPayslips: false,
+    hasCompliance: false,
+    hasClosedRuns: false,
+  });
+  const [workflowExpanded, setWorkflowExpanded] = useState(true);
 
   /* Fetch summary stats */
   const fetchStats = useCallback(async () => {
@@ -256,11 +411,18 @@ export default function PayrollManagementPage() {
       setLoadingStats(true);
       const headers = getAuthHeaders();
 
-      const [empRes, ctcRes, runsRes, complianceRes] = await Promise.allSettled([
+      const [empRes, ctcRes, runsRes, complianceRes, compRes, statRes, taxRes, payMethodRes, inputsRes, validationsRes, payslipsRes] = await Promise.allSettled([
         fetch('/api/employees?limit=1', { headers }),
         fetch('/api/payroll/ctc-templates?limit=1', { headers }),
         fetch('/api/payroll/runs?limit=100', { headers }),
         fetch('/api/payroll/compliance?limit=100', { headers }),
+        fetch('/api/payroll/components?limit=1', { headers }),
+        fetch('/api/payroll/statutory?limit=1', { headers }),
+        fetch('/api/payroll/tax-slabs?limit=1', { headers }),
+        fetch('/api/payroll/payment-methods?limit=1', { headers }),
+        fetch('/api/payroll/inputs?limit=1', { headers }),
+        fetch('/api/payroll/validations?limit=1', { headers }),
+        fetch('/api/payroll/payslips?limit=1', { headers }),
       ]);
 
       let totalEmployees = 0;
@@ -280,9 +442,10 @@ export default function PayrollManagementPage() {
         ).length || (data.templates || data.ctcTemplates || []).length || 0;
       }
 
+      let runs: Array<{ status?: string }> = [];
       if (runsRes.status === 'fulfilled' && runsRes.value.ok) {
         const data = await runsRes.value.json();
-        const runs = data.runs || data.payrollRuns || [];
+        runs = data.runs || data.payrollRuns || [];
         pendingPayrollRuns = runs.filter(
           (r: { status?: string }) => r.status === 'draft' || r.status === 'processing' || r.status === 'pending'
         ).length;
@@ -297,6 +460,49 @@ export default function PayrollManagementPage() {
       }
 
       setStats({ totalEmployees, activeCTCTemplates, pendingPayrollRuns, openComplianceItems });
+
+      // Workflow data
+      const hasComponents = compRes.status === 'fulfilled' && compRes.value.ok
+        ? (await compRes.value.json()).components?.length > 0
+        : false;
+      const hasStatutory = statRes.status === 'fulfilled' && statRes.value.ok
+        ? (await statRes.value.json()).components?.length > 0 || (await statRes.value.json()).statutory?.length > 0
+        : false;
+      const hasCTCTemplates = activeCTCTemplates > 0;
+      const hasTaxSlabs = taxRes.status === 'fulfilled' && taxRes.value.ok
+        ? (await taxRes.value.json()).taxSlabs?.length > 0 || (await taxRes.value.json()).slabs?.length > 0
+        : false;
+      const hasPaymentMethods = payMethodRes.status === 'fulfilled' && payMethodRes.value.ok
+        ? (await payMethodRes.value.json()).paymentMethods?.length > 0 || (await payMethodRes.value.json()).methods?.length > 0
+        : false;
+      const hasInputs = inputsRes.status === 'fulfilled' && inputsRes.value.ok
+        ? (await inputsRes.value.json()).inputs?.length > 0 || (await inputsRes.value.json()).payrollInputs?.length > 0
+        : false;
+      const hasValidations = validationsRes.status === 'fulfilled' && validationsRes.value.ok
+        ? (await validationsRes.value.json()).validations?.length > 0
+        : false;
+      const hasPayrollRuns = runs.length > 0;
+      const hasApprovedRuns = runs.some((r: { status?: string }) => r.status === 'approved' || r.status === 'completed');
+      const hasPayslips = payslipsRes.status === 'fulfilled' && payslipsRes.value.ok
+        ? (await payslipsRes.value.json()).payslips?.length > 0
+        : false;
+      const hasCompliance = openComplianceItems > 0;
+      const hasClosedRuns = runs.some((r: { status?: string }) => r.status === 'closed' || r.status === 'disbursed');
+
+      setWorkflowData({
+        hasComponents,
+        hasStatutory,
+        hasCTCTemplates,
+        hasTaxSlabs,
+        hasPaymentMethods,
+        hasInputs,
+        hasValidations,
+        hasPayrollRuns,
+        hasApprovedRuns,
+        hasPayslips,
+        hasCompliance,
+        hasClosedRuns,
+      });
     } catch (err) {
       console.error(err);
       toast.error('Failed to load payroll summary');
@@ -316,6 +522,20 @@ export default function PayrollManagementPage() {
     },
     [router]
   );
+
+  /* Determine step status: 'complete' | 'current' | 'pending' */
+  const getStepStatus = (step: WorkflowStep): 'complete' | 'current' | 'pending' => {
+    const isComplete = workflowData[step.statKey as keyof WorkflowData];
+    if (isComplete) return 'complete';
+
+    // Find the first incomplete step - that's the "current" one
+    const firstIncomplete = workflowSteps.find(s => !workflowData[s.statKey as keyof WorkflowData]);
+    if (firstIncomplete && firstIncomplete.step === step.step) return 'current';
+
+    return 'pending';
+  };
+
+  const completedCount = workflowSteps.filter(s => workflowData[s.statKey as keyof WorkflowData]).length;
 
   /* Stats cards configuration */
   const statsCards = [
@@ -368,6 +588,13 @@ export default function PayrollManagementPage() {
         </div>
       </div>
 
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="payroll"
+        title="Payroll Tips"
+        tips={payrollTips}
+      />
+
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((card) => {
@@ -390,6 +617,185 @@ export default function PayrollManagementPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Payroll Processing Workflow Guide */}
+      <div className="nexus-card overflow-hidden border border-emerald-100">
+        {/* Workflow Header */}
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <FiInfo className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-nexus-text-primary">How to Process Payroll</h3>
+              <p className="text-xs text-nexus-text-secondary mt-0.5">
+                Follow this workflow to process payroll for the first time
+              </p>
+            </div>
+            <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full ml-2">
+              {completedCount}/{workflowSteps.length} complete
+            </span>
+          </div>
+          <button
+            onClick={() => setWorkflowExpanded(!workflowExpanded)}
+            className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+          >
+            {workflowExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Info Banner */}
+        {workflowExpanded && completedCount < workflowSteps.length && (
+          <div className="mx-5 mt-4 px-4 py-3 rounded-lg bg-blue-50 border border-blue-100 flex items-center gap-3">
+            <FiInfo className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <p className="text-xs text-blue-700">
+              <span className="font-medium">Getting started?</span> Follow this step-by-step workflow to set up and process your first payroll. Each step links to the relevant module.
+            </p>
+          </div>
+        )}
+
+        {/* Workflow Steps */}
+        {workflowExpanded && (
+          <div className="p-5">
+            {/* Desktop: Horizontal scrollable */}
+            <div className="hidden md:block">
+              <div className="flex items-start gap-0 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-slate-50">
+                {workflowSteps.map((step, index) => {
+                  const status = getStepStatus(step);
+                  return (
+                    <div key={step.step} className="flex items-start flex-shrink-0">
+                      <button
+                        onClick={() => handleNavigate(step.route)}
+                        className="flex flex-col items-center text-center w-28 group"
+                        title={`Step ${step.step}: ${step.title}`}
+                      >
+                        {/* Step Circle */}
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200 group-hover:scale-110 ${
+                            status === 'complete'
+                              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                              : status === 'current'
+                              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25 ring-4 ring-blue-100'
+                              : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                          }`}
+                        >
+                          {status === 'complete' ? (
+                            <FiCheck className="w-5 h-5" />
+                          ) : (
+                            step.step
+                          )}
+                        </div>
+                        {/* Title */}
+                        <p
+                          className={`text-[11px] font-medium mt-2 leading-tight ${
+                            status === 'complete'
+                              ? 'text-emerald-600'
+                              : status === 'current'
+                              ? 'text-blue-600'
+                              : 'text-slate-400 group-hover:text-slate-500'
+                          }`}
+                        >
+                          {step.title}
+                        </p>
+                        {/* Description */}
+                        <p className="text-[9px] text-slate-400 mt-0.5 leading-tight line-clamp-2">
+                          {step.description}
+                        </p>
+                      </button>
+                      {/* Arrow connector */}
+                      {index < workflowSteps.length - 1 && (
+                        <div className="flex items-center pt-3 px-1">
+                          <FiArrowRight className={`w-4 h-4 flex-shrink-0 ${
+                            status === 'complete' ? 'text-emerald-400' : 'text-slate-200'
+                          }`} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mobile: Vertical layout */}
+            <div className="md:hidden space-y-0">
+              {workflowSteps.map((step, index) => {
+                const status = getStepStatus(step);
+                return (
+                  <div key={step.step} className="flex items-start">
+                    {/* Timeline connector */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <button
+                        onClick={() => handleNavigate(step.route)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                          status === 'complete'
+                            ? 'bg-emerald-500 text-white shadow-sm'
+                            : status === 'current'
+                            ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-100'
+                            : 'bg-slate-100 text-slate-400'
+                        }`}
+                      >
+                        {status === 'complete' ? <FiCheck className="w-4 h-4" /> : step.step}
+                      </button>
+                      {index < workflowSteps.length - 1 && (
+                        <div className={`w-0.5 h-8 ${
+                          status === 'complete' ? 'bg-emerald-300' : 'bg-slate-200'
+                        }`} />
+                      )}
+                    </div>
+                    {/* Step content */}
+                    <button
+                      onClick={() => handleNavigate(step.route)}
+                      className="flex-1 ml-3 pb-3 text-left group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <p
+                          className={`text-xs font-semibold ${
+                            status === 'complete'
+                              ? 'text-emerald-600'
+                              : status === 'current'
+                              ? 'text-blue-600'
+                              : 'text-slate-400'
+                          }`}
+                        >
+                          {step.title}
+                        </p>
+                        {status === 'current' && (
+                          <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                            Next Step
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed">
+                        {step.description}
+                      </p>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <FiCheck className="w-2.5 h-2.5 text-white" />
+                </span>
+                <span className="text-[10px] text-nexus-text-muted">Complete</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                  <span className="text-[8px] text-white font-bold">•</span>
+                </span>
+                <span className="text-[10px] text-nexus-text-muted">Current Step</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-slate-100" />
+                <span className="text-[10px] text-nexus-text-muted">Pending</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sub-module Tiles */}

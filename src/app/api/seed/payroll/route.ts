@@ -519,10 +519,30 @@ export async function GET() {
 
     console.log('[Payroll Seed] Complete!');
 
+    // ─── Call Enhanced Full Seed for additional sub-menu data ───
+    let fullSeedResult: Record<string, number> | null = null;
+    try {
+      console.log('[Payroll Seed] Triggering enhanced full seed for additional sub-menu data...');
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const fullSeedResp = await fetch(`${baseUrl}/api/seed/payroll/full`, { method: 'POST' });
+      if (fullSeedResp.ok) {
+        const fullSeedJson = await fullSeedResp.json();
+        fullSeedResult = fullSeedJson.results || null;
+        results.push('Enhanced full seed completed');
+      } else {
+        results.push('Enhanced full seed skipped (non-critical)');
+      }
+    } catch {
+      results.push('Enhanced full seed skipped (non-critical)');
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Payroll module seeded successfully',
       results,
+      fullSeed: fullSeedResult,
       stats: {
         employees: companyEmployees.length,
         companies: companies.length,

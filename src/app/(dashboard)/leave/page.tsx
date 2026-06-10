@@ -11,6 +11,31 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+
+/* ── Leave Tips ── */
+const leaveTips = [
+  {
+    title: 'Configure Leave Types First',
+    description: 'Configure leave types and entitlement rules in Settings before employees apply',
+  },
+  {
+    title: 'Set Up Carry-Forward Rules',
+    description: 'Set up leave carry-forward rules to define how unused leaves roll over',
+  },
+  {
+    title: 'Sandwich Leave Policy',
+    description: 'Use the Sandwich Leave policy setting to control how holidays between leaves are treated',
+  },
+  {
+    title: 'Leave Encashment',
+    description: 'Leave encashment can be configured to pay out unused leaves at Basic or Gross rate',
+  },
+  {
+    title: 'Check Balance Reports',
+    description: 'Check the Leave Balance report regularly to ensure accurate tracking',
+  },
+];
 
 /* ── Types ── */
 interface LeaveRequest {
@@ -406,6 +431,13 @@ export default function LeavePage() {
           Apply Leave
         </button>
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="leave"
+        title="Leave Tips"
+        tips={leaveTips}
+      />
 
       {/* Embedded Apply Leave Form */}
       {showForm && (

@@ -12,6 +12,31 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+
+/* ── Attendance Tips ── */
+const attendanceTips = [
+  {
+    title: 'Configure Shift Timings First',
+    description: 'Configure shift timings and overtime rules in Settings before tracking attendance',
+  },
+  {
+    title: 'Use Geofencing',
+    description: 'Use the Geofencing feature to ensure employees clock in from approved locations',
+  },
+  {
+    title: 'Customize Thresholds',
+    description: 'Late arrival and early departure thresholds can be customized in Attendance Settings',
+  },
+  {
+    title: 'Bulk Import from Biometric',
+    description: 'Import attendance data from biometric devices using the bulk import feature',
+  },
+  {
+    title: 'Review Weekly Reports',
+    description: 'Review the Attendance Report weekly to identify patterns of absenteeism',
+  },
+];
 
 /* ── Types ── */
 interface AttendanceRecord {
@@ -263,6 +288,13 @@ export default function AttendancePage() {
           </button>
         </div>
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="attendance"
+        title="Attendance Tips"
+        tips={attendanceTips}
+      />
 
       {/* Today's Status Card */}
       <div className="nexus-card p-6">

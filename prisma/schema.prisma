@@ -264,6 +264,8 @@ model Employee {
   loans             Loan[]
   overtimeRecords   OvertimeRecord[]
   payrollHolds      PayrollHold[]
+  transactionLines  PayrollTransactionLine[]
+  payrollInputs     PayrollInput[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2123,6 +2125,7 @@ model PayrollInput {
   payrollRunId      String?  // FK to PayrollRun
   payrollRun        PayrollRun? @relation(fields: [payrollRunId], references: [id])
   employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   inputType         String   // ATTENDANCE, LEAVE, OVERTIME, VARIABLE_PAY, ONE_TIME, REIMBURSEMENT, LOAN, INVESTMENT, TAX_ADJ, ORG_CHANGE
   componentCode     String
   inputValueNumeric Float?
@@ -2277,6 +2280,7 @@ model PayrollTransactionLine {
   payrollRunId          String
   payrollRun            PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
   employeeId            String
+  employee              Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   componentId           String?
   component             PayrollComponent? @relation(fields: [componentId], references: [id])
   componentCode         String

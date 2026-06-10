@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
     const statutoryComponents = await prisma.statutoryComponent.findMany({
       where: {
         componentCode: { in: relevantCodes },
-        ...(companyId ? {} : {}),
       },
       include: {
         component: { select: { code: true, name: true, componentType: true } },
@@ -65,7 +64,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Fetch transaction lines for these components
-    let transactionLines: Awaited<ReturnType<typeof prisma.payrollTransactionLine.findMany>> = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let transactionLines: any[] = [];
     if (runIds.length > 0) {
       const tlWhere: Record<string, unknown> = {
         payrollRunId: { in: runIds },
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
 
     } else if (type === 'ESI') {
       // ESI report: Employee + Employer contributions, IP numbers
-      const empMap: Record<string, StatutoryRow & { employeeContribution: number; employerContribution: number }> = {};
+      const empMap: Record<string, StatutoryRow & { employeeContribution: number; employerContribution: number; grossPay: number }> = {};
 
       for (const line of transactionLines) {
         const emp = line.employee;
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
         const compCode = line.componentCode;
 
         if (compType === 'EARNING') {
-          empMap[emp.id].grossPay = (empMap[emp.id].grossPay as number) + line.finalAmount;
+          empMap[emp.id].grossPay += line.finalAmount;
         }
 
         if (compType === 'DEDUCTION' || compType === 'EMPLOYEE_CONTRIB') {

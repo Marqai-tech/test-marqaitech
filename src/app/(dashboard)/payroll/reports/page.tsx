@@ -180,8 +180,9 @@ export default function PayrollReportsPage() {
 
       const res = await fetch(`/api/payroll/reports/salary-register?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to load');
+        let errorMsg = 'Failed to load salary register';
+        try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }
+        throw new Error(errorMsg);
       }
       const data = await res.json();
       setRegisterData(data.data || []);
@@ -206,8 +207,9 @@ export default function PayrollReportsPage() {
 
       const res = await fetch(`/api/payroll/reports/statutory?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to load');
+        let errorMsg = 'Failed to load statutory report';
+        try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }
+        throw new Error(errorMsg);
       }
       const data = await res.json();
       setStatutoryData(data.data || []);
@@ -237,8 +239,9 @@ export default function PayrollReportsPage() {
 
       const res = await fetch(`/api/payroll/dashboard?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to load');
+        let errorMsg = 'Failed to load dashboard';
+        try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }
+        throw new Error(errorMsg);
       }
       const data = await res.json();
       setDashboardMetrics(data.metrics);

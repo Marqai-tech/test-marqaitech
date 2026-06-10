@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       include: {
         employee: {
           include: {
-            department: { select: { name: true, id: true } },
+            department: { select: { name: true, id: true, companyId: true } },
             designation: { select: { title: true } },
           },
         },
@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
     const runIds = payrollRuns.map(r => r.id);
 
     // Get transaction lines if payroll runs exist
-    let transactionLines: Awaited<ReturnType<typeof prisma.payrollTransactionLine.findMany>> = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let transactionLines: any[] = [];
     if (runIds.length > 0) {
       const tlWhere: Record<string, unknown> = {
         payrollRunId: { in: runIds },
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
         include: {
           employee: {
             include: {
-              department: { select: { name: true, id: true } },
+              department: { select: { name: true, id: true, companyId: true } },
               designation: { select: { title: true } },
             },
           },

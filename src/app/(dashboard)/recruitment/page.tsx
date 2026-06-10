@@ -17,6 +17,31 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+
+/* ── Recruitment Tips ── */
+const recruitmentTips = [
+  {
+    title: 'Create Requisitions First',
+    description: 'Create job requisitions first, then post them to the Job Portal',
+  },
+  {
+    title: 'Use AI Interview',
+    description: 'Use AI Interview to automatically screen candidates with customizable question sets',
+  },
+  {
+    title: 'Track the Hiring Funnel',
+    description: 'Track candidates through the hiring funnel: Applied → Screened → Interviewed → Offered → Hired',
+  },
+  {
+    title: 'Source Effectiveness Report',
+    description: 'The Source Effectiveness report helps identify which job boards yield the best candidates',
+  },
+  {
+    title: 'Offer Letter Templates',
+    description: 'Set up offer letter templates to speed up the hiring process',
+  },
+];
 
 /* ── Types ── */
 interface JobPosting {
@@ -374,6 +399,13 @@ export default function RecruitmentPage() {
           </button>
         )}
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="recruitment"
+        title="Recruitment Tips"
+        tips={recruitmentTips}
+      />
 
       {/* Embedded Job Posting Form (Add/Edit) */}
       {showJobForm && (

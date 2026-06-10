@@ -97,11 +97,13 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    key: 'onboarding-lifecycle',
-    label: 'Onboarding & Lifecycle',
+    key: 'employee-lifecycle',
+    label: 'Employee Lifecycle',
     items: [
       { label: 'Onboarding', href: '/onboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
       { label: 'Preboarding', href: '/preboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'], isNew: true },
+      { label: 'Separation', href: '/separation', icon: <FiLogOut className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'F&F Settlement', href: '/fnf', icon: <FiTruck className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
     ],
   },
   {
@@ -171,8 +173,8 @@ const navSections: NavSection[] = [
     label: 'Governance',
     items: [
       { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Reports', href: '/reports', icon: <FiBarChart2 className="w-5 h-5" /> },
-      { label: 'Settings', href: '/settings', icon: <FiSettings className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'Reports & Analytics', href: '/reports', icon: <FiBarChart2 className="w-5 h-5" /> },
+      { label: 'Settings & Configuration', href: '/settings', icon: <FiSettings className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
       { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-5 h-5" /> },
     ],
   },

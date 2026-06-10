@@ -16,6 +16,31 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+
+/* ── Employee Tips ── */
+const employeeTips = [
+  {
+    title: 'Auto-Generated Employee Codes',
+    description: 'Employee codes are auto-generated based on the prefix and sequence in Settings',
+  },
+  {
+    title: 'Complete Onboarding Tasks',
+    description: 'Complete all onboarding tasks before marking new hires as Active',
+  },
+  {
+    title: 'Bulk Import from CSV',
+    description: 'Use the bulk import feature to add multiple employees at once from a CSV file',
+  },
+  {
+    title: 'Document Expiry Reminders',
+    description: 'Configure document expiry reminders to stay compliant with visa and license renewals',
+  },
+  {
+    title: 'Set Up Reporting Managers',
+    description: 'Set up reporting manager relationships to enable approval workflows',
+  },
+];
 
 /* ── Types ── */
 interface Employee {
@@ -321,6 +346,13 @@ export default function EmployeesPage() {
           </button>
         )}
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="employees"
+        title="Employee Tips"
+        tips={employeeTips}
+      />
 
       {/* Embedded Add/Edit Employee Form */}
       {showForm && (
