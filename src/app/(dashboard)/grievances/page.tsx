@@ -13,6 +13,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Grievance {
@@ -89,6 +91,26 @@ const initialForm = {
   resolution: '',
   assignedTo: '',
 };
+
+/* ── Tips & Workflow ── */
+const grievancesTips = [
+  { title: 'Confidentiality', description: 'Maintain strict confidentiality of the complainant and investigation details to protect all parties involved.' },
+  { title: 'Fair Investigation', description: 'Ensure unbiased and thorough investigation by qualified personnel with no conflict of interest.' },
+  { title: 'Escalation Matrix', description: 'Follow the defined escalation matrix for timely resolution, especially for critical and high-priority grievances.' },
+  { title: 'Documentation', description: 'Document every step of the process including complaints, investigations, findings, and resolutions for audit trail.' },
+  { title: 'Resolution Timeline', description: 'Adhere to defined SLAs for grievance resolution. Delays can erode trust and escalate issues further.' },
+];
+
+const grievancesWorkflowSteps = [
+  { step: 1, title: 'File Grievance', description: 'Employee submits a formal grievance with details and supporting evidence' },
+  { step: 2, title: 'Acknowledge Receipt', description: 'HR acknowledges the grievance and assigns a tracking reference number' },
+  { step: 3, title: 'Assign Investigator', description: 'Designate an impartial investigator or committee to examine the case' },
+  { step: 4, title: 'Conduct Investigation', description: 'Gather facts, interview parties involved, and review evidence thoroughly' },
+  { step: 5, title: 'Document Findings', description: 'Record investigation outcomes, conclusions, and recommended actions' },
+  { step: 6, title: 'Propose Resolution', description: 'Present resolution options to stakeholders for approval and action' },
+  { step: 7, title: 'Implement Resolution', description: 'Execute the approved resolution and communicate it to all relevant parties' },
+  { step: 8, title: 'Follow-up & Close', description: 'Verify resolution effectiveness and formally close the grievance record' },
+];
 
 /* ── Component ── */
 export default function GrievancesPage() {
@@ -301,6 +323,10 @@ export default function GrievancesPage() {
           File Grievance
         </button>
       </div>
+
+      {/* Module Tips & Workflow */}
+      <ModuleTips moduleKey="grievances" title="Grievance Handling Tips" tips={grievancesTips} />
+      <ModuleWorkflow moduleKey="grievances" title="How to Handle Employee Grievances" subtitle="Follow this workflow for fair and timely resolution" steps={grievancesWorkflowSteps} accentColor="rose" />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

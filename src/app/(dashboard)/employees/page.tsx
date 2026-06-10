@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Employee Tips ── */
 const employeeTips = [
@@ -40,6 +41,17 @@ const employeeTips = [
     title: 'Set Up Reporting Managers',
     description: 'Set up reporting manager relationships to enable approval workflows',
   },
+];
+
+/* ── Employee Workflow Steps ── */
+const employeeWorkflowSteps = [
+  { step: 1, title: 'Add Employee', description: 'Create a new employee record with basic details' },
+  { step: 2, title: 'Complete Profile Details', description: 'Fill in personal information and contact details' },
+  { step: 3, title: 'Assign Department & Designation', description: 'Set the employee\'s department and job title' },
+  { step: 4, title: 'Set Bank Details', description: 'Configure bank account and financial information' },
+  { step: 5, title: 'Configure Reporting Manager', description: 'Assign the employee\'s reporting manager for approvals' },
+  { step: 6, title: 'Mark Active', description: 'Activate the employee after onboarding is complete' },
+  { step: 7, title: 'Review Employee Directory', description: 'Verify all employee details in the directory' },
 ];
 
 /* ── Types ── */
@@ -352,6 +364,14 @@ export default function EmployeesPage() {
         moduleKey="employees"
         title="Employee Tips"
         tips={employeeTips}
+      />
+
+      <ModuleWorkflow
+        moduleKey="employees"
+        title="How to Manage Employees"
+        subtitle="Follow this workflow to set up and manage your workforce"
+        steps={employeeWorkflowSteps}
+        accentColor="blue"
       />
 
       {/* Embedded Add/Edit Employee Form */}

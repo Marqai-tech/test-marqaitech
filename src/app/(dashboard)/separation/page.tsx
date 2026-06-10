@@ -15,6 +15,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Separation {
@@ -86,6 +88,26 @@ const initialForm = {
   exitInterviewNotes: '',
   fnfAmount: '',
 };
+
+/* ── Tips & Workflow ── */
+const separationTips = [
+  { title: 'Notice Period Compliance', description: 'Ensure all notice period terms from the employment contract are followed. Shortfall may require buyout or recovery.' },
+  { title: 'Knowledge Transfer', description: 'Document and hand over critical knowledge, project status, and contacts before the last working day.' },
+  { title: 'Asset Recovery', description: 'Collect all company assets including laptops, badges, keys, and access cards before the final settlement.' },
+  { title: 'Exit Interview', description: 'Conduct a structured exit interview to gather feedback and identify organizational improvement areas.' },
+  { title: 'F&F Settlement', description: 'Process the full and final settlement within the statutory timeline to avoid penalties and ensure compliance.' },
+];
+
+const separationWorkflowSteps = [
+  { step: 1, title: 'Receive Resignation/Termination', description: 'Acknowledge and record the separation request with supporting documentation' },
+  { step: 2, title: 'Acknowledge & Set Notice Period', description: 'Confirm notice period dates and communicate expectations to the employee' },
+  { step: 3, title: 'Initiate Knowledge Transfer', description: 'Assign KT sessions and document handover tasks for the departing employee' },
+  { step: 4, title: 'Recover Company Assets', description: 'Collect all physical and digital assets including devices and access credentials' },
+  { step: 5, title: 'Conduct Exit Interview', description: 'Hold a structured interview to capture feedback and insights' },
+  { step: 6, title: 'Process F&F Settlement', description: 'Calculate dues, deductions, and generate the final settlement statement' },
+  { step: 7, title: 'Offboard Systems', description: 'Revoke all system access, email accounts, and third-party tool permissions' },
+  { step: 8, title: 'Close Record', description: 'Archive the separation record and mark the process as complete' },
+];
 
 /* ── Component ── */
 export default function SeparationPage() {
@@ -310,6 +332,10 @@ export default function SeparationPage() {
           Initiate Separation
         </button>
       </div>
+
+      {/* Module Tips & Workflow */}
+      <ModuleTips moduleKey="separation" title="Separation Tips" tips={separationTips} />
+      <ModuleWorkflow moduleKey="separation" title="How to Process Employee Separation" subtitle="Follow this workflow for smooth offboarding" steps={separationWorkflowSteps} accentColor="rose" />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

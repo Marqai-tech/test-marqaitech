@@ -16,6 +16,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface AIPrompt {
@@ -102,6 +104,25 @@ function getBiasStatusBadge(status: string) {
   const labels: Record<string, string> = { pass: 'Pass', warning: 'Warning', fail: 'Fail' };
   return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
 }
+
+/* ── Demo Data ── */
+const aiAdminTips = [
+  { title: 'Configure AI Models', description: 'Select and configure which AI models (GPT-4, Claude, etc.) are available for each HR function in your organization.' },
+  { title: 'Set Usage Limits', description: 'Define token limits, rate limits, and budget caps to control AI costs and prevent unexpected overages.' },
+  { title: 'Review AI Logs', description: 'Audit all AI interactions to ensure compliance, accuracy, and detect any anomalous usage patterns.' },
+  { title: 'Manage Permissions', description: 'Control which roles can access specific AI features and approve high-impact AI decisions before execution.' },
+  { title: 'Monitor Performance', description: 'Track API calls, response times, error rates, and token usage to optimize AI operations and costs.' },
+];
+
+const aiAdminWorkflowSteps = [
+  { step: 1, title: 'Access AI Admin', description: 'Navigate to the AI Admin Console from the sidebar' },
+  { step: 2, title: 'Configure Models', description: 'Select AI models and set parameters for each use case' },
+  { step: 3, title: 'Set Usage Limits', description: 'Define token limits, rate limits, and budget caps' },
+  { step: 4, title: 'Manage User Permissions', description: 'Control role-based access to AI features' },
+  { step: 5, title: 'Review AI Logs', description: 'Audit AI interactions for compliance and accuracy' },
+  { step: 6, title: 'Monitor Performance', description: 'Track API usage, response times, and error rates' },
+  { step: 7, title: 'Optimize Settings', description: 'Fine-tune models and limits based on usage data' },
+];
 
 /* ── Demo Data ── */
 const demoPrompts: AIPrompt[] = [
@@ -261,6 +282,12 @@ export default function AIAdminPage() {
             <FiPlus className="w-4 h-4" />Add Prompt
           </button>
         )}
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips moduleKey="ai_admin" title="AI Admin Tips" tips={aiAdminTips} />
+        <ModuleWorkflow moduleKey="ai_admin" title="How to Configure AI Settings" steps={aiAdminWorkflowSteps} accentColor="violet" />
       </div>
 
       {/* Stats Cards */}

@@ -17,6 +17,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface PreboardingCandidate {
@@ -114,6 +116,25 @@ function getBGVStatusBadge(status: string) {
   };
   return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
 }
+
+/* ── Demo Data ── */
+const preboardingTips = [
+  { title: 'Send Welcome Kits', description: 'Prepare and send digital welcome kits with company info, culture handbook, and team introductions before Day 1.' },
+  { title: 'Collect Documents Early', description: 'Request all required documents (ID, address proof, education certs) as soon as the offer is accepted.' },
+  { title: 'IT Setup Preparation', description: 'Provision email accounts, laptop, software licenses, and access credentials before the employee starts.' },
+  { title: 'Assign Onboarding Buddy', description: 'Pair new hires with experienced team members to help them navigate the company culture and processes.' },
+  { title: 'Set Expectations', description: 'Share the first-week schedule, role expectations, and performance goals to give new hires a clear start.' },
+];
+
+const preboardingWorkflowSteps = [
+  { step: 1, title: 'Send Offer Acceptance', description: 'Confirm the offer and collect signed acceptance letter' },
+  { step: 2, title: 'Collect Pre-joining Documents', description: 'Gather ID proofs, certificates, and bank details' },
+  { step: 3, title: 'Setup IT Access', description: 'Provision email, laptop, and system credentials' },
+  { step: 4, title: 'Assign Onboarding Buddy', description: 'Pair with an experienced team member for guidance' },
+  { step: 5, title: 'Send Welcome Kit', description: 'Share company handbook, culture guide, and team info' },
+  { step: 6, title: 'Schedule Day 1', description: 'Plan orientation sessions and introduction meetings' },
+  { step: 7, title: 'Confirm Joining', description: 'Verify all tasks complete and candidate is Day 1 ready' },
+];
 
 /* ── Demo Data ── */
 const demoCandidates: PreboardingCandidate[] = [
@@ -285,6 +306,12 @@ export default function PreboardingPage() {
             Add Candidate
           </button>
         )}
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips moduleKey="preboarding" title="Preboarding Tips" tips={preboardingTips} />
+        <ModuleWorkflow moduleKey="preboarding" title="How to Manage Pre-boarding" steps={preboardingWorkflowSteps} accentColor="emerald" />
       </div>
 
       {/* Stats Cards */}

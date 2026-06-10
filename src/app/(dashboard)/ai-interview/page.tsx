@@ -12,6 +12,8 @@ import {
   FiSave, FiGlobe, FiLayers, FiFileText, FiActivity,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -117,6 +119,25 @@ function formatDuration(seconds: number | null) {
   const s = seconds % 60;
   return `${m}m ${s}s`;
 }
+
+const aiInterviewTips = [
+  { title: 'Create Question Sets', description: 'Build structured interview sets with role-specific questions tailored to each position you are hiring for.' },
+  { title: 'Set Evaluation Criteria', description: 'Define clear scoring rubrics and expected answer points to ensure consistent and fair candidate assessment.' },
+  { title: 'Enable Proctoring', description: 'Turn on anti-cheat monitoring to detect tab switches, face absence, and copy-paste during interviews.' },
+  { title: 'Review AI Scores', description: 'Analyze AI-generated scores across communication, grammar, fluency, and skill match for each candidate.' },
+  { title: 'Combine with Human Review', description: 'Use AI scores as a screening tool, then conduct human interviews with shortlisted candidates for final decisions.' },
+];
+
+const aiInterviewWorkflowSteps = [
+  { step: 1, title: 'Create Interview Set', description: 'Define the role, mode, and configuration' },
+  { step: 2, title: 'Add Questions', description: 'Auto-generate or manually add interview questions' },
+  { step: 3, title: 'Configure Evaluation Criteria', description: 'Set scoring rubrics and proctoring options' },
+  { step: 4, title: 'Invite Candidates', description: 'Send interview invitations via email' },
+  { step: 5, title: 'Conduct AI Interview', description: 'Candidates complete the AI-driven interview' },
+  { step: 6, title: 'Review Scores & Feedback', description: 'Analyze AI scores, feedback, and proctoring logs' },
+  { step: 7, title: 'Shortlist Candidates', description: 'Filter candidates based on scores and recommendations' },
+  { step: 8, title: 'Schedule Human Interview', description: 'Move shortlisted candidates to the next round' },
+];
 
 /* ══════════════════════════════════════════════════ */
 /* ═══  MAIN DASHBOARD COMPONENT                  ════ */
@@ -479,6 +500,12 @@ export default function AIInterviewPage() {
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm shadow-sm shadow-purple-500/25 transition-colors">
           <FiPlus className="w-4 h-4" /> Create Interview Set
         </button>
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips moduleKey="ai_interview" title="AI Interview Tips" tips={aiInterviewTips} />
+        <ModuleWorkflow moduleKey="ai_interview" title="How to Conduct AI Interviews" steps={aiInterviewWorkflowSteps} accentColor="rose" />
       </div>
 
       {/* Tabs */}

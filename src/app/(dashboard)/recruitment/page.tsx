@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Recruitment Tips ── */
 const recruitmentTips = [
@@ -41,6 +42,18 @@ const recruitmentTips = [
     title: 'Offer Letter Templates',
     description: 'Set up offer letter templates to speed up the hiring process',
   },
+];
+
+/* ── Recruitment Workflow Steps ── */
+const recruitmentWorkflowSteps = [
+  { step: 1, title: 'Create Job Requisition', description: 'Define the role, department, and hiring requirements' },
+  { step: 2, title: 'Post Job Opening', description: 'Publish the job listing to attract candidates' },
+  { step: 3, title: 'Receive Applications', description: 'Candidates apply through the portal or external sources' },
+  { step: 4, title: 'Screen Candidates', description: 'Review applications and shortlist qualified candidates' },
+  { step: 5, title: 'Schedule Interviews', description: 'Set up interview rounds with the hiring team' },
+  { step: 6, title: 'Make Offer', description: 'Extend an offer letter to the selected candidate' },
+  { step: 7, title: 'Hire Candidate', description: 'Candidate accepts and is onboarded into the system' },
+  { step: 8, title: 'Update Employee Records', description: 'Create the employee profile from the hired candidate data' },
 ];
 
 /* ── Types ── */
@@ -405,6 +418,14 @@ export default function RecruitmentPage() {
         moduleKey="recruitment"
         title="Recruitment Tips"
         tips={recruitmentTips}
+      />
+
+      <ModuleWorkflow
+        moduleKey="recruitment"
+        title="How to Hire Through Recruitment"
+        subtitle="Follow this workflow to manage the full hiring process"
+        steps={recruitmentWorkflowSteps}
+        accentColor="violet"
       />
 
       {/* Embedded Job Posting Form (Add/Edit) */}

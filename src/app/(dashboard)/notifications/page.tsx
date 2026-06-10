@@ -14,6 +14,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Notification {
@@ -70,6 +72,24 @@ function getBorderColor(type: string) {
   };
   return map[type] || 'border-l-slate-400';
 }
+
+/* ── Component ── */
+const notificationsTips = [
+  { title: 'Filter by Category', description: 'Use category filters to quickly find notifications related to leave, payroll, recruitment, or system alerts.' },
+  { title: 'Mark as Read', description: 'Click on unread notifications to mark them as read, or use "Mark All as Read" to clear your queue.' },
+  { title: 'Configure Preferences', description: 'Set up which notification types you want to receive and how — in-app, email, or both.' },
+  { title: 'Use Quick Actions', description: 'Take action directly from notifications — approve leave, acknowledge alerts, or navigate to related modules.' },
+  { title: 'Archive Old Notifications', description: 'Regularly archive read notifications to keep your inbox clean and focus on what matters.' },
+];
+
+const notificationsWorkflowSteps = [
+  { step: 1, title: 'View All Notifications', description: 'Check your notification center for new alerts' },
+  { step: 2, title: 'Filter by Category', description: 'Narrow down by type — info, warning, or action required' },
+  { step: 3, title: 'Take Action', description: 'Respond to actionable notifications directly' },
+  { step: 4, title: 'Mark as Read', description: 'Acknowledge notifications you have reviewed' },
+  { step: 5, title: 'Configure Preferences', description: 'Customize which notifications you receive and how' },
+  { step: 6, title: 'Archive Old Items', description: 'Clean up your inbox by archiving old notifications' },
+];
 
 /* ── Component ── */
 export default function NotificationsPage() {
@@ -171,6 +191,12 @@ export default function NotificationsPage() {
             Mark All as Read
           </button>
         )}
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips moduleKey="notifications" title="Notification Tips" tips={notificationsTips} />
+        <ModuleWorkflow moduleKey="notifications" title="How to Manage Notifications" steps={notificationsWorkflowSteps} accentColor="blue" />
       </div>
 
       {/* Filters */}

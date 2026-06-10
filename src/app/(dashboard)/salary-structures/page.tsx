@@ -5,6 +5,8 @@ import {
   FiPlus, FiX, FiTrash2, FiDollarSign, FiEye, FiEdit2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -28,6 +30,24 @@ function getStatusBadge(status: string) {
   };
   return map[status] || 'nexus-badge nexus-badge-info';
 }
+
+const salaryStructuresTips = [
+  { title: 'CTC Templates', description: 'Create reusable CTC templates with pre-defined salary components to standardize compensation across the organization.' },
+  { title: 'Component Mapping', description: 'Map each salary component to the correct category — earnings, deductions, allowances, or statutory contributions.' },
+  { title: 'Tax Implications', description: 'Mark taxable and non-taxable components correctly to ensure accurate tax calculations for employees.' },
+  { title: 'Variable Pay', description: 'Configure performance-based components like bonuses and incentives as percentage or formula-based calculations.' },
+  { title: 'Review Cycles', description: 'Schedule periodic reviews of salary structures to keep them aligned with market trends and compliance changes.' },
+];
+
+const salaryStructuresWorkflowSteps = [
+  { step: 1, title: 'Define Components', description: 'Create individual salary components' },
+  { step: 2, title: 'Create CTC Template', description: 'Build the overall CTC structure' },
+  { step: 3, title: 'Map Components', description: 'Assign components to the structure' },
+  { step: 4, title: 'Configure Tax Rules', description: 'Set taxable and statutory flags' },
+  { step: 5, title: 'Assign to Employees', description: 'Link structures to employee profiles' },
+  { step: 6, title: 'Test Calculations', description: 'Verify salary breakdown accuracy' },
+  { step: 7, title: 'Activate Structure', description: 'Enable the structure for payroll' },
+];
 
 const initialForm = { name: '', country: '', currency: 'USD', description: '' };
 const initialComponents: SalaryComponent[] = [
@@ -179,6 +199,9 @@ export default function SalaryStructuresPage() {
           <FiPlus className="w-4 h-4" /> Create Structure
         </button>
       </div>
+
+      <ModuleTips moduleKey="salary_structures" title="Salary Structure Tips" tips={salaryStructuresTips} />
+      <ModuleWorkflow moduleKey="salary_structures" title="How to Create Salary Structures" subtitle="Follow this workflow to set up compensation templates" steps={salaryStructuresWorkflowSteps} accentColor="emerald" />
 
       {/* View-only Panel */}
       {viewingId && (

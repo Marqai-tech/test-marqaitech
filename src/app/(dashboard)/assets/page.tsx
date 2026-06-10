@@ -14,6 +14,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Asset {
@@ -79,6 +81,24 @@ function getCategoryIcon(category: string) {
 
 const CATEGORIES = ['laptop', 'desktop', 'phone', 'tablet', 'monitor', 'printer', 'furniture', 'vehicle', 'other'];
 const STATUSES = ['available', 'assigned', 'under_repair', 'disposed', 'lost'];
+
+const assetsTips = [
+  { title: 'Asset Categories', description: 'Organize assets into categories like laptops, phones, and furniture for better tracking' },
+  { title: 'Depreciation Tracking', description: 'Track asset depreciation over time to maintain accurate financial records' },
+  { title: 'Assignment Policies', description: 'Define clear policies for asset assignment and return to prevent loss' },
+  { title: 'Maintenance Schedules', description: 'Schedule regular maintenance to extend asset lifespan and prevent breakdowns' },
+  { title: 'Audit Trails', description: 'Maintain complete audit trails for all asset transactions and changes' },
+];
+
+const assetsWorkflowSteps = [
+  { step: 1, title: 'Register Asset', description: 'Add new asset with details like tag, category, and cost', route: '/assets' },
+  { step: 2, title: 'Categorize Asset', description: 'Assign the asset to the appropriate category' },
+  { step: 3, title: 'Assign to Employee', description: 'Issue the asset to an employee with proper documentation' },
+  { step: 4, title: 'Schedule Maintenance', description: 'Set up regular maintenance and inspection schedules' },
+  { step: 5, title: 'Track Depreciation', description: 'Monitor asset value depreciation over its lifecycle' },
+  { step: 6, title: 'Process Return', description: 'Handle asset return when employee leaves or changes role' },
+  { step: 7, title: 'Retire/Dispose Asset', description: 'Properly retire or dispose of assets at end of life' },
+];
 
 const initialForm = {
   name: '',
@@ -277,6 +297,9 @@ export default function AssetsPage() {
           </button>
         )}
       </div>
+
+      <ModuleTips moduleKey="assets" title="Assets Tips" tips={assetsTips} />
+      <ModuleWorkflow moduleKey="assets" title="How to Manage Company Assets" subtitle="Follow this workflow to manage assets throughout their lifecycle" steps={assetsWorkflowSteps} accentColor="blue" />
 
       {/* Filters & Search */}
       <div className="nexus-card p-4">

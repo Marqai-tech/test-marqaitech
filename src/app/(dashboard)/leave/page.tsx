@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Leave Tips ── */
 const leaveTips = [
@@ -35,6 +36,17 @@ const leaveTips = [
     title: 'Check Balance Reports',
     description: 'Check the Leave Balance report regularly to ensure accurate tracking',
   },
+];
+
+/* ── Leave Workflow Steps ── */
+const leaveWorkflowSteps = [
+  { step: 1, title: 'Configure Leave Types', description: 'Set up leave categories and entitlement rules in Settings' },
+  { step: 2, title: 'Set Leave Balances', description: 'Initialize leave balances for each employee' },
+  { step: 3, title: 'Employee Applies for Leave', description: 'Employees submit leave requests through the portal' },
+  { step: 4, title: 'Manager Reviews', description: 'Reporting manager reviews the leave application' },
+  { step: 5, title: 'Approve/Reject Leave', description: 'Manager approves or rejects with optional comments' },
+  { step: 6, title: 'Update Balance', description: 'Leave balance is automatically updated upon approval' },
+  { step: 7, title: 'Generate Leave Report', description: 'Run reports to track leave usage across the team' },
 ];
 
 /* ── Types ── */
@@ -437,6 +449,14 @@ export default function LeavePage() {
         moduleKey="leave"
         title="Leave Tips"
         tips={leaveTips}
+      />
+
+      <ModuleWorkflow
+        moduleKey="leave"
+        title="How to Process Leave Requests"
+        subtitle="Follow this workflow to manage leave requests end-to-end"
+        steps={leaveWorkflowSteps}
+        accentColor="amber"
       />
 
       {/* Embedded Apply Leave Form */}

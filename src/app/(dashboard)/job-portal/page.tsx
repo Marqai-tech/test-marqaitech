@@ -7,6 +7,8 @@ import {
   FiDollarSign, FiPlus, FiX, FiEye, FiEdit2, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -32,6 +34,24 @@ interface JobPosting {
   applications?: { id: string; candidateName: string; status: string }[];
   _count?: { applications: number };
 }
+
+const jobPortalTips = [
+  { title: 'Career Page Branding', description: 'Customize your public career page with company branding, culture highlights, and employee testimonials.' },
+  { title: 'SEO Optimization', description: 'Optimize job postings with relevant keywords and structured data to improve visibility on search engines.' },
+  { title: 'Application Forms', description: 'Design application forms that balance collecting essential information with a smooth candidate experience.' },
+  { title: 'Auto-Screening', description: 'Set up automated screening rules based on qualifications, experience, and skills to shortlist faster.' },
+  { title: 'Candidate Experience', description: 'Ensure timely updates and transparent communication throughout the application and interview process.' },
+];
+
+const jobPortalWorkflowSteps = [
+  { step: 1, title: 'Configure Career Page', description: 'Set up branding and layout' },
+  { step: 2, title: 'Publish Job Listings', description: 'Post open positions with details' },
+  { step: 3, title: 'Set Application Form', description: 'Customize the application form fields' },
+  { step: 4, title: 'Enable Auto-Screening', description: 'Configure screening rules and criteria' },
+  { step: 5, title: 'Review Applications', description: 'Evaluate incoming applications' },
+  { step: 6, title: 'Shortlist Candidates', description: 'Select candidates for interviews' },
+  { step: 7, title: 'Schedule Interviews', description: 'Coordinate interview slots with panel' },
+];
 
 /* ── Featured Jobs (demo) ── */
 const FEATURED_JOBS = [
@@ -151,6 +171,9 @@ export default function JobPortalPage() {
           <p className="text-nexus-text-secondary mt-1">Find your next career opportunity</p>
         </div>
       </div>
+
+      <ModuleTips moduleKey="job_portal" title="Job Portal Tips" tips={jobPortalTips} />
+      <ModuleWorkflow moduleKey="job_portal" title="How to Manage the Job Portal" subtitle="Follow this workflow to set up and manage your career portal" steps={jobPortalWorkflowSteps} accentColor="cyan" />
 
       {/* Search Bar */}
       <div className="nexus-card p-6 bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200">

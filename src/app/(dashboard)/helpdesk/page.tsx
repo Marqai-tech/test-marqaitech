@@ -8,6 +8,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -35,6 +37,25 @@ const statusConfig: Record<string, { bg: string; text: string }> = {
   resolved: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   closed: { bg: 'bg-slate-100', text: 'text-slate-600' },
 };
+
+const helpdeskTips = [
+  { title: 'Categorize Tickets', description: 'Use ticket categories to organize and prioritize support requests efficiently' },
+  { title: 'Track SLAs', description: 'Monitor service level agreements to ensure timely resolution of support tickets' },
+  { title: 'Set Priority Levels', description: 'Assign appropriate priority levels to ensure critical issues are addressed first' },
+  { title: 'Use Knowledge Base', description: 'Reference the knowledge base for common solutions before escalating tickets' },
+  { title: 'Escalation Path', description: 'Follow the escalation path for unresolved tickets to get timely management attention' },
+];
+
+const helpdeskWorkflowSteps = [
+  { step: 1, title: 'Submit Ticket', description: 'Employee submits a support request with details', route: '/helpdesk' },
+  { step: 2, title: 'Categorize & Prioritize', description: 'Assign category and priority level to the ticket' },
+  { step: 3, title: 'Assign Agent', description: 'Route the ticket to the appropriate support agent' },
+  { step: 4, title: 'Investigate & Diagnose', description: 'Agent investigates the issue and identifies root cause' },
+  { step: 5, title: 'Implement Solution', description: 'Apply the fix or provide the resolution' },
+  { step: 6, title: 'Communicate Resolution', description: 'Inform the requester about the solution applied' },
+  { step: 7, title: 'Close Ticket', description: 'Mark the ticket as resolved and close it' },
+  { step: 8, title: 'Collect Feedback', description: 'Gather feedback from the requester on the support experience' },
+];
 
 const initialForm = { subject: '', description: '', category: 'hr', priority: 'medium', requesterType: 'employee' };
 
@@ -194,6 +215,9 @@ export default function HelpdeskPage() {
           <FiPlus className="w-4 h-4" /> Create Ticket
         </button>
       </div>
+
+      <ModuleTips moduleKey="helpdesk" title="Helpdesk Tips" tips={helpdeskTips} />
+      <ModuleWorkflow moduleKey="helpdesk" title="How to Resolve Support Tickets" subtitle="Follow this workflow to resolve support requests efficiently" steps={helpdeskWorkflowSteps} accentColor="cyan" />
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         {(['my', 'all'] as const).map((tab) => (

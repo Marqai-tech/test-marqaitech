@@ -6,6 +6,8 @@ import {
   FiEye, FiEdit2, FiTrash2, FiGlobe, FiMail, FiPhone,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -37,6 +39,25 @@ interface Vendor {
   childVendors?: { id: string; name: string; type: string; code: string | null; status: string; candidateCount: number; rating: number }[];
   _count?: { childVendors: number };
 }
+
+/* ── Module Tips & Workflow Data ── */
+const vendorTips = [
+  { title: 'Rigorous Vendor Evaluation', description: 'Establish a standardized evaluation framework covering capabilities, financial stability, and track record before onboarding any vendor.' },
+  { title: 'Solid Contract Management', description: 'Define clear SLAs, deliverables, and penalties in contracts. Track contract expiry dates and renewal terms proactively.' },
+  { title: 'Regular Compliance Checks', description: 'Verify vendor compliance with regulatory requirements, data security standards, and organizational policies on a scheduled basis.' },
+  { title: 'Performance Tracking', description: 'Monitor vendor performance using KPIs like delivery timeliness, quality scores, and responsiveness. Share feedback regularly.' },
+  { title: 'Clear Payment Terms', description: 'Negotiate payment terms that align with your cash flow. Track invoices against milestones and enforce penalty clauses for delays.' },
+];
+
+const vendorWorkflowSteps = [
+  { step: 1, title: 'Register Vendor', description: 'Add vendor details including type, industry, and specialization' },
+  { step: 2, title: 'Evaluate & Approve', description: 'Assess vendor capabilities and approve or reject' },
+  { step: 3, title: 'Setup Contract', description: 'Define contract terms, SLAs, and payment schedules' },
+  { step: 4, title: 'Track Deliverables', description: 'Monitor vendor deliverables and milestone progress' },
+  { step: 5, title: 'Process Payments', description: 'Manage invoicing and payment processing against contracts' },
+  { step: 6, title: 'Review Performance', description: 'Evaluate vendor ratings, compliance, and value delivered' },
+  { step: 7, title: 'Renew or End', description: 'Renew contract terms or formally end the vendor relationship' },
+];
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -134,6 +155,9 @@ export default function VendorsPage() {
         <div><h1 className="text-2xl font-bold text-nexus-text-primary">Vendors</h1><p className="text-nexus-text-secondary mt-1">Manage vendors and sub-vendors</p></div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Vendor</button>
       </div>
+
+      <ModuleTips moduleKey="vendors" title="Vendor Tips" tips={vendorTips} />
+      <ModuleWorkflow moduleKey="vendors" title="How to Manage Vendor Relationships" subtitle="Follow this workflow to maintain productive vendor partnerships" steps={vendorWorkflowSteps} accentColor="amber" />
 
       <div className="flex gap-2">
         {['all', 'vendor', 'sub_vendor'].map((t) => (

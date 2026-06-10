@@ -14,6 +14,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface TravelRequest {
@@ -96,6 +98,24 @@ function getModeLabel(mode: string) {
 
 const TRAVEL_MODES = ['flight', 'train', 'bus', 'car', 'other'];
 const TRAVEL_STATUSES = ['requested', 'approved', 'booked', 'in_progress', 'completed', 'cancelled'];
+
+const travelTips = [
+  { title: 'Travel Policy Compliance', description: 'Ensure all travel requests comply with company travel policies and budgets' },
+  { title: 'Advance Booking', description: 'Book travel in advance to get better rates and ensure availability' },
+  { title: 'Approval Hierarchy', description: 'Follow the proper approval chain based on destination and cost' },
+  { title: 'Expense Integration', description: 'Link travel expenses directly to the expense management module for seamless tracking' },
+  { title: 'Itinerary Management', description: 'Keep travel itineraries updated with flight, hotel, and meeting details' },
+];
+
+const travelWorkflowSteps = [
+  { step: 1, title: 'Submit Travel Request', description: 'Employee submits a travel request with purpose and details', route: '/travel' },
+  { step: 2, title: 'Manager Approval', description: 'Direct manager reviews and approves the travel request' },
+  { step: 3, title: 'Book Travel', description: 'Book flights, hotels, and transportation for the trip' },
+  { step: 4, title: 'Track Itinerary', description: 'Monitor travel itinerary and any changes' },
+  { step: 5, title: 'Submit Expense Report', description: 'Submit all travel-related expenses after the trip' },
+  { step: 6, title: 'Finance Reconciliation', description: 'Finance team reconciles expenses against the approved budget' },
+  { step: 7, title: 'Close Request', description: 'Close the travel request after all expenses are settled' },
+];
 
 const initialForm = {
   employeeId: '',
@@ -290,6 +310,9 @@ export default function TravelPage() {
           Request Travel
         </button>
       </div>
+
+      <ModuleTips moduleKey="travel" title="Travel Tips" tips={travelTips} />
+      <ModuleWorkflow moduleKey="travel" title="How to Process Travel Requests" subtitle="Follow this workflow to manage business travel from request to completion" steps={travelWorkflowSteps} accentColor="rose" />
 
       {/* Filters & Search */}
       <div className="nexus-card p-4">

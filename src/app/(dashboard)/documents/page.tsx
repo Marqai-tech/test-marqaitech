@@ -13,6 +13,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Document {
@@ -94,6 +96,23 @@ function getTypeLabel(type: string) {
 
 const DOC_TYPES = ['offer_letter', 'id_proof', 'address_proof', 'tax_document', 'contract', 'certificate', 'policy', 'other'];
 const DOC_STATUSES = ['active', 'expired', 'archived'];
+
+const documentsTips = [
+  { title: 'Document Categories', description: 'Organize documents by type such as contracts, ID proofs, and certificates for easy retrieval' },
+  { title: 'Access Permissions', description: 'Control who can view, edit, and download sensitive employee documents' },
+  { title: 'Version Control', description: 'Track document versions to maintain a history of changes and updates' },
+  { title: 'Expiry Tracking', description: 'Monitor document expiry dates and get reminders for renewals' },
+  { title: 'Use Templates', description: 'Leverage document templates to standardize formats across the organization' },
+];
+
+const documentsWorkflowSteps = [
+  { step: 1, title: 'Upload Document', description: 'Upload the document file and enter basic details', route: '/documents' },
+  { step: 2, title: 'Categorize Document', description: 'Assign the document type and category' },
+  { step: 3, title: 'Set Access Permissions', description: 'Define who can view, edit, or download the document' },
+  { step: 4, title: 'Track Expiry Dates', description: 'Set expiry dates for time-sensitive documents' },
+  { step: 5, title: 'Renew/Update', description: 'Renew or update documents before they expire' },
+  { step: 6, title: 'Archive Old Documents', description: 'Move outdated documents to archive for record keeping' },
+];
 
 const initialForm = {
   name: '',
@@ -284,6 +303,9 @@ export default function DocumentsPage() {
           Upload Document
         </button>
       </div>
+
+      <ModuleTips moduleKey="documents" title="Documents Tips" tips={documentsTips} />
+      <ModuleWorkflow moduleKey="documents" title="How to Manage Employee Documents" subtitle="Follow this workflow to manage documents throughout their lifecycle" steps={documentsWorkflowSteps} accentColor="violet" />
 
       {/* Filters & Search */}
       <div className="nexus-card p-4">

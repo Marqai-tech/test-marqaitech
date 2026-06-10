@@ -6,6 +6,25 @@ import {
   FiCalendar, FiDollarSign, FiFileText, FiHelpCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
+
+const aiAssistantTips = [
+  { title: 'Be Specific in Queries', description: 'Ask detailed questions like "What is the maternity leave policy for employees with 2+ years?" instead of vague queries for better results.' },
+  { title: 'Use for Data Analysis', description: 'Leverage AI to analyze attendance trends, leave patterns, and payroll data across your organization.' },
+  { title: 'Ask About Policies', description: 'Query any company policy instantly — from dress code to travel reimbursement — without searching through manuals.' },
+  { title: 'Generate Templates', description: 'Ask the AI to create offer letters, performance review templates, or email drafts for common HR scenarios.' },
+  { title: 'Explore Insights', description: 'Use the assistant to discover workforce trends, identify attrition risks, and get proactive recommendations.' },
+];
+
+const aiAssistantWorkflowSteps = [
+  { step: 1, title: 'Open AI Assistant', description: 'Navigate to the AI Assistant module from the sidebar' },
+  { step: 2, title: 'Ask a Question', description: 'Type your HR-related query in natural language' },
+  { step: 3, title: 'Review AI Response', description: 'Read the AI-generated answer and supporting details' },
+  { step: 4, title: 'Refine Your Query', description: 'Follow up with more specific questions if needed' },
+  { step: 5, title: 'Apply Suggestion', description: 'Take action based on the AI recommendation' },
+  { step: 6, title: 'Provide Feedback', description: 'Rate the response to help improve AI accuracy' },
+];
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -97,7 +116,14 @@ export default function AIAssistantPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-4">
+    <div className="space-y-4">
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips moduleKey="ai_assistant" title="AI Assistant Tips" tips={aiAssistantTips} />
+        <ModuleWorkflow moduleKey="ai_assistant" title="How to Use AI Assistant" steps={aiAssistantWorkflowSteps} accentColor="violet" />
+      </div>
+
+      <div className="flex h-[calc(100vh-300px)] gap-4">
       {/* Sidebar - Chat History */}
       <div className="hidden md:flex flex-col w-64 bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="p-3 border-b border-slate-200">
@@ -183,6 +209,7 @@ export default function AIAssistantPage() {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

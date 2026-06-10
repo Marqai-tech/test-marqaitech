@@ -7,6 +7,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -135,6 +137,25 @@ const taskBoardColumns = [
   { key: 'in_progress', label: 'In Progress', color: 'border-amber-400' },
   { key: 'review', label: 'Review', color: 'border-blue-400' },
   { key: 'done', label: 'Done', color: 'border-emerald-400' },
+];
+
+/* ── Module Tips & Workflow Data ── */
+const projectTips = [
+  { title: 'Define Clear Phases', description: 'Break projects into distinct phases (planning, execution, monitoring, closure) to track progress effectively and identify bottlenecks early.' },
+  { title: 'Smart Resource Allocation', description: 'Allocate team members based on availability and skills. Monitor allocation percentages to avoid overcommitment and burnout.' },
+  { title: 'Track Milestones Relentlessly', description: 'Set measurable milestones with planned dates and completion percentages. Milestones keep teams aligned and stakeholders informed.' },
+  { title: 'Integrate with Timesheets', description: 'Link project tasks to timesheet entries to track actual hours vs estimated hours and ensure accurate billing.' },
+  { title: 'Proactive Risk Management', description: 'Identify risks early and maintain a risk register. Regularly review and update risk mitigation strategies throughout the project lifecycle.' },
+];
+
+const projectWorkflowSteps = [
+  { step: 1, title: 'Create Project', description: 'Define project name, type, billing, and timeline' },
+  { step: 2, title: 'Define Milestones', description: 'Set key milestones with planned dates and deliverables' },
+  { step: 3, title: 'Allocate Team', description: 'Assign team members with roles and allocation percentages' },
+  { step: 4, title: 'Track via Timesheets', description: 'Monitor progress through linked timesheet entries' },
+  { step: 5, title: 'Review Milestones', description: 'Assess milestone completion and adjust timelines' },
+  { step: 6, title: 'Complete Deliverables', description: 'Finalize all project deliverables and documentation' },
+  { step: 7, title: 'Close Project', description: 'Mark project as completed and archive records' },
 ];
 
 /* ── Component ── */
@@ -386,6 +407,9 @@ export default function ProjectsPage() {
           Create Project
         </button>
       </div>
+
+      <ModuleTips moduleKey="projects" title="Project Tips" tips={projectTips} />
+      <ModuleWorkflow moduleKey="projects" title="How to Manage Projects" subtitle="Follow this workflow to deliver projects on time" steps={projectWorkflowSteps} accentColor="blue" />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

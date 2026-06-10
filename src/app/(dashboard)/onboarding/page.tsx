@@ -13,6 +13,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface OnboardingTask {
@@ -85,6 +87,25 @@ function getCategoryBadge(category: string) {
   };
   return { className: map[category] || 'nexus-badge nexus-badge-info', label: labels[category] || category };
 }
+
+const onboardingTips = [
+  { title: 'Create Task Templates', description: 'Set up onboarding task templates for common roles to speed up new hire setup' },
+  { title: 'Assign by Category', description: 'Categorize tasks as General, Documentation, IT Setup, Training, or Compliance for organized tracking' },
+  { title: 'Set Due Dates', description: 'Always set due dates for onboarding tasks to ensure timely completion' },
+  { title: 'Complete All Before Active', description: 'Ensure all onboarding tasks are completed before moving the employee to Active status' },
+  { title: 'Use Notes for Context', description: 'Add notes to tasks to provide instructions or context for the assignee' },
+];
+
+const onboardingWorkflowSteps = [
+  { step: 1, title: 'Create Employee', description: 'Add the new employee to the system with basic details', route: '/employees' },
+  { step: 2, title: 'Setup Onboarding Tasks', description: 'Create onboarding tasks assigned to the new employee', route: '/onboarding' },
+  { step: 3, title: 'Complete Documentation', description: 'Complete all documentation-related onboarding tasks' },
+  { step: 4, title: 'Complete IT Setup', description: 'Set up email, workstation, and system access' },
+  { step: 5, title: 'Complete Training', description: 'Finish all mandatory training tasks' },
+  { step: 6, title: 'Complete Compliance', description: 'Verify all compliance and policy acknowledgements' },
+  { step: 7, title: 'Mark All Complete', description: 'Ensure all tasks are marked as completed' },
+  { step: 8, title: 'Activate Employee', description: 'Move employee status to Active after all tasks are done', route: '/employees' },
+];
 
 const initialForm = {
   employeeId: '',
@@ -312,6 +333,22 @@ export default function OnboardingPage() {
           </button>
         )}
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="onboarding"
+        title="Onboarding Tips"
+        tips={onboardingTips}
+      />
+
+      {/* Module Workflow */}
+      <ModuleWorkflow
+        moduleKey="onboarding"
+        title="How to Onboard a New Employee"
+        subtitle="Follow this workflow to set up a new hire for success"
+        steps={onboardingWorkflowSteps}
+        accentColor="emerald"
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

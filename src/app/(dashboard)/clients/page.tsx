@@ -7,6 +7,8 @@ import {
   FiPhone, FiDollarSign, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -31,6 +33,25 @@ interface Client {
   projects?: { id: string }[];
   _count?: { projects: number };
 }
+
+/* ── Module Tips & Workflow Data ── */
+const clientTips = [
+  { title: 'Streamline Client Onboarding', description: 'Create a consistent onboarding process with standardized forms, required documents, and welcome kits to ensure no steps are missed.' },
+  { title: 'Centralize Contact Management', description: 'Maintain a complete contact directory with roles, emails, and phone numbers. Link contacts to projects for quick access.' },
+  { title: 'Link Projects to Clients', description: 'Associate every project with its client to track engagement history, billing, and deliverables in one place.' },
+  { title: 'Setup Billing Early', description: 'Configure billing currency, payment terms, and invoicing preferences during onboarding to avoid payment delays.' },
+  { title: 'Maintain Communication Logs', description: 'Record all client interactions including meetings, emails, and calls to maintain context and improve service quality.' },
+];
+
+const clientWorkflowSteps = [
+  { step: 1, title: 'Add Client', description: 'Register client with name, industry, and contact details' },
+  { step: 2, title: 'Add Contacts', description: 'Create key contact records with roles and communication info' },
+  { step: 3, title: 'Link Projects', description: 'Associate existing or new projects with the client' },
+  { step: 4, title: 'Setup Billing', description: 'Configure currency, payment terms, and invoicing' },
+  { step: 5, title: 'Track Communications', description: 'Log meetings, calls, and email interactions' },
+  { step: 6, title: 'Review Performance', description: 'Assess engagement health and client satisfaction' },
+  { step: 7, title: 'Renew or Close', description: 'Renew engagement terms or formally close the relationship' },
+];
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -132,6 +153,9 @@ export default function ClientsPage() {
         <div><h1 className="text-2xl font-bold text-nexus-text-primary">Clients</h1><p className="text-nexus-text-secondary mt-1">Manage client relationships and details</p></div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Client</button>
       </div>
+
+      <ModuleTips moduleKey="clients" title="Client Tips" tips={clientTips} />
+      <ModuleWorkflow moduleKey="clients" title="How to Manage Client Relationships" subtitle="Follow this workflow to build strong client partnerships" steps={clientWorkflowSteps} accentColor="violet" />
 
       <div className="relative max-w-sm">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />

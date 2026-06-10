@@ -15,6 +15,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface ExpenseClaim {
@@ -100,6 +102,24 @@ function formatCategory(category: string) {
 
 const EXPENSE_CATEGORIES = ['travel', 'meals', 'office_supplies', 'software', 'hardware', 'training', 'entertainment', 'other'];
 const EXPENSE_STATUSES = ['draft', 'submitted', 'approved', 'rejected', 'reimbursed'];
+
+const expensesTips = [
+  { title: 'Expense Categories', description: 'Categorize expenses properly for accurate reporting and tax compliance' },
+  { title: 'Receipt Upload', description: 'Always attach receipts to expense claims for verification and audit purposes' },
+  { title: 'Approval Workflows', description: 'Follow the defined approval hierarchy to ensure timely processing of claims' },
+  { title: 'Policy Limits', description: 'Be aware of expense policy limits to avoid rejections and delays' },
+  { title: 'Reimbursement Schedules', description: 'Submit claims on time to be included in the next reimbursement cycle' },
+];
+
+const expensesWorkflowSteps = [
+  { step: 1, title: 'Submit Expense Claim', description: 'Create a new expense claim with all required details', route: '/expenses' },
+  { step: 2, title: 'Attach Receipts', description: 'Upload supporting receipts and documentation' },
+  { step: 3, title: 'Manager Review', description: 'Direct manager reviews and approves or rejects the claim' },
+  { step: 4, title: 'Finance Verification', description: 'Finance team verifies the claim against policies' },
+  { step: 5, title: 'Approve/Reject', description: 'Final approval or rejection with comments' },
+  { step: 6, title: 'Process Reimbursement', description: 'Process the approved amount for reimbursement' },
+  { step: 7, title: 'Update Records', description: 'Update financial records and close the claim' },
+];
 
 const initialForm = {
   title: '',
@@ -295,6 +315,9 @@ export default function ExpensesPage() {
           Add Expense
         </button>
       </div>
+
+      <ModuleTips moduleKey="expenses" title="Expenses Tips" tips={expensesTips} />
+      <ModuleWorkflow moduleKey="expenses" title="How to Process Expense Claims" subtitle="Follow this workflow to submit and process expense reimbursements" steps={expensesWorkflowSteps} accentColor="amber" />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

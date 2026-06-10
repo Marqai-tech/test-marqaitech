@@ -22,6 +22,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ──────────────────────────────────────────────
    Types
@@ -737,6 +739,37 @@ export default function SettingsPage() {
           <FiMenu className="w-4 h-4" />
           {navItems.find((n) => n.key === activeTab)?.label}
         </button>
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips
+          moduleKey="settings"
+          title="Settings Tips"
+          tips={[
+            { title: 'Configure Modules First', description: 'Set up payroll, leave, and attendance rules before onboarding employees to ensure smooth operations.' },
+            { title: 'Role-Based Access', description: 'Use the Roles & Permissions tab to control who can view and modify different settings sections.' },
+            { title: 'Test Changes', description: 'After updating settings, verify the changes by checking the relevant module to ensure they take effect.' },
+            { title: 'Backup Settings', description: 'Settings are stored locally — consider documenting critical configurations for recovery purposes.' },
+            { title: 'Review Periodically', description: 'Revisit settings quarterly to align policies with evolving organizational needs and compliance requirements.' },
+          ]}
+        />
+        <ModuleWorkflow
+          moduleKey="settings"
+          title="How to Configure System Settings"
+          subtitle="Follow this workflow to properly set up your HRMS"
+          accentColor="emerald"
+          steps={[
+            { step: 1, title: 'Review General Settings', description: 'Set company name, timezone, date format, and currency preferences.' },
+            { step: 2, title: 'Configure Payroll Rules', description: 'Define pay frequency, overtime calculation, and tax regime defaults.' },
+            { step: 3, title: 'Set Leave Policies', description: 'Configure leave year, carry forward rules, and application policies.' },
+            { step: 4, title: 'Define Attendance Rules', description: 'Set work hours, late thresholds, weekend rules, and geofencing options.' },
+            { step: 5, title: 'Setup Employee Codes', description: 'Configure employee code prefixes, auto-generation, and probation defaults.' },
+            { step: 6, title: 'Configure Notifications', description: 'Enable or disable email and module-specific notification preferences.' },
+            { step: 7, title: 'Assign Roles & Permissions', description: 'Define role-based access levels for different user types in the system.' },
+            { step: 8, title: 'Test Configuration', description: 'Verify all settings are working correctly by testing in relevant modules.' },
+          ]}
+        />
       </div>
 
       {/* Mobile Dropdown Navigation */}

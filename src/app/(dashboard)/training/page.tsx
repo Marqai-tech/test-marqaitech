@@ -16,6 +16,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Training {
@@ -100,6 +102,24 @@ function getCategoryBadge(category: string) {
   };
   return { className: map[category] || 'nexus-badge nexus-badge-info', label: labels[category] || category };
 }
+
+const trainingTips = [
+  { title: 'Categorize Trainings', description: 'Use categories like Technical, Soft Skills, Compliance, and Leadership to organize training programs' },
+  { title: 'Set Capacity Limits', description: 'Define max participants to avoid over-enrollment and ensure quality training delivery' },
+  { title: 'Choose the Right Mode', description: 'Select Online, Offline, or Hybrid mode based on the training content and audience location' },
+  { title: 'Enroll Proactively', description: 'Enroll employees in upcoming trainings early so they can plan their schedules accordingly' },
+  { title: 'Track Completion', description: 'Monitor training status from Upcoming to Completed to ensure all programs are delivered on time' },
+];
+
+const trainingWorkflowSteps = [
+  { step: 1, title: 'Plan Training', description: 'Define the training title, category, and learning objectives', route: '/training' },
+  { step: 2, title: 'Set Schedule', description: 'Choose start and end dates, and select the delivery mode' },
+  { step: 3, title: 'Assign Trainer', description: 'Designate a trainer or instructor for the program' },
+  { step: 4, title: 'Set Capacity', description: 'Define maximum participants if the training has limited seats' },
+  { step: 5, title: 'Enroll Employees', description: 'Enroll participants into the training program', route: '/training' },
+  { step: 6, title: 'Deliver Training', description: 'Conduct the training sessions as scheduled' },
+  { step: 7, title: 'Mark Completed', description: 'Update the training status to Completed after all sessions finish' },
+];
 
 const initialForm = {
   title: '',
@@ -329,6 +349,22 @@ export default function TrainingPage() {
           </button>
         )}
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="training"
+        title="Training Tips"
+        tips={trainingTips}
+      />
+
+      {/* Module Workflow */}
+      <ModuleWorkflow
+        moduleKey="training"
+        title="How to Set Up Training Programs"
+        subtitle="Follow this workflow to create and deliver effective training"
+        steps={trainingWorkflowSteps}
+        accentColor="violet"
+      />
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

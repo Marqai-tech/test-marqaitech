@@ -5,6 +5,8 @@ import {
   FiX, FiDollarSign, FiCheck, FiEye, FiEdit2, FiTrash2, FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -29,6 +31,26 @@ function getStatusBadge(status: string) {
   };
   return map[status] || 'nexus-badge nexus-badge-info';
 }
+
+/* ── Tips & Workflow ── */
+const fnfTips = [
+  { title: 'Settlement Components', description: 'Include all earnings (pending salary, bonus, incentives) and deductions (recovery, tax) in the settlement calculation.' },
+  { title: 'Notice Period Adjustment', description: 'Adjust for any notice period shortfall or buyout. Recovery applies if the employee leaves without serving full notice.' },
+  { title: 'Leave Encashment', description: 'Calculate unused leave encashment as per company policy and statutory requirements.' },
+  { title: 'Tax Deductions', description: 'Apply applicable tax deductions on leave encashment, bonus, and other taxable components as per income tax rules.' },
+  { title: 'Final Payslip', description: 'Generate a detailed final payslip showing all earnings, deductions, and the net settlement amount for employee records.' },
+];
+
+const fnfWorkflowSteps = [
+  { step: 1, title: 'Initiate F&F', description: 'Start the settlement process upon employee separation confirmation' },
+  { step: 2, title: 'Calculate Dues & Deductions', description: 'Compute all pending earnings and applicable deductions for the employee' },
+  { step: 3, title: 'Verify Notice Period', description: 'Confirm notice period compliance and adjust for any shortfall' },
+  { step: 4, title: 'Process Leave Encashment', description: 'Calculate and add unused leave encashment to the earnings' },
+  { step: 5, title: 'Apply Tax Deductions', description: 'Deduct TDS and other applicable taxes on taxable components' },
+  { step: 6, title: 'Generate Settlement Statement', description: 'Create a detailed statement with all earnings, deductions, and net amount' },
+  { step: 7, title: 'Approve & Disburse', description: 'Get management approval and initiate the payment to the employee' },
+  { step: 8, title: 'Close F&F', description: 'Mark the settlement as paid and archive the record' },
+];
 
 export default function FNFPage() {
   const [calculations, setCalculations] = useState<FNFCalculation[]>([]);
@@ -145,6 +167,10 @@ export default function FNFPage() {
           <FiDollarSign className="w-4 h-4" /> Calculate FNF
         </button>
       </div>
+
+      {/* Module Tips & Workflow */}
+      <ModuleTips moduleKey="fnf" title="F&F Settlement Tips" tips={fnfTips} />
+      <ModuleWorkflow moduleKey="fnf" title="How to Process Full & Final Settlement" subtitle="Follow this workflow for accurate and timely settlement" steps={fnfWorkflowSteps} accentColor="amber" />
 
       {/* View Panel */}
       {viewingId && (() => {

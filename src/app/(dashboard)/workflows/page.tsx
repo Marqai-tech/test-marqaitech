@@ -6,6 +6,8 @@ import {
   FiPlay, FiEye, FiEdit2, FiTrash2, FiArrowRight,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -42,6 +44,25 @@ const moduleLabel: Record<string, string> = {
 };
 
 const initialForm = { name: '', module: 'leave', description: '', steps: '[{"stepNumber":1,"approverRole":"manager","isRequired":true},{"stepNumber":2,"approverRole":"hr_admin","isRequired":true}]' };
+
+/* ── Module Tips & Workflow Data ── */
+const workflowTips = [
+  { title: 'Design Approval Hierarchies', description: 'Structure multi-level approval chains with role-based approvers. Define who approves what and in what order to prevent bottlenecks.' },
+  { title: 'Leverage Automation Rules', description: 'Set up automation to trigger workflows on events like leave applications or timesheet submissions to reduce manual intervention.' },
+  { title: 'Define Trigger Conditions', description: 'Specify clear conditions that initiate workflows, such as amount thresholds, request types, or department-specific rules.' },
+  { title: 'Configure Escalation Paths', description: 'Set timeout-based escalations so stuck approvals automatically move to backup approvers or escalate to higher authority.' },
+  { title: 'Maintain Audit Trails', description: 'Every approval, rejection, and escalation is logged. Use audit trails for compliance, disputes, and process improvement.' },
+];
+
+const workflowWorkflowSteps = [
+  { step: 1, title: 'Define Workflow', description: 'Name your workflow and select the target module' },
+  { step: 2, title: 'Set Triggers', description: 'Configure conditions that automatically start the workflow' },
+  { step: 3, title: 'Add Approval Steps', description: 'Define approval stages with roles and required/optional flags' },
+  { step: 4, title: 'Configure Escalation', description: 'Set timeout rules and escalation paths for stuck approvals' },
+  { step: 5, title: 'Test Workflow', description: 'Simulate the workflow with test data before going live' },
+  { step: 6, title: 'Activate', description: 'Enable the workflow for real-world use' },
+  { step: 7, title: 'Monitor & Optimize', description: 'Track performance metrics and refine steps as needed' },
+];
 
 export default function WorkflowsPage() {
   const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
@@ -180,6 +201,9 @@ export default function WorkflowsPage() {
         </div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"><FiPlus className="w-4 h-4" /> Create Workflow</button>
       </div>
+
+      <ModuleTips moduleKey="workflows" title="Workflow Tips" tips={workflowTips} />
+      <ModuleWorkflow moduleKey="workflows" title="How to Create Approval Workflows" subtitle="Follow this workflow to build effective approval processes" steps={workflowWorkflowSteps} accentColor="rose" />
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         {(['definitions', 'instances'] as const).map((tab) => (

@@ -23,6 +23,8 @@ import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 interface DashboardStats {
   totalEmployees: number;
@@ -393,6 +395,35 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips
+          moduleKey="dashboard"
+          title="Dashboard Tips"
+          tips={[
+            { title: 'Use the Search Bar', description: 'Quickly find employees, modules, or actions using the global search bar in the hero section.' },
+            { title: 'Quick Actions', description: 'Access frequently used features like adding employees, applying leave, or marking attendance from the Quick Actions panel.' },
+            { title: 'Module Navigation', description: 'Use the module pills in the hero banner to jump directly to any HR module you need.' },
+            { title: 'Track Notifications', description: 'Stay updated with recent activity and notifications displayed in the Recent Activity section.' },
+            { title: 'Birthdays & Events', description: 'Check upcoming employee birthdays and department events to stay connected with your team.' },
+          ]}
+        />
+        <ModuleWorkflow
+          moduleKey="dashboard"
+          title="How to Navigate the Dashboard"
+          subtitle="Follow these steps to get the most out of your dashboard"
+          accentColor="blue"
+          steps={[
+            { step: 1, title: 'Review Summary Stats', description: 'Check the key metrics at a glance for employee count, leaves, and payroll.' },
+            { step: 2, title: 'Check Notifications', description: 'Review recent activity and notifications to stay informed of important updates.' },
+            { step: 3, title: 'Use Quick Actions', description: 'Perform common tasks like adding employees or applying leave with one click.' },
+            { step: 4, title: 'Navigate to Modules', description: 'Use the module pills or sidebar to jump to specific HR modules.' },
+            { step: 5, title: 'Search for Employees/Actions', description: 'Use the hero search bar to quickly find employees or navigate to actions.' },
+            { step: 6, title: 'Review Department Data', description: 'Check department distribution and upcoming birthdays for team awareness.' },
+          ]}
+        />
       </div>
 
       {/* Stats Grid */}

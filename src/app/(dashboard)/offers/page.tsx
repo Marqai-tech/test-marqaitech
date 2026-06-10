@@ -5,6 +5,8 @@ import {
   FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -14,6 +16,24 @@ function getAuthHeaders() {
 interface Offer {
   id: string; candidateName: string; candidateEmail: string; position: string; department: string | null; offeredSalary: number; offeredCurrency: string; joiningDate: string; probationPeriod: number; status: string; createdAt: string;
 }
+
+const offersTips = [
+  { title: 'Offer Letter Templates', description: 'Use pre-defined templates to ensure consistency and compliance across all offer letters sent to candidates.' },
+  { title: 'Salary Negotiation', description: 'Track negotiation rounds and maintain a record of revised offers to stay within approved budget limits.' },
+  { title: 'Probation Terms', description: 'Clearly define probation duration, review criteria, and confirmation process in the offer letter.' },
+  { title: 'Compliance Checks', description: 'Verify background verification, document collection, and statutory requirements before sending the offer.' },
+  { title: 'Acceptance Tracking', description: 'Monitor offer acceptance status and set up automated reminders for pending responses.' },
+];
+
+const offersWorkflowSteps = [
+  { step: 1, title: 'Select Candidate', description: 'Choose a candidate from the shortlist' },
+  { step: 2, title: 'Prepare Offer Letter', description: 'Draft the offer using a template' },
+  { step: 3, title: 'Define Compensation', description: 'Set salary, benefits, and bonuses' },
+  { step: 4, title: 'Set Terms & Conditions', description: 'Configure probation and notice period' },
+  { step: 5, title: 'Send Offer', description: 'Dispatch the offer letter to candidate' },
+  { step: 6, title: 'Track Acceptance', description: 'Monitor candidate response status' },
+  { step: 7, title: 'Initiate Onboarding', description: 'Start the onboarding process on acceptance' },
+];
 
 const initialForm = {
   candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'USD', joiningDate: '', probationPeriod: 90,
@@ -151,6 +171,9 @@ export default function OffersPage() {
           <FiPlus className="w-4 h-4" /> Create Offer
         </button>
       </div>
+
+      <ModuleTips moduleKey="offers" title="Offer Management Tips" tips={offersTips} />
+      <ModuleWorkflow moduleKey="offers" title="How to Process Job Offers" subtitle="Follow this workflow to manage the offer lifecycle" steps={offersWorkflowSteps} accentColor="amber" />
 
       {/* View Panel */}
       {viewingId && (() => {

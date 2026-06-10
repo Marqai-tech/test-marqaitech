@@ -7,6 +7,8 @@ import {
   FiFileText, FiUsers, FiDollarSign,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -118,6 +120,24 @@ const TABS = [
   { key: 'policies', label: 'Policies', icon: <FiFileText className="w-4 h-4" /> },
 ];
 
+const companyTips = [
+  { title: 'Company Structure', description: 'Define your organization hierarchy with parent-child company relationships for multi-tenant setups.' },
+  { title: 'Branch Management', description: 'Create and manage branches across locations with dedicated branch heads and addresses.' },
+  { title: 'Multi-Tenant Setup', description: 'Isolate data per company while sharing the same platform. Each tenant has independent configurations.' },
+  { title: 'Compliance Settings', description: 'Configure GST, tax, and statutory compliance settings for each company and branch.' },
+  { title: 'Branding', description: 'Customize logos, colors, and email templates to match each company\'s brand identity.' },
+];
+
+const companyWorkflowSteps = [
+  { step: 1, title: 'Create Company', description: 'Set up your organization with basic details' },
+  { step: 2, title: 'Add Branches', description: 'Create branches for each location' },
+  { step: 3, title: 'Configure Departments', description: 'Define departments and assign heads' },
+  { step: 4, title: 'Set Designations', description: 'Create designation hierarchy with grades' },
+  { step: 5, title: 'Define Policies', description: 'Set up leave, attendance, and HR policies' },
+  { step: 6, title: 'Configure Branding', description: 'Customize logos and email templates' },
+  { step: 7, title: 'Review Setup', description: 'Verify all configurations are complete' },
+];
+
 export default function CompanyManagementPage() {
   const [activeTab, setActiveTab] = useState('companies');
   const [search, setSearch] = useState('');
@@ -158,6 +178,9 @@ export default function CompanyManagementPage() {
           <FiPlus className="w-4 h-4" /> Add {activeTab.charAt(0).toUpperCase() + activeTab.slice(1, -1)}
         </button>
       </div>
+
+      <ModuleTips moduleKey="company" title="Company Tips" tips={companyTips} />
+      <ModuleWorkflow moduleKey="company" title="How to Set Up Company" subtitle="Follow this workflow to configure your organization" steps={companyWorkflowSteps} accentColor="blue" />
 
       {/* Search */}
       <div className="relative max-w-xs">

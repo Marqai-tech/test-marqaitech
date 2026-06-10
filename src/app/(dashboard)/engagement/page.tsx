@@ -15,6 +15,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface PulseSurvey {
@@ -124,6 +126,26 @@ const initialRecognitionForm = {
   category: 'Teamwork' as 'Teamwork' | 'Innovation' | 'Leadership' | 'Excellence',
   message: '',
 };
+
+/* ── Tips & Workflow ── */
+const engagementTips = [
+  { title: 'Pulse Surveys', description: 'Conduct regular short surveys to gauge employee sentiment and catch issues before they escalate.' },
+  { title: 'Recognition Programs', description: 'Implement peer-to-peer and manager recognition programs to boost morale and reinforce positive behaviors.' },
+  { title: 'Feedback Culture', description: 'Foster a culture of continuous feedback where employees feel safe to share ideas and concerns openly.' },
+  { title: 'Team Activities', description: 'Organize team-building and wellness activities to strengthen bonds and improve collaboration.' },
+  { title: 'Sentiment Analysis', description: 'Leverage AI-powered sentiment analysis to identify trends and proactively address engagement gaps.' },
+];
+
+const engagementWorkflowSteps = [
+  { step: 1, title: 'Launch Pulse Survey', description: 'Design and deploy targeted surveys to measure current engagement levels' },
+  { step: 2, title: 'Collect Responses', description: 'Gather employee feedback across teams and departments with anonymity' },
+  { step: 3, title: 'Analyze Results', description: 'Process survey data and identify engagement patterns and trends' },
+  { step: 4, title: 'Identify Areas for Improvement', description: 'Pinpoint specific teams or themes that need attention and action' },
+  { step: 5, title: 'Design Action Plans', description: 'Create targeted initiatives addressing the identified engagement gaps' },
+  { step: 6, title: 'Implement Initiatives', description: 'Roll out engagement programs, recognition schemes, and wellness activities' },
+  { step: 7, title: 'Measure Impact', description: 'Track the effectiveness of initiatives through follow-up surveys and metrics' },
+  { step: 8, title: 'Iterate & Improve', description: 'Refine strategies based on results and continuously improve engagement' },
+];
 
 /* ── Component ── */
 export default function EngagementPage() {
@@ -242,6 +264,10 @@ export default function EngagementPage() {
           <p className="text-nexus-text-secondary mt-1">Track engagement, recognition, and wellness</p>
         </div>
       </div>
+
+      {/* Module Tips & Workflow */}
+      <ModuleTips moduleKey="engagement" title="Engagement Tips" tips={engagementTips} />
+      <ModuleWorkflow moduleKey="engagement" title="How to Build Employee Engagement" subtitle="Follow this workflow to improve and sustain engagement" steps={engagementWorkflowSteps} accentColor="violet" />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

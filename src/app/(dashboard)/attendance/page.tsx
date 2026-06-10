@@ -13,6 +13,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Attendance Tips ── */
 const attendanceTips = [
@@ -36,6 +37,17 @@ const attendanceTips = [
     title: 'Review Weekly Reports',
     description: 'Review the Attendance Report weekly to identify patterns of absenteeism',
   },
+];
+
+/* ── Attendance Workflow Steps ── */
+const attendanceWorkflowSteps = [
+  { step: 1, title: 'Configure Shift Timings', description: 'Set up work shift schedules and grace periods' },
+  { step: 2, title: 'Set Overtime Rules', description: 'Define overtime thresholds and calculation rules' },
+  { step: 3, title: 'Employee Checks In', description: 'Employee clocks in at the start of the work day' },
+  { step: 4, title: 'Employee Checks Out', description: 'Employee clocks out at the end of the work day' },
+  { step: 5, title: 'Auto-Calculate Work Hours', description: 'System calculates total hours and overtime automatically' },
+  { step: 6, title: 'Review Monthly Summary', description: 'Review attendance summary for the month' },
+  { step: 7, title: 'Generate Attendance Report', description: 'Export attendance data for payroll and compliance' },
 ];
 
 /* ── Types ── */
@@ -294,6 +306,14 @@ export default function AttendancePage() {
         moduleKey="attendance"
         title="Attendance Tips"
         tips={attendanceTips}
+      />
+
+      <ModuleWorkflow
+        moduleKey="attendance"
+        title="How to Track Attendance"
+        subtitle="Follow this workflow to set up and monitor attendance"
+        steps={attendanceWorkflowSteps}
+        accentColor="cyan"
       />
 
       {/* Today's Status Card */}

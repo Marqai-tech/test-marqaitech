@@ -14,6 +14,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface SuccessorCandidate {
@@ -96,6 +98,26 @@ const initialForm = {
   skillsGap: '',
   developmentNeeds: '',
 };
+
+/* ── Tips & Workflow ── */
+const successionTips = [
+  { title: 'Identify Key Roles', description: 'Start by identifying positions that are critical to business continuity and have limited talent availability.' },
+  { title: 'Assess Readiness', description: 'Evaluate successor candidates on performance, potential, and readiness to step into key roles.' },
+  { title: 'Development Plans', description: 'Create individualized development plans to close skills gaps and prepare successors for future roles.' },
+  { title: 'Talent Pipeline', description: 'Build a deep talent pipeline with multiple candidates per critical role to reduce single-point-of-failure risk.' },
+  { title: 'Review Cycles', description: 'Conduct regular succession planning reviews to keep the pipeline current and aligned with organizational changes.' },
+];
+
+const successionWorkflowSteps = [
+  { step: 1, title: 'Identify Critical Roles', description: 'Determine which positions are essential for business continuity and strategic success' },
+  { step: 2, title: 'Assess Current Talent', description: 'Evaluate the performance and potential of existing employees using the 9-box grid' },
+  { step: 3, title: 'Identify Successors', description: 'Select and nominate potential successors for each critical position' },
+  { step: 4, title: 'Create Development Plans', description: 'Design targeted development programs to close skills gaps for each successor' },
+  { step: 5, title: 'Provide Mentoring', description: 'Pair successors with senior leaders for mentoring and experiential learning' },
+  { step: 6, title: 'Track Progress', description: 'Monitor development milestones and readiness progression over time' },
+  { step: 7, title: 'Validate Readiness', description: 'Assess and confirm when successors are ready to assume their target roles' },
+  { step: 8, title: 'Update Plan', description: 'Refresh the succession plan with new insights, roles, and candidate updates' },
+];
 
 /* ── Component ── */
 export default function SuccessionPage() {
@@ -230,6 +252,10 @@ export default function SuccessionPage() {
           </button>
         )}
       </div>
+
+      {/* Module Tips & Workflow */}
+      <ModuleTips moduleKey="succession" title="Succession Planning Tips" tips={successionTips} />
+      <ModuleWorkflow moduleKey="succession" title="How to Build a Succession Plan" subtitle="Follow this workflow to build a robust talent pipeline" steps={successionWorkflowSteps} accentColor="blue" />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -13,6 +13,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface PerformanceReview {
@@ -80,6 +82,25 @@ function renderStars(rating: number, size: string = 'w-3.5 h-3.5') {
     </div>
   );
 }
+
+const performanceTips = [
+  { title: 'Set Clear Goals', description: 'Define specific, measurable goals at the start of each review cycle to provide clear expectations' },
+  { title: 'Use Multiple Rating Dimensions', description: 'Rate goals, competencies, and behavior separately for a more balanced and fair assessment' },
+  { title: 'Schedule Regular Reviews', description: 'Conduct reviews at consistent intervals — quarterly or annually — to maintain accountability' },
+  { title: 'Provide Constructive Comments', description: 'Always include comments explaining ratings to help employees understand their feedback' },
+  { title: 'Track Review Status', description: 'Monitor reviews from Draft through In Review to Completed and Acknowledged for full transparency' },
+];
+
+const performanceWorkflowSteps = [
+  { step: 1, title: 'Create Review Cycle', description: 'Define the review cycle name and period for the assessment', route: '/performance' },
+  { step: 2, title: 'Select Employee & Reviewer', description: 'Choose the employee being reviewed and assign a reviewer', route: '/performance' },
+  { step: 3, title: 'Set Goals Rating', description: 'Evaluate how well the employee met their defined goals' },
+  { step: 4, title: 'Rate Competencies', description: 'Assess the employee\'s skills and competencies for their role' },
+  { step: 5, title: 'Rate Behavior', description: 'Evaluate workplace behavior, teamwork, and professionalism' },
+  { step: 6, title: 'Assign Overall Rating', description: 'Provide an overall performance rating based on all dimensions' },
+  { step: 7, title: 'Add Comments', description: 'Write detailed feedback and development recommendations' },
+  { step: 8, title: 'Submit & Acknowledge', description: 'Submit the review and have the employee acknowledge it' },
+];
 
 const initialForm = {
   employeeId: '',
@@ -291,6 +312,22 @@ export default function PerformancePage() {
           </button>
         )}
       </div>
+
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="performance"
+        title="Performance Tips"
+        tips={performanceTips}
+      />
+
+      {/* Module Workflow */}
+      <ModuleWorkflow
+        moduleKey="performance"
+        title="How to Conduct Performance Reviews"
+        subtitle="Follow this workflow to ensure fair and comprehensive evaluations"
+        steps={performanceWorkflowSteps}
+        accentColor="amber"
+      />
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

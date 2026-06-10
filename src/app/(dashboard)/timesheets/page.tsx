@@ -17,6 +17,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Types ── */
 interface Timesheet {
@@ -71,6 +73,25 @@ const initialForm = {
   description: '',
   status: 'draft',
 };
+
+/* ── Module Tips & Workflow Data ── */
+const timesheetTips = [
+  { title: 'Log Hours Daily', description: 'Record your work hours at the end of each day rather than batching weekly. Daily logging improves accuracy and reduces missed entries.' },
+  { title: 'Allocate to Projects', description: 'Always assign hours to specific projects and tasks. Unallocated hours create billing gaps and inaccurate project cost tracking.' },
+  { title: 'Follow Approval Workflow', description: 'Submit timesheets on time and track their approval status. Address rejections promptly to avoid payroll delays.' },
+  { title: 'Track Overtime Carefully', description: 'Monitor overtime hours against organizational policies. Flag excessive overtime early to prevent burnout and compliance issues.' },
+  { title: 'Billing Integration', description: 'Approved timesheet entries automatically feed into billing calculations. Ensure entries are complete and approved before billing cycles.' },
+];
+
+const timesheetWorkflowSteps = [
+  { step: 1, title: 'Log Daily Hours', description: 'Record work hours with project and task details' },
+  { step: 2, title: 'Assign to Projects', description: 'Allocate time entries to specific projects and tasks' },
+  { step: 3, title: 'Submit for Approval', description: 'Submit completed timesheet entries for manager review' },
+  { step: 4, title: 'Manager Review', description: 'Managers review and verify submitted time entries' },
+  { step: 5, title: 'Approve or Reject', description: 'Accept valid entries or reject with feedback for correction' },
+  { step: 6, title: 'Process for Billing', description: 'Approved hours feed into client billing and payroll' },
+  { step: 7, title: 'Archive', description: 'Finalized timesheets are archived for reporting and audit' },
+];
 
 /* ── Component ── */
 export default function TimesheetsPage() {
@@ -302,6 +323,9 @@ export default function TimesheetsPage() {
           Log Time
         </button>
       </div>
+
+      <ModuleTips moduleKey="timesheets" title="Timesheet Tips" tips={timesheetTips} />
+      <ModuleWorkflow moduleKey="timesheets" title="How to Process Timesheets" subtitle="Follow this workflow to ensure accurate time tracking and billing" steps={timesheetWorkflowSteps} accentColor="cyan" />
 
       {/* Weekly Summary Card */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

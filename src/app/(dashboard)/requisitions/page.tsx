@@ -6,6 +6,8 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -16,6 +18,24 @@ interface Requisition {
   id: string; requisitionId: string; positionType: string; numberOfOpenings: number; employmentType: string; priority: string; approvalStatus: string; status: string; skillsRequired: string | null; experienceRequired: string | null; qualification: string | null; salaryBudget: string | null; expectedJoiningDate: string | null; companyId?: string;
   department?: { name: string } | null; designation?: { title: string } | null;
 }
+
+const requisitionsTips = [
+  { title: 'Job Requisition Approval', description: 'All requisitions follow a multi-level approval workflow: Manager → HR → Budget approval before posting.' },
+  { title: 'Budget Alignment', description: 'Ensure salary budgets in requisitions align with approved departmental budgets and grade-level ranges.' },
+  { title: 'Timeline Planning', description: 'Set realistic expected joining dates accounting for notice periods and the interview pipeline duration.' },
+  { title: 'Priority Levels', description: 'Use priority levels (Low, Medium, High, Critical) to signal urgency and influence recruitment timelines.' },
+  { title: 'Hiring Manager Coordination', description: 'Keep hiring managers informed at each approval stage to avoid delays in the recruitment process.' },
+];
+
+const requisitionsWorkflowSteps = [
+  { step: 1, title: 'Submit Requisition', description: 'Raise a hiring request with role details' },
+  { step: 2, title: 'Manager Approval', description: 'Reporting manager reviews and approves' },
+  { step: 3, title: 'HR Review', description: 'HR team validates the request' },
+  { step: 4, title: 'Budget Approval', description: 'Finance approves the budget allocation' },
+  { step: 5, title: 'Create Job Posting', description: 'Publish the approved position' },
+  { step: 6, title: 'Track Applications', description: 'Monitor incoming applications' },
+  { step: 7, title: 'Close Requisition', description: 'Mark as filled once position is staffed' },
+];
 
 const initialForm = {
   departmentId: '', designationId: '', positionType: 'new', numberOfOpenings: 1, employmentType: 'full-time', skillsRequired: '', experienceRequired: '', qualification: '', salaryBudget: '', priority: 'medium', expectedJoiningDate: '',
@@ -173,6 +193,9 @@ export default function RequisitionsPage() {
           <FiPlus className="w-4 h-4" /> Raise Requisition
         </button>
       </div>
+
+      <ModuleTips moduleKey="requisitions" title="Requisition Tips" tips={requisitionsTips} />
+      <ModuleWorkflow moduleKey="requisitions" title="How to Process Job Requisitions" subtitle="Follow this workflow to manage hiring requests" steps={requisitionsWorkflowSteps} accentColor="violet" />
 
       {/* View Panel */}
       {viewingId && (() => {

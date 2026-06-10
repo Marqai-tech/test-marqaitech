@@ -11,6 +11,8 @@ import {
   FiArrowRight, FiRefreshCw, FiDatabase, FiSliders,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ModuleTips from '@/components/ModuleTips';
+import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -896,6 +898,36 @@ export default function ReportsPage() {
           </h1>
           <p className="text-nexus-text-secondary mt-1">Comprehensive HR data insights and reporting hub</p>
         </div>
+      </div>
+
+      {/* Module Tips & Workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ModuleTips
+          moduleKey="reports"
+          title="Reports Tips"
+          tips={[
+            { title: 'Filter by Period', description: 'Use month and year filters to narrow down report data to specific time periods for accurate analysis.' },
+            { title: 'Favorite Reports', description: 'Star frequently used reports to quickly access them from the favorites section without searching.' },
+            { title: 'Export to CSV', description: 'Export generated report data to CSV format for offline analysis, sharing, or integration with other tools.' },
+            { title: 'Statutory Compliance', description: 'Use the Statutory Reports tab to generate PF, ESI, PT, and TDS returns for regulatory compliance.' },
+            { title: 'AI Insights', description: 'Leverage AI-powered reports for predictive analytics like attrition risk, compensation benchmarking, and anomaly detection.' },
+          ]}
+        />
+        <ModuleWorkflow
+          moduleKey="reports"
+          title="How to Generate Reports"
+          subtitle="Follow these steps to create and export reports"
+          accentColor="violet"
+          steps={[
+            { step: 1, title: 'Select Report Category', description: 'Choose between Standard, Statutory, or AI-powered reports using the tab navigation.' },
+            { step: 2, title: 'Choose Report Type', description: 'Browse reports by module and select the specific report you need to generate.' },
+            { step: 3, title: 'Set Filter Parameters', description: 'Configure month, year, company, and department filters for the report data.' },
+            { step: 4, title: 'Generate Report', description: 'Click generate to fetch and display the report data with visualizations and tables.' },
+            { step: 5, title: 'Review Results', description: 'Analyze the generated data including summary cards, charts, and detailed tables.' },
+            { step: 6, title: 'Export to CSV', description: 'Download the report data as a CSV file for offline use or further processing.' },
+            { step: 7, title: 'Schedule Generation', description: 'Set up regular report generation for recurring compliance and analytics needs.' },
+          ]}
+        />
       </div>
 
       {/* Analytics Summary Cards */}
