@@ -29,6 +29,7 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiInfo,
+  FiPercent,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -60,6 +61,15 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-blue-500/10',
     iconColor: 'text-blue-500',
     ringColor: 'ring-blue-500/20',
+  },
+  {
+    title: 'CTC Calculator',
+    icon: FiPercent,
+    route: '/payroll/ctc-calculator',
+    description: 'Calculate CTC breakdown - earnings, deductions, and take-home pay',
+    gradientBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-500',
+    ringColor: 'ring-emerald-500/20',
   },
   {
     title: 'Component Master',

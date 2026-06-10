@@ -122,6 +122,7 @@ const navSections: NavSection[] = [
     label: 'Compensation',
     items: [
       { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll' },
+      { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
     ],
   },
   {

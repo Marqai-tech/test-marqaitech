@@ -1,0 +1,1020 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  FiPercent, FiDollarSign, FiTrendingDown, FiTrendingUp,
+  FiArrowRight, FiInfo, FiCheck,
+  FiShield, FiFileText, FiUsers, FiAlertCircle,
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+// ─── Types ───
+interface ComponentBreakdown {
+  name: string;
+  annual: number;
+  monthly: number;
+  pctOfCTC?: string;
+  pctOfGross?: string;
+  category?: string;
+}
+
+interface CTCCalculationResult {
+  country?: string;
+  countryCode: string;
+  currency: string;
+  ctcAnnual: number;
+  ctcMonthly: number;
+  earnings: Record<string, { annual: number; monthly: number; pctOfCTC: string }> | ComponentBreakdown[];
+  grossSalary: { annual: number; monthly: number };
+  employerContributions: Record<string, { annual: number; monthly: number; pctOfCTC: string }> | ComponentBreakdown[];
+  deductions: Record<string, { annual: number; monthly: number; pctOfGross?: string; pctOfCTC?: string; taxableIncome?: number }> | ComponentBreakdown[];
+  totalDeductions: { annual: number; monthly: number };
+  netTakeHome: { annual: number; monthly: number };
+}
+
+interface Template {
+  id: string;
+  name: string;
+  countryCode: string;
+  currencyCode: string;
+  ctcType: string;
+  basePayPct: number | null;
+  isDefault: boolean;
+  componentMappings: Array<{
+    id: string;
+    componentName: string;
+    componentCategory: string;
+    allocationMethod: string;
+    allocationValue: number;
+  }>;
+}
+
+// ─── Country Options ───
+const COUNTRY_OPTIONS = [
+  { value: 'IND', label: 'India (INR)', currency: 'INR', flag: '🇮🇳' },
+  { value: 'USA', label: 'United States (USD)', currency: 'USD', flag: '🇺🇸' },
+  { value: 'GBR', label: 'United Kingdom (GBP)', currency: 'GBP', flag: '🇬🇧' },
+  { value: 'SGP', label: 'Singapore (SGD)', currency: 'SGD', flag: '🇸🇬' },
+  { value: 'UAE', label: 'UAE (AED)', currency: 'AED', flag: '🇦🇪' },
+  { value: 'AUS', label: 'Australia (AUD)', currency: 'AUD', flag: '🇦🇺' },
+];
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: '₹', USD: '$', GBP: '£', SGD: 'S$', AED: 'AED', AUD: 'A$',
+};
+
+// ─── Quick CTC Presets ───
+const CTC_PRESETS_IND = [
+  { label: '3 LPA', value: 300000 },
+  { label: '5 LPA', value: 500000 },
+  { label: '8 LPA', value: 800000 },
+  { label: '10 LPA', value: 1000000 },
+  { label: '15 LPA', value: 1500000 },
+  { label: '20 LPA', value: 2000000 },
+  { label: '25 LPA', value: 2500000 },
+  { label: '30 LPA', value: 3000000 },
+  { label: '50 LPA', value: 5000000 },
+  { label: '1 Cr', value: 10000000 },
+];
+
+const CTC_PRESETS_USA = [
+  { label: '$50K', value: 50000 },
+  { label: '$75K', value: 75000 },
+  { label: '$100K', value: 100000 },
+  { label: '$125K', value: 125000 },
+  { label: '$150K', value: 150000 },
+  { label: '$200K', value: 200000 },
+  { label: '$250K', value: 250000 },
+  { label: '$300K', value: 300000 },
+];
+
+// ─── Format helpers ───
+function formatCurrency(amount: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  if (currency === 'INR') {
+    // Indian numbering format
+    if (amount >= 10000000) return `${symbol}${(amount / 10000000).toFixed(2)} Cr`;
+    if (amount >= 100000) return `${symbol}${(amount / 100000).toFixed(2)} L`;
+    return `${symbol}${amount.toLocaleString('en-IN')}`;
+  }
+  return `${symbol}${amount.toLocaleString('en-US')}`;
+}
+
+function formatNumber(amount: number, currency: string): string {
+  if (currency === 'INR') {
+    return amount.toLocaleString('en-IN');
+  }
+  return amount.toLocaleString('en-US');
+}
+
+// ─── Normalization helpers ───
+function normalizeComponents(
+  data: Record<string, { annual: number; monthly: number; pctOfCTC?: string; pctOfGross?: string }> | ComponentBreakdown[] | undefined,
+  labelMap?: Record<string, string>
+): ComponentBreakdown[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  return Object.entries(data).map(([key, val]) => ({
+    name: labelMap?.[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()),
+    annual: val.annual,
+    monthly: val.monthly,
+    pctOfCTC: val.pctOfCTC,
+    pctOfGross: val.pctOfGross,
+  }));
+}
+
+const IND_EARNING_LABELS: Record<string, string> = {
+  basic: 'Basic Salary',
+  hra: 'House Rent Allowance (HRA)',
+  specialAllowance: 'Special Allowance',
+  lta: 'Leave Travel Allowance (LTA)',
+  variablePay: 'Performance Bonus / Variable Pay',
+  medicalAllowance: 'Medical Allowance',
+  conveyanceAllowance: 'Conveyance Allowance',
+  baseSalary: 'Base Salary',
+  annualBonus: 'Annual Bonus',
+  stockOptions: 'Stock Options / RSUs',
+};
+
+const IND_EMPLOYER_LABELS: Record<string, string> = {
+  employerPF: 'Employer PF Contribution',
+  gratuity: 'Gratuity',
+  healthInsurance: 'Health Insurance (Employer)',
+  retirement401k: '401(k) Employer Match',
+  otherBenefits: 'Other Benefits',
+};
+
+const IND_DEDUCTION_LABELS: Record<string, string> = {
+  employeePF: 'Employee PF Contribution',
+  professionalTax: 'Professional Tax',
+  incomeTax: 'Income Tax (TDS)',
+  federalTax: 'Federal Income Tax',
+  stateTax: 'State Income Tax',
+  socialSecurity: 'Social Security (FICA)',
+  medicare: 'Medicare',
+  healthInsurance: 'Health Insurance (Employee)',
+  retirement401k: '401(k) Employee Contribution',
+};
+
+// ─── Main Component ───
+export default function CTCCalculatorPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+
+  // Input state
+  const [ctcAmount, setCtcAmount] = useState<string>('');
+  const [countryCode, setCountryCode] = useState('IND');
+  const [ctcType, setCtcType] = useState<'ANNUAL' | 'MONTHLY'>('ANNUAL');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [useCustomTemplate, setUseCustomTemplate] = useState(false);
+
+  // Result state
+  const [result, setResult] = useState<CTCCalculationResult | null>(null);
+  const [calculating, setCalculating] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState<'earnings' | 'employer' | 'deductions' | null>('earnings');
+
+  // Templates
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // Currency
+  const currency = COUNTRY_OPTIONS.find(c => c.value === countryCode)?.currency || 'INR';
+
+  // Presets
+  const presets = countryCode === 'USA' ? CTC_PRESETS_USA : CTC_PRESETS_IND;
+
+  // Fetch templates
+  const fetchTemplates = useCallback(async () => {
+    try {
+      setLoadingTemplates(true);
+      const res = await fetch('/api/payroll/ctc-calculator', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(Array.isArray(data.data) ? data.data : []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => fetchTemplates());
+  }, [fetchTemplates]);
+
+  // Calculate CTC breakdown
+  const calculateCTC = useCallback(async () => {
+    const amount = parseFloat(ctcAmount.replace(/,/g, ''));
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid CTC amount');
+      return;
+    }
+
+    setCalculating(true);
+    try {
+      const payload: Record<string, unknown> = {
+        ctcAmount: amount,
+        countryCode,
+        ctcType,
+      };
+
+      if (useCustomTemplate && selectedTemplateId) {
+        payload.templateId = selectedTemplateId;
+      }
+
+      const res = await fetch('/api/payroll/ctc-calculator', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setResult(data.data);
+        setShowBreakdown('earnings');
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to calculate CTC breakdown');
+      }
+    } catch {
+      toast.error('Failed to calculate CTC breakdown');
+    } finally {
+      setCalculating(false);
+    }
+  }, [ctcAmount, countryCode, ctcType, useCustomTemplate, selectedTemplateId]);
+
+  // Auto-calculate on Enter key
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') calculateCTC();
+  };
+
+  // Normalized result components
+  const normalizedEarnings = useMemo(() => {
+    if (!result) return [];
+    return normalizeComponents(result.earnings as Record<string, { annual: number; monthly: number; pctOfCTC: string }>, IND_EARNING_LABELS);
+  }, [result]);
+
+  const normalizedEmployerContribs = useMemo(() => {
+    if (!result) return [];
+    return normalizeComponents(result.employerContributions as Record<string, { annual: number; monthly: number; pctOfCTC: string }>, IND_EMPLOYER_LABELS);
+  }, [result]);
+
+  const normalizedDeductions = useMemo(() => {
+    if (!result) return [];
+    return normalizeComponents(result.deductions as Record<string, { annual: number; monthly: number; pctOfGross: string }>, IND_DEDUCTION_LABELS);
+  }, [result]);
+
+  // LPA display helper for India
+  const formatCTCDisplay = (amount: number) => {
+    if (countryCode === 'IND') {
+      if (amount >= 10000000) return `${(amount / 10000000).toFixed(2)} Cr`;
+      if (amount >= 100000) return `${(amount / 100000).toFixed(2)} LPA`;
+    }
+    return formatCurrency(amount, currency);
+  };
+
+  // Progress bar percentage for visualization
+  const maxBarPct = 50; // Basic is typically 40%, so 50% is a good max
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <FiPercent className="w-6 h-6 text-blue-500" />
+            CTC Calculator
+          </h1>
+          <p className="text-nexus-text-secondary mt-1">
+            Enter a CTC amount to automatically get the salary breakdown for an employee
+          </p>
+        </div>
+      </div>
+
+      {/* How It Works Banner */}
+      <div className="nexus-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white">
+        <div className="p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <FiInfo className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-nexus-text-primary">How CTC Breakdown Works</h3>
+              <p className="text-xs text-nexus-text-secondary mt-1 leading-relaxed">
+                CTC (Cost to Company) includes your gross salary plus employer contributions. Gross salary comprises take-home pay plus
+                employee-side deductions. Employer contributions like PF and gratuity are set aside by the company but not received
+                directly in your monthly paycheck. Your actual in-hand salary = Gross Salary minus Employee PF, Professional Tax,
+                and Income Tax (TDS).
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ─── Input Panel ─── */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* CTC Input Card */}
+          <div className="nexus-card border-l-4 border-l-emerald-500">
+            <div className="p-5">
+              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2">
+                <FiDollarSign className="w-4 h-4 text-emerald-500" />
+                Enter CTC Details
+              </h3>
+
+              {/* Country Selection */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">Country</label>
+                <select
+                  value={countryCode}
+                  onChange={(e) => {
+                    setCountryCode(e.target.value);
+                    setResult(null);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                >
+                  {COUNTRY_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.flag} {o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* CTC Type */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">CTC Type</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setCtcType('ANNUAL'); setResult(null); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      ctcType === 'ANNUAL'
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200'
+                    }`}
+                  >
+                    Annual CTC
+                  </button>
+                  <button
+                    onClick={() => { setCtcType('MONTHLY'); setResult(null); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      ctcType === 'MONTHLY'
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200'
+                    }`}
+                  >
+                    Monthly CTC
+                  </button>
+                </div>
+              </div>
+
+              {/* CTC Amount Input */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">
+                  {ctcType === 'ANNUAL' ? 'Annual CTC Amount' : 'Monthly CTC Amount'}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-nexus-text-muted">
+                    {CURRENCY_SYMBOLS[currency] || currency}
+                  </span>
+                  <input
+                    type="text"
+                    value={ctcAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setCtcAmount(val ? parseInt(val).toLocaleString('en-IN') : '');
+                      setResult(null);
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder={countryCode === 'IND' ? 'e.g. 10,00,000' : 'e.g. 100,000'}
+                    className="w-full pl-10 pr-3 py-3 rounded-lg border border-nexus-border text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">Quick Select</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {presets.map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => {
+                        setCtcAmount(p.value.toLocaleString('en-IN'));
+                        setResult(null);
+                      }}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 text-xs font-medium text-nexus-text-secondary hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Template Selection */}
+              <div className="mb-4">
+                <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary mb-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useCustomTemplate}
+                    onChange={(e) => setUseCustomTemplate(e.target.checked)}
+                    className="rounded border-nexus-border"
+                  />
+                  Use CTC Template
+                </label>
+                {useCustomTemplate && (
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 mt-1"
+                  >
+                    <option value="">Standard Breakdown (Default)</option>
+                    {loadingTemplates ? (
+                      <option disabled>Loading templates...</option>
+                    ) : (
+                      templates.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.countryCode} - {t.ctcType})
+                          {t.isDefault ? ' ★' : ''}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
+              </div>
+
+              {/* Calculate Button */}
+              <button
+                onClick={calculateCTC}
+                disabled={calculating || !ctcAmount}
+                className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+              >
+                {calculating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Calculating...
+                  </>
+                ) : (
+                  <>
+                    <FiPercent className="w-4 h-4" />
+                    Calculate Breakdown
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Summary Sidebar (shown when result exists) */}
+          {result && (
+            <div className="nexus-card border-l-4 border-l-violet-500">
+              <div className="p-5">
+                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                  <FiTrendingUp className="w-4 h-4 text-violet-500" />
+                  Quick Summary
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-nexus-text-secondary">Annual CTC</span>
+                    <span className="text-sm font-bold text-nexus-text-primary">{formatCurrency(result.ctcAnnual, currency)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-nexus-text-secondary">Gross Salary</span>
+                    <span className="text-sm font-semibold text-blue-600">{formatCurrency(result.grossSalary.annual, currency)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-nexus-text-secondary">Total Deductions</span>
+                    <span className="text-sm font-semibold text-red-500">- {formatCurrency(result.totalDeductions.annual, currency)}</span>
+                  </div>
+                  <div className="h-px bg-nexus-border" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-nexus-text-primary">Monthly In-Hand</span>
+                    <span className="text-lg font-bold text-emerald-600">{formatCurrency(result.netTakeHome.monthly, currency)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-nexus-text-primary">Annual In-Hand</span>
+                    <span className="text-sm font-bold text-emerald-600">{formatCurrency(result.netTakeHome.annual, currency)}</span>
+                  </div>
+                </div>
+
+                {/* Ratio Visualization */}
+                <div className="mt-4 pt-3 border-t border-nexus-border">
+                  <p className="text-[10px] font-medium text-nexus-text-muted uppercase tracking-wider mb-2">CTC Composition</p>
+                  <div className="flex h-4 rounded-full overflow-hidden">
+                    <div
+                      className="bg-blue-500 transition-all"
+                      style={{ width: `${(result.grossSalary.annual / result.ctcAnnual * 100)}%` }}
+                      title={`Gross: ${formatCurrency(result.grossSalary.annual, currency)}`}
+                    />
+                    <div
+                      className="bg-purple-500 transition-all"
+                      style={{ width: `${((result.ctcAnnual - result.grossSalary.annual) / result.ctcAnnual * 100)}%` }}
+                      title={`Employer Contributions: ${formatCurrency(result.ctcAnnual - result.grossSalary.annual, currency)}`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-[10px] text-nexus-text-muted">Gross ({((result.grossSalary.annual / result.ctcAnnual) * 100).toFixed(0)}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span className="text-[10px] text-nexus-text-muted">Employer ({(((result.ctcAnnual - result.grossSalary.annual) / result.ctcAnnual) * 100).toFixed(0)}%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Result Panel ─── */}
+        <div className="lg:col-span-2 space-y-4">
+          {!result ? (
+            /* Empty State */
+            <div className="nexus-card p-16 text-center">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto mb-4">
+                <FiPercent className="w-10 h-10 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-nexus-text-primary mb-2">CTC Calculator</h3>
+              <p className="text-sm text-nexus-text-secondary max-w-md mx-auto leading-relaxed">
+                Enter a CTC amount and click Calculate to see the complete salary breakdown including
+                earnings, employer contributions, deductions, and monthly take-home pay.
+              </p>
+              <div className="mt-6 flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mx-auto mb-1">
+                    <FiTrendingUp className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <p className="text-[10px] text-nexus-text-muted">Earnings</p>
+                </div>
+                <FiArrowRight className="w-4 h-4 text-nexus-text-muted" />
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center mx-auto mb-1">
+                    <FiShield className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <p className="text-[10px] text-nexus-text-muted">Employer PF & Gratuity</p>
+                </div>
+                <FiArrowRight className="w-4 h-4 text-nexus-text-muted" />
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center mx-auto mb-1">
+                    <FiTrendingDown className="w-5 h-5 text-red-500" />
+                  </div>
+                  <p className="text-[10px] text-nexus-text-muted">Deductions</p>
+                </div>
+                <FiArrowRight className="w-4 h-4 text-nexus-text-muted" />
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-1">
+                    <FiDollarSign className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <p className="text-[10px] text-nexus-text-muted">Take-Home</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* ─── Top Cards: CTC → Gross → In-Hand ─── */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="nexus-card p-5 border-t-4 border-t-indigo-500">
+                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Annual CTC</p>
+                  <p className="text-xl font-bold text-indigo-600">{formatCurrency(result.ctcAnnual, currency)}</p>
+                  <p className="text-xs text-nexus-text-muted mt-0.5">Monthly: {formatCurrency(result.ctcMonthly, currency)}</p>
+                </div>
+                <div className="nexus-card p-5 border-t-4 border-t-blue-500">
+                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Gross Salary</p>
+                  <p className="text-xl font-bold text-blue-600">{formatCurrency(result.grossSalary.annual, currency)}</p>
+                  <p className="text-xs text-nexus-text-muted mt-0.5">Monthly: {formatCurrency(result.grossSalary.monthly, currency)}</p>
+                </div>
+                <div className="nexus-card p-5 border-t-4 border-t-emerald-500">
+                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Monthly In-Hand</p>
+                  <p className="text-xl font-bold text-emerald-600">{formatCurrency(result.netTakeHome.monthly, currency)}</p>
+                  <p className="text-xs text-nexus-text-muted mt-0.5">Annual: {formatCurrency(result.netTakeHome.annual, currency)}</p>
+                </div>
+              </div>
+
+              {/* ─── Detailed Breakdown Tabs ─── */}
+              <div className="nexus-card overflow-hidden">
+                {/* Tab Headers */}
+                <div className="flex border-b border-nexus-border bg-slate-50/50">
+                  <button
+                    onClick={() => setShowBreakdown('earnings')}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      showBreakdown === 'earnings'
+                        ? 'text-blue-600 border-b-2 border-b-blue-500 bg-white'
+                        : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                    }`}
+                  >
+                    <FiTrendingUp className="w-4 h-4" />
+                    Earnings
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">
+                      {normalizedEarnings.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setShowBreakdown('employer')}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      showBreakdown === 'employer'
+                        ? 'text-purple-600 border-b-2 border-b-purple-500 bg-white'
+                        : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                    }`}
+                  >
+                    <FiShield className="w-4 h-4" />
+                    Employer Contributions
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600">
+                      {normalizedEmployerContribs.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setShowBreakdown('deductions')}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      showBreakdown === 'deductions'
+                        ? 'text-red-600 border-b-2 border-b-red-500 bg-white'
+                        : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                    }`}
+                  >
+                    <FiTrendingDown className="w-4 h-4" />
+                    Deductions
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+                      {normalizedDeductions.length}
+                    </span>
+                  </button>
+                </div>
+
+                <div className="p-5">
+                  {/* ─── Earnings Breakdown ─── */}
+                  {showBreakdown === 'earnings' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-nexus-text-secondary">
+                          Gross Salary = Sum of all earnings = {formatCurrency(result.grossSalary.annual, currency)}/year
+                        </p>
+                      </div>
+                      {normalizedEarnings.map((comp) => {
+                        const pct = comp.pctOfCTC ? parseFloat(comp.pctOfCTC) : 0;
+                        return (
+                          <div key={comp.name} className="group">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-nexus-text-primary">{comp.name}</span>
+                                {comp.pctOfCTC && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
+                                    {comp.pctOfCTC}% of CTC
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-semibold text-nexus-text-primary">
+                                  {formatCurrency(comp.annual, currency)}
+                                </span>
+                                <span className="text-xs text-nexus-text-muted ml-2">
+                                  /mo: {formatCurrency(comp.monthly, currency)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500"
+                                style={{ width: `${Math.min(100, (pct / maxBarPct) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Gross Total */}
+                      <div className="mt-4 pt-3 border-t border-nexus-border flex items-center justify-between">
+                        <span className="text-sm font-semibold text-blue-600">Total Gross Salary</span>
+                        <div className="text-right">
+                          <span className="text-base font-bold text-blue-600">
+                            {formatCurrency(result.grossSalary.annual, currency)}
+                          </span>
+                          <span className="text-xs text-nexus-text-muted ml-2">
+                            /mo: {formatCurrency(result.grossSalary.monthly, currency)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── Employer Contributions ─── */}
+                  {showBreakdown === 'employer' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FiInfo className="w-4 h-4 text-purple-400" />
+                        <p className="text-xs text-nexus-text-secondary">
+                          These amounts are set aside by the company and are part of CTC, but not received directly in your monthly paycheck
+                        </p>
+                      </div>
+                      {normalizedEmployerContribs.map((comp) => {
+                        const pct = comp.pctOfCTC ? parseFloat(comp.pctOfCTC) : 0;
+                        return (
+                          <div key={comp.name} className="group">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-nexus-text-primary">{comp.name}</span>
+                                {comp.pctOfCTC && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">
+                                    {comp.pctOfCTC}% of CTC
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-semibold text-nexus-text-primary">
+                                  {formatCurrency(comp.annual, currency)}
+                                </span>
+                                <span className="text-xs text-nexus-text-muted ml-2">
+                                  /mo: {formatCurrency(comp.monthly, currency)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-500"
+                                style={{ width: `${Math.min(100, (pct / 20) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Employer Total */}
+                      <div className="mt-4 pt-3 border-t border-nexus-border flex items-center justify-between">
+                        <span className="text-sm font-semibold text-purple-600">Total Employer Contributions</span>
+                        <div className="text-right">
+                          <span className="text-base font-bold text-purple-600">
+                            {formatCurrency(result.ctcAnnual - result.grossSalary.annual, currency)}
+                          </span>
+                          <span className="text-xs text-nexus-text-muted ml-2">
+                            /mo: {formatCurrency(Math.round((result.ctcAnnual - result.grossSalary.annual) / 12), currency)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── Deductions Breakdown ─── */}
+                  {showBreakdown === 'deductions' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FiAlertCircle className="w-4 h-4 text-red-400" />
+                        <p className="text-xs text-nexus-text-secondary">
+                          These are subtracted from Gross Salary to arrive at your take-home pay
+                        </p>
+                      </div>
+                      {normalizedDeductions.map((comp) => {
+                        const pct = comp.pctOfGross ? parseFloat(comp.pctOfGross) : 0;
+                        return (
+                          <div key={comp.name} className="group">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-nexus-text-primary">{comp.name}</span>
+                                {comp.pctOfGross && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 font-medium">
+                                    {comp.pctOfGross}% of Gross
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-semibold text-red-500">
+                                  - {formatCurrency(comp.annual, currency)}
+                                </span>
+                                <span className="text-xs text-nexus-text-muted ml-2">
+                                  /mo: {formatCurrency(comp.monthly, currency)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-red-400 to-red-500 transition-all duration-500"
+                                style={{ width: `${Math.min(100, (pct / 30) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Deductions Total */}
+                      <div className="mt-4 pt-3 border-t border-nexus-border flex items-center justify-between">
+                        <span className="text-sm font-semibold text-red-600">Total Deductions</span>
+                        <div className="text-right">
+                          <span className="text-base font-bold text-red-500">
+                            - {formatCurrency(result.totalDeductions.annual, currency)}
+                          </span>
+                          <span className="text-xs text-nexus-text-muted ml-2">
+                            /mo: {formatCurrency(result.totalDeductions.monthly, currency)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ─── Complete Salary Structure Table ─── */}
+              <div className="nexus-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-nexus-border bg-slate-50/50">
+                  <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+                    <FiFileText className="w-4 h-4 text-blue-500" />
+                    Complete Salary Structure
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-nexus-border">
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Component</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Category</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Annual</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Monthly</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">% of CTC</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-nexus-border/50">
+                      {/* Earnings Section */}
+                      <tr className="bg-blue-50/30">
+                        <td colSpan={5} className="px-4 py-2 text-xs font-bold text-blue-600 uppercase tracking-wider">
+                          Earnings (Gross Salary Components)
+                        </td>
+                      </tr>
+                      {normalizedEarnings.map((comp) => (
+                        <tr key={comp.name} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{comp.name}</td>
+                          <td className="px-4 py-2.5">
+                            <span className="nexus-badge nexus-badge-success text-[10px]">Earning</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-right font-medium text-nexus-text-primary">{formatNumber(comp.annual, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{formatNumber(comp.monthly, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{comp.pctOfCTC || '—'}%</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-blue-50/50 font-semibold">
+                        <td className="px-4 py-2.5 text-sm text-blue-700" colSpan={2}>Gross Salary</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-blue-700">{formatNumber(result.grossSalary.annual, currency)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-blue-700">{formatNumber(result.grossSalary.monthly, currency)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-blue-700">{((result.grossSalary.annual / result.ctcAnnual) * 100).toFixed(1)}%</td>
+                      </tr>
+
+                      {/* Employer Contributions */}
+                      <tr className="bg-purple-50/30">
+                        <td colSpan={5} className="px-4 py-2 text-xs font-bold text-purple-600 uppercase tracking-wider">
+                          Employer Contributions (Part of CTC, Not in Hand)
+                        </td>
+                      </tr>
+                      {normalizedEmployerContribs.map((comp) => (
+                        <tr key={comp.name} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{comp.name}</td>
+                          <td className="px-4 py-2.5">
+                            <span className="nexus-badge nexus-badge-info text-[10px]">Employer</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-right font-medium text-nexus-text-primary">{formatNumber(comp.annual, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{formatNumber(comp.monthly, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{comp.pctOfCTC || '—'}%</td>
+                        </tr>
+                      ))}
+
+                      {/* Deductions */}
+                      <tr className="bg-red-50/30">
+                        <td colSpan={5} className="px-4 py-2 text-xs font-bold text-red-600 uppercase tracking-wider">
+                          Employee Deductions (Subtracted from Gross)
+                        </td>
+                      </tr>
+                      {normalizedDeductions.map((comp) => (
+                        <tr key={comp.name} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{comp.name}</td>
+                          <td className="px-4 py-2.5">
+                            <span className="nexus-badge nexus-badge-error text-[10px]">Deduction</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-right font-medium text-red-500">- {formatNumber(comp.annual, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-red-400">- {formatNumber(comp.monthly, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{comp.pctOfGross || comp.pctOfCTC || '—'}%</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-red-50/50 font-semibold">
+                        <td className="px-4 py-2.5 text-sm text-red-700" colSpan={2}>Total Deductions</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-red-700">- {formatNumber(result.totalDeductions.annual, currency)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-red-700">- {formatNumber(result.totalDeductions.monthly, currency)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-red-700">{((result.totalDeductions.annual / result.grossSalary.annual) * 100).toFixed(1)}%</td>
+                      </tr>
+
+                      {/* Net Take-Home */}
+                      <tr className="bg-emerald-50/30">
+                        <td colSpan={5} className="px-4 py-2 text-xs font-bold text-emerald-600 uppercase tracking-wider">
+                          Net Take-Home Salary
+                        </td>
+                      </tr>
+                      <tr className="bg-emerald-50/50 font-bold">
+                        <td className="px-4 py-3 text-base text-emerald-700" colSpan={2}>In-Hand Salary</td>
+                        <td className="px-4 py-3 text-base text-right text-emerald-700">{formatNumber(result.netTakeHome.annual, currency)}</td>
+                        <td className="px-4 py-3 text-base text-right text-emerald-700">{formatNumber(result.netTakeHome.monthly, currency)}</td>
+                        <td className="px-4 py-3 text-base text-right text-emerald-700">{((result.netTakeHome.annual / result.ctcAnnual) * 100).toFixed(1)}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ─── CTC Flow Diagram ─── */}
+              <div className="nexus-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-nexus-border bg-slate-50/50">
+                  <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+                    <FiPercent className="w-4 h-4 text-emerald-500" />
+                    CTC to In-Hand Flow
+                  </h3>
+                </div>
+                <div className="p-5">
+                  {/* Visual Flow */}
+                  <div className="flex flex-col items-center gap-3">
+                    {/* CTC Box */}
+                    <div className="w-full max-w-md p-4 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-center text-white shadow-lg">
+                      <p className="text-xs font-medium opacity-80">Cost to Company (CTC)</p>
+                      <p className="text-2xl font-bold mt-1">{formatCurrency(result.ctcAnnual, currency)}/yr</p>
+                    </div>
+                    <FiArrowRight className="w-5 h-5 text-nexus-text-muted rotate-90" />
+
+                    {/* Split: Gross + Employer */}
+                    <div className="w-full grid grid-cols-2 gap-3 max-w-md">
+                      <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-center">
+                        <p className="text-[10px] font-medium text-blue-600 uppercase">Gross Salary</p>
+                        <p className="text-sm font-bold text-blue-700 mt-1">{formatCurrency(result.grossSalary.annual, currency)}</p>
+                        <p className="text-[10px] text-blue-500">Your salary before deductions</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-center">
+                        <p className="text-[10px] font-medium text-purple-600 uppercase">Employer Contributions</p>
+                        <p className="text-sm font-bold text-purple-700 mt-1">{formatCurrency(result.ctcAnnual - result.grossSalary.annual, currency)}</p>
+                        <p className="text-[10px] text-purple-500">PF, Gratuity (not in hand)</p>
+                      </div>
+                    </div>
+                    <FiArrowRight className="w-5 h-5 text-nexus-text-muted rotate-90" />
+
+                    {/* Deductions */}
+                    <div className="w-full max-w-md p-3 rounded-xl bg-red-50 border border-red-200 text-center">
+                      <p className="text-[10px] font-medium text-red-600 uppercase">Employee Deductions</p>
+                      <p className="text-lg font-bold text-red-600 mt-1">- {formatCurrency(result.totalDeductions.annual, currency)}</p>
+                      <div className="flex items-center justify-center gap-3 mt-1">
+                        {normalizedDeductions.map((d) => (
+                          <span key={d.name} className="text-[10px] text-red-500">
+                            {d.name}: {formatCurrency(d.annual, currency)}
+                          </span>
+                        )).reduce<React.ReactNode[]>((acc, el, i) => {
+                          if (i > 0) acc.push(<span key={`sep-${i}`} className="text-red-300">|</span>);
+                          acc.push(el);
+                          return acc;
+                        }, [])}
+                      </div>
+                    </div>
+                    <FiArrowRight className="w-5 h-5 text-nexus-text-muted rotate-90" />
+
+                    {/* In-Hand */}
+                    <div className="w-full max-w-md p-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-center text-white shadow-lg">
+                      <p className="text-xs font-medium opacity-80">Monthly In-Hand Salary</p>
+                      <p className="text-2xl font-bold mt-1">{formatCurrency(result.netTakeHome.monthly, currency)}/mo</p>
+                      <p className="text-xs opacity-80 mt-1">Annual: {formatCurrency(result.netTakeHome.annual, currency)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Apply to Employee Section ─── */}
+              {isAdmin && (
+                <div className="nexus-card border-l-4 border-l-amber-500">
+                  <div className="p-5">
+                    <h3 className="text-sm font-semibold text-nexus-text-primary mb-2 flex items-center gap-2">
+                      <FiUsers className="w-4 h-4 text-amber-500" />
+                      Apply This Structure to an Employee
+                    </h3>
+                    <p className="text-xs text-nexus-text-secondary mb-3">
+                      Use this CTC breakdown to create or update an employee&apos;s salary structure. The component amounts will be
+                      saved as the employee&apos;s payroll configuration.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          toast.success('CTC structure copied! Go to Employees to apply this structure.');
+                        }}
+                        className="px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors flex items-center gap-1.5"
+                      >
+                        <FiCheck className="w-3.5 h-3.5" />
+                        Copy Structure
+                      </button>
+                      <a
+                        href="/employees"
+                        className="px-4 py-2 rounded-lg border border-nexus-border text-xs font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+                      >
+                        Go to Employees
+                        <FiArrowRight className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
