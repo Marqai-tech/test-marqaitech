@@ -184,22 +184,25 @@ export default function TenantAdminRBACPage() {
       setError(null);
       setRolesLoading(true);
       const params = new URLSearchParams();
+      params.set('_t', Date.now().toString()); // Cache bust
       if (tenantId) params.set('tenantId', tenantId);
       if (roleSearch) params.set('search', roleSearch);
-      const res = await fetch(`/api/rbac/roles?${params.toString()}`, { headers: getAuthHeaders() });
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId);
+      const res = await fetch(`/api/rbac/roles?${params.toString()}`, { headers: getAuthHeaders(), cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         let roleList: Role[] = data.roles || [];
-        // Filter by company if selected
-        if (selectedCompanyId) {
-          roleList = roleList.filter((r) => r.companyId === selectedCompanyId || !r.companyId);
-        }
         // Exclude super_admin roles for tenant admin
         roleList = roleList.filter((r) => r.key !== 'super_admin');
         setRoles(roleList);
         if (data.needsSeed) {
           toast('RBAC tables not found. Click "Seed RBAC Data" to initialize.', { icon: '⚠️', duration: 5000 });
         }
+      } else {
+        const errorData = await res.json().catch(() => null);
+        const errorMsg = errorData?.error || `Failed to load roles (status ${res.status})`;
+        toast.error(errorMsg);
+        setError(errorMsg);
       }
     } catch {
       toast.error('Failed to load roles');
@@ -309,7 +312,7 @@ export default function TenantAdminRBACPage() {
       toast.success(editingRoleId ? 'Role updated' : 'Role created');
       handleCancelForm();
       // Small delay to ensure database has committed the transaction before refreshing
-      setTimeout(() => fetchRoles(), 300);
+      setTimeout(() => fetchRoles(), 500);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Operation failed'); }
     finally { setSubmittingRole(false); }
   };

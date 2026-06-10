@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
+// Ensure this route is always dynamically rendered (never cached)
+export const dynamic = 'force-dynamic';
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -141,20 +144,22 @@ export async function GET(request: Request) {
       companyId: role.companyId,
       status: role.status,
       createdBy: role.createdBy,
-      permissions: role.permissions.map((rp) => ({
-        id: rp.id,
-        granted: rp.granted,
-        permission: {
-          id: rp.permission.id,
-          action: rp.permission.action,
-          module: {
-            id: rp.permission.module.id,
-            key: rp.permission.module.key,
-            name: rp.permission.module.name,
-            category: rp.permission.module.category,
+      permissions: role.permissions
+        .filter((rp) => rp.permission && rp.permission.module)
+        .map((rp) => ({
+          id: rp.id,
+          granted: rp.granted,
+          permission: {
+            id: rp.permission.id,
+            action: rp.permission.action,
+            module: {
+              id: rp.permission.module.id,
+              key: rp.permission.module.key,
+              name: rp.permission.module.name,
+              category: rp.permission.module.category,
+            },
           },
-        },
-      })),
+        })),
       tenant: role.tenant || null,
       company: role.company || null,
       _count: { userRoles: role._count.userRoles },
@@ -164,7 +169,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { roles: formattedRoles, total: formattedRoles.length },
-      { headers: corsHeaders() }
+      { headers: { ...corsHeaders(), 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
     );
   } catch (error) {
     console.error('Get roles error:', error);

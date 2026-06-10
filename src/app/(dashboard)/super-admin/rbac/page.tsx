@@ -151,15 +151,21 @@ export default function SuperAdminRBACPage() {
       setError(null);
       setRolesLoading(true);
       const params = new URLSearchParams();
+      params.set('_t', Date.now().toString()); // Cache bust
       if (roleSearch) params.set('search', roleSearch);
       if (tenantFilter) params.set('tenantId', tenantFilter);
-      const res = await fetch(`/api/rbac/roles?${params.toString()}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/rbac/roles?${params.toString()}`, { headers: getAuthHeaders(), cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setRoles(data.roles || []);
         if (data.needsSeed) {
           toast('RBAC tables not found. Click "Seed RBAC Data" to initialize.', { icon: '⚠️', duration: 5000 });
         }
+      } else {
+        const errorData = await res.json().catch(() => null);
+        const errorMsg = errorData?.error || `Failed to load roles (status ${res.status})`;
+        toast.error(errorMsg);
+        setError(errorMsg);
       }
     } catch {
       toast.error('Failed to load roles');
@@ -295,7 +301,7 @@ export default function SuperAdminRBACPage() {
       toast.success(editingRoleId ? 'Role updated' : 'Role created');
       handleCancelForm();
       // Small delay to ensure database has committed the transaction before refreshing
-      setTimeout(() => fetchRoles(), 300);
+      setTimeout(() => fetchRoles(), 500);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Operation failed'); }
     finally { setSubmittingRole(false); }
   };
