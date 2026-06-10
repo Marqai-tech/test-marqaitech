@@ -325,8 +325,8 @@ export default function GrievancesPage() {
       </div>
 
       {/* Module Tips & Workflow */}
-      <ModuleTips moduleKey="grievances" title="Grievance Handling Tips" tips={grievancesTips} />
-      <ModuleWorkflow moduleKey="grievances" title="How to Handle Employee Grievances" subtitle="Follow this workflow for fair and timely resolution" steps={grievancesWorkflowSteps} accentColor="rose" />
+      <ModuleTips moduleKey="grievances" title="Grievance Handling Tips" tips={grievancesTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="grievances" title="How to Handle Employee Grievances" subtitle="Follow this workflow for fair and timely resolution" steps={grievancesWorkflowSteps} accentColor="rose" userRole={user?.role} />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

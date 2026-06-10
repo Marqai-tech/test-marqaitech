@@ -316,8 +316,8 @@ export default function ExpensesPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="expenses" title="Expenses Tips" tips={expensesTips} />
-      <ModuleWorkflow moduleKey="expenses" title="How to Process Expense Claims" subtitle="Follow this workflow to submit and process expense reimbursements" steps={expensesWorkflowSteps} accentColor="amber" />
+      <ModuleTips moduleKey="expenses" title="Expenses Tips" tips={expensesTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="expenses" title="How to Process Expense Claims" subtitle="Follow this workflow to submit and process expense reimbursements" steps={expensesWorkflowSteps} accentColor="amber" userRole={user?.role} />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

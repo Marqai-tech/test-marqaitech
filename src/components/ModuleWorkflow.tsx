@@ -10,6 +10,7 @@ import {
   FiCheck,
   FiArrowRight,
 } from 'react-icons/fi';
+import { getWorkflowForRole } from '@/lib/roleTips';
 
 interface WorkflowStep {
   step: number;
@@ -25,6 +26,7 @@ interface ModuleWorkflowProps {
   steps: WorkflowStep[];
   accentColor?: 'emerald' | 'blue' | 'violet' | 'amber' | 'rose' | 'cyan';
   completedSteps?: Set<number>;
+  userRole?: string;
 }
 
 const emptySubscribe = () => () => {};
@@ -123,8 +125,14 @@ export default function ModuleWorkflow({
   steps,
   accentColor = 'emerald',
   completedSteps = new Set(),
+  userRole,
 }: ModuleWorkflowProps) {
   const router = useRouter();
+
+  // Determine which steps to display based on userRole
+  const roleFilteredSteps = userRole ? getWorkflowForRole(moduleKey, userRole) : [];
+  const activeSteps = roleFilteredSteps.length > 0 ? roleFilteredSteps : steps;
+
   const storageKey = `nexus_workflow_collapsed_${moduleKey}`;
   const dismissKey = `nexus_workflow_dismissed_${moduleKey}`;
 
@@ -168,11 +176,11 @@ export default function ModuleWorkflow({
   if (!mounted) return null;
 
   const colors = accentColorMap[accentColor];
-  const completedCount = steps.filter(s => completedSteps.has(s.step)).length;
+  const completedCount = activeSteps.filter(s => completedSteps.has(s.step)).length;
 
   const getStepStatus = (step: WorkflowStep): 'complete' | 'current' | 'pending' => {
     if (completedSteps.has(step.step)) return 'complete';
-    const firstIncomplete = steps.find(s => !completedSteps.has(s.step));
+    const firstIncomplete = activeSteps.find(s => !completedSteps.has(s.step));
     if (firstIncomplete && firstIncomplete.step === step.step) return 'current';
     return 'pending';
   };
@@ -204,7 +212,7 @@ export default function ModuleWorkflow({
             )}
           </div>
           <span className={`text-[10px] font-medium ${colors.badgeBg} px-2 py-0.5 rounded-full ml-2`}>
-            {completedCount}/{steps.length} complete
+            {completedCount}/{activeSteps.length} complete
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -226,7 +234,7 @@ export default function ModuleWorkflow({
       </div>
 
       {/* Info Banner */}
-      {!collapsed && completedCount < steps.length && (
+      {!collapsed && completedCount < activeSteps.length && (
         <div className={`mx-5 mt-4 px-4 py-3 rounded-lg ${colors.infoBannerBg} border flex items-center gap-3`}>
           <FiInfo className={`w-4 h-4 ${colors.infoBannerText} flex-shrink-0`} />
           <p className={`text-xs ${colors.infoBannerText}`}>
@@ -241,7 +249,7 @@ export default function ModuleWorkflow({
           {/* Desktop: Horizontal scrollable */}
           <div className="hidden md:block">
             <div className="flex items-start gap-0 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-slate-50">
-              {steps.map((step, index) => {
+              {activeSteps.map((step, index) => {
                 const status = getStepStatus(step);
                 const isClickable = !!step.route;
                 return (
@@ -286,7 +294,7 @@ export default function ModuleWorkflow({
                       </p>
                     </button>
                     {/* Arrow connector */}
-                    {index < steps.length - 1 && (
+                    {index < activeSteps.length - 1 && (
                       <div className="flex items-center pt-3 px-1">
                         <FiArrowRight className={`w-4 h-4 flex-shrink-0 ${
                           status === 'complete' ? colors.arrowColor : 'text-slate-200'
@@ -301,7 +309,7 @@ export default function ModuleWorkflow({
 
           {/* Mobile: Vertical layout */}
           <div className="md:hidden space-y-0">
-            {steps.map((step, index) => {
+            {activeSteps.map((step, index) => {
               const status = getStepStatus(step);
               const isClickable = !!step.route;
               return (
@@ -321,7 +329,7 @@ export default function ModuleWorkflow({
                     >
                       {status === 'complete' ? <FiCheck className="w-4 h-4" /> : step.step}
                     </button>
-                    {index < steps.length - 1 && (
+                    {index < activeSteps.length - 1 && (
                       <div className={`w-0.5 h-8 ${
                         status === 'complete' ? colors.lineColor : 'bg-slate-200'
                       }`} />

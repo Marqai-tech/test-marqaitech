@@ -286,8 +286,8 @@ export default function AIAdminPage() {
 
       {/* Module Tips & Workflow */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ModuleTips moduleKey="ai_admin" title="AI Admin Tips" tips={aiAdminTips} />
-        <ModuleWorkflow moduleKey="ai_admin" title="How to Configure AI Settings" steps={aiAdminWorkflowSteps} accentColor="violet" />
+        <ModuleTips moduleKey="ai_admin" title="AI Admin Tips" tips={aiAdminTips} userRole={user?.role} />
+        <ModuleWorkflow moduleKey="ai_admin" title="How to Configure AI Settings" steps={aiAdminWorkflowSteps} accentColor="violet" userRole={user?.role} />
       </div>
 
       {/* Stats Cards */}

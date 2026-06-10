@@ -310,8 +310,8 @@ export default function PreboardingPage() {
 
       {/* Module Tips & Workflow */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ModuleTips moduleKey="preboarding" title="Preboarding Tips" tips={preboardingTips} />
-        <ModuleWorkflow moduleKey="preboarding" title="How to Manage Pre-boarding" steps={preboardingWorkflowSteps} accentColor="emerald" />
+        <ModuleTips moduleKey="preboarding" title="Preboarding Tips" tips={preboardingTips} userRole={user?.role} />
+        <ModuleWorkflow moduleKey="preboarding" title="How to Manage Pre-boarding" steps={preboardingWorkflowSteps} accentColor="emerald" userRole={user?.role} />
       </div>
 
       {/* Stats Cards */}

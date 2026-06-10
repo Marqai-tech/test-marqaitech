@@ -6,6 +6,7 @@ import {
   FiCalendar, FiDollarSign, FiFileText, FiHelpCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -47,6 +48,7 @@ const quickActions = [
 ];
 
 export default function AIAssistantPage() {
+  const { user } = useAuthStore();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [input, setInput] = useState('');
@@ -119,8 +121,8 @@ export default function AIAssistantPage() {
     <div className="space-y-4">
       {/* Module Tips & Workflow */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ModuleTips moduleKey="ai_assistant" title="AI Assistant Tips" tips={aiAssistantTips} />
-        <ModuleWorkflow moduleKey="ai_assistant" title="How to Use AI Assistant" steps={aiAssistantWorkflowSteps} accentColor="violet" />
+        <ModuleTips moduleKey="ai_assistant" title="AI Assistant Tips" tips={aiAssistantTips} userRole={user?.role} />
+        <ModuleWorkflow moduleKey="ai_assistant" title="How to Use AI Assistant" steps={aiAssistantWorkflowSteps} accentColor="violet" userRole={user?.role} />
       </div>
 
       <div className="flex h-[calc(100vh-300px)] gap-4">

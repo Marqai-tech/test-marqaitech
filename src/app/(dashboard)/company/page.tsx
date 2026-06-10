@@ -7,6 +7,7 @@ import {
   FiFileText, FiUsers, FiDollarSign,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -139,6 +140,7 @@ const companyWorkflowSteps = [
 ];
 
 export default function CompanyManagementPage() {
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('companies');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -179,8 +181,8 @@ export default function CompanyManagementPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="company" title="Company Tips" tips={companyTips} />
-      <ModuleWorkflow moduleKey="company" title="How to Set Up Company" subtitle="Follow this workflow to configure your organization" steps={companyWorkflowSteps} accentColor="blue" />
+      <ModuleTips moduleKey="company" title="Company Tips" tips={companyTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="company" title="How to Set Up Company" subtitle="Follow this workflow to configure your organization" steps={companyWorkflowSteps} accentColor="blue" userRole={user?.role} />
 
       {/* Search */}
       <div className="relative max-w-xs">

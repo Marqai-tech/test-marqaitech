@@ -194,8 +194,8 @@ export default function RequisitionsPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="requisitions" title="Requisition Tips" tips={requisitionsTips} />
-      <ModuleWorkflow moduleKey="requisitions" title="How to Process Job Requisitions" subtitle="Follow this workflow to manage hiring requests" steps={requisitionsWorkflowSteps} accentColor="violet" />
+      <ModuleTips moduleKey="requisitions" title="Requisition Tips" tips={requisitionsTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="requisitions" title="How to Process Job Requisitions" subtitle="Follow this workflow to manage hiring requests" steps={requisitionsWorkflowSteps} accentColor="violet" userRole={user?.role} />
 
       {/* View Panel */}
       {viewingId && (() => {

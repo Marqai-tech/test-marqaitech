@@ -298,8 +298,8 @@ export default function AssetsPage() {
         )}
       </div>
 
-      <ModuleTips moduleKey="assets" title="Assets Tips" tips={assetsTips} />
-      <ModuleWorkflow moduleKey="assets" title="How to Manage Company Assets" subtitle="Follow this workflow to manage assets throughout their lifecycle" steps={assetsWorkflowSteps} accentColor="blue" />
+      <ModuleTips moduleKey="assets" title="Assets Tips" tips={assetsTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="assets" title="How to Manage Company Assets" subtitle="Follow this workflow to manage assets throughout their lifecycle" steps={assetsWorkflowSteps} accentColor="blue" userRole={user?.role} />
 
       {/* Filters & Search */}
       <div className="nexus-card p-4">

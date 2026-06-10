@@ -89,11 +89,11 @@ const navSections: NavSection[] = [
     key: 'talent-acquisition',
     label: 'Talent Acquisition',
     items: [
-      { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'] },
-      { label: 'Offers', href: '/offers', icon: <FiStar className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
+      { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'recruiter'] },
+      { label: 'Offers', href: '/offers', icon: <FiStar className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
+      { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-5 h-5" /> },
+      { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter'] },
     ],
   },
   {
@@ -103,7 +103,7 @@ const navSections: NavSection[] = [
       { label: 'Onboarding', href: '/onboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
       { label: 'Preboarding', href: '/preboarding', icon: <FiUserPlus className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'], isNew: true },
       { label: 'Separation', href: '/separation', icon: <FiLogOut className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'F&F Settlement', href: '/fnf', icon: <FiTruck className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'F&F Settlement', href: '/fnf', icon: <FiTruck className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'finance'] },
     ],
   },
   {
@@ -119,8 +119,7 @@ const navSections: NavSection[] = [
     key: 'compensation',
     label: 'Compensation',
     items: [
-      { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-      { label: 'Salary Structures', href: '/salary-structures', icon: <FiPercent className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
+      { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin', 'finance'] },
     ],
   },
   {

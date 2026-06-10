@@ -5,6 +5,7 @@ import {
   FiX, FiDollarSign, FiCheck, FiEye, FiEdit2, FiTrash2, FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -53,6 +54,7 @@ const fnfWorkflowSteps = [
 ];
 
 export default function FNFPage() {
+  const { user } = useAuthStore();
   const [calculations, setCalculations] = useState<FNFCalculation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -169,8 +171,8 @@ export default function FNFPage() {
       </div>
 
       {/* Module Tips & Workflow */}
-      <ModuleTips moduleKey="fnf" title="F&F Settlement Tips" tips={fnfTips} />
-      <ModuleWorkflow moduleKey="fnf" title="How to Process Full & Final Settlement" subtitle="Follow this workflow for accurate and timely settlement" steps={fnfWorkflowSteps} accentColor="amber" />
+      <ModuleTips moduleKey="fnf" title="F&F Settlement Tips" tips={fnfTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="fnf" title="How to Process Full & Final Settlement" subtitle="Follow this workflow for accurate and timely settlement" steps={fnfWorkflowSteps} accentColor="amber" userRole={user?.role} />
 
       {/* View Panel */}
       {viewingId && (() => {

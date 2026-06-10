@@ -5,6 +5,7 @@ import {
   FiPlus, FiX, FiTrash2, FiDollarSign, FiEye, FiEdit2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -55,6 +56,7 @@ const initialComponents: SalaryComponent[] = [
 ];
 
 export default function SalaryStructuresPage() {
+  const { user } = useAuthStore();
   const [structures, setStructures] = useState<SalaryStructure[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -200,8 +202,8 @@ export default function SalaryStructuresPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="salary_structures" title="Salary Structure Tips" tips={salaryStructuresTips} />
-      <ModuleWorkflow moduleKey="salary_structures" title="How to Create Salary Structures" subtitle="Follow this workflow to set up compensation templates" steps={salaryStructuresWorkflowSteps} accentColor="emerald" />
+      <ModuleTips moduleKey="salary_structures" title="Salary Structure Tips" tips={salaryStructuresTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="salary_structures" title="How to Create Salary Structures" subtitle="Follow this workflow to set up compensation templates" steps={salaryStructuresWorkflowSteps} accentColor="emerald" userRole={user?.role} />
 
       {/* View-only Panel */}
       {viewingId && (

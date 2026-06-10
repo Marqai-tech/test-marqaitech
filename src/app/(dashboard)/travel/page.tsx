@@ -311,8 +311,8 @@ export default function TravelPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="travel" title="Travel Tips" tips={travelTips} />
-      <ModuleWorkflow moduleKey="travel" title="How to Process Travel Requests" subtitle="Follow this workflow to manage business travel from request to completion" steps={travelWorkflowSteps} accentColor="rose" />
+      <ModuleTips moduleKey="travel" title="Travel Tips" tips={travelTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="travel" title="How to Process Travel Requests" subtitle="Follow this workflow to manage business travel from request to completion" steps={travelWorkflowSteps} accentColor="rose" userRole={user?.role} />
 
       {/* Filters & Search */}
       <div className="nexus-card p-4">

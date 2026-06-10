@@ -266,8 +266,8 @@ export default function EngagementPage() {
       </div>
 
       {/* Module Tips & Workflow */}
-      <ModuleTips moduleKey="engagement" title="Engagement Tips" tips={engagementTips} />
-      <ModuleWorkflow moduleKey="engagement" title="How to Build Employee Engagement" subtitle="Follow this workflow to improve and sustain engagement" steps={engagementWorkflowSteps} accentColor="violet" />
+      <ModuleTips moduleKey="engagement" title="Engagement Tips" tips={engagementTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="engagement" title="How to Build Employee Engagement" subtitle="Follow this workflow to improve and sustain engagement" steps={engagementWorkflowSteps} accentColor="violet" userRole={user?.role} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

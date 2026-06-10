@@ -5,6 +5,7 @@ import {
   FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -57,6 +58,7 @@ function formatStatus(status: string) {
 }
 
 export default function OffersPage() {
+  const { user } = useAuthStore();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -172,8 +174,8 @@ export default function OffersPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="offers" title="Offer Management Tips" tips={offersTips} />
-      <ModuleWorkflow moduleKey="offers" title="How to Process Job Offers" subtitle="Follow this workflow to manage the offer lifecycle" steps={offersWorkflowSteps} accentColor="amber" />
+      <ModuleTips moduleKey="offers" title="Offer Management Tips" tips={offersTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="offers" title="How to Process Job Offers" subtitle="Follow this workflow to manage the offer lifecycle" steps={offersWorkflowSteps} accentColor="amber" userRole={user?.role} />
 
       {/* View Panel */}
       {viewingId && (() => {

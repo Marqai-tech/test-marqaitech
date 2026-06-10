@@ -6,6 +6,7 @@ import {
   FiPlay, FiEye, FiEdit2, FiTrash2, FiArrowRight,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -65,6 +66,7 @@ const workflowWorkflowSteps = [
 ];
 
 export default function WorkflowsPage() {
+  const { user } = useAuthStore();
   const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,8 +204,8 @@ export default function WorkflowsPage() {
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"><FiPlus className="w-4 h-4" /> Create Workflow</button>
       </div>
 
-      <ModuleTips moduleKey="workflows" title="Workflow Tips" tips={workflowTips} />
-      <ModuleWorkflow moduleKey="workflows" title="How to Create Approval Workflows" subtitle="Follow this workflow to build effective approval processes" steps={workflowWorkflowSteps} accentColor="rose" />
+      <ModuleTips moduleKey="workflows" title="Workflow Tips" tips={workflowTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="workflows" title="How to Create Approval Workflows" subtitle="Follow this workflow to build effective approval processes" steps={workflowWorkflowSteps} accentColor="rose" userRole={user?.role} />
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         {(['definitions', 'instances'] as const).map((tab) => (

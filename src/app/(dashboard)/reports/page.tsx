@@ -11,6 +11,7 @@ import {
   FiArrowRight, FiRefreshCw, FiDatabase, FiSliders,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -220,6 +221,7 @@ function handleExportCSV(rows: Record<string, unknown>[], filename: string) {
 
 /* ── Component ── */
 export default function ReportsPage() {
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<MainTab>('standard');
   const [analytics, setAnalytics] = useState<Record<string, Record<string, unknown>> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -912,6 +914,7 @@ export default function ReportsPage() {
             { title: 'Statutory Compliance', description: 'Use the Statutory Reports tab to generate PF, ESI, PT, and TDS returns for regulatory compliance.' },
             { title: 'AI Insights', description: 'Leverage AI-powered reports for predictive analytics like attrition risk, compensation benchmarking, and anomaly detection.' },
           ]}
+          userRole={user?.role}
         />
         <ModuleWorkflow
           moduleKey="reports"
@@ -927,6 +930,7 @@ export default function ReportsPage() {
             { step: 6, title: 'Export to CSV', description: 'Download the report data as a CSV file for offline use or further processing.' },
             { step: 7, title: 'Schedule Generation', description: 'Set up regular report generation for recurring compliance and analytics needs.' },
           ]}
+          userRole={user?.role}
         />
       </div>
 

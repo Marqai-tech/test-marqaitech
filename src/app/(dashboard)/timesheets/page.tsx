@@ -324,8 +324,8 @@ export default function TimesheetsPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="timesheets" title="Timesheet Tips" tips={timesheetTips} />
-      <ModuleWorkflow moduleKey="timesheets" title="How to Process Timesheets" subtitle="Follow this workflow to ensure accurate time tracking and billing" steps={timesheetWorkflowSteps} accentColor="cyan" />
+      <ModuleTips moduleKey="timesheets" title="Timesheet Tips" tips={timesheetTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="timesheets" title="How to Process Timesheets" subtitle="Follow this workflow to ensure accurate time tracking and billing" steps={timesheetWorkflowSteps} accentColor="cyan" userRole={user?.role} />
 
       {/* Weekly Summary Card */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

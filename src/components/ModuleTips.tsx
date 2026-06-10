@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useSyncExternalStore } from 'react';
+import { useState, useCallback, useSyncExternalStore, useMemo } from 'react';
 import { FiZap, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { getTipsForRole } from '@/lib/roleTips';
 
 interface Tip {
   title: string;
@@ -12,6 +13,7 @@ interface ModuleTipsProps {
   moduleKey: string;
   title: string;
   tips: Tip[];
+  userRole?: string; // NEW: optional role for filtering
 }
 
 const emptySubscribe = () => () => {};
@@ -25,7 +27,7 @@ function getStoredDismissed(key: string): boolean {
   }
 }
 
-export default function ModuleTips({ moduleKey, title, tips }: ModuleTipsProps) {
+export default function ModuleTips({ moduleKey, title, tips, userRole }: ModuleTipsProps) {
   const storageKey = `nexus_tips_dismissed_${moduleKey}`;
   const [collapsed, setCollapsed] = useState(false);
 
@@ -37,6 +39,19 @@ export default function ModuleTips({ moduleKey, title, tips }: ModuleTipsProps) 
   );
 
   const [dismissed, setDismissed] = useState(() => getStoredDismissed(storageKey));
+
+  // Compute the effective tips based on role filtering
+  const effectiveTips = useMemo(() => {
+    if (userRole) {
+      const roleTips = getTipsForRole(moduleKey, userRole);
+      // Prefer role-filtered tips if they return items; otherwise fall back to tips prop
+      if (roleTips.length > 0) {
+        return roleTips;
+      }
+    }
+    // No userRole provided, or role filtering returned nothing — fall back to tips prop
+    return tips;
+  }, [moduleKey, userRole, tips]);
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);
@@ -73,7 +88,7 @@ export default function ModuleTips({ moduleKey, title, tips }: ModuleTipsProps) 
           </div>
           <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
           <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-            {tips.length} tips
+            {effectiveTips.length} tips
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -98,7 +113,7 @@ export default function ModuleTips({ moduleKey, title, tips }: ModuleTipsProps) 
       {!collapsed && (
         <div className="p-4 bg-gradient-to-b from-blue-50/50 to-indigo-50/30">
           <div className="space-y-3">
-            {tips.map((tip, index) => (
+            {effectiveTips.map((tip, index) => (
               <div key={index} className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mt-0.5">
                   {index + 1}

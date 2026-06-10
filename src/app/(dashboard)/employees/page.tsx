@@ -364,6 +364,7 @@ export default function EmployeesPage() {
         moduleKey="employees"
         title="Employee Tips"
         tips={employeeTips}
+        userRole={user?.role}
       />
 
       <ModuleWorkflow
@@ -372,6 +373,7 @@ export default function EmployeesPage() {
         subtitle="Follow this workflow to set up and manage your workforce"
         steps={employeeWorkflowSteps}
         accentColor="blue"
+        userRole={user?.role}
       />
 
       {/* Embedded Add/Edit Employee Form */}

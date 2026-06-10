@@ -355,6 +355,7 @@ export default function TrainingPage() {
         moduleKey="training"
         title="Training Tips"
         tips={trainingTips}
+        userRole={user?.role}
       />
 
       {/* Module Workflow */}
@@ -364,6 +365,7 @@ export default function TrainingPage() {
         subtitle="Follow this workflow to create and deliver effective training"
         steps={trainingWorkflowSteps}
         accentColor="violet"
+        userRole={user?.role}
       />
 
       {/* Search & Filters */}

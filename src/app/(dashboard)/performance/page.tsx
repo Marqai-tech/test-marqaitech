@@ -318,6 +318,7 @@ export default function PerformancePage() {
         moduleKey="performance"
         title="Performance Tips"
         tips={performanceTips}
+        userRole={user?.role}
       />
 
       {/* Module Workflow */}
@@ -327,6 +328,7 @@ export default function PerformancePage() {
         subtitle="Follow this workflow to ensure fair and comprehensive evaluations"
         steps={performanceWorkflowSteps}
         accentColor="amber"
+        userRole={user?.role}
       />
 
       {/* Search & Filters */}

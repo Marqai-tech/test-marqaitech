@@ -409,6 +409,7 @@ export default function DashboardPage() {
             { title: 'Track Notifications', description: 'Stay updated with recent activity and notifications displayed in the Recent Activity section.' },
             { title: 'Birthdays & Events', description: 'Check upcoming employee birthdays and department events to stay connected with your team.' },
           ]}
+          userRole={user?.role}
         />
         <ModuleWorkflow
           moduleKey="dashboard"
@@ -423,6 +424,7 @@ export default function DashboardPage() {
             { step: 5, title: 'Search for Employees/Actions', description: 'Use the hero search bar to quickly find employees or navigate to actions.' },
             { step: 6, title: 'Review Department Data', description: 'Check department distribution and upcoming birthdays for team awareness.' },
           ]}
+          userRole={user?.role}
         />
       </div>
 

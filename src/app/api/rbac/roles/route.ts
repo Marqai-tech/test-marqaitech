@@ -47,32 +47,56 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
     const companyId = searchParams.get('companyId');
+    const search = searchParams.get('search');
 
-    // Build where clause based on user role
-    const where: Record<string, unknown> = {};
+    // Build where clause based on user role using AND to combine conditions properly
+    const andConditions: Record<string, unknown>[] = [];
 
+    // Tenant filter
     if (user.role === 'super_admin') {
       // Super admin can see all roles, optionally filter by tenantId
       if (tenantId) {
-        where.OR = [
-          { tenantId },
-          { tenantId: null }, // Include global roles
-        ];
+        andConditions.push({
+          OR: [
+            { tenantId },
+            { tenantId: null }, // Include global roles
+          ],
+        });
       }
     } else {
       // Tenant admin and below can only see roles for their tenant
-      where.OR = [
-        { tenantId: user.tenantId },
-        { tenantId: null }, // Include global roles
-      ];
+      andConditions.push({
+        OR: [
+          { tenantId: user.tenantId },
+          { tenantId: null }, // Include global roles
+        ],
+      });
     }
 
+    // Company filter (combined with AND, not overwriting tenant filter)
     if (companyId) {
-      where.OR = [
-        { companyId },
-        { companyId: null }, // Include tenant-level (non-company-specific) roles
-      ];
+      andConditions.push({
+        OR: [
+          { companyId },
+          { companyId: null }, // Include tenant-level (non-company-specific) roles
+        ],
+      });
     }
+
+    // Search filter
+    if (search) {
+      andConditions.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { key: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const where: Record<string, unknown> = andConditions.length > 0
+      ? { AND: andConditions }
+      : {};
 
     const roles = await prisma.role.findMany({
       where,

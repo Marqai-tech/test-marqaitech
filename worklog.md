@@ -383,3 +383,113 @@ Stage Summary:
 - Payroll dashboard showing: 29 employees, $154K gross pay, 2 payroll runs, 2 holds
 - Sample data seeded across all payroll sub-menus: components, statutory, CTC templates, tax slabs, runs, inputs, currency, dimensions, compliance, GL mappings, definitions, payment methods, payslips, loans, overtime, FNF, holds, validations, bank files
 - Live site: https://nexus-hrms-mu.vercel.app/
+
+---
+Task ID: ROLE-FILTER
+Agent: Main Agent
+Task: Update ModuleTips component to support role-based filtering
+
+Work Log:
+- Read existing ModuleTips component at `/src/components/ModuleTips.tsx` (117 lines)
+- Found `@/lib/roleTips` module did not exist — created it from scratch
+- Created `/src/lib/roleTips.ts` with:
+  - `Tip` interface exported (title, description)
+  - `roleTipsMap`: Record<string, Record<string, Tip[]>> mapping moduleKey → userRole → tips
+  - Pre-populated with tips for 4 modules (dashboard, projects, analytics, settings) × 3 roles (admin, manager, viewer)
+  - `getTipsForRole(moduleKey, userRole)`: returns role-specific tips or empty array if none found
+- Updated `/src/components/ModuleTips.tsx` with:
+  1. Added optional `userRole?: string` prop to `ModuleTipsProps` interface
+  2. Imported `getTipsForRole` from `@/lib/roleTips`
+  3. Added `useMemo` to compute `effectiveTips`:
+     - If `userRole` is provided AND `getTipsForRole` returns items → use role-filtered tips
+     - Otherwise → fall back to `tips` prop (backward compatible)
+  4. Replaced all `tips` references in render with `effectiveTips` (tip count badge + map)
+  5. Added `useMemo` import from React
+- Ran lint — no new errors introduced in modified files
+- Full backward compatibility maintained: when `userRole` is not provided, behavior is identical to before
+
+Stage Summary:
+- Created: `src/lib/roleTips.ts` (role-based tip filtering utility)
+- Modified: `src/components/ModuleTips.tsx` (added userRole prop + getTipsForRole integration)
+- Backward compatible: no `userRole` = uses `tips` prop as before
+- Priority logic: role-filtered tips preferred when available; falls back to `tips` prop otherwise
+
+---
+Task ID: 5
+Agent: role-tips-config-creator
+Task: Create role-based tips/workflows configuration file
+
+Work Log:
+- Created /home/z/my-project/src/lib/roleTips.ts with comprehensive role-based tips and workflows
+- Defined 3 core interfaces: ModuleTip, WorkflowStep, RoleTipsConfig
+- Exported HrmsRole type covering all 8 roles: super_admin, tenant_admin, hr_admin, manager, employee, recruiter, finance, it_admin
+- Created roleTipsConfig with 19 module configurations:
+  1. dashboard - 6 tips, 7 workflow steps
+  2. employees - 6 tips, 8 workflow steps
+  3. company - 6 tips, 7 workflow steps
+  4. recruitment - 6 tips, 8 workflow steps
+  5. onboarding - 6 tips, 8 workflow steps
+  6. attendance - 6 tips, 8 workflow steps
+  7. leave - 6 tips, 7 workflow steps
+  8. payroll - 6 tips, 8 workflow steps
+  9. performance - 6 tips, 8 workflow steps
+  10. training - 6 tips, 7 workflow steps
+  11. engagement - 6 tips, 7 workflow steps
+  12. helpdesk - 6 tips, 7 workflow steps
+  13. travel - 6 tips, 7 workflow steps
+  14. expenses - 6 tips, 6 workflow steps
+  15. assets - 6 tips, 7 workflow steps
+  16. documents - 6 tips, 6 workflow steps
+  17. projects - 6 tips, 8 workflow steps
+  18. settings - 6 tips, 7 workflow steps
+  19. reports - 6 tips, 8 workflow steps
+- Role-based differentiation implemented:
+  - Employee tips: self-service (view profile, apply leave, check payslips)
+  - Manager tips: team management (approvals, reportee data, team performance)
+  - HR Admin tips: administration (managing employees, policies, payroll, compliance)
+  - Super Admin tips: system-level (tenant management, RBAC, audit logs)
+  - Finance tips: payroll processing, expense approvals, financial reports
+  - Recruiter tips: hiring pipeline, candidate management, interview scheduling
+- Exported 4 helper functions: getTipsForRole, getWorkflowForRole, getConfigForRole, getAllModuleKeys, hasConfigForRole
+- Fixed apostrophe syntax issues in string literals (team's → double-quoted strings)
+- Verified zero TypeScript compilation errors and zero lint errors in the file
+
+Stage Summary:
+- File created with 19 module configurations (1905 lines)
+- Each module has 4-6 role-specific tips and 5-8 workflow steps
+- Helper functions exported for role-based filtering
+- All 8 roles covered across all modules with practical, differentiated content
+
+---
+Task ID: MODULE-WORKFLOW-ROLE-FILTER
+Agent: Main Agent
+Task: Update ModuleWorkflow component to support role-based filtering
+
+Work Log:
+- Read existing ModuleWorkflow component at `/src/components/ModuleWorkflow.tsx` (387 lines)
+- Found `@/lib/roleTips.ts` already exists with `getWorkflowForRole` function and comprehensive role/workflow config
+- The existing `WorkflowStep` interface in roleTips.ts has an optional `roles?: string[]` field (not in ModuleWorkflow's local interface)
+- Updated `/src/components/ModuleWorkflow.tsx` with the following changes:
+  1. Added `import { getWorkflowForRole } from '@/lib/roleTips'` at top
+  2. Added optional `userRole?: string` prop to `ModuleWorkflowProps` interface
+  3. Added `userRole` to destructured props in function signature
+  4. Added role-filtering logic:
+     - `const roleFilteredSteps = userRole ? getWorkflowForRole(moduleKey, userRole) : [];`
+     - `const activeSteps = roleFilteredSteps.length > 0 ? roleFilteredSteps : steps;`
+  5. Replaced all `steps` references in the render logic with `activeSteps`:
+     - `completedCount` calculation: `activeSteps.filter(...)`
+     - `getStepStatus` uses `activeSteps.find(...)`
+     - Header badge: `{completedCount}/{activeSteps.length} complete`
+     - Info banner condition: `completedCount < activeSteps.length`
+     - Desktop horizontal layout: `activeSteps.map(...)` and `activeSteps.length - 1`
+     - Mobile vertical layout: `activeSteps.map(...)` and `activeSteps.length - 1`
+- Verified TypeScript compilation: zero errors for ModuleWorkflow.tsx and roleTips.ts
+- Verified lint: no new errors in modified files
+- Full backward compatibility: when `userRole` is not provided, `activeSteps` equals `steps` (the original prop)
+
+Stage Summary:
+- Modified: `src/components/ModuleWorkflow.tsx` (added userRole prop + getWorkflowForRole integration)
+- Interface updated: `userRole?: string` added as optional prop
+- Filtering logic: uses `getWorkflowForRole(moduleKey, userRole)` when role provided, falls back to `steps` prop otherwise
+- All render logic updated to use `activeSteps` instead of direct `steps` references
+- Backward compatible: no `userRole` = uses `steps` prop as before

@@ -449,6 +449,7 @@ export default function LeavePage() {
         moduleKey="leave"
         title="Leave Tips"
         tips={leaveTips}
+        userRole={user?.role}
       />
 
       <ModuleWorkflow
@@ -457,6 +458,7 @@ export default function LeavePage() {
         subtitle="Follow this workflow to manage leave requests end-to-end"
         steps={leaveWorkflowSteps}
         accentColor="amber"
+        userRole={user?.role}
       />
 
       {/* Embedded Apply Leave Form */}

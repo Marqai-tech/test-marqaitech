@@ -216,8 +216,8 @@ export default function HelpdeskPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="helpdesk" title="Helpdesk Tips" tips={helpdeskTips} />
-      <ModuleWorkflow moduleKey="helpdesk" title="How to Resolve Support Tickets" subtitle="Follow this workflow to resolve support requests efficiently" steps={helpdeskWorkflowSteps} accentColor="cyan" />
+      <ModuleTips moduleKey="helpdesk" title="Helpdesk Tips" tips={helpdeskTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="helpdesk" title="How to Resolve Support Tickets" subtitle="Follow this workflow to resolve support requests efficiently" steps={helpdeskWorkflowSteps} accentColor="cyan" userRole={user?.role} />
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         {(['my', 'all'] as const).map((tab) => (

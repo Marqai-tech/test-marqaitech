@@ -380,7 +380,7 @@ const payrollTips = [
 /* ── Component ── */
 export default function PayrollManagementPage() {
   const router = useRouter();
-  useAuthStore();
+  const { user } = useAuthStore();
 
   const [stats, setStats] = useState<SummaryStats>({
     totalEmployees: 0,
@@ -405,6 +405,16 @@ export default function PayrollManagementPage() {
   });
   const [workflowExpanded, setWorkflowExpanded] = useState(true);
 
+  /* Safely parse a settled fetch result */
+  const safeParse = async (result: PromiseSettledResult<Response>): Promise<Record<string, unknown> | null> => {
+    if (result.status !== 'fulfilled' || !result.value.ok) return null;
+    try {
+      return await result.value.json();
+    } catch {
+      return null;
+    }
+  };
+
   /* Fetch summary stats */
   const fetchStats = useCallback(async () => {
     try {
@@ -425,69 +435,59 @@ export default function PayrollManagementPage() {
         fetch('/api/payroll/payslips?limit=1', { headers }),
       ]);
 
+      const empData = await safeParse(empRes);
+      const ctcData = await safeParse(ctcRes);
+      const runsData = await safeParse(runsRes);
+      const complianceData = await safeParse(complianceRes);
+      const compData = await safeParse(compRes);
+      const statData = await safeParse(statRes);
+      const taxData = await safeParse(taxRes);
+      const payMethodData = await safeParse(payMethodRes);
+      const inputsData = await safeParse(inputsRes);
+      const validationsData = await safeParse(validationsRes);
+      const payslipsData = await safeParse(payslipsRes);
+
       let totalEmployees = 0;
       let activeCTCTemplates = 0;
       let pendingPayrollRuns = 0;
       let openComplianceItems = 0;
 
-      if (empRes.status === 'fulfilled' && empRes.value.ok) {
-        const data = await empRes.value.json();
-        totalEmployees = data.pagination?.total || data.employees?.length || 0;
+      if (empData) {
+        totalEmployees = (empData.pagination as { total?: number })?.total || (empData.employees as unknown[])?.length || 0;
       }
 
-      if (ctcRes.status === 'fulfilled' && ctcRes.value.ok) {
-        const data = await ctcRes.value.json();
-        activeCTCTemplates = (data.templates || data.ctcTemplates || []).filter(
-          (t: { status?: string }) => t.status === 'active'
-        ).length || (data.templates || data.ctcTemplates || []).length || 0;
+      if (ctcData) {
+        const templates = (ctcData.templates || ctcData.ctcTemplates || []) as Array<{ status?: string }>;
+        activeCTCTemplates = templates.filter(t => t.status === 'active').length || templates.length || 0;
       }
 
-      let runs: Array<{ status?: string }> = [];
-      if (runsRes.status === 'fulfilled' && runsRes.value.ok) {
-        const data = await runsRes.value.json();
-        runs = data.runs || data.payrollRuns || [];
-        pendingPayrollRuns = runs.filter(
-          (r: { status?: string }) => r.status === 'draft' || r.status === 'processing' || r.status === 'pending'
-        ).length;
-      }
+      const runs = ((runsData?.runs || runsData?.payrollRuns || []) as Array<{ status?: string }>) || [];
+      pendingPayrollRuns = runs.filter(
+        (r) => r.status === 'draft' || r.status === 'processing' || r.status === 'pending'
+      ).length;
 
-      if (complianceRes.status === 'fulfilled' && complianceRes.value.ok) {
-        const data = await complianceRes.value.json();
-        const items = data.compliance || data.items || [];
+      if (complianceData) {
+        const items = (complianceData.compliance || complianceData.items || []) as Array<{ status?: string }>;
         openComplianceItems = items.filter(
-          (c: { status?: string }) => c.status === 'pending' || c.status === 'overdue' || c.status === 'open'
+          (c) => c.status === 'pending' || c.status === 'overdue' || c.status === 'open'
         ).length;
       }
 
       setStats({ totalEmployees, activeCTCTemplates, pendingPayrollRuns, openComplianceItems });
 
-      // Workflow data
-      const hasComponents = compRes.status === 'fulfilled' && compRes.value.ok
-        ? (await compRes.value.json()).components?.length > 0
-        : false;
-      const hasStatutory = statRes.status === 'fulfilled' && statRes.value.ok
-        ? (await statRes.value.json()).components?.length > 0 || (await statRes.value.json()).statutory?.length > 0
-        : false;
+      // Workflow data - safely check for data existence
+      const hasComponents = compData ? ((compData.components as unknown[])?.length || 0) > 0 : false;
+      const hasStatutory = statData ? ((statData.components as unknown[])?.length || (statData.statutory as unknown[])?.length || 0) > 0 : false;
       const hasCTCTemplates = activeCTCTemplates > 0;
-      const hasTaxSlabs = taxRes.status === 'fulfilled' && taxRes.value.ok
-        ? (await taxRes.value.json()).taxSlabs?.length > 0 || (await taxRes.value.json()).slabs?.length > 0
-        : false;
-      const hasPaymentMethods = payMethodRes.status === 'fulfilled' && payMethodRes.value.ok
-        ? (await payMethodRes.value.json()).paymentMethods?.length > 0 || (await payMethodRes.value.json()).methods?.length > 0
-        : false;
-      const hasInputs = inputsRes.status === 'fulfilled' && inputsRes.value.ok
-        ? (await inputsRes.value.json()).inputs?.length > 0 || (await inputsRes.value.json()).payrollInputs?.length > 0
-        : false;
-      const hasValidations = validationsRes.status === 'fulfilled' && validationsRes.value.ok
-        ? (await validationsRes.value.json()).validations?.length > 0
-        : false;
+      const hasTaxSlabs = taxData ? ((taxData.taxSlabs as unknown[])?.length || (taxData.slabs as unknown[])?.length || 0) > 0 : false;
+      const hasPaymentMethods = payMethodData ? ((payMethodData.paymentMethods as unknown[])?.length || (payMethodData.methods as unknown[])?.length || 0) > 0 : false;
+      const hasInputs = inputsData ? ((inputsData.inputs as unknown[])?.length || (inputsData.payrollInputs as unknown[])?.length || 0) > 0 : false;
+      const hasValidations = validationsData ? ((validationsData.validations as unknown[])?.length || 0) > 0 : false;
       const hasPayrollRuns = runs.length > 0;
-      const hasApprovedRuns = runs.some((r: { status?: string }) => r.status === 'approved' || r.status === 'completed');
-      const hasPayslips = payslipsRes.status === 'fulfilled' && payslipsRes.value.ok
-        ? (await payslipsRes.value.json()).payslips?.length > 0
-        : false;
+      const hasApprovedRuns = runs.some((r) => r.status === 'approved' || r.status === 'completed');
+      const hasPayslips = payslipsData ? ((payslipsData.payslips as unknown[])?.length || 0) > 0 : false;
       const hasCompliance = openComplianceItems > 0;
-      const hasClosedRuns = runs.some((r: { status?: string }) => r.status === 'closed' || r.status === 'disbursed');
+      const hasClosedRuns = runs.some((r) => r.status === 'closed' || r.status === 'disbursed');
 
       setWorkflowData({
         hasComponents,
@@ -504,8 +504,8 @@ export default function PayrollManagementPage() {
         hasClosedRuns,
       });
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to load payroll summary');
+      console.error('Payroll summary error:', err);
+      // Don't show toast for individual API failures - the page should still render
     } finally {
       setLoadingStats(false);
     }
@@ -593,6 +593,7 @@ export default function PayrollManagementPage() {
         moduleKey="payroll"
         title="Payroll Tips"
         tips={payrollTips}
+        userRole={user?.role}
       />
 
       {/* Summary Stats */}

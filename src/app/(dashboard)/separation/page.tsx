@@ -334,8 +334,8 @@ export default function SeparationPage() {
       </div>
 
       {/* Module Tips & Workflow */}
-      <ModuleTips moduleKey="separation" title="Separation Tips" tips={separationTips} />
-      <ModuleWorkflow moduleKey="separation" title="How to Process Employee Separation" subtitle="Follow this workflow for smooth offboarding" steps={separationWorkflowSteps} accentColor="rose" />
+      <ModuleTips moduleKey="separation" title="Separation Tips" tips={separationTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="separation" title="How to Process Employee Separation" subtitle="Follow this workflow for smooth offboarding" steps={separationWorkflowSteps} accentColor="rose" userRole={user?.role} />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

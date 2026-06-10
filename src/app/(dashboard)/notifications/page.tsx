@@ -195,8 +195,8 @@ export default function NotificationsPage() {
 
       {/* Module Tips & Workflow */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ModuleTips moduleKey="notifications" title="Notification Tips" tips={notificationsTips} />
-        <ModuleWorkflow moduleKey="notifications" title="How to Manage Notifications" steps={notificationsWorkflowSteps} accentColor="blue" />
+        <ModuleTips moduleKey="notifications" title="Notification Tips" tips={notificationsTips} userRole={user?.role} />
+        <ModuleWorkflow moduleKey="notifications" title="How to Manage Notifications" steps={notificationsWorkflowSteps} accentColor="blue" userRole={user?.role} />
       </div>
 
       {/* Filters */}

@@ -7,6 +7,7 @@ import {
   FiPhone, FiDollarSign, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -54,6 +55,7 @@ const clientWorkflowSteps = [
 ];
 
 export default function ClientsPage() {
+  const { user } = useAuthStore();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -154,8 +156,8 @@ export default function ClientsPage() {
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Client</button>
       </div>
 
-      <ModuleTips moduleKey="clients" title="Client Tips" tips={clientTips} />
-      <ModuleWorkflow moduleKey="clients" title="How to Manage Client Relationships" subtitle="Follow this workflow to build strong client partnerships" steps={clientWorkflowSteps} accentColor="violet" />
+      <ModuleTips moduleKey="clients" title="Client Tips" tips={clientTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="clients" title="How to Manage Client Relationships" subtitle="Follow this workflow to build strong client partnerships" steps={clientWorkflowSteps} accentColor="violet" userRole={user?.role} />
 
       <div className="relative max-w-sm">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />

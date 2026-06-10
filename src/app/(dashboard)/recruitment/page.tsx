@@ -418,6 +418,7 @@ export default function RecruitmentPage() {
         moduleKey="recruitment"
         title="Recruitment Tips"
         tips={recruitmentTips}
+        userRole={user?.role}
       />
 
       <ModuleWorkflow
@@ -426,6 +427,7 @@ export default function RecruitmentPage() {
         subtitle="Follow this workflow to manage the full hiring process"
         steps={recruitmentWorkflowSteps}
         accentColor="violet"
+        userRole={user?.role}
       />
 
       {/* Embedded Job Posting Form (Add/Edit) */}

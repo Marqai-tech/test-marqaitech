@@ -7,6 +7,7 @@ import {
   FiDollarSign, FiPlus, FiX, FiEye, FiEdit2, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -77,6 +78,7 @@ function formatDate(d: string | null | undefined) {
 }
 
 export default function JobPortalPage() {
+  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('all');
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
@@ -172,8 +174,8 @@ export default function JobPortalPage() {
         </div>
       </div>
 
-      <ModuleTips moduleKey="job_portal" title="Job Portal Tips" tips={jobPortalTips} />
-      <ModuleWorkflow moduleKey="job_portal" title="How to Manage the Job Portal" subtitle="Follow this workflow to set up and manage your career portal" steps={jobPortalWorkflowSteps} accentColor="cyan" />
+      <ModuleTips moduleKey="job_portal" title="Job Portal Tips" tips={jobPortalTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="job_portal" title="How to Manage the Job Portal" subtitle="Follow this workflow to set up and manage your career portal" steps={jobPortalWorkflowSteps} accentColor="cyan" userRole={user?.role} />
 
       {/* Search Bar */}
       <div className="nexus-card p-6 bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200">

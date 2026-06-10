@@ -254,8 +254,8 @@ export default function SuccessionPage() {
       </div>
 
       {/* Module Tips & Workflow */}
-      <ModuleTips moduleKey="succession" title="Succession Planning Tips" tips={successionTips} />
-      <ModuleWorkflow moduleKey="succession" title="How to Build a Succession Plan" subtitle="Follow this workflow to build a robust talent pipeline" steps={successionWorkflowSteps} accentColor="blue" />
+      <ModuleTips moduleKey="succession" title="Succession Planning Tips" tips={successionTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="succession" title="How to Build a Succession Plan" subtitle="Follow this workflow to build a robust talent pipeline" steps={successionWorkflowSteps} accentColor="blue" userRole={user?.role} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

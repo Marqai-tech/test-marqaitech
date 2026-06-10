@@ -753,6 +753,7 @@ export default function SettingsPage() {
             { title: 'Backup Settings', description: 'Settings are stored locally — consider documenting critical configurations for recovery purposes.' },
             { title: 'Review Periodically', description: 'Revisit settings quarterly to align policies with evolving organizational needs and compliance requirements.' },
           ]}
+          userRole={user?.role}
         />
         <ModuleWorkflow
           moduleKey="settings"
@@ -769,6 +770,7 @@ export default function SettingsPage() {
             { step: 7, title: 'Assign Roles & Permissions', description: 'Define role-based access levels for different user types in the system.' },
             { step: 8, title: 'Test Configuration', description: 'Verify all settings are working correctly by testing in relevant modules.' },
           ]}
+          userRole={user?.role}
         />
       </div>
 

@@ -339,6 +339,7 @@ export default function OnboardingPage() {
         moduleKey="onboarding"
         title="Onboarding Tips"
         tips={onboardingTips}
+        userRole={user?.role}
       />
 
       {/* Module Workflow */}
@@ -348,6 +349,7 @@ export default function OnboardingPage() {
         subtitle="Follow this workflow to set up a new hire for success"
         steps={onboardingWorkflowSteps}
         accentColor="emerald"
+        userRole={user?.role}
       />
 
       {/* Summary Cards */}

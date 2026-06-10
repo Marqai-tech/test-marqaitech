@@ -6,6 +6,7 @@ import {
   FiEye, FiEdit2, FiTrash2, FiGlobe, FiMail, FiPhone,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -60,6 +61,7 @@ const vendorWorkflowSteps = [
 ];
 
 export default function VendorsPage() {
+  const { user } = useAuthStore();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -156,8 +158,8 @@ export default function VendorsPage() {
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Vendor</button>
       </div>
 
-      <ModuleTips moduleKey="vendors" title="Vendor Tips" tips={vendorTips} />
-      <ModuleWorkflow moduleKey="vendors" title="How to Manage Vendor Relationships" subtitle="Follow this workflow to maintain productive vendor partnerships" steps={vendorWorkflowSteps} accentColor="amber" />
+      <ModuleTips moduleKey="vendors" title="Vendor Tips" tips={vendorTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="vendors" title="How to Manage Vendor Relationships" subtitle="Follow this workflow to maintain productive vendor partnerships" steps={vendorWorkflowSteps} accentColor="amber" userRole={user?.role} />
 
       <div className="flex gap-2">
         {['all', 'vendor', 'sub_vendor'].map((t) => (

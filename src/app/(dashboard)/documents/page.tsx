@@ -304,8 +304,8 @@ export default function DocumentsPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="documents" title="Documents Tips" tips={documentsTips} />
-      <ModuleWorkflow moduleKey="documents" title="How to Manage Employee Documents" subtitle="Follow this workflow to manage documents throughout their lifecycle" steps={documentsWorkflowSteps} accentColor="violet" />
+      <ModuleTips moduleKey="documents" title="Documents Tips" tips={documentsTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="documents" title="How to Manage Employee Documents" subtitle="Follow this workflow to manage documents throughout their lifecycle" steps={documentsWorkflowSteps} accentColor="violet" userRole={user?.role} />
 
       {/* Filters & Search */}
       <div className="nexus-card p-4">

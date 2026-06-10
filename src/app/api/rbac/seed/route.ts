@@ -59,19 +59,38 @@ const LIMITED_ACTION_MODULES = ['dashboard', 'notifications', 'docs'];
 const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
 
 const SYSTEM_ROLES = [
-  { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
-  { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
-  { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true },
-  { key: 'manager', name: 'Manager', description: 'Team management access', level: 3, isSystem: true },
-  { key: 'employee', name: 'Employee', description: 'Basic employee self-service access', level: 4, isSystem: true },
-  { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access', level: 2, isSystem: true },
-  { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access', level: 5, isSystem: true },
+  { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants — manages platform configuration, RBAC, audit logs, and all tenant operations', level: 0, isSystem: true, tenantId: null as string | null },
+  { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations', level: 1, isSystem: true, tenantId: null as string | null },
+  { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant — manages all employees, payroll, recruitment, onboarding, leave, and compliance', level: 2, isSystem: true },
+  { key: 'finance', name: 'Finance Manager', description: 'Finance and payroll access — manages payroll processing, expenses, travel, financial reports, and bank file generation', level: 2, isSystem: true },
+  { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access — manages job postings, candidate pipeline, interviews, and offers', level: 2, isSystem: true },
+  { key: 'it_admin', name: 'IT Administrator', description: 'IT management access — manages helpdesk, assets, system integrations, and technical configurations', level: 2, isSystem: true },
+  { key: 'manager', name: 'Manager', description: 'Team management access — views own reportees, approves requests, manages team performance and leave', level: 3, isSystem: true },
+  { key: 'employee', name: 'Employee', description: 'Basic employee self-service access — views own profile, applies leave, checks attendance, views payslips, raises tickets', level: 4, isSystem: true },
+  { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access — views open positions, applies for jobs, attends AI interviews', level: 5, isSystem: true },
 ];
 
-const HR_ADMIN_MODULES = ['dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance', 'leave', 'timesheets', 'payroll', 'salary_structures', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'grievances', 'ai_assistant', 'docs', 'workflows', 'reports', 'notifications'];
-const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 'attendance', 'leave', 'timesheets', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects'];
-const EMPLOYEE_MODULES = ['dashboard', 'employees', 'leave', 'attendance', 'timesheets', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'expenses', 'travel', 'training'];
-const RECRUITER_MODULES = ['dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant'];
+// HR Admin: Full access to all HR modules (employees, payroll, recruitment, etc.) but NOT super_admin/tenant_admin modules
+const HR_ADMIN_MODULES = ['dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance', 'leave', 'timesheets', 'payroll', 'salary_structures', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'grievances', 'ai_assistant', 'docs', 'workflows', 'reports', 'notifications', 'settings'];
+const HR_ADMIN_FULL_ACTIONS_MODULES = ['employees', 'company', 'recruitment', 'requisitions', 'offers', 'onboarding', 'preboarding', 'payroll', 'salary_structures', 'attendance', 'leave', 'performance', 'training', 'engagement', 'helpdesk', 'grievances', 'documents', 'settings'];
+
+// Finance: Payroll processing, expenses, travel, financial reports
+const FINANCE_MODULES = ['dashboard', 'employees', 'payroll', 'salary_structures', 'expenses', 'travel', 'reports', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'];
+
+// Manager: View own reportees, approve requests, team performance (NO access to other managers' teams or admin settings)
+const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 'attendance', 'leave', 'timesheets', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects', 'expenses', 'travel'];
+
+// Employee: Self-service only — own profile, own leave, own attendance, own payslips, own expenses, own tickets
+const EMPLOYEE_MODULES = ['dashboard', 'employees', 'leave', 'attendance', 'timesheets', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'expenses', 'travel', 'training', 'payroll', 'performance'];
+const EMPLOYEE_VIEW_ONLY_MODULES = ['employees', 'payroll', 'performance'];
+
+// Recruiter: Recruitment pipeline access
+const RECRUITER_MODULES = ['dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant', 'reports'];
+
+// IT Admin: Helpdesk management, assets, system configuration
+const IT_ADMIN_MODULES = ['dashboard', 'employees', 'helpdesk', 'assets', 'documents', 'workflows', 'settings', 'notifications', 'ai_assistant', 'docs', 'reports'];
+
+// Candidate: Job portal and interview only
 const CANDIDATE_MODULES = ['job_portal', 'ai_interview', 'docs', 'notifications'];
 
 async function seedRBACData(userId?: string) {
@@ -136,18 +155,40 @@ async function seedRBACData(userId?: string) {
 
   if (createdRoles.super_admin) await assignPermissions(createdRoles.super_admin, MODULE_DEFINITIONS.map((m) => m.key));
   if (createdRoles.tenant_admin) await assignPermissions(createdRoles.tenant_admin, MODULE_DEFINITIONS.filter((m) => !ADMIN_ONLY_MODULES.includes(m.key)).map((m) => m.key));
-  if (createdRoles.hr_admin) await assignPermissions(createdRoles.hr_admin, HR_ADMIN_MODULES);
-  if (createdRoles.manager) await assignPermissions(createdRoles.manager, MANAGER_MODULES, ['view', 'create', 'edit', 'approve']);
-  if (createdRoles.employee) {
-    const viewOnly = EMPLOYEE_MODULES.filter((m) => !['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'].includes(m));
-    await assignPermissions(createdRoles.employee, viewOnly, ['view']);
-    await assignPermissions(createdRoles.employee, ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'], ['view', 'create', 'edit']);
+  if (createdRoles.hr_admin) {
+    // HR Admin gets full actions on core HR modules, view-only on others
+    await assignPermissions(createdRoles.hr_admin, HR_ADMIN_FULL_ACTIONS_MODULES, ['view', 'create', 'edit', 'delete', 'export', 'approve']);
+    const hrViewOnlyModules = HR_ADMIN_MODULES.filter((m) => !HR_ADMIN_FULL_ACTIONS_MODULES.includes(m));
+    await assignPermissions(createdRoles.hr_admin, hrViewOnlyModules, ['view', 'create', 'edit', 'export']);
   }
-  if (createdRoles.recruiter) await assignPermissions(createdRoles.recruiter, RECRUITER_MODULES, ['view', 'create', 'edit', 'export']);
+  if (createdRoles.finance) {
+    // Finance: full actions on payroll/expenses/travel, view on others
+    await assignPermissions(createdRoles.finance, ['payroll', 'salary_structures', 'expenses', 'travel'], ['view', 'create', 'edit', 'export', 'approve']);
+    await assignPermissions(createdRoles.finance, ['dashboard', 'employees', 'reports', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'], ['view']);
+  }
+  if (createdRoles.manager) {
+    // Manager: view/create/edit/approve on team-related modules, view-only on others
+    await assignPermissions(createdRoles.manager, ['employees', 'leave', 'attendance', 'timesheets', 'performance', 'expenses', 'travel', 'recruitment', 'onboarding', 'helpdesk', 'projects'], ['view', 'create', 'edit', 'approve']);
+    await assignPermissions(createdRoles.manager, ['dashboard', 'training', 'engagement', 'documents', 'ai_assistant', 'docs', 'notifications'], ['view']);
+  }
+  if (createdRoles.employee) {
+    // Employee: view-only on profile/payslips/performance, create/edit on self-service modules
+    await assignPermissions(createdRoles.employee, EMPLOYEE_VIEW_ONLY_MODULES, ['view']);
+    await assignPermissions(createdRoles.employee, ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'], ['view', 'create', 'edit']);
+    await assignPermissions(createdRoles.employee, ['dashboard', 'attendance', 'documents', 'ai_assistant', 'docs', 'notifications'], ['view']);
+  }
+  if (createdRoles.recruiter) {
+    await assignPermissions(createdRoles.recruiter, ['recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview'], ['view', 'create', 'edit', 'export']);
+    await assignPermissions(createdRoles.recruiter, ['dashboard', 'employees', 'docs', 'notifications', 'ai_assistant', 'reports'], ['view']);
+  }
+  if (createdRoles.it_admin) {
+    await assignPermissions(createdRoles.it_admin, ['helpdesk', 'assets', 'workflows', 'settings'], ['view', 'create', 'edit', 'delete', 'export']);
+    await assignPermissions(createdRoles.it_admin, ['dashboard', 'employees', 'documents', 'notifications', 'ai_assistant', 'docs', 'reports'], ['view']);
+  }
   if (createdRoles.candidate) await assignPermissions(createdRoles.candidate, CANDIDATE_MODULES, ['view', 'create']);
 
   const users = await prisma.user.findMany();
-  const roleKeyMap: Record<string, string> = { super_admin: 'super_admin', hr_admin: 'hr_admin', manager: 'manager', employee: 'employee', recruiter: 'recruiter', candidate: 'candidate' };
+  const roleKeyMap: Record<string, string> = { super_admin: 'super_admin', tenant_admin: 'tenant_admin', hr_admin: 'hr_admin', finance: 'finance', manager: 'manager', employee: 'employee', recruiter: 'recruiter', it_admin: 'it_admin', candidate: 'candidate' };
   for (const user of users) {
     const roleKey = roleKeyMap[user.role];
     if (!roleKey || !createdRoles[roleKey]) continue;

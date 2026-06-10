@@ -306,6 +306,7 @@ export default function AttendancePage() {
         moduleKey="attendance"
         title="Attendance Tips"
         tips={attendanceTips}
+        userRole={user?.role}
       />
 
       <ModuleWorkflow
@@ -314,6 +315,7 @@ export default function AttendancePage() {
         subtitle="Follow this workflow to set up and monitor attendance"
         steps={attendanceWorkflowSteps}
         accentColor="cyan"
+        userRole={user?.role}
       />
 
       {/* Today's Status Card */}

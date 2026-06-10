@@ -408,8 +408,8 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="projects" title="Project Tips" tips={projectTips} />
-      <ModuleWorkflow moduleKey="projects" title="How to Manage Projects" subtitle="Follow this workflow to deliver projects on time" steps={projectWorkflowSteps} accentColor="blue" />
+      <ModuleTips moduleKey="projects" title="Project Tips" tips={projectTips} userRole={user?.role} />
+      <ModuleWorkflow moduleKey="projects" title="How to Manage Projects" subtitle="Follow this workflow to deliver projects on time" steps={projectWorkflowSteps} accentColor="blue" userRole={user?.role} />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

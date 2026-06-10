@@ -12,6 +12,7 @@ import {
   FiSave, FiGlobe, FiLayers, FiFileText, FiActivity,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -143,6 +144,7 @@ const aiInterviewWorkflowSteps = [
 /* ═══  MAIN DASHBOARD COMPONENT                  ════ */
 /* ══════════════════════════════════════════════════ */
 export default function AIInterviewPage() {
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'sets' | 'sessions' | 'review' | 'invitations'>('overview');
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -504,8 +506,8 @@ export default function AIInterviewPage() {
 
       {/* Module Tips & Workflow */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ModuleTips moduleKey="ai_interview" title="AI Interview Tips" tips={aiInterviewTips} />
-        <ModuleWorkflow moduleKey="ai_interview" title="How to Conduct AI Interviews" steps={aiInterviewWorkflowSteps} accentColor="rose" />
+        <ModuleTips moduleKey="ai_interview" title="AI Interview Tips" tips={aiInterviewTips} userRole={user?.role} />
+        <ModuleWorkflow moduleKey="ai_interview" title="How to Conduct AI Interviews" steps={aiInterviewWorkflowSteps} accentColor="rose" userRole={user?.role} />
       </div>
 
       {/* Tabs */}
