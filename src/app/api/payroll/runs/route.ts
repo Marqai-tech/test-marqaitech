@@ -53,21 +53,24 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    let data;
+    // Convert date strings to Date objects for Prisma
+    const data = {
+      ...body,
+      periodStartDate: body.periodStartDate ? new Date(body.periodStartDate) : undefined,
+      periodEndDate: body.periodEndDate ? new Date(body.periodEndDate) : undefined,
+      payDate: body.payDate ? new Date(body.payDate) : undefined,
+      exchangeRateDate: body.exchangeRateDate ? new Date(body.exchangeRateDate) : undefined,
+    };
+    let result;
     try {
-      data = await prisma.payrollRun.create({
-        data: {
-          ...body,
-          initiatedBy: decoded.userId as string,
-        },
-      });
+      result = await prisma.payrollRun.create({ data });
     } catch (dbError: unknown) {
       const errMsg = dbError instanceof Error ? dbError.message : String(dbError);
       console.error('PayrollRun create error:', errMsg);
       return Response.json({ error: `Failed to create payroll run: ${errMsg.substring(0, 200)}` }, { status: 503, headers: corsHeaders });
     }
 
-    return Response.json({ data, message: 'Payroll run created successfully' }, { headers: corsHeaders });
+    return Response.json({ data: result, message: 'Payroll run created successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error creating payroll run:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
