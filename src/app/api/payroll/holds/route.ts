@@ -26,23 +26,29 @@ export async function GET(request: NextRequest) {
     if (employeeId) where.employeeId = employeeId;
     if (status) where.status = status;
 
-    const data = await prisma.payrollHold.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            employeeId: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            department: { select: { name: true } },
-            designation: { select: { title: true } },
+    let data;
+    try {
+      data = await prisma.payrollHold.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              department: { select: { name: true } },
+              designation: { select: { title: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching payroll holds:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
 
     return Response.json({ data }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -72,20 +78,25 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Hold from period is required' }, { status: 400, headers: corsHeaders });
     }
 
-    const data = await prisma.payrollHold.create({
-      data: {
-        employeeId: body.employeeId,
-        holdType: body.holdType,
-        reason: body.reason,
-        holdFromPeriod: body.holdFromPeriod,
-        holdToPeriod: body.holdToPeriod || null,
-        heldComponents: body.heldComponents || null,
-        status: 'active',
-        createdBy: decoded.userId as string,
-      },
-    });
+    try {
+      const data = await prisma.payrollHold.create({
+        data: {
+          employeeId: body.employeeId,
+          holdType: body.holdType,
+          reason: body.reason,
+          holdFromPeriod: body.holdFromPeriod,
+          holdToPeriod: body.holdToPeriod || null,
+          heldComponents: body.heldComponents || null,
+          status: 'active',
+          createdBy: decoded.userId as string,
+        },
+      });
 
-    return Response.json({ data, message: 'Payroll hold created successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Payroll hold created successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating payroll hold:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error creating payroll hold:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

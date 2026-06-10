@@ -28,17 +28,22 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (loanType) where.loanType = loanType;
 
-    const data = await prisma.loan.findMany({
-      where,
-      include: {
-        employee: {
-          select: { id: true, employeeId: true, firstName: true, lastName: true, email: true },
+    try {
+      const data = await prisma.loan.findMany({
+        where,
+        include: {
+          employee: {
+            select: { id: true, employeeId: true, firstName: true, lastName: true, email: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching loans:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching loans:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -77,27 +82,32 @@ export async function POST(request: NextRequest) {
     // Round to 2 decimal places
     emiAmount = Math.round(emiAmount * 100) / 100;
 
-    const data = await prisma.loan.create({
-      data: {
-        employeeId: body.employeeId,
-        loanType: body.loanType,
-        loanAmount,
-        interestRate,
-        tenureMonths,
-        emiAmount,
-        outstandingBalance: loanAmount,
-        disbursedAmount: body.disbursedAmount ? parseFloat(body.disbursedAmount) : loanAmount,
-        disbursedDate: body.disbursedDate || null,
-        startDate: new Date(body.startDate),
-        endDate: body.endDate ? new Date(body.endDate) : null,
-        recoveredAmount: 0,
-        remainingEmis: tenureMonths,
-        status: body.status || 'pending',
-        remarks: body.remarks || null,
-      },
-    });
+    try {
+      const data = await prisma.loan.create({
+        data: {
+          employeeId: body.employeeId,
+          loanType: body.loanType,
+          loanAmount,
+          interestRate,
+          tenureMonths,
+          emiAmount,
+          outstandingBalance: loanAmount,
+          disbursedAmount: body.disbursedAmount ? parseFloat(body.disbursedAmount) : loanAmount,
+          disbursedDate: body.disbursedDate || null,
+          startDate: new Date(body.startDate),
+          endDate: body.endDate ? new Date(body.endDate) : null,
+          recoveredAmount: 0,
+          remainingEmis: tenureMonths,
+          status: body.status || 'pending',
+          remarks: body.remarks || null,
+        },
+      });
 
-    return Response.json({ data, message: 'Loan created successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Loan created successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating loan:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error creating loan:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

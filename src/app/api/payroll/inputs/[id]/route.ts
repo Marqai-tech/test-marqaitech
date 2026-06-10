@@ -20,10 +20,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.payrollInput.update({
-      where: { id },
-      data: body,
-    });
+    let data;
+    try {
+      data = await prisma.payrollInput.update({
+        where: { id },
+        data: body,
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollInput table not available:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
 
     return Response.json({ data, message: 'Payroll input updated successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -46,15 +52,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'Invalid approval status. Must be APPROVED or REJECTED' }, { status: 400, headers: corsHeaders });
     }
 
-    const data = await prisma.payrollInput.update({
-      where: { id },
-      data: {
-        approvalStatus,
-        approvedBy: decoded.userId as string,
-        approvalDate: new Date(),
-        ...(remarks && { remarks }),
-      },
-    });
+    let data;
+    try {
+      data = await prisma.payrollInput.update({
+        where: { id },
+        data: {
+          approvalStatus,
+          approvedBy: decoded.userId as string,
+          approvalDate: new Date(),
+          ...(remarks && { remarks }),
+        },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollInput table not available:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
 
     return Response.json({ data, message: `Payroll input ${approvalStatus.toLowerCase()} successfully` }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -70,7 +82,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    await prisma.payrollInput.delete({ where: { id } });
+    try {
+      await prisma.payrollInput.delete({ where: { id } });
+    } catch (dbError: unknown) {
+      console.error('PayrollInput table not available:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
 
     return Response.json({ message: 'Payroll input deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

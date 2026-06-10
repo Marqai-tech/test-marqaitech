@@ -30,12 +30,17 @@ export async function GET(request: NextRequest) {
     if (fileFormat) where.fileFormat = fileFormat;
     if (payrollRunId) where.payrollRunId = payrollRunId;
 
-    const data = await prisma.bankPaymentFile.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    try {
+      const data = await prisma.bankPaymentFile.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching bank files:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching bank files:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -56,23 +61,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the payroll run
-    const payrollRun = await prisma.payrollRun.findUnique({
-      where: { id: payrollRunId },
-    });
+    let payrollRun;
+    try {
+      payrollRun = await prisma.payrollRun.findUnique({
+        where: { id: payrollRunId },
+      });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching payroll run:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
     if (!payrollRun) {
       return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
     }
 
     // Fetch all transaction lines for net pay (EARNING - DEDUCTION per employee)
-    const transactionLines = await prisma.payrollTransactionLine.findMany({
-      where: {
-        payrollRunId,
-        isReversal: false,
-      },
-      include: {
-        component: { select: { code: true, name: true, componentType: true } },
-      },
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let transactionLines: any[] = [];
+    try {
+      transactionLines = await prisma.payrollTransactionLine.findMany({
+        where: {
+          payrollRunId,
+          isReversal: false,
+        },
+        include: {
+          component: { select: { code: true, name: true, componentType: true } },
+        },
+      });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching transaction lines:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
 
     // Group by employee to calculate net pay
     const employeeMap: Record<string, {
@@ -103,17 +121,25 @@ export async function POST(request: NextRequest) {
 
     // Get employee bank details
     const employeeIds = Object.keys(employeeMap);
-    const employees = await prisma.employee.findMany({
-      where: { id: { in: employeeIds } },
-      include: {
-        employeePaymentMethods: {
-          where: { status: 'active', paymentType: 'DIRECT_DEPOSIT' },
-          orderBy: { priority: 'asc' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let employees: any[] = [];
+    try {
+      employees = await prisma.employee.findMany({
+        where: { id: { in: employeeIds } },
+        include: {
+          employeePaymentMethods: {
+            where: { status: 'active', paymentType: 'DIRECT_DEPOSIT' },
+            orderBy: { priority: 'asc' },
+          },
         },
-      },
-    });
+      });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching employees for bank file:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
 
-    const employeeLookup: Record<string, typeof employees[0]> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const employeeLookup: Record<string, any> = {};
     for (const emp of employees) {
       employeeLookup[emp.id] = emp;
     }
@@ -142,7 +168,7 @@ export async function POST(request: NextRequest) {
         if (!emp || payData.net <= 0) continue;
 
         // Get primary payment method or fall back to employee bank details
-        const paymentMethod = emp.employeePaymentMethods[0];
+        const paymentMethod = emp.employeePaymentMethods?.[0];
         const bankAccountNo = paymentMethod?.bankAccountNo || emp.bankAccountNo;
         const bankIfscCode = paymentMethod?.bankIfscCode || emp.bankIfscCode;
         const bankName = paymentMethod?.bankName || emp.bankName;
@@ -172,7 +198,7 @@ export async function POST(request: NextRequest) {
         const emp = employeeLookup[empId];
         if (!emp || payData.net <= 0) continue;
 
-        const paymentMethod = emp.employeePaymentMethods[0];
+        const paymentMethod = emp.employeePaymentMethods?.[0];
         const bankAccountNo = paymentMethod?.bankAccountNo || emp.bankAccountNo;
         const bankIfscCode = paymentMethod?.bankIfscCode || emp.bankIfscCode;
         const bankName = paymentMethod?.bankName || emp.bankName;
@@ -207,7 +233,7 @@ export async function POST(request: NextRequest) {
         const emp = employeeLookup[empId];
         if (!emp || payData.net <= 0) continue;
 
-        const paymentMethod = emp.employeePaymentMethods[0];
+        const paymentMethod = emp.employeePaymentMethods?.[0];
         const bankAccountNo = paymentMethod?.bankAccountNo || emp.bankAccountNo;
         const bankIfscCode = paymentMethod?.bankIfscCode || emp.bankIfscCode;
         const bankName = paymentMethod?.bankName || emp.bankName;
@@ -238,25 +264,30 @@ export async function POST(request: NextRequest) {
 
     // Create the bank payment file record
     const fileName = `${format}_${payrollRun.payrollPeriod}_${new Date().toISOString().split('T')[0]}.json`;
-    const bankFile = await prisma.bankPaymentFile.create({
-      data: {
-        payrollRunId,
-        fileName,
-        fileFormat: format,
-        bankCode: bankCode || null,
-        totalAmount,
-        totalRecords,
-        fileContent,
-        generatedBy: decoded.userId as string,
-        status: 'generated',
-        companyId: companyId || null,
-      },
-    });
+    try {
+      const bankFile = await prisma.bankPaymentFile.create({
+        data: {
+          payrollRunId,
+          fileName,
+          fileFormat: format,
+          bankCode: bankCode || null,
+          totalAmount,
+          totalRecords,
+          fileContent,
+          generatedBy: decoded.userId as string,
+          status: 'generated',
+          companyId: companyId || null,
+        },
+      });
 
-    return Response.json({
-      data: bankFile,
-      message: `Bank file generated successfully — ${totalRecords} records, total ${totalAmount.toFixed(2)}`,
-    }, { headers: corsHeaders });
+      return Response.json({
+        data: bankFile,
+        message: `Bank file generated successfully — ${totalRecords} records, total ${totalAmount.toFixed(2)}`,
+      }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating bank payment file:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error generating bank file:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

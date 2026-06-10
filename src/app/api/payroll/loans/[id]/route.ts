@@ -19,18 +19,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.loan.findUnique({
-      where: { id },
-      include: {
-        employee: {
-          select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, salary: true },
+    try {
+      const data = await prisma.loan.findUnique({
+        where: { id },
+        include: {
+          employee: {
+            select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, salary: true },
+          },
         },
-      },
-    });
+      });
 
-    if (!data) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
+      if (!data) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching loan:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching loan:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -47,7 +52,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
 
     // If loan amount, interest rate, or tenure is being updated, recalculate EMI
-    const existing = await prisma.loan.findUnique({ where: { id } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let existing: any = null;
+    try {
+      existing = await prisma.loan.findUnique({ where: { id } });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching loan for update:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
     if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
 
     const loanAmount = body.loanAmount ? parseFloat(body.loanAmount) : existing.loanAmount;
@@ -83,12 +95,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       ...(body.remarks !== undefined && { remarks: body.remarks }),
     };
 
-    const data = await prisma.loan.update({
-      where: { id },
-      data: updateData,
-    });
+    try {
+      const data = await prisma.loan.update({
+        where: { id },
+        data: updateData,
+      });
 
-    return Response.json({ data, message: 'Loan updated successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Loan updated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating loan:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating loan:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -109,25 +126,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'Invalid status. Must be approved, rejected, active, completed, cancelled, or defaulted' }, { status: 400, headers: corsHeaders });
     }
 
-    const existing = await prisma.loan.findUnique({ where: { id } });
-    if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
+    try {
+      const existing = await prisma.loan.findUnique({ where: { id } });
+      if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
 
-    const updateData: Record<string, unknown> = {
-      status,
-      ...(status === 'approved' && {
-        approvedBy: decoded.userId as string,
-        approvedAt: new Date(),
-        disbursedDate: existing.disbursedDate || new Date(),
-      }),
-      ...(remarks && { remarks }),
-    };
+      const updateData: Record<string, unknown> = {
+        status,
+        ...(status === 'approved' && {
+          approvedBy: decoded.userId as string,
+          approvedAt: new Date(),
+          disbursedDate: existing.disbursedDate || new Date(),
+        }),
+        ...(remarks && { remarks }),
+      };
 
-    const data = await prisma.loan.update({
-      where: { id },
-      data: updateData,
-    });
+      const data = await prisma.loan.update({
+        where: { id },
+        data: updateData,
+      });
 
-    return Response.json({ data, message: `Loan ${status} successfully` }, { headers: corsHeaders });
+      return Response.json({ data, message: `Loan ${status} successfully` }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating loan status:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating loan status:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -141,16 +163,21 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const existing = await prisma.loan.findUnique({ where: { id } });
-    if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
+    try {
+      const existing = await prisma.loan.findUnique({ where: { id } });
+      if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
 
-    if (existing.status !== 'pending') {
-      return Response.json({ error: 'Only pending loans can be deleted' }, { status: 400, headers: corsHeaders });
+      if (existing.status !== 'pending') {
+        return Response.json({ error: 'Only pending loans can be deleted' }, { status: 400, headers: corsHeaders });
+      }
+
+      await prisma.loan.delete({ where: { id } });
+
+      return Response.json({ message: 'Loan deleted successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error deleting loan:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
     }
-
-    await prisma.loan.delete({ where: { id } });
-
-    return Response.json({ message: 'Loan deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error deleting loan:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

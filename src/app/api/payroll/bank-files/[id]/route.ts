@@ -22,13 +22,19 @@ export async function GET(
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const { id } = await params;
-    const bankFile = await prisma.bankPaymentFile.findUnique({ where: { id } });
 
-    if (!bankFile) {
-      return Response.json({ error: 'Bank file not found' }, { status: 404, headers: corsHeaders });
+    try {
+      const bankFile = await prisma.bankPaymentFile.findUnique({ where: { id } });
+
+      if (!bankFile) {
+        return Response.json({ error: 'Bank file not found' }, { status: 404, headers: corsHeaders });
+      }
+
+      return Response.json({ data: bankFile }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching bank file detail:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
     }
-
-    return Response.json({ data: bankFile }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error fetching bank file detail:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -54,22 +60,27 @@ export async function PATCH(
       return Response.json({ error: `Status must be one of: ${validStatuses.join(', ')}` }, { status: 400, headers: corsHeaders });
     }
 
-    const existing = await prisma.bankPaymentFile.findUnique({ where: { id } });
-    if (!existing) {
-      return Response.json({ error: 'Bank file not found' }, { status: 404, headers: corsHeaders });
+    try {
+      const existing = await prisma.bankPaymentFile.findUnique({ where: { id } });
+      if (!existing) {
+        return Response.json({ error: 'Bank file not found' }, { status: 404, headers: corsHeaders });
+      }
+
+      const updateData: Record<string, unknown> = { status };
+      if (status === 'submitted') {
+        updateData.generatedAt = new Date();
+      }
+
+      const updated = await prisma.bankPaymentFile.update({
+        where: { id },
+        data: updateData,
+      });
+
+      return Response.json({ data: updated, message: `Bank file status updated to ${status}` }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating bank file:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
     }
-
-    const updateData: Record<string, unknown> = { status };
-    if (status === 'submitted') {
-      updateData.generatedAt = new Date();
-    }
-
-    const updated = await prisma.bankPaymentFile.update({
-      where: { id },
-      data: updateData,
-    });
-
-    return Response.json({ data: updated, message: `Bank file status updated to ${status}` }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error updating bank file:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

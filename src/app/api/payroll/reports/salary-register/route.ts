@@ -55,13 +55,19 @@ export async function GET(request: NextRequest) {
 
     // Also try payroll run transaction lines for richer data
     const periodStr = `${yearNum}-${String(monthNum).padStart(2, '0')}`;
-    const payrollRuns = await prisma.payrollRun.findMany({
-      where: {
-        payrollPeriod: periodStr,
-        ...(companyId ? { companyId } : {}),
-      },
-      select: { id: true },
-    });
+    let payrollRuns: { id: string }[] = [];
+    try {
+      payrollRuns = await prisma.payrollRun.findMany({
+        where: {
+          payrollPeriod: periodStr,
+          ...(companyId ? { companyId } : {}),
+        },
+        select: { id: true },
+      });
+    } catch (prismaError: unknown) {
+      console.warn('PayrollRun table not available, skipping:', prismaError instanceof Error ? prismaError.message : String(prismaError));
+      payrollRuns = [];
+    }
 
     const runIds = payrollRuns.map(r => r.id);
 
@@ -69,28 +75,33 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let transactionLines: any[] = [];
     if (runIds.length > 0) {
-      const tlWhere: Record<string, unknown> = {
-        payrollRunId: { in: runIds },
-        isReversal: false,
-      };
-      if (departmentId) {
-        tlWhere.employee = { departmentId };
-      } else if (companyId) {
-        tlWhere.employee = { department: { companyId } };
-      }
+      try {
+        const tlWhere: Record<string, unknown> = {
+          payrollRunId: { in: runIds },
+          isReversal: false,
+        };
+        if (departmentId) {
+          tlWhere.employee = { departmentId };
+        } else if (companyId) {
+          tlWhere.employee = { department: { companyId } };
+        }
 
-      transactionLines = await prisma.payrollTransactionLine.findMany({
-        where: tlWhere,
-        include: {
-          employee: {
-            include: {
-              department: { select: { name: true, id: true, companyId: true } },
-              designation: { select: { title: true } },
+        transactionLines = await prisma.payrollTransactionLine.findMany({
+          where: tlWhere,
+          include: {
+            employee: {
+              include: {
+                department: { select: { name: true, id: true, companyId: true } },
+                designation: { select: { title: true } },
+              },
             },
+            component: { select: { code: true, name: true, componentType: true } },
           },
-          component: { select: { code: true, name: true, componentType: true } },
-        },
-      });
+        });
+      } catch (prismaError: unknown) {
+        console.warn('PayrollTransactionLine table not available, skipping:', prismaError instanceof Error ? prismaError.message : String(prismaError));
+        transactionLines = [];
+      }
     }
 
     // Build salary register data

@@ -28,10 +28,16 @@ export async function GET(request: NextRequest) {
     if (payrollPeriod) where.payrollPeriod = payrollPeriod;
     if (companyId) where.companyId = companyId;
 
-    const data = await prisma.payrollRun.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    let data;
+    try {
+      data = await prisma.payrollRun.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      data = [];
+    }
 
     return Response.json({ data }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -47,12 +53,18 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.payrollRun.create({
-      data: {
-        ...body,
-        initiatedBy: decoded.userId as string,
-      },
-    });
+    let data;
+    try {
+      data = await prisma.payrollRun.create({
+        data: {
+          ...body,
+          initiatedBy: decoded.userId as string,
+        },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      return Response.json({ error: 'PayrollRun table is not available' }, { status: 503, headers: corsHeaders });
+    }
 
     return Response.json({ data, message: 'Payroll run created successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

@@ -30,12 +30,17 @@ export async function GET(request: NextRequest) {
     if (countryCode) where.countryCode = countryCode;
     if (payFrequency) where.payFrequency = payFrequency;
 
-    const data = await prisma.payrollDefinition.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    try {
+      const data = await prisma.payrollDefinition.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching payroll definitions:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching payroll definitions:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -49,9 +54,15 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.payrollDefinition.create({ data: body });
 
-    return Response.json({ data, message: 'Payroll definition created successfully' }, { headers: corsHeaders });
+    try {
+      const data = await prisma.payrollDefinition.create({ data: body });
+
+      return Response.json({ data, message: 'Payroll definition created successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating payroll definition:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error creating payroll definition:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

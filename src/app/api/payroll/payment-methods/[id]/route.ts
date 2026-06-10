@@ -19,24 +19,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.employeePaymentMethod.findUnique({
-      where: { id },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeId: true,
-            email: true,
+    try {
+      const data = await prisma.employeePaymentMethod.findUnique({
+        where: { id },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!data) return Response.json({ error: 'Employee payment method not found' }, { status: 404, headers: corsHeaders });
+      if (!data) return Response.json({ error: 'Employee payment method not found' }, { status: 404, headers: corsHeaders });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching employee payment method:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching employee payment method:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -54,21 +59,31 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // If this is set as primary, unset other primary methods for the same employee
     if (body.isPrimary) {
-      const existing = await prisma.employeePaymentMethod.findUnique({ where: { id } });
-      if (existing) {
-        await prisma.employeePaymentMethod.updateMany({
-          where: { employeeId: existing.employeeId, isPrimary: true, id: { not: id } },
-          data: { isPrimary: false },
-        });
+      try {
+        const existing = await prisma.employeePaymentMethod.findUnique({ where: { id } });
+        if (existing) {
+          await prisma.employeePaymentMethod.updateMany({
+            where: { employeeId: existing.employeeId, isPrimary: true, id: { not: id } },
+            data: { isPrimary: false },
+          });
+        }
+      } catch (dbError: unknown) {
+        console.error('Database error clearing primary payment methods:', dbError);
+        // Continue with update even if clearing primary fails
       }
     }
 
-    const data = await prisma.employeePaymentMethod.update({
-      where: { id },
-      data: body,
-    });
+    try {
+      const data = await prisma.employeePaymentMethod.update({
+        where: { id },
+        data: body,
+      });
 
-    return Response.json({ data, message: 'Employee payment method updated successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Employee payment method updated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating employee payment method:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating employee payment method:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -82,13 +97,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    // Soft delete - set status to inactive
-    const data = await prisma.employeePaymentMethod.update({
-      where: { id },
-      data: { status: 'inactive' },
-    });
+    try {
+      // Soft delete - set status to inactive
+      const data = await prisma.employeePaymentMethod.update({
+        where: { id },
+        data: { status: 'inactive' },
+      });
 
-    return Response.json({ data, message: 'Employee payment method deactivated successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Employee payment method deactivated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error deleting employee payment method:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error deleting employee payment method:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

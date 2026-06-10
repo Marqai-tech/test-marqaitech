@@ -30,23 +30,28 @@ export async function GET(request: NextRequest) {
     if (paymentType) where.paymentType = paymentType;
     if (isPrimary !== null && isPrimary !== undefined) where.isPrimary = isPrimary === 'true';
 
-    const data = await prisma.employeePaymentMethod.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeId: true,
-            email: true,
+    try {
+      const data = await prisma.employeePaymentMethod.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              email: true,
+            },
           },
         },
-      },
-      orderBy: [{ isPrimary: 'desc' }, { priority: 'asc' }],
-    });
+        orderBy: [{ isPrimary: 'desc' }, { priority: 'asc' }],
+      });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching employee payment methods:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching employee payment methods:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -63,15 +68,25 @@ export async function POST(request: NextRequest) {
 
     // If this is set as primary, unset other primary methods for the same employee
     if (body.isPrimary && body.employeeId) {
-      await prisma.employeePaymentMethod.updateMany({
-        where: { employeeId: body.employeeId, isPrimary: true },
-        data: { isPrimary: false },
-      });
+      try {
+        await prisma.employeePaymentMethod.updateMany({
+          where: { employeeId: body.employeeId, isPrimary: true },
+          data: { isPrimary: false },
+        });
+      } catch (dbError: unknown) {
+        console.error('Database error clearing primary payment methods:', dbError);
+        // Continue with creation even if clearing primary fails
+      }
     }
 
-    const data = await prisma.employeePaymentMethod.create({ data: body });
+    try {
+      const data = await prisma.employeePaymentMethod.create({ data: body });
 
-    return Response.json({ data, message: 'Employee payment method created successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Employee payment method created successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating employee payment method:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error creating employee payment method:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

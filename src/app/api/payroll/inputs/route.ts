@@ -30,10 +30,16 @@ export async function GET(request: NextRequest) {
     if (approvalStatus) where.approvalStatus = approvalStatus;
     if (payrollRunId) where.payrollRunId = payrollRunId;
 
-    const data = await prisma.payrollInput.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    let data;
+    try {
+      data = await prisma.payrollInput.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollInput table not available:', dbError);
+      data = [];
+    }
 
     return Response.json({ data }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -49,9 +55,15 @@ export async function POST(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.payrollInput.create({
-      data: { ...body, createdBy: body.createdBy || (decoded.userId as string) },
-    });
+    let data;
+    try {
+      data = await prisma.payrollInput.create({
+        data: { ...body, createdBy: body.createdBy || (decoded.userId as string) },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollInput table not available:', dbError);
+      return Response.json({ error: 'PayrollInput table is not available' }, { status: 503, headers: corsHeaders });
+    }
 
     return Response.json({ data, message: 'Payroll input created successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

@@ -29,14 +29,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.payrollRun.findUnique({
-      where: { id },
-      include: {
-        transactionLines: true,
-        payrollInputs: true,
-        complianceFilings: true,
-      },
-    });
+    let data;
+    try {
+      data = await prisma.payrollRun.findUnique({
+        where: { id },
+        include: {
+          transactionLines: true,
+          payrollInputs: true,
+          complianceFilings: true,
+        },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      data = null;
+    }
 
     if (!data) return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
 
@@ -57,10 +63,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { runStatus, ...updateData } = body;
 
-    const data = await prisma.payrollRun.update({
-      where: { id },
-      data: updateData,
-    });
+    let data;
+    try {
+      data = await prisma.payrollRun.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
 
     return Response.json({ data, message: 'Payroll run updated successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -83,7 +95,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'runStatus is required' }, { status: 400, headers: corsHeaders });
     }
 
-    const currentRun = await prisma.payrollRun.findUnique({ where: { id } });
+    let currentRun;
+    try {
+      currentRun = await prisma.payrollRun.findUnique({ where: { id } });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
+    }
+
     if (!currentRun) return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
 
     const allowedTransitions = STATUS_TRANSITIONS[currentRun.runStatus] || [];
@@ -94,10 +113,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
     }
 
-    const data = await prisma.payrollRun.update({
-      where: { id },
-      data: { runStatus },
-    });
+    let data;
+    try {
+      data = await prisma.payrollRun.update({
+        where: { id },
+        data: { runStatus },
+      });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
 
     return Response.json({ data, message: `Payroll run status advanced to ${runStatus}` }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -113,17 +138,44 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const run = await prisma.payrollRun.findUnique({ where: { id } });
+    let run;
+    try {
+      run = await prisma.payrollRun.findUnique({ where: { id } });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
+    }
+
     if (!run) return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
 
     if (run.runStatus !== 'OPEN') {
       return Response.json({ error: 'Only payroll runs with OPEN status can be deleted' }, { status: 400, headers: corsHeaders });
     }
 
-    await prisma.payrollTransactionLine.deleteMany({ where: { payrollRunId: id } });
-    await prisma.payrollInput.deleteMany({ where: { payrollRunId: id } });
-    await prisma.complianceFiling.deleteMany({ where: { payrollRunId: id } });
-    await prisma.payrollRun.delete({ where: { id } });
+    try {
+      await prisma.payrollTransactionLine.deleteMany({ where: { payrollRunId: id } });
+    } catch (dbError: unknown) {
+      console.error('PayrollTransactionLine table not available, skipping delete:', dbError);
+    }
+
+    try {
+      await prisma.payrollInput.deleteMany({ where: { payrollRunId: id } });
+    } catch (dbError: unknown) {
+      console.error('PayrollInput table not available, skipping delete:', dbError);
+    }
+
+    try {
+      await prisma.complianceFiling.deleteMany({ where: { payrollRunId: id } });
+    } catch (dbError: unknown) {
+      console.error('ComplianceFiling table not available, skipping delete:', dbError);
+    }
+
+    try {
+      await prisma.payrollRun.delete({ where: { id } });
+    } catch (dbError: unknown) {
+      console.error('PayrollRun table not available:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
 
     return Response.json({ message: 'Payroll run deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

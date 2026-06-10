@@ -26,25 +26,30 @@ export async function GET(request: NextRequest) {
     if (employeeId) where.employeeId = employeeId;
     if (status) where.status = status;
 
-    const data = await prisma.fNFCalculation.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            employeeId: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            department: { select: { name: true } },
-            designation: { select: { title: true } },
+    try {
+      const data = await prisma.fNFCalculation.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              department: { select: { name: true } },
+              designation: { select: { title: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching F&F calculations:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching F&F calculations:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -76,30 +81,35 @@ export async function POST(request: NextRequest) {
     const totalDeductions = noticeRecovery + assetRecovery + loanRecovery + taxDeduction + otherRecoveries;
     const netAmount = totalEarnings - totalDeductions;
 
-    const data = await prisma.fNFCalculation.create({
-      data: {
-        employeeId: body.employeeId,
-        separationId: body.separationId || null,
-        pendingSalary,
-        leaveEncashment,
-        bonus,
-        incentives,
-        reimbursements,
-        noticeRecovery,
-        assetRecovery,
-        loanRecovery,
-        taxDeduction,
-        otherRecoveries,
-        totalEarnings,
-        totalDeductions,
-        netAmount,
-        currency: body.currency || 'USD',
-        status: body.status || 'pending',
-        remarks: body.remarks || null,
-      },
-    });
+    try {
+      const data = await prisma.fNFCalculation.create({
+        data: {
+          employeeId: body.employeeId,
+          separationId: body.separationId || null,
+          pendingSalary,
+          leaveEncashment,
+          bonus,
+          incentives,
+          reimbursements,
+          noticeRecovery,
+          assetRecovery,
+          loanRecovery,
+          taxDeduction,
+          otherRecoveries,
+          totalEarnings,
+          totalDeductions,
+          netAmount,
+          currency: body.currency || 'USD',
+          status: body.status || 'pending',
+          remarks: body.remarks || null,
+        },
+      });
 
-    return Response.json({ data, message: 'F&F calculation created successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'F&F calculation created successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating F&F calculation:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error creating F&F calculation:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

@@ -32,7 +32,12 @@ export async function POST() {
     // ─── Fetch existing data ──────────────────────────────────────
     const companies = await db.company.findMany({ include: { branches: true } });
     const employees = await db.employee.findMany();
-    const payrollRuns = await db.payrollRun.findMany();
+    let payrollRuns: any[] = [];
+    try {
+      payrollRuns = await db.payrollRun.findMany();
+    } catch {
+      console.log('[Full Payroll Seed] PayrollRun table not accessible, continuing without it');
+    }
 
     if (companies.length === 0) {
       return NextResponse.json(

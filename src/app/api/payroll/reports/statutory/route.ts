@@ -36,10 +36,16 @@ export async function GET(request: NextRequest) {
     const runWhere: Record<string, unknown> = { payrollPeriod: periodStr };
     if (companyId) runWhere.companyId = companyId;
 
-    const payrollRuns = await prisma.payrollRun.findMany({
-      where: runWhere,
-      select: { id: true },
-    });
+    let payrollRuns: { id: string }[] = [];
+    try {
+      payrollRuns = await prisma.payrollRun.findMany({
+        where: runWhere,
+        select: { id: true },
+      });
+    } catch (prismaError: unknown) {
+      console.warn('PayrollRun table not available, skipping:', prismaError instanceof Error ? prismaError.message : String(prismaError));
+      payrollRuns = [];
+    }
 
     const runIds = payrollRuns.map(r => r.id);
 
@@ -54,43 +60,55 @@ export async function GET(request: NextRequest) {
     const relevantCodes = componentCodeMap[type] || [type];
 
     // Fetch statutory components for reference
-    const statutoryComponents = await prisma.statutoryComponent.findMany({
-      where: {
-        componentCode: { in: relevantCodes },
-      },
-      include: {
-        component: { select: { code: true, name: true, componentType: true } },
-      },
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let statutoryComponents: any[] = [];
+    try {
+      statutoryComponents = await prisma.statutoryComponent.findMany({
+        where: {
+          componentCode: { in: relevantCodes },
+        },
+        include: {
+          component: { select: { code: true, name: true, componentType: true } },
+        },
+      });
+    } catch (prismaError: unknown) {
+      console.warn('StatutoryComponent table not available, skipping:', prismaError instanceof Error ? prismaError.message : String(prismaError));
+      statutoryComponents = [];
+    }
 
     // Fetch transaction lines for these components
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let transactionLines: any[] = [];
     if (runIds.length > 0) {
-      const tlWhere: Record<string, unknown> = {
-        payrollRunId: { in: runIds },
-        isReversal: false,
-        OR: [
-          { componentCode: { in: relevantCodes } },
-          { componentCategory: 'STATUTORY' },
-        ],
-      };
-      if (companyId) {
-        tlWhere.employee = { department: { companyId } };
-      }
+      try {
+        const tlWhere: Record<string, unknown> = {
+          payrollRunId: { in: runIds },
+          isReversal: false,
+          OR: [
+            { componentCode: { in: relevantCodes } },
+            { componentCategory: 'STATUTORY' },
+          ],
+        };
+        if (companyId) {
+          tlWhere.employee = { department: { companyId } };
+        }
 
-      transactionLines = await prisma.payrollTransactionLine.findMany({
-        where: tlWhere,
-        include: {
-          employee: {
-            include: {
-              department: { select: { name: true } },
-              designation: { select: { title: true } },
+        transactionLines = await prisma.payrollTransactionLine.findMany({
+          where: tlWhere,
+          include: {
+            employee: {
+              include: {
+                department: { select: { name: true } },
+                designation: { select: { title: true } },
+              },
             },
+            component: { select: { code: true, name: true, componentType: true } },
           },
-          component: { select: { code: true, name: true, componentType: true } },
-        },
-      });
+        });
+      } catch (prismaError: unknown) {
+        console.warn('PayrollTransactionLine table not available, skipping:', prismaError instanceof Error ? prismaError.message : String(prismaError));
+        transactionLines = [];
+      }
     }
 
     // Build report data based on type

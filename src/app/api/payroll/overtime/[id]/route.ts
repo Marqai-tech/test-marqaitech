@@ -19,18 +19,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.overtimeRecord.findUnique({
-      where: { id },
-      include: {
-        employee: {
-          select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, salary: true },
+    try {
+      const data = await prisma.overtimeRecord.findUnique({
+        where: { id },
+        include: {
+          employee: {
+            select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, salary: true },
+          },
         },
-      },
-    });
+      });
 
-    if (!data) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
+      if (!data) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching overtime record:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching overtime record:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -46,7 +51,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const body = await request.json();
 
-    const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let existing: any = null;
+    try {
+      existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching overtime record for update:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
     if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
 
     const hours = body.hours !== undefined ? parseFloat(body.hours) : existing.hours;
@@ -62,12 +74,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         amount = hours * rate;
       } else if (rateType === 'PERCENTAGE_OF_BASIC') {
         const employeeId = body.employeeId || existing.employeeId;
-        const employee = await prisma.employee.findUnique({
-          where: { employeeId },
-          select: { salary: true },
-        });
-        const basicSalary = employee?.salary || 0;
-        amount = (basicSalary * rate) / 100;
+        try {
+          const employee = await prisma.employee.findUnique({
+            where: { employeeId },
+            select: { salary: true },
+          });
+          const basicSalary = employee?.salary || 0;
+          amount = (basicSalary * rate) / 100;
+        } catch (dbError: unknown) {
+          console.error('Database error fetching employee salary for overtime recalculation:', dbError);
+          amount = 0;
+        }
       }
       amount = Math.round(amount * 100) / 100;
     }
@@ -87,12 +104,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       ...(body.project !== undefined && { project: body.project }),
     };
 
-    const data = await prisma.overtimeRecord.update({
-      where: { id },
-      data: updateData,
-    });
+    try {
+      const data = await prisma.overtimeRecord.update({
+        where: { id },
+        data: updateData,
+      });
 
-    return Response.json({ data, message: 'Overtime record updated successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Overtime record updated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating overtime record:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating overtime record:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -113,23 +135,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'Invalid status. Must be approved, rejected, or processed' }, { status: 400, headers: corsHeaders });
     }
 
-    const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
-    if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
+    try {
+      const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+      if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
 
-    const updateData: Record<string, unknown> = {
-      status,
-      ...(status === 'approved' && {
-        approvedBy: decoded.userId as string,
-        approvedAt: new Date(),
-      }),
-    };
+      const updateData: Record<string, unknown> = {
+        status,
+        ...(status === 'approved' && {
+          approvedBy: decoded.userId as string,
+          approvedAt: new Date(),
+        }),
+      };
 
-    const data = await prisma.overtimeRecord.update({
-      where: { id },
-      data: updateData,
-    });
+      const data = await prisma.overtimeRecord.update({
+        where: { id },
+        data: updateData,
+      });
 
-    return Response.json({ data, message: `Overtime record ${status} successfully` }, { headers: corsHeaders });
+      return Response.json({ data, message: `Overtime record ${status} successfully` }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating overtime record status:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating overtime record status:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -143,16 +170,21 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
-    if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
+    try {
+      const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+      if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
 
-    if (existing.status !== 'pending') {
-      return Response.json({ error: 'Only pending overtime records can be deleted' }, { status: 400, headers: corsHeaders });
+      if (existing.status !== 'pending') {
+        return Response.json({ error: 'Only pending overtime records can be deleted' }, { status: 400, headers: corsHeaders });
+      }
+
+      await prisma.overtimeRecord.delete({ where: { id } });
+
+      return Response.json({ message: 'Overtime record deleted successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error deleting overtime record:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
     }
-
-    await prisma.overtimeRecord.delete({ where: { id } });
-
-    return Response.json({ message: 'Overtime record deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error deleting overtime record:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

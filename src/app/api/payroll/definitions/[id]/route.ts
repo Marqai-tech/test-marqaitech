@@ -19,11 +19,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.payrollDefinition.findUnique({ where: { id } });
+    try {
+      const data = await prisma.payrollDefinition.findUnique({ where: { id } });
 
-    if (!data) return Response.json({ error: 'Payroll definition not found' }, { status: 404, headers: corsHeaders });
+      if (!data) return Response.json({ error: 'Payroll definition not found' }, { status: 404, headers: corsHeaders });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching payroll definition:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching payroll definition:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -38,12 +43,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.payrollDefinition.update({
-      where: { id },
-      data: body,
-    });
 
-    return Response.json({ data, message: 'Payroll definition updated successfully' }, { headers: corsHeaders });
+    try {
+      const data = await prisma.payrollDefinition.update({
+        where: { id },
+        data: body,
+      });
+
+      return Response.json({ data, message: 'Payroll definition updated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating payroll definition:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating payroll definition:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -57,13 +68,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    // Soft delete - set status to inactive
-    const data = await prisma.payrollDefinition.update({
-      where: { id },
-      data: { status: 'inactive' },
-    });
+    try {
+      // Soft delete - set status to inactive
+      const data = await prisma.payrollDefinition.update({
+        where: { id },
+        data: { status: 'inactive' },
+      });
 
-    return Response.json({ data, message: 'Payroll definition deactivated successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Payroll definition deactivated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error deleting payroll definition:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error deleting payroll definition:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

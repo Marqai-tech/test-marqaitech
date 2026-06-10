@@ -19,40 +19,50 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.fNFCalculation.findUnique({
-      where: { id },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            employeeId: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            dateOfJoining: true,
-            department: { select: { name: true } },
-            designation: { select: { title: true } },
-            bankName: true,
-            bankAccountNo: true,
-            bankIfscCode: true,
-            panNumber: true,
+    try {
+      const data = await prisma.fNFCalculation.findUnique({
+        where: { id },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employeeId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              dateOfJoining: true,
+              department: { select: { name: true } },
+              designation: { select: { title: true } },
+              bankName: true,
+              bankAccountNo: true,
+              bankIfscCode: true,
+              panNumber: true,
+            },
           },
         },
-      },
-    });
-
-    if (!data) return Response.json({ error: 'F&F calculation not found' }, { status: 404, headers: corsHeaders });
-
-    // Also fetch separation details if separationId exists
-    let separation = null;
-    if (data.separationId) {
-      separation = await prisma.separation.findUnique({
-        where: { id: data.separationId },
       });
-    }
 
-    return Response.json({ data: { ...data, separation } }, { headers: corsHeaders });
+      if (!data) return Response.json({ error: 'F&F calculation not found' }, { status: 404, headers: corsHeaders });
+
+      // Also fetch separation details if separationId exists
+      let separation = null;
+      if (data.separationId) {
+        try {
+          separation = await prisma.separation.findUnique({
+            where: { id: data.separationId },
+          });
+        } catch (dbError: unknown) {
+          console.error('Database error fetching separation for F&F:', dbError);
+          separation = null;
+        }
+      }
+
+      return Response.json({ data: { ...data, separation } }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching F&F calculation:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching F&F calculation:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -84,29 +94,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const totalDeductions = noticeRecovery + assetRecovery + loanRecovery + taxDeduction + otherRecoveries;
     const netAmount = totalEarnings - totalDeductions;
 
-    const data = await prisma.fNFCalculation.update({
-      where: { id },
-      data: {
-        ...(body.separationId !== undefined && { separationId: body.separationId || null }),
-        pendingSalary,
-        leaveEncashment,
-        bonus,
-        incentives,
-        reimbursements,
-        noticeRecovery,
-        assetRecovery,
-        loanRecovery,
-        taxDeduction,
-        otherRecoveries,
-        totalEarnings,
-        totalDeductions,
-        netAmount,
-        ...(body.currency && { currency: body.currency }),
-        ...(body.remarks !== undefined && { remarks: body.remarks }),
-      },
-    });
+    try {
+      const data = await prisma.fNFCalculation.update({
+        where: { id },
+        data: {
+          ...(body.separationId !== undefined && { separationId: body.separationId || null }),
+          pendingSalary,
+          leaveEncashment,
+          bonus,
+          incentives,
+          reimbursements,
+          noticeRecovery,
+          assetRecovery,
+          loanRecovery,
+          taxDeduction,
+          otherRecoveries,
+          totalEarnings,
+          totalDeductions,
+          netAmount,
+          ...(body.currency && { currency: body.currency }),
+          ...(body.remarks !== undefined && { remarks: body.remarks }),
+        },
+      });
 
-    return Response.json({ data, message: 'F&F calculation updated successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'F&F calculation updated successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating F&F calculation:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating F&F calculation:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -140,12 +155,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (remarks) updateData.remarks = remarks;
 
-    const data = await prisma.fNFCalculation.update({
-      where: { id },
-      data: updateData,
-    });
+    try {
+      const data = await prisma.fNFCalculation.update({
+        where: { id },
+        data: updateData,
+      });
 
-    return Response.json({ data, message: `F&F calculation ${status} successfully` }, { headers: corsHeaders });
+      return Response.json({ data, message: `F&F calculation ${status} successfully` }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error updating F&F calculation status:', dbError);
+      return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error updating F&F calculation status:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });

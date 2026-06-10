@@ -34,17 +34,22 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const data = await prisma.overtimeRecord.findMany({
-      where,
-      include: {
-        employee: {
-          select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, salary: true },
+    try {
+      const data = await prisma.overtimeRecord.findMany({
+        where,
+        include: {
+          employee: {
+            select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, salary: true },
+          },
         },
-      },
-      orderBy: { date: 'desc' },
-    });
+        orderBy: { date: 'desc' },
+      });
 
-    return Response.json({ data }, { headers: corsHeaders });
+      return Response.json({ data }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error fetching overtime records:', dbError);
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error fetching overtime records:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
@@ -76,12 +81,17 @@ export async function POST(request: NextRequest) {
       amount = hours * rate;
     } else if (rateType === 'PERCENTAGE_OF_BASIC') {
       // Need to get employee salary for percentage calculation
-      const employee = await prisma.employee.findUnique({
-        where: { employeeId: body.employeeId },
-        select: { salary: true },
-      });
-      const basicSalary = employee?.salary || 0;
-      amount = (basicSalary * rate) / 100;
+      try {
+        const employee = await prisma.employee.findUnique({
+          where: { employeeId: body.employeeId },
+          select: { salary: true },
+        });
+        const basicSalary = employee?.salary || 0;
+        amount = (basicSalary * rate) / 100;
+      } catch (dbError: unknown) {
+        console.error('Database error fetching employee salary for overtime:', dbError);
+        amount = 0;
+      }
     }
 
     amount = Math.round(amount * 100) / 100;
@@ -91,21 +101,26 @@ export async function POST(request: NextRequest) {
       amount = parseFloat(body.amount);
     }
 
-    const data = await prisma.overtimeRecord.create({
-      data: {
-        employeeId: body.employeeId,
-        date: new Date(body.date),
-        hours,
-        rateType,
-        rate,
-        amount,
-        reason: body.reason || null,
-        project: body.project || null,
-        status: body.status || 'pending',
-      },
-    });
+    try {
+      const data = await prisma.overtimeRecord.create({
+        data: {
+          employeeId: body.employeeId,
+          date: new Date(body.date),
+          hours,
+          rateType,
+          rate,
+          amount,
+          reason: body.reason || null,
+          project: body.project || null,
+          status: body.status || 'pending',
+        },
+      });
 
-    return Response.json({ data, message: 'Overtime record created successfully' }, { headers: corsHeaders });
+      return Response.json({ data, message: 'Overtime record created successfully' }, { headers: corsHeaders });
+    } catch (dbError: unknown) {
+      console.error('Database error creating overtime record:', dbError);
+      return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
+    }
   } catch (error: unknown) {
     console.error('Error creating overtime record:', error);
     return Response.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500, headers: corsHeaders });
