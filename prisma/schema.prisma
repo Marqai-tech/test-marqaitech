@@ -74,6 +74,8 @@ model Company {
   salaryStructures SalaryStructure[]
   requisitions    Requisition[]
   roles           Role[]
+  payrollDefinitions PayrollDefinition[]
+  bankPaymentFiles BankPaymentFile[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2265,6 +2267,7 @@ model PayrollRun {
   transactionLines    PayrollTransactionLine[]
   payrollInputs       PayrollInput[]
   complianceFilings   ComplianceFiling[]
+  bankPaymentFiles    BankPaymentFile[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2406,6 +2409,7 @@ model PayrollDefinition {
   id                String   @id @default(cuid())
   name              String
   companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   payFrequency      String   @default("MONTHLY") // DAILY, WEEKLY, BI_WEEKLY, SEMI_MONTHLY, MONTHLY, QUARTERLY, SEMI_ANNUALLY, ANNUALLY
   processingCutOff  Int      @default(25) // Day of month for processing cut-off
   paymentDay        Int      @default(1) // Day of month for payment
@@ -2555,6 +2559,7 @@ model PayrollHold {
 model BankPaymentFile {
   id                String   @id @default(cuid())
   payrollRunId      String
+  payrollRun        PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
   fileName          String
   fileFormat        String   @default("NACH") // NACH, NEFT, RTGS, CUSTOM
   bankCode          String?
@@ -2567,6 +2572,7 @@ model BankPaymentFile {
   status            String   @default("generated") // generated, submitted, acknowledged, rejected
 
   companyId         String?
+  company           Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
