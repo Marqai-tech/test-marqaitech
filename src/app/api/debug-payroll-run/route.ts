@@ -3,11 +3,11 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // 1. Check PayrollRun table columns
+    // 1. Check PayrollRun table columns - cast types for Prisma compatibility
     let columns: any[] = [];
     try {
       columns = await db.$queryRaw`
-        SELECT column_name, data_type, is_nullable, column_default
+        SELECT column_name::text, data_type::text, is_nullable::text, column_default::text
         FROM information_schema.columns
         WHERE table_name = 'PayrollRun'
         ORDER BY ordinal_position
