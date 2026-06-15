@@ -13,6 +13,9 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiFilter,
+  FiHeart,
+  FiShield,
+  FiActivity,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -143,6 +146,28 @@ const initialForm = {
   salaryCurrency: 'INR',
   emergencyContactName: '',
   emergencyContactPhone: '',
+  // Health History Questionnaire
+  bloodGroup: '',
+  hasChronicIllness: '',
+  chronicIllnessDetails: '',
+  hasAllergies: '',
+  allergyDetails: '',
+  hasDisability: '',
+  disabilityDetails: '',
+  isOnMedication: '',
+  medicationDetails: '',
+  hasHadSurgery: '',
+  surgeryDetails: '',
+  emergencyMedicalCondition: '',
+  primaryPhysicianName: '',
+  primaryPhysicianPhone: '',
+  healthInsuranceProvider: '',
+  healthInsurancePolicyNo: '',
+  // Policy Mappings
+  leavePolicyId: '',
+  attendancePolicyId: '',
+  travelPolicyId: '',
+  salaryStructureId: '',
 };
 
 /* ── Component ── */
@@ -167,6 +192,12 @@ export default function EmployeesPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+
+  // Policy dropdowns
+  const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
+  const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
+  const [travelPolicies, setTravelPolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
+  const [salaryStructures, setSalaryStructures] = useState<Array<{ id: string; name: string }>>([]);
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -215,6 +246,17 @@ export default function EmployeesPage() {
         setDesignations(Array.from(desigMap.values()));
         setBranches(Array.from(branchMap.values()));
       }
+      // Fetch policy dropdowns in parallel
+      const [lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
+        fetch('/api/policies?category=leave', { headers }),
+        fetch('/api/policies?category=attendance', { headers }),
+        fetch('/api/policies?category=travel', { headers }),
+        fetch('/api/salary-structures', { headers }),
+      ]);
+      if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies(d.policies || d.data || []); }
+      if (apRes.status === 'fulfilled' && apRes.value.ok) { const d = await apRes.value.json(); setAttendancePolicies(d.policies || d.data || []); }
+      if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies(d.policies || d.data || []); }
+      if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures(d.salaryStructures || d.data || []); }
     } catch (err) {
       console.error('Failed to fetch dropdown data', err);
     }
@@ -270,6 +312,28 @@ export default function EmployeesPage() {
       salaryCurrency: emp.salaryCurrency || 'INR',
       emergencyContactName: emp.emergencyContactName || '',
       emergencyContactPhone: emp.emergencyContactPhone || '',
+      // Health History
+      bloodGroup: emp.bloodGroup || '',
+      hasChronicIllness: (emp as Record<string, unknown>).hasChronicIllness as string || '',
+      chronicIllnessDetails: (emp as Record<string, unknown>).chronicIllnessDetails as string || '',
+      hasAllergies: (emp as Record<string, unknown>).hasAllergies as string || '',
+      allergyDetails: (emp as Record<string, unknown>).allergyDetails as string || '',
+      hasDisability: (emp as Record<string, unknown>).hasDisability as string || '',
+      disabilityDetails: (emp as Record<string, unknown>).disabilityDetails as string || '',
+      isOnMedication: (emp as Record<string, unknown>).isOnMedication as string || '',
+      medicationDetails: (emp as Record<string, unknown>).medicationDetails as string || '',
+      hasHadSurgery: (emp as Record<string, unknown>).hasHadSurgery as string || '',
+      surgeryDetails: (emp as Record<string, unknown>).surgeryDetails as string || '',
+      emergencyMedicalCondition: (emp as Record<string, unknown>).emergencyMedicalCondition as string || '',
+      primaryPhysicianName: (emp as Record<string, unknown>).primaryPhysicianName as string || '',
+      primaryPhysicianPhone: (emp as Record<string, unknown>).primaryPhysicianPhone as string || '',
+      healthInsuranceProvider: (emp as Record<string, unknown>).healthInsuranceProvider as string || '',
+      healthInsurancePolicyNo: (emp as Record<string, unknown>).healthInsurancePolicyNo as string || '',
+      // Policy Mappings
+      leavePolicyId: emp.leavePolicyId || '',
+      attendancePolicyId: emp.attendancePolicyId || '',
+      travelPolicyId: emp.travelPolicyId || '',
+      salaryStructureId: emp.salaryStructureId || '',
     });
     setShowForm(true);
     setDeleteConfirmId(null);
@@ -588,6 +652,165 @@ export default function EmployeesPage() {
                   <div>
                     <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Phone</label>
                     <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Health History Questionnaire */}
+              <div>
+                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  <FiActivity className="w-4 h-4 text-red-500" />
+                  Health History Questionnaire
+                </h3>
+                <p className="text-xs text-nexus-text-muted mb-4">Capture employee health information for workplace safety and emergency preparedness. All fields are optional and confidential.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Blood Group</label>
+                    <select value={form.bloodGroup} onChange={e => updateForm('bloodGroup', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">Select</option>
+                      <option value="A+">A+</option><option value="A-">A-</option>
+                      <option value="B+">B+</option><option value="B-">B-</option>
+                      <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                      <option value="O+">O+</option><option value="O-">O-</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Chronic Illness</label>
+                    <select value={form.hasChronicIllness} onChange={e => updateForm('hasChronicIllness', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">Select</option>
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </div>
+                  {form.hasChronicIllness === 'yes' && (
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Chronic Illness Details</label>
+                      <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="e.g., Diabetes, Hypertension" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Known Allergies</label>
+                    <select value={form.hasAllergies} onChange={e => updateForm('hasAllergies', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">Select</option>
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </div>
+                  {form.hasAllergies === 'yes' && (
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Allergy Details</label>
+                      <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="e.g., Penicillin, Peanuts, Dust" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disability</label>
+                    <select value={form.hasDisability} onChange={e => updateForm('hasDisability', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">Select</option>
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </div>
+                  {form.hasDisability === 'yes' && (
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disability Details</label>
+                      <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability & accommodations needed" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currently on Medication</label>
+                    <select value={form.isOnMedication} onChange={e => updateForm('isOnMedication', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">Select</option>
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </div>
+                  {form.isOnMedication === 'yes' && (
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Medication Details</label>
+                      <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications & dosage" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Previous Surgeries</label>
+                    <select value={form.hasHadSurgery} onChange={e => updateForm('hasHadSurgery', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">Select</option>
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </div>
+                  {form.hasHadSurgery === 'yes' && (
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Surgery Details</label>
+                      <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Type & year of surgery" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  )}
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Emergency Medical Condition</label>
+                    <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} placeholder="Any critical condition to alert medical responders (e.g., Epilepsy, Asthma)" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  </div>
+                </div>
+
+                {/* Physician & Insurance */}
+                <div className="mt-4 pt-4 border-t border-nexus-border/50">
+                  <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Physician & Insurance</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Primary Physician Name</label>
+                      <input type="text" value={form.primaryPhysicianName} onChange={e => updateForm('primaryPhysicianName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Physician Phone</label>
+                      <input type="tel" value={form.primaryPhysicianPhone} onChange={e => updateForm('primaryPhysicianPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Health Insurance Provider</label>
+                      <input type="text" value={form.healthInsuranceProvider} onChange={e => updateForm('healthInsuranceProvider', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Insurance Policy Number</label>
+                      <input type="text" value={form.healthInsurancePolicyNo} onChange={e => updateForm('healthInsurancePolicyNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Policy & Structure Mappings */}
+              <div>
+                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                  <FiShield className="w-4 h-4 text-violet-500" />
+                  Policy &amp; Structure Mappings
+                </h3>
+                <p className="text-xs text-nexus-text-muted mb-4">Assign leave, attendance, travel policies and salary structure. Can also be configured later from the employee detail page.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Leave Policy</label>
+                    <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">— Not Assigned —</option>
+                      {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Attendance Policy</label>
+                    <select value={form.attendancePolicyId} onChange={e => updateForm('attendancePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">— Not Assigned —</option>
+                      {attendancePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Travel Policy</label>
+                    <select value={form.travelPolicyId} onChange={e => updateForm('travelPolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">— Not Assigned —</option>
+                      {travelPolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary Structure</label>
+                    <select value={form.salaryStructureId} onChange={e => updateForm('salaryStructureId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <option value="">— Not Assigned —</option>
+                      {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
                   </div>
                 </div>
               </div>

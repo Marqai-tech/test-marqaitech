@@ -1088,17 +1088,27 @@ function SettingsContent() {
                             Edit Profile
                           </button>
                         ) : (
-                          <button
-                            onClick={() => setEditingProfile(false)}
-                            className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
-                          >
-                            <FiX className="w-5 h-5" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setEditingProfile(false)}
+                              className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleSaveProfile}
+                              disabled={profileSaving}
+                              className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors"
+                            >
+                              <FiSave className="w-4 h-4" />
+                              {profileSaving ? 'Saving...' : 'Save Profile'}
+                            </button>
+                          </div>
                         )}
                       </div>
 
                       {/* Avatar + Name Row */}
-                      <div className="flex items-center gap-4 mb-6 pb-6 border-b border-nexus-border">
+                      <div className="flex items-center gap-4 pb-6 border-b border-nexus-border">
                         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/20">
                           {profileData.name ? profileData.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
                         </div>
@@ -1113,197 +1123,196 @@ function SettingsContent() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                  </div>
 
-                      {/* Basic Information */}
-                      <div className="mb-6">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
-                          <FiUser className="w-4 h-4 text-blue-500" />
+                  {/* Horizontal Section Cards */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Basic Information Card */}
+                    <div className="nexus-card">
+                      <div className="p-5">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
+                          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><FiUser className="w-4 h-4 text-blue-500" /></div>
                           Basic Information
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Full Name</label>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Full Name</label>
                             {editingProfile ? (
-                              <input type="text" value={profileData.name} onChange={(e) => setProfileData(p => p ? { ...p, name: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              <input type="text" value={profileData.name} onChange={(e) => setProfileData(p => p ? { ...p, name: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.name || '—'}</p>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.name || '—'}</p>
                             )}
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1 flex items-center gap-1"><FiMail className="w-3 h-3" /> Official Email</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.email || '—'}</p>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1 flex items-center gap-1"><FiMail className="w-3 h-3" /> Official Email</label>
+                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.email || '—'}</p>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1 flex items-center gap-1"><FiPhone className="w-3 h-3" /> Phone</label>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1 flex items-center gap-1"><FiPhone className="w-3 h-3" /> Phone</label>
                             {editingProfile ? (
-                              <input type="tel" value={profileData.phone} onChange={(e) => setProfileData(p => p ? { ...p, phone: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="+91 98765 43210" />
+                              <input type="tel" value={profileData.phone} onChange={(e) => setProfileData(p => p ? { ...p, phone: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="+91 98765 43210" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.phone || '—'}</p>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.phone || '—'}</p>
                             )}
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Gender</label>
-                            {editingProfile ? (
-                              <select value={profileData.gender} onChange={(e) => setProfileData(p => p ? { ...p, gender: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
-                                <option value="">Select</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                              </select>
-                            ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{profileData.gender || '—'}</p>
-                            )}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Gender</label>
+                              {editingProfile ? (
+                                <select value={profileData.gender} onChange={(e) => setProfileData(p => p ? { ...p, gender: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
+                                  <option value="">Select</option>
+                                  <option value="male">Male</option>
+                                  <option value="female">Female</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              ) : (
+                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{profileData.gender || '—'}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Blood Group</label>
+                              {editingProfile ? (
+                                <select value={profileData.bloodGroup} onChange={(e) => setProfileData(p => p ? { ...p, bloodGroup: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
+                                  <option value="">Select</option>
+                                  <option value="A+">A+</option><option value="A-">A-</option>
+                                  <option value="B+">B+</option><option value="B-">B-</option>
+                                  <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                                  <option value="O+">O+</option><option value="O-">O-</option>
+                                </select>
+                              ) : (
+                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.bloodGroup || '—'}</p>
+                              )}
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Birth</label>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Date of Birth</label>
                             {editingProfile ? (
-                              <input type="date" value={profileData.dateOfBirth} onChange={(e) => setProfileData(p => p ? { ...p, dateOfBirth: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              <input type="date" value={profileData.dateOfBirth} onChange={(e) => setProfileData(p => p ? { ...p, dateOfBirth: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfBirth ? new Date(profileData.dateOfBirth + 'T00:00:00').toLocaleDateString() : '—'}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Blood Group</label>
-                            {editingProfile ? (
-                              <select value={profileData.bloodGroup} onChange={(e) => setProfileData(p => p ? { ...p, bloodGroup: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
-                                <option value="">Select</option>
-                                <option value="A+">A+</option><option value="A-">A-</option>
-                                <option value="B+">B+</option><option value="B-">B-</option>
-                                <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                                <option value="O+">O+</option><option value="O-">O-</option>
-                              </select>
-                            ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.bloodGroup || '—'}</p>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfBirth ? new Date(profileData.dateOfBirth + 'T00:00:00').toLocaleDateString() : '—'}</p>
                             )}
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Work Information (read-only) */}
-                      <div className="mb-6">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
-                          <FiBriefcase className="w-4 h-4 text-emerald-500" />
+                    {/* Work Information Card */}
+                    <div className="nexus-card">
+                      <div className="p-5">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center"><FiBriefcase className="w-4 h-4 text-emerald-500" /></div>
                           Work Information
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee ID</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{profileData.employeeId || '—'}</p>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Employee ID</label>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{profileData.employeeId || '—'}</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Date of Joining</label>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfJoining ? new Date(profileData.dateOfJoining + 'T00:00:00').toLocaleDateString() : '—'}</p>
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.department || '—'}</p>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Department</label>
+                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.department || '—'}</p>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.designation || '—'}</p>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Designation</label>
+                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.designation || '—'}</p>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Branch</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.branch || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Joining</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfJoining ? new Date(profileData.dateOfJoining + 'T00:00:00').toLocaleDateString() : '—'}</p>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Branch</label>
+                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.branch || '—'}</p>
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Address Information */}
-                      <div className="mb-6">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
-                          <FiMapPin className="w-4 h-4 text-violet-500" />
+                    {/* Address Card */}
+                    <div className="nexus-card">
+                      <div className="p-5">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
+                          <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center"><FiMapPin className="w-4 h-4 text-violet-500" /></div>
                           Address
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="sm:col-span-2">
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Street Address</label>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Street Address</label>
                             {editingProfile ? (
-                              <input type="text" value={profileData.address} onChange={(e) => setProfileData(p => p ? { ...p, address: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              <input type="text" value={profileData.address} onChange={(e) => setProfileData(p => p ? { ...p, address: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.address || '—'}</p>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.address || '—'}</p>
                             )}
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.city} onChange={(e) => setProfileData(p => p ? { ...p, city: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.city || '—'}</p>
-                            )}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">City</label>
+                              {editingProfile ? (
+                                <input type="text" value={profileData.city} onChange={(e) => setProfileData(p => p ? { ...p, city: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              ) : (
+                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.city || '—'}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">State</label>
+                              {editingProfile ? (
+                                <input type="text" value={profileData.state} onChange={(e) => setProfileData(p => p ? { ...p, state: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              ) : (
+                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.state || '—'}</p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.state} onChange={(e) => setProfileData(p => p ? { ...p, state: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.state || '—'}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">ZIP Code</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.zipCode} onChange={(e) => setProfileData(p => p ? { ...p, zipCode: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.zipCode || '—'}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.country} onChange={(e) => setProfileData(p => p ? { ...p, country: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.country || '—'}</p>
-                            )}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">ZIP Code</label>
+                              {editingProfile ? (
+                                <input type="text" value={profileData.zipCode} onChange={(e) => setProfileData(p => p ? { ...p, zipCode: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              ) : (
+                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.zipCode || '—'}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Country</label>
+                              {editingProfile ? (
+                                <input type="text" value={profileData.country} onChange={(e) => setProfileData(p => p ? { ...p, country: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              ) : (
+                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.country || '—'}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Emergency Contact */}
-                      <div>
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
-                          <FiHeart className="w-4 h-4 text-red-500" />
+                    {/* Emergency Contact Card */}
+                    <div className="nexus-card">
+                      <div className="p-5">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
+                          <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center"><FiHeart className="w-4 h-4 text-rose-500" /></div>
                           Emergency Contact
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Name</label>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Contact Name</label>
                             {editingProfile ? (
-                              <input type="text" value={profileData.emergencyContactName} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactName: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              <input type="text" value={profileData.emergencyContactName} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactName: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactName || '—'}</p>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactName || '—'}</p>
                             )}
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Phone</label>
+                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Contact Phone</label>
                             {editingProfile ? (
-                              <input type="tel" value={profileData.emergencyContactPhone} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactPhone: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                              <input type="tel" value={profileData.emergencyContactPhone} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactPhone: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactPhone || '—'}</p>
+                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactPhone || '—'}</p>
                             )}
                           </div>
                         </div>
                       </div>
-
-                      {/* Save/Cancel */}
-                      {editingProfile && (
-                        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-                          <button
-                            onClick={() => setEditingProfile(false)}
-                            className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleSaveProfile}
-                            disabled={profileSaving}
-                            className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors"
-                          >
-                            <FiSave className="w-4 h-4" />
-                            {profileSaving ? 'Saving...' : 'Save Profile'}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </>

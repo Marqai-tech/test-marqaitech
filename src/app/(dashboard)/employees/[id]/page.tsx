@@ -186,7 +186,7 @@ interface EmployeeData {
   assetAssignments?: Array<{ id: string; status: string; assignedDate: string; asset: { id: string; name: string; assetTag: string; category: string } }>;
 }
 
-const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Policies'] as const;
+const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies'] as const;
 type TabName = typeof tabs[number];
 
 export default function EmployeeDetailPage() {
@@ -636,6 +636,79 @@ export default function EmployeeDetailPage() {
           )}
 
           {/* ── Policies Tab ── */}
+          {activeTab === 'Health' && (
+            <div className="space-y-4">
+              <div className="nexus-card p-6">
+                <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2 mb-2">
+                  <FiHeart className="w-5 h-5 text-red-500" />
+                  Health History
+                </h3>
+                <p className="text-xs text-nexus-text-muted mb-6">Employee health information for workplace safety and emergency preparedness.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Blood Group & Vitals */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Vitals & Blood</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Blood Group</label>
+                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{employee.bloodGroup || '—'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Emergency Condition</label>
+                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).emergencyMedicalCondition as string || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Medical History */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Medical History</h4>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
+                        { label: 'Allergies', value: (employee as Record<string, unknown>).hasAllergies as string, details: (employee as Record<string, unknown>).allergyDetails as string },
+                        { label: 'Disability', value: (employee as Record<string, unknown>).hasDisability as string, details: (employee as Record<string, unknown>).disabilityDetails as string },
+                        { label: 'On Medication', value: (employee as Record<string, unknown>).isOnMedication as string, details: (employee as Record<string, unknown>).medicationDetails as string },
+                        { label: 'Previous Surgery', value: (employee as Record<string, unknown>).hasHadSurgery as string, details: (employee as Record<string, unknown>).surgeryDetails as string },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 border border-nexus-border/30">
+                          <span className={`shrink-0 mt-0.5 w-2 h-2 rounded-full ${item.value === 'yes' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                          <div>
+                            <p className="text-xs font-medium text-nexus-text-primary">{item.label}</p>
+                            <p className="text-xs text-nexus-text-muted">{item.value === 'yes' ? `Yes — ${item.details || 'No details provided'}` : item.value === 'no' ? 'No' : '—'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Physician & Insurance */}
+                  <div className="space-y-3 md:col-span-2">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Physician & Insurance</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Primary Physician</label>
+                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).primaryPhysicianName as string || '—'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Physician Phone</label>
+                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).primaryPhysicianPhone as string || '—'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Insurance Provider</label>
+                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).healthInsuranceProvider as string || '—'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Policy Number</label>
+                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).healthInsurancePolicyNo as string || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === 'Policies' && <EmployeePoliciesTab employeeId={employee.id} />}
 
           {/* ── Payroll Tab ── */}
