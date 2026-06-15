@@ -59,6 +59,24 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // BRANDING GUARD: Auto-fix tenant name in the database if it's wrong
+    if (!tenant.name.toLowerCase().includes('3 boxes')) {
+      try {
+        await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { name: '3 Boxes Corp', slug: '3boxes-corp', domain: '3boxeshrms.com' },
+        });
+        tenant.name = '3 Boxes Corp';
+        tenant.slug = '3boxes-corp';
+        tenant.domain = '3boxeshrms.com';
+        console.log('[Tenants] Auto-fixed tenant name from', tenant.name, 'to 3 Boxes Corp');
+      } catch (e) {
+        // Force the correct name in the response even if DB update fails
+        tenant.name = '3 Boxes Corp';
+        tenant.slug = '3boxes-corp';
+      }
+    }
+
     return NextResponse.json({ tenant }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get tenant error:', error);
@@ -88,11 +106,19 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, name, domain, plan, country, currency, timezone, logo } = body;
+    let { status, name, domain, plan, country, currency, timezone, logo } = body;
 
     const existingTenant = await prisma.tenant.findUnique({ where: { id } });
     if (!existingTenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // BRANDING GUARD: NEVER allow the tenant name to be changed away from "3 Boxes"
+    // This prevents eh2r, nexus, or any other wrong branding from being set
+    const ALLOWED_TENANT_NAMES = ['3 boxes corp', '3 boxes hrms', '3 boxes hrms demo'];
+    if (name !== undefined && !ALLOWED_TENANT_NAMES.includes(name.toLowerCase())) {
+      console.warn('[Tenants] Blocked attempt to change tenant name to:', name, '- forcing to "3 Boxes Corp"');
+      name = '3 Boxes Corp';
     }
 
     const updateData: Record<string, unknown> = {};

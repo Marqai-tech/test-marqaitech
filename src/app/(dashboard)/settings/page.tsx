@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   FiSettings,
   FiEdit2,
@@ -21,8 +21,15 @@ import {
   FiMenu,
   FiBriefcase,
   FiTrendingUp,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiMapPin,
+  FiHeart,
+  FiCamera,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -569,7 +576,7 @@ function SettingsSectionCard({
 /* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
+type TabKey = 'profile' | 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
 
 interface NavItem {
   key: TabKey;
@@ -578,6 +585,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { key: 'profile', label: 'My Profile', icon: <FiUser className="w-4 h-4" /> },
   { key: 'general', label: 'General', icon: <FiSettings className="w-4 h-4" /> },
   { key: 'payroll', label: 'Payroll', icon: <FiDollarSign className="w-4 h-4" /> },
   { key: 'leave', label: 'Leave', icon: <FiCalendar className="w-4 h-4" /> },
@@ -594,13 +602,52 @@ const navItems: NavItem[] = [
    Main Component
    ────────────────────────────────────────────── */
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
-  const [activeTab, setActiveTab] = useState<TabKey>('general');
+  // Read tab from URL query parameter
+  const tabFromUrl = searchParams.get('tab') as TabKey | null;
+  const validTabs: TabKey[] = ['profile', 'general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
+  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'profile';
+
+  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [saving, setSaving] = useState(false);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  /* Profile state */
+  const [profileData, setProfileData] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    dateOfBirth: string;
+    gender: string;
+    bloodGroup: string;
+    department: string;
+    designation: string;
+    branch: string;
+    employeeId: string;
+    dateOfJoining: string;
+  } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
 
   /* General settings state */
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -608,7 +655,7 @@ export default function SettingsPage() {
     companyName: '',
     timezone: 'UTC',
     dateFormat: 'MM/DD/YYYY',
-    currency: 'USD',
+    currency: 'INR',
   });
 
   /* Module settings from localStorage */
@@ -644,7 +691,7 @@ export default function SettingsPage() {
             companyName: t.name || '',
             timezone: t.timezone || 'UTC',
             dateFormat: 'MM/DD/YYYY',
-            currency: t.currency || 'USD',
+            currency: t.currency || 'INR',
           });
         }
       }
@@ -654,6 +701,80 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { queueMicrotask(() => fetchTenant()); }, [fetchTenant]);
+
+  /* Fetch user profile */
+  const fetchProfile = useCallback(async () => {
+    try {
+      setProfileLoading(true);
+      const res = await fetch('/api/users/profile', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setProfileData({
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.employee?.phone || '',
+          emergencyContactName: data.employee?.emergencyContactName || '',
+          emergencyContactPhone: data.employee?.emergencyContactPhone || '',
+          address: data.employee?.address || '',
+          city: data.employee?.city || '',
+          state: data.employee?.state || '',
+          zipCode: data.employee?.zipCode || '',
+          country: data.employee?.country || '',
+          dateOfBirth: data.employee?.dateOfBirth ? new Date(data.employee.dateOfBirth).toISOString().split('T')[0] : '',
+          gender: data.employee?.gender || '',
+          bloodGroup: data.employee?.bloodGroup || '',
+          department: data.employee?.department || '',
+          designation: data.employee?.designation || '',
+          branch: data.employee?.branch || '',
+          employeeId: data.employee?.employeeId || '',
+          dateOfJoining: data.employee?.dateOfJoining ? new Date(data.employee.dateOfJoining).toISOString().split('T')[0] : '',
+        });
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  /* Save user profile */
+  const handleSaveProfile = async () => {
+    try {
+      setProfileSaving(true);
+      const res = await fetch('/api/users/profile', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: profileData?.name,
+          phone: profileData?.phone,
+          emergencyContactName: profileData?.emergencyContactName,
+          emergencyContactPhone: profileData?.emergencyContactPhone,
+          address: profileData?.address,
+          city: profileData?.city,
+          state: profileData?.state,
+          zipCode: profileData?.zipCode,
+          country: profileData?.country,
+          dateOfBirth: profileData?.dateOfBirth || null,
+          gender: profileData?.gender,
+          bloodGroup: profileData?.bloodGroup,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Profile updated successfully');
+        setEditingProfile(false);
+        fetchProfile();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to update profile');
+      }
+    } catch {
+      toast.error('Failed to update profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   /* Get default value for a field */
   const getDefaultValue = useCallback((key: string): string | number | boolean => {
@@ -758,8 +879,8 @@ export default function SettingsPage() {
     }
   };
 
-  /* Access restriction */
-  if (!isAdmin) {
+  /* Access restriction - profile tab is available to all users, other tabs require admin */
+  if (!isAdmin && activeTab !== 'profile') {
     return (
       <div className="space-y-6">
         <div className="nexus-card p-12 text-center">
@@ -909,6 +1030,267 @@ export default function SettingsPage() {
 
         {/* Right Content Area */}
         <div className="flex-1 min-w-0">
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <div className="space-y-4">
+              {profileLoading ? (
+                <div className="nexus-card p-12 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+                  <p className="text-sm text-nexus-text-muted">Loading profile...</p>
+                </div>
+              ) : profileData ? (
+                <>
+                  {/* Profile Header Card */}
+                  <div className="nexus-card">
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+                            <FiUser className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-semibold text-nexus-text-primary">My Profile</h2>
+                            <p className="text-xs text-nexus-text-muted">View and update your personal information</p>
+                          </div>
+                        </div>
+                        {!editingProfile ? (
+                          <button
+                            onClick={() => setEditingProfile(true)}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                            Edit Profile
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setEditingProfile(false)}
+                            className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                          >
+                            <FiX className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Avatar + Name Row */}
+                      <div className="flex items-center gap-4 mb-6 pb-6 border-b border-nexus-border">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/20">
+                          {profileData.name ? profileData.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-nexus-text-primary">{profileData.name || 'User'}</h3>
+                          <p className="text-sm text-nexus-text-muted">{profileData.email}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="nexus-badge nexus-badge-success capitalize">{user?.role?.replace('_', ' ') || 'employee'}</span>
+                            {profileData.employeeId && (
+                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 font-mono">{profileData.employeeId}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Basic Information */}
+                      <div className="mb-6">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                          <FiUser className="w-4 h-4 text-blue-500" />
+                          Basic Information
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Full Name</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.name} onChange={(e) => setProfileData(p => p ? { ...p, name: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.name || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1 flex items-center gap-1"><FiMail className="w-3 h-3" /> Official Email</label>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.email || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1 flex items-center gap-1"><FiPhone className="w-3 h-3" /> Phone</label>
+                            {editingProfile ? (
+                              <input type="tel" value={profileData.phone} onChange={(e) => setProfileData(p => p ? { ...p, phone: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="+91 98765 43210" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.phone || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Gender</label>
+                            {editingProfile ? (
+                              <select value={profileData.gender} onChange={(e) => setProfileData(p => p ? { ...p, gender: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                              </select>
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{profileData.gender || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Birth</label>
+                            {editingProfile ? (
+                              <input type="date" value={profileData.dateOfBirth} onChange={(e) => setProfileData(p => p ? { ...p, dateOfBirth: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString() : '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Blood Group</label>
+                            {editingProfile ? (
+                              <select value={profileData.bloodGroup} onChange={(e) => setProfileData(p => p ? { ...p, bloodGroup: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
+                                <option value="">Select</option>
+                                <option value="A+">A+</option><option value="A-">A-</option>
+                                <option value="B+">B+</option><option value="B-">B-</option>
+                                <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                                <option value="O+">O+</option><option value="O-">O-</option>
+                              </select>
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.bloodGroup || '—'}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Work Information (read-only) */}
+                      <div className="mb-6">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                          <FiBriefcase className="w-4 h-4 text-emerald-500" />
+                          Work Information
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee ID</label>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{profileData.employeeId || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department</label>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.department || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation</label>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.designation || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Branch</label>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.branch || '—'}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Joining</label>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfJoining ? new Date(profileData.dateOfJoining).toLocaleDateString() : '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Address Information */}
+                      <div className="mb-6">
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                          <FiMapPin className="w-4 h-4 text-violet-500" />
+                          Address
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Street Address</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.address} onChange={(e) => setProfileData(p => p ? { ...p, address: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.address || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.city} onChange={(e) => setProfileData(p => p ? { ...p, city: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.city || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.state} onChange={(e) => setProfileData(p => p ? { ...p, state: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.state || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">ZIP Code</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.zipCode} onChange={(e) => setProfileData(p => p ? { ...p, zipCode: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.zipCode || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.country} onChange={(e) => setProfileData(p => p ? { ...p, country: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.country || '—'}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Emergency Contact */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                          <FiHeart className="w-4 h-4 text-red-500" />
+                          Emergency Contact
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Name</label>
+                            {editingProfile ? (
+                              <input type="text" value={profileData.emergencyContactName} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactName: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactName || '—'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Phone</label>
+                            {editingProfile ? (
+                              <input type="tel" value={profileData.emergencyContactPhone} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactPhone: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                            ) : (
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactPhone || '—'}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Save/Cancel */}
+                      {editingProfile && (
+                        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+                          <button
+                            onClick={() => setEditingProfile(false)}
+                            className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveProfile}
+                            disabled={profileSaving}
+                            className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors"
+                          >
+                            <FiSave className="w-4 h-4" />
+                            {profileSaving ? 'Saving...' : 'Save Profile'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="nexus-card p-12 text-center">
+                  <FiUser className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
+                  <h2 className="text-lg font-semibold text-nexus-text-primary mb-2">No Profile Data</h2>
+                  <p className="text-nexus-text-secondary">Unable to load your profile information. Please try again later.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* General Tab */}
           {activeTab === 'general' && (
             <div className="space-y-4">
@@ -986,11 +1368,16 @@ export default function SettingsPage() {
                       </label>
                       {editingSection === 'general' ? (
                         <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (&euro;)</option>
-                          <option value="GBP">GBP (&pound;)</option>
-                          <option value="INR">INR (&#8377;)</option>
-                          <option value="JPY">JPY (&yen;)</option>
+                          <option value="INR">INR (₹) — Indian Rupee</option>
+                          <option value="USD">USD ($) — US Dollar</option>
+                          <option value="EUR">EUR (€) — Euro</option>
+                          <option value="GBP">GBP (£) — British Pound</option>
+                          <option value="SGD">SGD (S$) — Singapore Dollar</option>
+                          <option value="AED">AED (د.إ) — UAE Dirham</option>
+                          <option value="AUD">AUD (A$) — Australian Dollar</option>
+                          <option value="CAD">CAD (C$) — Canadian Dollar</option>
+                          <option value="JPY">JPY (¥) — Japanese Yen</option>
+                          <option value="CNY">CNY (¥) — Chinese Yuan</option>
                         </select>
                       ) : (
                         <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.currency}</p>

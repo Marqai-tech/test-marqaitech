@@ -80,12 +80,12 @@ const CURRENCY_MAP: Record<string, string> = {
 };
 
 const CURRENCY_OPTIONS = [
-  { value: 'INR', label: 'INR' },
-  { value: 'USD', label: 'USD' },
-  { value: 'GBP', label: 'GBP' },
-  { value: 'SGD', label: 'SGD' },
-  { value: 'AED', label: 'AED' },
-  { value: 'AUD', label: 'AUD' },
+  { value: 'INR', label: 'INR (₹) — Indian Rupee' },
+  { value: 'USD', label: 'USD ($) — US Dollar' },
+  { value: 'GBP', label: 'GBP (£) — British Pound' },
+  { value: 'SGD', label: 'SGD (S$) — Singapore Dollar' },
+  { value: 'AED', label: 'AED (د.إ) — UAE Dirham' },
+  { value: 'AUD', label: 'AUD (A$) — Australian Dollar' },
 ];
 
 const CATEGORY_OPTIONS = [

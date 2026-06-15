@@ -94,6 +94,32 @@ export default function IncomeTaxPage() {
     section80E_EducationLoan: 0, section80G_Donations: 0, section80TTA_SavingsInterest: 0, otherDeductions: 0,
   });
   const [submittingDec, setSubmittingDec] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employees, setEmployees] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; email: string; department?: { name: string } | null }>>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
+  // ─── Fetch Employees for HR/Admin dropdown ───
+  const fetchEmployees = useCallback(async (search: string = '') => {
+    if (!isAdmin) return;
+    try {
+      setLoadingEmployees(true);
+      const params = new URLSearchParams({ limit: '20' });
+      if (search) params.set('search', search);
+      const res = await fetch(`/api/employees?${params}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setEmployees(data.employees || []);
+      }
+    } catch { /* silently */ }
+    finally { setLoadingEmployees(false); }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && showDecForm) {
+      queueMicrotask(() => fetchEmployees(employeeSearch));
+    }
+  }, [isAdmin, showDecForm, employeeSearch, fetchEmployees]);
 
   // ─── Tax Calculator ───
   const calculateTax = useCallback(async () => {
@@ -460,10 +486,64 @@ export default function IncomeTaxPage() {
               </div>
 
               {isAdmin && (
-                <div className="mb-4">
+                <div className="mb-4 relative">
                   <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee (HR filing on behalf)</label>
-                  <input type="text" value={decForm.employeeId} onChange={e => setDecForm({ ...decForm, employeeId: e.target.value })}
-                    placeholder="Employee ID" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={employeeSearch || (decForm.employeeId ? employees.find(e => e.id === decForm.employeeId)?.employeeId || decForm.employeeId : '')}
+                      onChange={e => {
+                        setEmployeeSearch(e.target.value);
+                        setDecForm({ ...decForm, employeeId: '' });
+                        setShowEmployeeDropdown(true);
+                      }}
+                      onFocus={() => setShowEmployeeDropdown(true)}
+                      placeholder="Search employee by name, ID, or email..."
+                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    {decForm.employeeId && employees.find(e => e.id === decForm.employeeId) && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                          {employees.find(e => e.id === decForm.employeeId)?.firstName} {employees.find(e => e.id === decForm.employeeId)?.lastName}
+                        </span>
+                        <button
+                          onClick={() => { setDecForm({ ...decForm, employeeId: '' }); setEmployeeSearch(''); }}
+                          className="text-nexus-text-muted hover:text-red-500"
+                        >
+                          <FiX className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {showEmployeeDropdown && !decForm.employeeId && (
+                    <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-nexus-border rounded-lg shadow-lg">
+                      {loadingEmployees ? (
+                        <div className="px-3 py-2 text-xs text-nexus-text-muted">Loading...</div>
+                      ) : employees.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-nexus-text-muted">No employees found</div>
+                      ) : (
+                        employees.map(emp => (
+                          <button
+                            key={emp.id}
+                            onClick={() => {
+                              setDecForm({ ...decForm, employeeId: emp.id });
+                              setEmployeeSearch('');
+                              setShowEmployeeDropdown(false);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center gap-2 transition-colors"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                              {emp.firstName[0]}{emp.lastName[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-nexus-text-primary truncate">{emp.firstName} {emp.lastName}</p>
+                              <p className="text-[10px] text-nexus-text-muted truncate">{emp.employeeId} · {emp.email} · {emp.department?.name || '—'}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

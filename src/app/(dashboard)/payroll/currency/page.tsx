@@ -45,8 +45,8 @@ interface ExchangeRateRecord {
 
 // --- Constants ---
 const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'INR', label: 'INR - Indian Rupee' },
+  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'GBP', label: 'GBP - British Pound' },
   { value: 'SGD', label: 'SGD - Singapore Dollar' },
   { value: 'AED', label: 'AED - UAE Dirham' },
@@ -129,8 +129,8 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 // --- Empty Forms ---
 const emptyConfigForm = {
   legalEntityId: '',
-  baseCurrency: 'USD',
-  payrollCurrency: 'USD',
+  baseCurrency: 'INR',
+  payrollCurrency: 'INR',
   reportingCurrency: '',
   exchangeRateSource: 'MANUAL',
   rateType: 'SPOT',
@@ -142,8 +142,8 @@ const emptyConfigForm = {
 };
 
 const emptyRateForm = {
-  fromCurrency: 'USD',
-  toCurrency: 'INR',
+  fromCurrency: 'INR',
+  toCurrency: 'USD',
   exchangeRate: '',
   rateDate: '',
   rateType: 'SPOT',

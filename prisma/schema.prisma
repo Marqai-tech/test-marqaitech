@@ -18,7 +18,7 @@ model Tenant {
   status      String   @default("active")
   logo        String?
   country     String?
-  currency    String   @default("USD")
+  currency    String   @default("INR")
   timezone    String   @default("UTC")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -54,7 +54,7 @@ model Company {
   registrationNo String?
   taxId          String?
   country        String?
-  currency       String @default("USD")
+  currency       String @default("INR")
   timezone       String @default("UTC")
   address        String?
   city           String?
@@ -234,7 +234,7 @@ model Employee {
   taxId          String?
 
   salary         Float?
-  salaryCurrency String @default("USD")
+  salaryCurrency String @default("INR")
 
   // Policy & Structure Mappings
   leavePolicyId      String?
@@ -563,7 +563,7 @@ model Payroll {
   otherDeductions Float @default(0)
   totalDeductions Float @default(0)
   netSalary   Float @default(0)
-  currency    String @default("USD")
+  currency    String @default("INR")
   status      String @default("draft") // draft, processed, paid, cancelled
   paidDate    DateTime?
   paySlip     String?
@@ -790,7 +790,7 @@ model ExpenseClaim {
   title       String
   category    String // travel, food, accommodation, transport, medical, other
   amount      Float
-  currency    String @default("USD")
+  currency    String @default("INR")
   date        DateTime
   description String?
   receipt     String?
@@ -1053,7 +1053,7 @@ model Reimbursement {
 
   type       String // medical, fuel, phone, internet, education, other
   amount     Float
-  currency   String @default("USD")
+  currency   String @default("INR")
   description String?
   receipt    String?
   status     String @default("pending") // pending, approved, rejected, paid
@@ -1113,7 +1113,7 @@ model Subscription {
   trialEnd        DateTime?
   billingCycle    String @default("monthly") // monthly, annual
   amount          Float @default(0)
-  currency        String @default("USD")
+  currency        String @default("INR")
   paymentStatus   String @default("pending") // pending, paid, overdue, cancelled
   status          String @default("active") // active, expired, suspended, cancelled
   autoRenew       Boolean @default(true)
@@ -1145,7 +1145,7 @@ model Client {
   country     String?
   zipCode     String?
 
-  billingCurrency String @default("USD")
+  billingCurrency String @default("INR")
   paymentTerms String @default("net_30")
   contractStart DateTime?
   contractEnd   DateTime?
@@ -1219,7 +1219,7 @@ model Project {
 
   projectType   String @default("internal") // internal, client, r_and_d, support
   billingType   String @default("non_billable") // fixed, time_and_material, retainer, non_billable, hourly, daily
-  currency      String @default("USD")
+  currency      String @default("INR")
   budgetAmount  Float @default(0)
   estimatedHours Float @default(0)
   actualHours   Float @default(0)
@@ -1442,7 +1442,7 @@ model Offer {
   department        String?
 
   offeredSalary     Float
-  offeredCurrency   String @default("USD")
+  offeredCurrency   String @default("INR")
   offeredCTC        Float?
   salaryBreakdown   String? // JSON string of salary components
 
@@ -1474,7 +1474,7 @@ model SalaryStructure {
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   country     String?
-  currency    String @default("USD")
+  currency    String @default("INR")
   description String?
   status      String @default("active") // active, inactive
 
@@ -1531,7 +1531,7 @@ model FNFCalculation {
   totalEarnings     Float @default(0)
   totalDeductions   Float @default(0)
   netAmount         Float @default(0)
-  currency          String @default("USD")
+  currency          String @default("INR")
 
   status            String @default("pending") // pending, approved, paid, cancelled
   approvedBy        String?
@@ -2143,7 +2143,7 @@ model PayrollInput {
   unitType          String?  // AMOUNT, DAYS, HOURS, PERCENTAGE
   inputDateFrom     DateTime?
   inputDateTo       DateTime?
-  currencyCode      String?  @default("USD")
+  currencyCode      String?  @default("INR")
   exchangeRate      Float?
   approvalStatus    String   @default("PENDING") // PENDING, APPROVED, REJECTED
   approvedBy        String?
@@ -2167,8 +2167,8 @@ model PayrollInput {
 model CurrencyConfig {
   id                  String   @id @default(cuid())
   legalEntityId       String
-  baseCurrency        String   @default("USD")
-  payrollCurrency     String   @default("USD")
+  baseCurrency        String   @default("INR")
+  payrollCurrency     String   @default("INR")
   reportingCurrency   String?
   exchangeRateSource  String   @default("MANUAL") // CENTRAL_BANK, REUTERS, BLOOMBERG, MANUAL, CUSTOM_API
   rateType            String   @default("SPOT") // SPOT, MONTHLY_AVERAGE, CUSTOM, CONTRACTUAL
@@ -2258,7 +2258,7 @@ model PayrollRun {
   payDate             DateTime
   runType             String   @default("REGULAR") // REGULAR, OFF_CYCLE, SUPPLEMENTAL, FINAL_SETTLEMENT, CORRECTION
   runStatus           String   @default("OPEN") // OPEN, INPUT_COLLECTION, PROCESSING, REVIEW, APPROVED, ACCOUNTING, DISBURSED, CLOSED
-  currencyCode        String   @default("USD")
+  currencyCode        String   @default("INR")
   exchangeRateDate    DateTime?
   taxProjectionMethod String   @default("CUMULATIVE") // CUMULATIVE, NON_CUMULATIVE, ANNUALIZED
   includeStatutory    Boolean  @default(true)
@@ -2301,7 +2301,7 @@ model PayrollTransactionLine {
   calculatedAmount      Float    @default(0)
   overrideAmount        Float?
   finalAmount           Float    @default(0)
-  currencyCode          String   @default("USD")
+  currencyCode          String   @default("INR")
   exchangeRate          Float?
   baseCurrencyAmount    Float?
   ytdAmount             Float    @default(0)

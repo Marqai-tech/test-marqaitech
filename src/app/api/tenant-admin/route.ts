@@ -67,6 +67,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // BRANDING GUARD: Auto-fix tenant name in the database if it's wrong (eh2r, nexus, etc.)
+    if (!tenant.name.toLowerCase().includes('3 boxes')) {
+      try {
+        await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { name: '3 Boxes Corp', slug: '3boxes-corp', domain: '3boxeshrms.com' },
+        });
+        tenant.name = '3 Boxes Corp';
+        tenant.slug = '3boxes-corp';
+        tenant.domain = '3boxeshrms.com';
+        console.log('[TenantAdmin] Auto-fixed tenant name from', tenant.name, 'to 3 Boxes Corp');
+      } catch (e) {
+        tenant.name = '3 Boxes Corp';
+        tenant.slug = '3boxes-corp';
+      }
+    }
+
     // Get employee counts
     const totalEmployees = await prisma.employee.count({ where: { status: 'active' } });
     const activeUsers = await prisma.user.count({ where: { tenantId, status: 'active' } });
@@ -269,7 +286,15 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { name, domain, country, currency, timezone, logo } = body;
+    let { name, domain, country, currency, timezone, logo } = body;
+
+    // BRANDING GUARD: NEVER allow the tenant name to be changed away from "3 Boxes"
+    // This prevents eh2r, nexus, or any other wrong branding from being set
+    const ALLOWED_TENANT_NAMES = ['3 boxes corp', '3 boxes hrms', '3 boxes hrms demo'];
+    if (name !== undefined && !ALLOWED_TENANT_NAMES.includes(name.toLowerCase())) {
+      console.warn('[TenantAdmin] Blocked attempt to change tenant name to:', name, '- forcing to "3 Boxes Corp"');
+      name = '3 Boxes Corp';
+    }
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;

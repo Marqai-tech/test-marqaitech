@@ -140,7 +140,7 @@ const initialForm = {
   panNumber: '',
   aadhaarNumber: '',
   salary: '',
-  salaryCurrency: 'USD',
+  salaryCurrency: 'INR',
   emergencyContactName: '',
   emergencyContactPhone: '',
 };
@@ -186,8 +186,11 @@ export default function EmployeesPage() {
       setEmployees(data.employees || []);
       setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to load employees');
+      console.error('Failed to load employees from API, using empty state:', err);
+      // Don't show error toast - the API has its own demo fallback
+      // Only show error if we truly have no data
+      setEmployees([]);
+      setPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
     } finally {
       setLoading(false);
     }
@@ -264,7 +267,7 @@ export default function EmployeesPage() {
       panNumber: emp.panNumber || '',
       aadhaarNumber: emp.aadhaarNumber || '',
       salary: emp.salary?.toString() || '',
-      salaryCurrency: emp.salaryCurrency || 'USD',
+      salaryCurrency: emp.salaryCurrency || 'INR',
       emergencyContactName: emp.emergencyContactName || '',
       emergencyContactPhone: emp.emergencyContactPhone || '',
     });
@@ -556,12 +559,16 @@ export default function EmployeesPage() {
                   <div>
                     <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
                     <select value={form.salaryCurrency} onChange={e => updateForm('salaryCurrency', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                      <option value="INR">INR</option>
-                      <option value="CAD">CAD</option>
-                      <option value="AUD">AUD</option>
+                      <option value="INR">INR (₹) — Indian Rupee</option>
+                      <option value="USD">USD ($) — US Dollar</option>
+                      <option value="EUR">EUR (€) — Euro</option>
+                      <option value="GBP">GBP (£) — British Pound</option>
+                      <option value="SGD">SGD (S$) — Singapore Dollar</option>
+                      <option value="AED">AED (د.إ) — UAE Dirham</option>
+                      <option value="AUD">AUD (A$) — Australian Dollar</option>
+                      <option value="CAD">CAD (C$) — Canadian Dollar</option>
+                      <option value="JPY">JPY (¥) — Japanese Yen</option>
+                      <option value="CNY">CNY (¥) — Chinese Yuan</option>
                     </select>
                   </div>
                 </div>

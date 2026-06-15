@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       ESI: ['ESI_EE', 'ESI_ER', 'ESI', 'ESIC_EE', 'ESIC_ER'],
       PT: ['PT', 'PROF_TAX', 'PROFESSIONAL_TAX', 'PIT'],
       TDS: ['TDS', 'INCOME_TAX', 'IT', 'TAX'],
+      LWF: ['LWF', 'LABOUR_WELFARE', 'LABOUR_WELFARE_FUND', 'LWF_EE', 'LWF_ER'],
     };
 
     const relevantCodes = componentCodeMap[type] || [type];
@@ -299,6 +300,60 @@ export async function GET(request: NextRequest) {
       totals = {
         grossIncome: reportData.reduce((s, r) => s + (r.grossIncome as number), 0),
         taxDeducted: reportData.reduce((s, r) => s + (r.taxDeducted as number), 0),
+      };
+
+    } else if (type === 'LWF') {
+      // Labour Welfare Fund: Employee + Employer contributions, state-wise
+      const empMap: Record<string, StatutoryRow & { employeeContribution: number; employerContribution: number; grossPay: number; state: string }> = {};
+
+      for (const line of transactionLines) {
+        const emp = line.employee;
+        if (!emp) continue;
+
+        if (!empMap[emp.id]) {
+          empMap[emp.id] = {
+            employeeId: emp.id,
+            name: `${emp.firstName} ${emp.lastName}`,
+            empCode: emp.employeeId,
+            department: emp.department?.name || '—',
+            state: emp.state || '—',
+            pan: emp.panNumber || '—',
+            grossPay: 0,
+            employeeContribution: 0,
+            employerContribution: 0,
+          };
+        }
+
+        const compType = line.componentType;
+        const compCode = line.componentCode;
+
+        if (compType === 'EARNING') {
+          empMap[emp.id].grossPay += line.finalAmount;
+        }
+
+        if (compType === 'DEDUCTION' || compType === 'EMPLOYEE_CONTRIB') {
+          if (relevantCodes.some(c => compCode.includes(c) || c.includes(compCode))) {
+            empMap[emp.id].employeeContribution += line.finalAmount;
+          }
+        } else if (compType === 'EMPLOYER_CONTRIB') {
+          if (relevantCodes.some(c => compCode.includes(c) || c.includes(compCode))) {
+            empMap[emp.id].employerContribution += line.finalAmount;
+          }
+        }
+      }
+
+      for (const row of Object.values(empMap)) {
+        reportData.push({
+          ...row,
+          totalContribution: row.employeeContribution + row.employerContribution,
+        });
+      }
+
+      totals = {
+        grossPay: reportData.reduce((s, r) => s + (r.grossPay as number), 0),
+        employeeContribution: reportData.reduce((s, r) => s + (r.employeeContribution as number), 0),
+        employerContribution: reportData.reduce((s, r) => s + (r.employerContribution as number), 0),
+        totalContribution: reportData.reduce((s, r) => s + (r.totalContribution as number), 0),
       };
     }
 

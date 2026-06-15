@@ -211,8 +211,9 @@ export default function EmployeeDetailPage() {
       const data = await res.json();
       setEmployee(data.employee);
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to load employee details');
+      console.error('Failed to load employee details:', err);
+      // Don't show error toast - the page shows a "not found" state that handles this gracefully
+      setEmployee(null);
     } finally {
       setLoading(false);
     }

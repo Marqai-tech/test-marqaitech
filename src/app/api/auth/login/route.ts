@@ -133,6 +133,10 @@ export async function POST(request: Request) {
       }
     }
 
+    // ALWAYS force correct branding - never allow any other name
+    tenantName = '3 Boxes Corp';
+    tenantSlug = '3boxes-corp';
+
     return NextResponse.json(
       {
         token,

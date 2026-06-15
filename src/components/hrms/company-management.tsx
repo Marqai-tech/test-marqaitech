@@ -1,396 +1,943 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Building2, MapPin, Users, Calendar, Clock, Sun, Plus, Search, Eye, Edit, Trash2, Briefcase, Award, Moon } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  FiLayers, FiMapPin, FiBriefcase, FiCalendar, FiClock, FiPlus, FiSearch,
+  FiEye, FiEdit2, FiTrash2, FiX, FiAward, FiMoon, FiSun, FiFileText,
+  FiAlertTriangle, FiHome, FiSettings, FiUsers, FiCheckCircle,
+} from 'react-icons/fi'
+import toast from 'react-hot-toast'
+import { useAuthStore } from '@/store/authStore'
+import ModuleTips from '@/components/ModuleTips'
+import ModuleWorkflow from '@/components/ModuleWorkflow'
 
-const companies = [
-  { name: '3 Boxes Technologies', code: '3BOXES', city: 'Mumbai', state: 'Maharashtra', status: 'Active', branches: 3, departments: 8, employees: 11, gst: '27AABCN1234F1Z5', phone: '+91 22 4567 8901' },
-  { name: '3 Boxes Solutions', code: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', status: 'Active', branches: 2, departments: 8, employees: 10, gst: '36AABCN5678F1Z3', phone: '+91 40 2345 6789' },
-  { name: '3 Boxes Staffing', code: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', status: 'Active', branches: 1, departments: 8, employees: 10, gst: '27AABCN9012F1Z1', phone: '+91 20 3456 7890' },
+/* ── Tips ── */
+const companyTips = [
+  { title: 'Set Up Company First', description: 'Create your company profile before adding branches and departments to ensure proper organizational hierarchy' },
+  { title: 'Use Company Codes', description: 'Assign short, unique codes to companies, branches, and departments for easy identification and reporting' },
+  { title: 'Define Grades via Designations', description: 'Grades are automatically derived from designation levels — set the level field when creating designations' },
+  { title: 'Configure Shifts Early', description: 'Set up work shifts before onboarding employees so attendance tracking works from day one' },
+  { title: 'Plan Holiday Calendar', description: 'Upload the holiday calendar at the start of the financial year for accurate leave and payroll calculations' },
 ]
 
-const branches = [
-  { name: 'Mumbai HQ', company: '3BOXES', city: 'Mumbai', state: 'Maharashtra', address: 'BKC, Bandra East', status: 'Active', head: 'Aarav Sharma' },
-  { name: 'Bangalore Tech Park', company: '3BOXES', city: 'Bangalore', state: 'Karnataka', address: 'Whitefield Main Road', status: 'Active', head: 'Priya Patel' },
-  { name: 'Delhi NCR Office', company: '3BOXES', city: 'New Delhi', state: 'Delhi', address: 'Connaught Place', status: 'Active', head: 'Rohan Kumar' },
-  { name: 'Hyderabad Campus', company: 'NEXSOL', city: 'Hyderabad', state: 'Telangana', address: 'HITEC City, Madhapur', status: 'Active', head: 'Amit Rao' },
-  { name: 'Chennai Center', company: 'NEXSOL', city: 'Chennai', state: 'Tamil Nadu', address: 'OMR, Thoraipakkam', status: 'Active', head: 'Suresh Babu' },
-  { name: 'Pune Office', company: 'NEXSTAFF', city: 'Pune', state: 'Maharashtra', address: 'Hinjewadi Phase 2', status: 'Active', head: 'Sanjay Deshmukh' },
+/* ── Workflow Steps ── */
+const companyWorkflowSteps = [
+  { step: 1, title: 'Create Company', description: 'Add your organization with basic details like name, code, and address' },
+  { step: 2, title: 'Add Branches', description: 'Set up office locations linked to the company' },
+  { step: 3, title: 'Create Departments', description: 'Define functional departments within the organization' },
+  { step: 4, title: 'Define Designations', description: 'Create job titles with grade levels and salary ranges' },
+  { step: 5, title: 'Configure Shifts', description: 'Set up work shift timings for attendance tracking' },
+  { step: 6, title: 'Plan Holidays', description: 'Add public, festival, and company holidays for the year' },
+  { step: 7, title: 'Set Policies', description: 'Create HR, leave, attendance, and other company policies' },
+  { step: 8, title: 'Review Setup', description: 'Verify all organizational structure is complete before onboarding employees' },
 ]
 
-const departments = [
-  { name: 'Engineering', head: 'Aarav Sharma', employees: 8, budget: '₹1.2Cr', status: 'Active' },
-  { name: 'HR', head: 'Ananya Singh', employees: 4, budget: '₹45L', status: 'Active' },
-  { name: 'Finance', head: 'Neha Gupta', employees: 3, budget: '₹38L', status: 'Active' },
-  { name: 'Sales', head: 'Arjun Mehta', employees: 3, budget: '₹55L', status: 'Active' },
-  { name: 'Marketing', head: 'Sneha Joshi', employees: 3, budget: '₹32L', status: 'Active' },
-  { name: 'Operations', head: 'Karan Verma', employees: 3, budget: '₹42L', status: 'Active' },
-  { name: 'Quality', head: 'Divya Nair', employees: 3, budget: '₹28L', status: 'Active' },
-  { name: 'Admin', head: 'Vikram Reddy', employees: 3, budget: '₹22L', status: 'Active' },
-]
+/* ── Types ── */
+interface CompanyRecord { id: string; name: string; code?: string; city?: string; state?: string; country?: string; status: string; taxId?: string; phone?: string; email?: string; website?: string; address?: string; zipCode?: string; currency?: string; timezone?: string; _count?: { departments: number; branches: number } }
+interface BranchRecord { id: string; name: string; code?: string; companyId: string; city?: string; state?: string; country?: string; address?: string; zipCode?: string; phone?: string; email?: string; status: string; company?: { id: string; name: string; code?: string }; _count?: { employees: number } }
+interface DepartmentRecord { id: string; name: string; code?: string; companyId: string; status: string; company?: { id: string; name: string }; branch?: { id: string; name: string } | null; _count?: { employees: number; designations: number } }
+interface DesignationRecord { id: string; title: string; departmentId: string; level: number; minSalary?: number | null; maxSalary?: number | null; status: string; department?: { id: string; name: string }; _count?: { employees: number } }
+interface ShiftRecord { id: string; name: string; startTime: string; endTime: string; breakDuration: number; graceTime: number; status: string }
+interface HolidayRecord { id: string; name: string; date: string; type: string; country?: string; description?: string }
+interface PolicyRecord { id: string; title: string; category: string; description: string; version: string; status: string; effectiveDate?: string | null; expiryDate?: string | null }
 
-const designations = [
-  { name: 'Software Engineer', grade: 'E1', department: 'Engineering', minSalary: '₹3L', maxSalary: '₹6L', status: 'Active' },
-  { name: 'Senior Engineer', grade: 'E2', department: 'Engineering', minSalary: '₹6L', maxSalary: '₹12L', status: 'Active' },
-  { name: 'Tech Lead', grade: 'E3', department: 'Engineering', minSalary: '₹12L', maxSalary: '₹20L', status: 'Active' },
-  { name: 'HR Executive', grade: 'E1', department: 'HR', minSalary: '₹3L', maxSalary: '₹6L', status: 'Active' },
-  { name: 'HR Manager', grade: 'M1', department: 'HR', minSalary: '₹20L', maxSalary: '₹35L', status: 'Active' },
-  { name: 'Finance Manager', grade: 'M1', department: 'Finance', minSalary: '₹20L', maxSalary: '₹35L', status: 'Active' },
-  { name: 'Sales Manager', grade: 'M1', department: 'Sales', minSalary: '₹20L', maxSalary: '₹35L', status: 'Active' },
-  { name: 'Operations Manager', grade: 'M1', department: 'Operations', minSalary: '₹20L', maxSalary: '₹35L', status: 'Active' },
-]
+/* ── Helpers ── */
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
-const grades = [
-  { name: 'E1 - Junior', code: 'E1', range: '₹3-6L', min: 300000, max: 600000, employees: 8, status: 'Active' },
-  { name: 'E2 - Mid Level', code: 'E2', range: '₹6-12L', min: 600000, max: 1200000, employees: 6, status: 'Active' },
-  { name: 'E3 - Senior', code: 'E3', range: '₹12-20L', min: 1200000, max: 2000000, employees: 4, status: 'Active' },
-  { name: 'M1 - Manager', code: 'M1', range: '₹20-35L', min: 2000000, max: 3500000, employees: 5, status: 'Active' },
-]
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, { headers: getAuthHeaders(), ...options })
+  if (!res.ok) { const e = await res.json().catch(() => ({ error: 'Request failed' })); throw new Error(e.error || `HTTP ${res.status}`) }
+  return res.json()
+}
 
-const shifts = [
-  { name: 'General Shift', code: 'GS', startTime: '09:00 AM', endTime: '06:00 PM', breakTime: '1 hour', graceMinutes: 15, status: 'Active' },
-  { name: 'Morning Shift', code: 'MS', startTime: '06:00 AM', endTime: '02:00 PM', breakTime: '30 min', graceMinutes: 10, status: 'Active' },
-  { name: 'Evening Shift', code: 'ES', startTime: '02:00 PM', endTime: '10:00 PM', breakTime: '30 min', graceMinutes: 10, status: 'Active' },
-  { name: 'Night Shift', code: 'NS', startTime: '10:00 PM', endTime: '06:00 AM', breakTime: '30 min', graceMinutes: 10, status: 'Active' },
-]
+const fmtSalary = (n?: number | null) => n ? `₹${(n / 100000).toFixed(0)}L` : '—'
+const fmtDate = (d: string | Date) => { const dt = new Date(d); return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) }
+const fmtDay = (d: string | Date) => new Date(d).toLocaleDateString('en-IN', { weekday: 'long' })
+const fmtTime = (t: string) => { if (!t) return ''; if (t.includes('AM') || t.includes('PM')) return t; const [h, m] = t.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}` }
 
-const holidays = [
-  { name: 'Republic Day', date: 'Jan 26, 2026', day: 'Monday', type: 'National', status: 'Active' },
-  { name: 'Holi', date: 'Mar 10, 2026', day: 'Tuesday', type: 'Festival', status: 'Active' },
-  { name: 'Maharashtra Day', date: 'May 1, 2026', day: 'Friday', type: 'State', status: 'Active' },
-  { name: 'Eid ul-Fitr', date: 'Apr 2, 2026', day: 'Thursday', type: 'Festival', status: 'Active' },
-  { name: 'Independence Day', date: 'Aug 15, 2026', day: 'Saturday', type: 'National', status: 'Active' },
-  { name: 'Ganesh Chaturthi', date: 'Aug 27, 2026', day: 'Thursday', type: 'Festival', status: 'Active' },
-  { name: 'Gandhi Jayanti', date: 'Oct 2, 2026', day: 'Friday', type: 'National', status: 'Active' },
-  { name: 'Dussehra', date: 'Oct 20, 2026', day: 'Tuesday', type: 'Festival', status: 'Active' },
-  { name: 'Diwali', date: 'Nov 10, 2026', day: 'Tuesday', type: 'Festival', status: 'Active' },
-  { name: 'Christmas', date: 'Dec 25, 2026', day: 'Friday', type: 'Festival', status: 'Active' },
-]
+const gradeCode = (level: number) => { if (level <= 1) return 'E1'; if (level === 2) return 'E2'; if (level === 3) return 'E3'; if (level >= 4) return 'M1'; return `L${level}` }
+const gradeName = (level: number) => { if (level <= 1) return 'E1 - Junior'; if (level === 2) return 'E2 - Mid Level'; if (level === 3) return 'E3 - Senior'; if (level >= 4) return 'M1 - Manager'; return `Level ${level}` }
 
-const policies = [
-  { name: 'Leave Policy', category: 'Leave', version: '3.2', lastUpdated: 'Jun 1, 2026', status: 'Active' },
-  { name: 'Attendance Policy', category: 'Attendance', version: '2.1', lastUpdated: 'May 15, 2026', status: 'Active' },
-  { name: 'Code of Conduct', category: 'HR', version: '4.0', lastUpdated: 'Apr 20, 2026', status: 'Active' },
-  { name: 'Remote Work Policy', category: 'Work', version: '1.5', lastUpdated: 'Jun 3, 2026', status: 'Active' },
-  { name: 'Travel & Expense Policy', category: 'Finance', version: '2.3', lastUpdated: 'Mar 10, 2026', status: 'Active' },
-  { name: 'IT Security Policy', category: 'IT', version: '3.0', lastUpdated: 'May 1, 2026', status: 'Active' },
-]
+function getStatusBadge(status: string) {
+  const map: Record<string, string> = { active: 'nexus-badge nexus-badge-success', inactive: 'bg-slate-100 text-slate-600 nexus-badge', draft: 'nexus-badge nexus-badge-warning' }
+  const labels: Record<string, string> = { active: 'Active', inactive: 'Inactive', draft: 'Draft' }
+  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status }
+}
 
+/* ── Main Component ── */
 export default function CompanyManagement() {
+  const { user } = useAuthStore()
+  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '')
+
   const [search, setSearch] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogTitle, setDialogTitle] = useState('')
   const [activeTab, setActiveTab] = useState('companies')
 
-  const openAddDialog = (title: string) => {
-    setDialogTitle(title)
-    setDialogOpen(true)
+  // Data state
+  const [companies, setCompanies] = useState<CompanyRecord[]>([])
+  const [branches, setBranches] = useState<BranchRecord[]>([])
+  const [departments, setDepartments] = useState<DepartmentRecord[]>([])
+  const [designations, setDesignations] = useState<DesignationRecord[]>([])
+  const [shifts, setShifts] = useState<ShiftRecord[]>([])
+  const [holidays, setHolidays] = useState<HolidayRecord[]>([])
+  const [policies, setPolicies] = useState<PolicyRecord[]>([])
+  const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const [submitting, setSubmitting] = useState(false)
+
+  // Form state - inline form instead of dialogs
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<Record<string, string>>({})
+
+  // View & delete state - inline instead of dialogs
+  const [viewingRecord, setViewingRecord] = useState<{ type: string; data: Record<string, unknown> | null } | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleteInfo, setDeleteInfo] = useState<{ type: string; name: string }>({ type: '', name: '' })
+  const [deleting, setDeleting] = useState(false)
+
+  // ============ Data Fetchers ============
+  const fetchCompanies = useCallback(async () => {
+    setLoading(l => ({ ...l, companies: true }))
+    try {
+      const res = await apiFetch<{ companies: CompanyRecord[] }>('/api/companies')
+      setCompanies(res.companies || [])
+    } catch { toast.error('Failed to load companies') }
+    finally { setLoading(l => ({ ...l, companies: false })) }
+  }, [])
+
+  const fetchBranches = useCallback(async () => {
+    setLoading(l => ({ ...l, branches: true }))
+    try {
+      const res = await apiFetch<{ data: BranchRecord[] }>('/api/branches?limit=100')
+      setBranches(res.data || [])
+    } catch { toast.error('Failed to load branches') }
+    finally { setLoading(l => ({ ...l, branches: false })) }
+  }, [])
+
+  const fetchDepartments = useCallback(async () => {
+    setLoading(l => ({ ...l, departments: true }))
+    try {
+      const res = await apiFetch<{ data: DepartmentRecord[] }>('/api/departments?limit=100')
+      setDepartments(res.data || [])
+    } catch { toast.error('Failed to load departments') }
+    finally { setLoading(l => ({ ...l, departments: false })) }
+  }, [])
+
+  const fetchDesignations = useCallback(async () => {
+    setLoading(l => ({ ...l, designations: true }))
+    try {
+      const res = await apiFetch<{ data: DesignationRecord[] }>('/api/designations?limit=100')
+      setDesignations(res.data || [])
+    } catch { toast.error('Failed to load designations') }
+    finally { setLoading(l => ({ ...l, designations: false })) }
+  }, [])
+
+  const fetchShifts = useCallback(async () => {
+    setLoading(l => ({ ...l, shifts: true }))
+    try {
+      const res = await apiFetch<{ data: ShiftRecord[] }>('/api/shifts?limit=100')
+      setShifts((res.data || []).map((s: Record<string, unknown>) => ({
+        ...s, breakDuration: (s as Record<string, unknown>).breakDuration || (s as Record<string, unknown>).breakMinutes || 60, graceTime: (s as Record<string, unknown>).graceTime || 15,
+      })) as ShiftRecord[])
+    } catch { toast.error('Failed to load shifts') }
+    finally { setLoading(l => ({ ...l, shifts: false })) }
+  }, [])
+
+  const fetchHolidays = useCallback(async () => {
+    setLoading(l => ({ ...l, holidays: true }))
+    try {
+      const res = await apiFetch<{ data: HolidayRecord[] }>('/api/holidays?limit=100')
+      setHolidays(res.data || [])
+    } catch { toast.error('Failed to load holidays') }
+    finally { setLoading(l => ({ ...l, holidays: false })) }
+  }, [])
+
+  const fetchPolicies = useCallback(async () => {
+    setLoading(l => ({ ...l, policies: true }))
+    try {
+      const res = await apiFetch<{ data: PolicyRecord[] }>('/api/policies?limit=100')
+      setPolicies(res.data || [])
+    } catch { toast.error('Failed to load policies') }
+    finally { setLoading(l => ({ ...l, policies: false })) }
+  }, [])
+
+  useEffect(() => {
+    fetchCompanies(); fetchBranches(); fetchDepartments(); fetchDesignations(); fetchShifts(); fetchHolidays(); fetchPolicies()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ============ CRUD Handlers ============
+  const refreshMap: Record<string, () => void> = {
+    companies: fetchCompanies, branches: fetchBranches, departments: fetchDepartments,
+    designations: fetchDesignations, shifts: fetchShifts, holidays: fetchHolidays, policies: fetchPolicies,
   }
+
+  const getDefaultForm = (type: string): Record<string, string> => {
+    switch (type) {
+      case 'companies': return { name: '', code: '', country: 'India', currency: 'INR', timezone: 'Asia/Kolkata', city: '', state: '', address: '', zipCode: '', phone: '', email: '', website: '', taxId: '', status: 'active' }
+      case 'branches': return { name: '', code: '', companyId: companies[0]?.id || '', country: 'India', state: '', city: '', address: '', zipCode: '', phone: '', email: '', status: 'active' }
+      case 'departments': return { name: '', code: '', companyId: companies[0]?.id || '', status: 'active' }
+      case 'designations': return { title: '', departmentId: departments[0]?.id || '', level: '1', minSalary: '', maxSalary: '', status: 'active' }
+      case 'shifts': return { name: '', startTime: '09:00', endTime: '18:00', breakDuration: '60', graceTime: '15', status: 'active' }
+      case 'holidays': return { name: '', date: '', type: 'public', country: 'India', description: '' }
+      case 'policies': return { title: '', category: 'hr', description: '', version: '1.0', status: 'active', effectiveDate: '', expiryDate: '' }
+      default: return {}
+    }
+  }
+
+  const getFormFromRecord = (type: string, r: Record<string, unknown>): Record<string, string> => {
+    const f = getDefaultForm(type)
+    Object.keys(f).forEach(k => { if (r[k] !== undefined && r[k] !== null) f[k] = String(r[k]) })
+    return f
+  }
+
+  const openAdd = () => {
+    setEditingId(null)
+    setForm(getDefaultForm(activeTab))
+    setShowForm(true)
+    setViewingRecord(null)
+    setDeleteConfirmId(null)
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+  }
+
+  const openEdit = (type: string, record: Record<string, unknown>) => {
+    setEditingId(record.id as string)
+    setForm(getFormFromRecord(type, record))
+    setShowForm(true)
+    setViewingRecord(null)
+    setDeleteConfirmId(null)
+    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+  }
+
+  const openView = (type: string, record: Record<string, unknown>) => {
+    setViewingRecord({ type, data: record })
+    setShowForm(false)
+    setDeleteConfirmId(null)
+    setTimeout(() => document.getElementById('view-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+  }
+
+  const handleCancelForm = () => {
+    setShowForm(false)
+    setEditingId(null)
+    setForm({})
+  }
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSubmitting(true)
+    try {
+      const type = activeTab
+      const isEdit = !!editingId
+      const url = `/api/${type === 'companies' ? 'companies' : type}`
+      const method = isEdit ? 'PUT' : 'POST'
+      const body = { ...form }
+      if (isEdit) body.id = editingId
+
+      await apiFetch(url, { method, body: JSON.stringify(body) })
+      const label = type.slice(0, -1).replace(/^./, c => c.toUpperCase())
+      toast.success(`${label} ${isEdit ? 'updated' : 'created'} successfully`)
+      handleCancelForm()
+      refreshMap[type]?.()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Operation failed')
+    } finally { setSubmitting(false) }
+  }
+
+  const handleDelete = async () => {
+    const { type } = deleteInfo
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/${type}?id=${deleteConfirmId}`, { method: 'DELETE' })
+      toast.success('Deleted successfully')
+      refreshMap[type]?.()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed')
+    } finally {
+      setDeleting(false)
+      setDeleteConfirmId(null)
+      setDeleteInfo({ type: '', name: '' })
+    }
+  }
+
+  const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }))
+
+  // ============ Filtered Data ============
+  const q = search.toLowerCase()
+  const filterList = <T extends Record<string, unknown>>(list: T[], fields: (keyof T)[]) =>
+    list.filter(item => fields.some(f => String(item[f] ?? '').toLowerCase().includes(q)))
+
+  const fCompanies = filterList(companies, ['name', 'code', 'city'])
+  const fBranches = filterList(branches, ['name', 'city', 'address'])
+  const fDepartments = filterList(departments, ['name', 'code'])
+  const fDesignations = filterList(designations, ['title'])
+  const fShifts = filterList(shifts, ['name'])
+  const fHolidays = filterList(holidays, ['name'])
+  const fPolicies = filterList(policies, ['title', 'category'])
+
+  // ============ Tab Config ============
+  const tabs = [
+    { key: 'companies', label: 'Companies', icon: FiHome },
+    { key: 'branches', label: 'Branches', icon: FiMapPin },
+    { key: 'departments', label: 'Departments', icon: FiBriefcase },
+    { key: 'designations', label: 'Designations', icon: FiAward },
+    { key: 'grades', label: 'Grades', icon: FiLayers },
+    { key: 'shifts', label: 'Shifts', icon: FiClock },
+    { key: 'holidays', label: 'Holidays', icon: FiCalendar },
+    { key: 'policies', label: 'Policies', icon: FiFileText },
+  ]
+
+  const addBtnLabel = () => {
+    const map: Record<string, string> = { companies: 'Company', branches: 'Branch', departments: 'Department', designations: 'Designation', grades: 'Grade', shifts: 'Shift', holidays: 'Holiday', policies: 'Policy' }
+    return `Add ${map[activeTab] || activeTab.slice(0, -1)}`
+  }
+
+  // ============ View Detail Renderer ============
+  const renderViewDetail = () => {
+    if (!viewingRecord?.data) return null
+    const d = viewingRecord.data
+    const type = viewingRecord.type
+
+    const renderField = (label: string, value: unknown) => (
+      <div>
+        <p className="text-xs font-medium text-nexus-text-muted mb-1">{label}</p>
+        <p className="text-sm font-medium text-nexus-text-primary">{value || '—'}</p>
+      </div>
+    )
+
+    return (
+      <div id="view-detail" className="nexus-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+              <FiEye className="w-5 h-5 text-violet-500" />
+              Details
+            </h2>
+            <button onClick={() => setViewingRecord(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {type === 'companies' && (
+              <>
+                {renderField('Name', d.name)}{renderField('Code', d.code)}{renderField('Status', d.status)}
+                {renderField('City', d.city)}{renderField('State', d.state)}{renderField('Country', d.country)}
+                {renderField('Currency', d.currency)}{renderField('Phone', d.phone)}{renderField('Email', d.email)}
+                {renderField('Website', d.website)}{renderField('Tax ID / GST', d.taxId)}{renderField('Address', d.address)}
+                {renderField('ZIP Code', d.zipCode)}
+              </>
+            )}
+            {type === 'branches' && (
+              <>
+                {renderField('Name', d.name)}{renderField('Code', d.code)}{renderField('Status', d.status)}
+                {renderField('Company', (d.company as Record<string, unknown>)?.name)}{renderField('City', d.city)}{renderField('State', d.state)}
+                {renderField('Country', d.country)}{renderField('Phone', d.phone)}{renderField('Email', d.email)}
+                {renderField('Address', d.address)}{renderField('Employees', d._count ? (d._count as Record<string, number>).employees : '—')}
+              </>
+            )}
+            {type === 'departments' && (
+              <>
+                {renderField('Name', d.name)}{renderField('Code', d.code)}{renderField('Status', d.status)}
+                {renderField('Company', (d.company as Record<string, unknown>)?.name)}{renderField('Employees', d._count ? (d._count as Record<string, number>).employees : '—')}
+                {renderField('Designations', d._count ? (d._count as Record<string, number>).designations : '—')}
+              </>
+            )}
+            {type === 'designations' && (
+              <>
+                {renderField('Title', d.title)}{renderField('Grade', gradeCode(Number(d.level)))}{renderField('Department', (d.department as Record<string, unknown>)?.name)}
+                {renderField('Min Salary', d.minSalary ? fmtSalary(Number(d.minSalary)) : '—')}{renderField('Max Salary', d.maxSalary ? fmtSalary(Number(d.maxSalary)) : '—')}{renderField('Level', d.level)}
+                {renderField('Status', d.status)}
+              </>
+            )}
+            {type === 'shifts' && (
+              <>
+                {renderField('Name', d.name)}{renderField('Start Time', fmtTime(String(d.startTime || '')))}{renderField('End Time', fmtTime(String(d.endTime || '')))}
+                {renderField('Break Duration', `${d.breakDuration || 60} min`)}{renderField('Grace Time', `${d.graceTime || 15} min`)}{renderField('Status', d.status)}
+              </>
+            )}
+            {type === 'holidays' && (
+              <>
+                {renderField('Name', d.name)}{renderField('Date', fmtDate(String(d.date)))}{renderField('Day', fmtDay(String(d.date)))}
+                {renderField('Type', d.type)}{renderField('Country', d.country)}{renderField('Description', d.description)}
+              </>
+            )}
+            {type === 'policies' && (
+              <>
+                {renderField('Title', d.title)}{renderField('Category', d.category)}{renderField('Version', d.version)}
+                {renderField('Status', d.status)}{renderField('Effective Date', d.effectiveDate ? fmtDate(String(d.effectiveDate)) : '—')}{renderField('Expiry Date', d.expiryDate ? fmtDate(String(d.expiryDate)) : '—')}
+                {renderField('Description', d.description)}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ============ Form Renderer ============
+  const renderForm = () => {
+    const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400'
+    const selectClass = inputClass
+
+    return (
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {activeTab === 'companies' && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. 3BOXES" /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label><select value={form.currency || 'INR'} onChange={e => updateForm('currency', e.target.value)} className={selectClass}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
+              <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Website</label><input type="url" value={form.website || ''} onChange={e => updateForm('website', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tax ID / GST</label><input type="text" value={form.taxId || ''} onChange={e => updateForm('taxId', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">ZIP Code</label><input type="text" value={form.zipCode || ''} onChange={e => updateForm('zipCode', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            </div>
+          </>
+        )}
+        {activeTab === 'branches' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Branch name" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. MUM" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={selectClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
+            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+          </div>
+        )}
+        {activeTab === 'departments' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. ENG" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={selectClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+          </div>
+        )}
+        {activeTab === 'designations' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Designation title" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department *</label><select value={form.departmentId || ''} onChange={e => updateForm('departmentId', e.target.value)} required className={selectClass}><option value="">Select Department</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Level</label><input type="number" value={form.level || '1'} onChange={e => updateForm('level', e.target.value)} className={inputClass} placeholder="1" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Min Salary (₹)</label><input type="number" value={form.minSalary || ''} onChange={e => updateForm('minSalary', e.target.value)} className={inputClass} placeholder="300000" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Max Salary (₹)</label><input type="number" value={form.maxSalary || ''} onChange={e => updateForm('maxSalary', e.target.value)} className={inputClass} placeholder="600000" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+          </div>
+        )}
+        {activeTab === 'shifts' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Shift name" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Time</label><input type="time" value={form.startTime || '09:00'} onChange={e => updateForm('startTime', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">End Time</label><input type="time" value={form.endTime || '18:00'} onChange={e => updateForm('endTime', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Break (min)</label><input type="number" value={form.breakDuration || '60'} onChange={e => updateForm('breakDuration', e.target.value)} className={inputClass} placeholder="60" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Grace Time (min)</label><input type="number" value={form.graceTime || '15'} onChange={e => updateForm('graceTime', e.target.value)} className={inputClass} placeholder="15" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+          </div>
+        )}
+        {activeTab === 'holidays' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Holiday name" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date *</label><input type="date" value={form.date || ''} onChange={e => updateForm('date', e.target.value)} required className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Type</label><select value={form.type || 'public'} onChange={e => updateForm('type', e.target.value)} className={selectClass}><option value="public">Public</option><option value="festival">Festival</option><option value="state">State</option><option value="company">Company</option><option value="optional">Optional</option></select></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
+            <div className="sm:col-span-2"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Holiday description" /></div>
+          </div>
+        )}
+        {activeTab === 'policies' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Policy title" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label><select value={form.category || 'hr'} onChange={e => updateForm('category', e.target.value)} className={selectClass}><option value="hr">HR</option><option value="it">IT</option><option value="leave">Leave</option><option value="attendance">Attendance</option><option value="finance">Finance</option><option value="work">Work</option><option value="safety">Safety</option><option value="code_of_conduct">Code of Conduct</option></select></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Version</label><input type="text" value={form.version || '1.0'} onChange={e => updateForm('version', e.target.value)} className={inputClass} placeholder="1.0" /></div>
+            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Brief description" /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective Date</label><input type="date" value={form.effectiveDate || ''} onChange={e => updateForm('effectiveDate', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Expiry Date</label><input type="date" value={form.expiryDate || ''} onChange={e => updateForm('expiryDate', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="draft">Draft</option><option value="inactive">Inactive</option></select></div>
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+          <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+          <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
+            {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  // ============ Action Buttons Helper ============
+  const renderActions = (type: string, record: Record<string, unknown>) => {
+    const isDeleting = deleteConfirmId === (record.id as string)
+    const name = (record.name || record.title) as string
+    return (
+      <div className="flex items-center gap-1">
+        <button onClick={() => openView(type, record)} className="p-2 rounded-lg text-nexus-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+        {isAdmin && (
+          <>
+            <button onClick={() => openEdit(type, record)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+            <button onClick={() => { setDeleteConfirmId(record.id as string); setDeleteInfo({ type, name }); setViewingRecord(null) }} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // ============ Delete Confirmation ============
+  const renderDeleteConfirm = (recordId: string, recordName: string) => (
+    <div className="flex items-center justify-between px-4 py-3 bg-red-50 rounded-lg">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+          <FiAlertTriangle className="w-4 h-4 text-red-500" />
+        </div>
+        <span className="text-sm text-red-700 font-medium">Delete &quot;{recordName}&quot;? This cannot be undone.</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button onClick={handleDelete} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
+          {deleting ? 'Deleting...' : 'Confirm Delete'}
+        </button>
+        <button onClick={() => { setDeleteConfirmId(null); setDeleteInfo({ type: '', name: '' }) }} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+      </div>
+    </div>
+  )
+
+  // ============ Table Container ============
+  const TableWrapper = ({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) => (
+    <div className="nexus-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-nexus-border bg-slate-50/50 flex items-center gap-2">
+        {icon}
+        <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
+        <span className="text-xs text-nexus-text-muted">({count})</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          {children}
+        </table>
+      </div>
+    </div>
+  )
+
+  const TH = ({ children }: { children: React.ReactNode }) => <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider border-b border-nexus-border bg-slate-50/50">{children}</th>
+  const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-nexus-text-secondary border-b border-nexus-border/50 ${className}`}>{children}</td>
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2"><Building2 className="w-6 h-6 text-emerald-400" /> Company Management</h1>
-          <p className="text-slate-400 mt-1">Manage companies, branches, departments, and organizational structure</p>
+          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <FiLayers className="w-6 h-6 text-violet-500" />
+            Company Management
+          </h1>
+          <p className="text-nexus-text-secondary mt-1">Manage companies, branches, departments, and organizational structure</p>
         </div>
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openAddDialog('Add ' + activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}>
-          <Plus className="w-4 h-4 mr-2" /> Add {activeTab.charAt(0).toUpperCase() + activeTab.slice(1).slice(0, -1)}
-        </Button>
+        {isAdmin && activeTab !== 'grades' && (
+          <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
+            <FiPlus className="w-4 h-4" />
+            {addBtnLabel()}
+          </button>
+        )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <Input placeholder="Search..." className="pl-9 bg-slate-900 border-slate-700 text-slate-300" value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Module Tips */}
+      <ModuleTips
+        moduleKey="company"
+        title="Company Management Tips"
+        tips={companyTips}
+        userRole={user?.role}
+      />
+
+      {/* Getting Started Info Banner */}
+      <div className="nexus-card border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/50 to-blue-50/50">
+        <div className="p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+              <FiCheckCircle className="w-5 h-5 text-violet-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-nexus-text-primary mb-1">Getting Started with Company Management</h3>
+              <p className="text-sm text-nexus-text-secondary leading-relaxed">
+                Follow this step-by-step workflow to set up your organizational structure. Start by creating your company profile, 
+                then add branches and departments. Define designations with grade levels and salary ranges, configure work shifts 
+                for attendance tracking, plan your holiday calendar, and set up company policies. Once your organization structure 
+                is complete, you can begin onboarding employees.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-900 border border-slate-700 flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="companies" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Companies</TabsTrigger>
-          <TabsTrigger value="branches" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Branches</TabsTrigger>
-          <TabsTrigger value="departments" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Departments</TabsTrigger>
-          <TabsTrigger value="designations" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Designations</TabsTrigger>
-          <TabsTrigger value="grades" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Grades</TabsTrigger>
-          <TabsTrigger value="shifts" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Shifts</TabsTrigger>
-          <TabsTrigger value="holidays" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Holidays</TabsTrigger>
-          <TabsTrigger value="policies" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Policies</TabsTrigger>
-        </TabsList>
+      <ModuleWorkflow
+        moduleKey="company"
+        title="How to Set Up Your Organization"
+        subtitle="Follow this workflow to configure your organizational structure"
+        steps={companyWorkflowSteps}
+        accentColor="violet"
+        userRole={user?.role}
+      />
 
-        <TabsContent value="companies">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-            <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">Total Companies</p><p className="text-2xl font-bold text-white">{companies.length}</p></CardContent></Card>
-            <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">Total Branches</p><p className="text-2xl font-bold text-white">{branches.length}</p></CardContent></Card>
-            <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">Total Employees</p><p className="text-2xl font-bold text-emerald-400">31</p></CardContent></Card>
+      {/* Search & Tabs */}
+      <div className="nexus-card p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, code, city..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+            />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            {companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => (
-              <Card key={c.code} className="bg-slate-900 border-slate-800 hover:border-emerald-600/30 transition-colors">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center"><Building2 className="w-5 h-5 text-emerald-400" /></div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
-                    </div>
-                  </div>
-                  <h3 className="text-white font-semibold text-lg">{c.name}</h3>
-                  <p className="text-slate-500 text-sm mb-1">{c.code} · {c.city}, {c.state}</p>
-                  <p className="text-slate-600 text-xs mb-4">GST: {c.gst} · {c.phone}</p>
-                  <div className="grid grid-cols-3 gap-2 text-center border-t border-slate-800 pt-3">
-                    <div><p className="text-lg font-bold text-white">{c.branches}</p><p className="text-xs text-slate-500">Branches</p></div>
-                    <div><p className="text-lg font-bold text-white">{c.departments}</p><p className="text-xs text-slate-500">Depts</p></div>
-                    <div><p className="text-lg font-bold text-emerald-400">{c.employees}</p><p className="text-xs text-slate-500">Employees</p></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+        </div>
+
+        <div className="mt-3 border-t border-nexus-border pt-3">
+          <nav className="flex flex-wrap gap-1">
+            {tabs.map(tab => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); setShowForm(false); setViewingRecord(null); setDeleteConfirmId(null) }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === tab.key
+                      ? 'bg-violet-500 text-white shadow-sm'
+                      : 'text-nexus-text-secondary hover:bg-slate-100 hover:text-nexus-text-primary'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* View Detail */}
+      {viewingRecord && renderViewDetail()}
+
+      {/* Inline Add/Edit Form */}
+      {showForm && (
+        <div id="crud-form" className="nexus-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-nexus-text-primary">
+                {editingId ? 'Edit' : 'Add'} {tabs.find(t => t.key === activeTab)?.label.slice(0, -1) || activeTab.slice(0, -1)}
+              </h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            {renderForm()}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="branches">
-          <Card className="bg-slate-900 border-slate-800 mt-4">
-            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><MapPin className="w-5 h-5 text-emerald-400" /> Branches ({branches.length})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow className="border-slate-700">
-                  <TableHead className="text-slate-400">Branch</TableHead><TableHead className="text-slate-400">Company</TableHead><TableHead className="text-slate-400">City</TableHead><TableHead className="text-slate-400">Address</TableHead><TableHead className="text-slate-400">Branch Head</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {branches.filter(b => b.name.toLowerCase().includes(search.toLowerCase()) || b.city.toLowerCase().includes(search.toLowerCase())).map(b => (
-                    <TableRow key={b.name} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-white font-medium"><MapPin className="w-4 h-4 inline mr-2 text-emerald-400" />{b.name}</TableCell>
-                      <TableCell className="text-slate-300">{b.company}</TableCell>
-                      <TableCell className="text-slate-300">{b.city}, {b.state}</TableCell>
-                      <TableCell className="text-slate-400 text-sm">{b.address}</TableCell>
-                      <TableCell className="text-slate-300">{b.head}</TableCell>
-                      <TableCell><Badge className="bg-emerald-600/20 text-emerald-400">{b.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="departments">
-          <Card className="bg-slate-900 border-slate-800 mt-4">
-            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-emerald-400" /> Departments ({departments.length})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow className="border-slate-700">
-                  <TableHead className="text-slate-400">Department</TableHead><TableHead className="text-slate-400">Head</TableHead><TableHead className="text-slate-400">Employees</TableHead><TableHead className="text-slate-400">Budget</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {departments.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => (
-                    <TableRow key={d.name} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-white font-medium">{d.name}</TableCell>
-                      <TableCell className="text-slate-300">{d.head}</TableCell>
-                      <TableCell className="text-slate-300">{d.employees}</TableCell>
-                      <TableCell className="text-emerald-400 font-medium">{d.budget}</TableCell>
-                      <TableCell><Badge className="bg-emerald-600/20 text-emerald-400">{d.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="designations">
-          <Card className="bg-slate-900 border-slate-800 mt-4">
-            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Award className="w-5 h-5 text-emerald-400" /> Designations ({designations.length})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow className="border-slate-700">
-                  <TableHead className="text-slate-400">Designation</TableHead><TableHead className="text-slate-400">Grade</TableHead><TableHead className="text-slate-400">Department</TableHead><TableHead className="text-slate-400">Salary Range</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {designations.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => (
-                    <TableRow key={d.name} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-white font-medium">{d.name}</TableCell>
-                      <TableCell><Badge variant="outline" className="border-teal-600/30 text-teal-400">{d.grade}</Badge></TableCell>
-                      <TableCell className="text-slate-300">{d.department}</TableCell>
-                      <TableCell className="text-emerald-400">{d.minSalary} - {d.maxSalary}</TableCell>
-                      <TableCell><Badge className="bg-emerald-600/20 text-emerald-400">{d.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="grades">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-            {grades.filter(g => g.name.toLowerCase().includes(search.toLowerCase())).map(g => (
-              <Card key={g.code} className="bg-slate-900 border-slate-800 hover:border-emerald-600/30 transition-colors">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <Badge variant="outline" className="border-emerald-600/30 text-emerald-400 text-base px-3 py-1">{g.code}</Badge>
-                    <Badge className="bg-emerald-600/20 text-emerald-400">{g.status}</Badge>
-                  </div>
-                  <p className="text-white font-semibold text-lg">{g.name}</p>
-                  <p className="text-emerald-400 text-2xl font-bold mt-2">{g.range}</p>
-                  <p className="text-slate-500 text-sm mt-1">Per annum</p>
-                  <div className="mt-3 pt-3 border-t border-slate-800">
-                    <div className="flex justify-between text-sm"><span className="text-slate-400">Employees</span><span className="text-white font-medium">{g.employees}</span></div>
-                    <div className="flex justify-between text-sm mt-1"><span className="text-slate-400">Min</span><span className="text-slate-300">₹{(g.min / 100000).toFixed(0)}L</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-slate-400">Max</span><span className="text-slate-300">₹{(g.max / 100000).toFixed(0)}L</span></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="shifts">
-          <Card className="bg-slate-900 border-slate-800 mt-4">
-            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-emerald-400" /> Shifts ({shifts.length})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow className="border-slate-700">
-                  <TableHead className="text-slate-400">Shift</TableHead><TableHead className="text-slate-400">Code</TableHead><TableHead className="text-slate-400">Start Time</TableHead><TableHead className="text-slate-400">End Time</TableHead><TableHead className="text-slate-400">Break</TableHead><TableHead className="text-slate-400">Grace</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {shifts.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
-                    <TableRow key={s.code} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-white font-medium flex items-center gap-2">
-                        {s.code === 'NS' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-400" />}
-                        {s.name}
-                      </TableCell>
-                      <TableCell><Badge variant="outline" className="border-slate-600 text-slate-300 font-mono">{s.code}</Badge></TableCell>
-                      <TableCell className="text-slate-300">{s.startTime}</TableCell>
-                      <TableCell className="text-slate-300">{s.endTime}</TableCell>
-                      <TableCell className="text-slate-300">{s.breakTime}</TableCell>
-                      <TableCell className="text-slate-300">{s.graceMinutes} min</TableCell>
-                      <TableCell><Badge className="bg-emerald-600/20 text-emerald-400">{s.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="holidays">
-          <Card className="bg-slate-900 border-slate-800 mt-4">
-            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Calendar className="w-5 h-5 text-emerald-400" /> Holidays 2026 ({holidays.length})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow className="border-slate-700">
-                  <TableHead className="text-slate-400">Holiday</TableHead><TableHead className="text-slate-400">Date</TableHead><TableHead className="text-slate-400">Day</TableHead><TableHead className="text-slate-400">Type</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {holidays.filter(h => h.name.toLowerCase().includes(search.toLowerCase())).map(h => (
-                    <TableRow key={h.name} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-white font-medium">{h.name}</TableCell>
-                      <TableCell className="text-slate-300">{h.date}</TableCell>
-                      <TableCell className="text-slate-400">{h.day}</TableCell>
-                      <TableCell><Badge variant="outline" className={h.type === 'National' ? 'border-amber-600/30 text-amber-400' : h.type === 'Festival' ? 'border-purple-600/30 text-purple-400' : 'border-teal-600/30 text-teal-400'}>{h.type}</Badge></TableCell>
-                      <TableCell><Badge className="bg-emerald-600/20 text-emerald-400">{h.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="policies">
-          <Card className="bg-slate-900 border-slate-800 mt-4">
-            <CardHeader><CardTitle className="text-white text-lg">Company Policies ({policies.length})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow className="border-slate-700">
-                  <TableHead className="text-slate-400">Policy</TableHead><TableHead className="text-slate-400">Category</TableHead><TableHead className="text-slate-400">Version</TableHead><TableHead className="text-slate-400">Last Updated</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {policies.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map(p => (
-                    <TableRow key={p.name} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="text-white font-medium">{p.name}</TableCell>
-                      <TableCell><Badge variant="outline" className="border-slate-600 text-slate-300">{p.category}</Badge></TableCell>
-                      <TableCell className="text-slate-300 font-mono">v{p.version}</TableCell>
-                      <TableCell className="text-slate-400">{p.lastUpdated}</TableCell>
-                      <TableCell><Badge className="bg-emerald-600/20 text-emerald-400">{p.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg">
-          <DialogHeader><DialogTitle className="text-white">{dialogTitle}</DialogTitle></DialogHeader>
-          <div className="space-y-3 mt-4">
-            <div><Label className="text-slate-300">Name</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter name" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-slate-300">Code</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Code" /></div>
-              <div><Label className="text-slate-300">Status</Label>
-                <Select><SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
-                    <SelectItem value="active" className="text-slate-300">Active</SelectItem>
-                    <SelectItem value="inactive" className="text-slate-300">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+      {/* ── COMPANIES TAB ── */}
+      {activeTab === 'companies' && (
+        loading.companies ? (
+          <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div>
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="nexus-card nexus-card-hover p-5">
+                <div className="flex items-start justify-between">
+                  <div><p className="text-xs font-medium text-nexus-text-secondary">Total Companies</p><p className="text-2xl font-bold text-nexus-text-primary mt-1">{companies.length}</p></div>
+                  <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 ring-1 ring-violet-100"><FiHome className="w-5 h-5" /></div>
+                </div>
+              </div>
+              <div className="nexus-card nexus-card-hover p-5">
+                <div className="flex items-start justify-between">
+                  <div><p className="text-xs font-medium text-nexus-text-secondary">Total Branches</p><p className="text-2xl font-bold text-nexus-text-primary mt-1">{branches.length}</p></div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 ring-1 ring-blue-100"><FiMapPin className="w-5 h-5" /></div>
+                </div>
+              </div>
+              <div className="nexus-card nexus-card-hover p-5">
+                <div className="flex items-start justify-between">
+                  <div><p className="text-xs font-medium text-nexus-text-secondary">Total Departments</p><p className="text-2xl font-bold text-violet-600 mt-1">{departments.length}</p></div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 ring-1 ring-emerald-100"><FiBriefcase className="w-5 h-5" /></div>
+                </div>
               </div>
             </div>
-            <div className="flex gap-3 pt-2">
-              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setDialogOpen(false)}>Save</Button>
-              <Button variant="outline" className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            {/* Company Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {fCompanies.length === 0 ? (
+                <div className="col-span-full text-center py-12"><FiHome className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No companies found</p></div>
+              ) : fCompanies.map(c => {
+                const badge = getStatusBadge(c.status)
+                return (
+                  <div key={c.id} className={`nexus-card nexus-card-hover transition-colors ${deleteConfirmId === c.id ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
+                    <div className="p-5">
+                      {deleteConfirmId === c.id ? (
+                        renderDeleteConfirm(c.id, c.name)
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiHome className="w-5 h-5 text-violet-500" /></div>
+                            {renderActions('companies', c as unknown as Record<string, unknown>)}
+                          </div>
+                          <h3 className="text-nexus-text-primary font-semibold text-lg">{c.name}</h3>
+                          <p className="text-nexus-text-muted text-sm mb-1">{c.code || '—'} · {c.city || '—'}, {c.state || ''}</p>
+                          <p className="text-nexus-text-muted text-xs mb-4">{c.taxId ? `GST: ${c.taxId}` : ''} {c.phone ? `· ${c.phone}` : ''}</p>
+                          <div className="grid grid-cols-3 gap-2 text-center border-t border-nexus-border pt-3">
+                            <div><p className="text-lg font-bold text-nexus-text-primary">{c._count?.branches || 0}</p><p className="text-xs text-nexus-text-muted">Branches</p></div>
+                            <div><p className="text-lg font-bold text-nexus-text-primary">{c._count?.departments || 0}</p><p className="text-xs text-nexus-text-muted">Depts</p></div>
+                            <div><span className={badge.className}>{badge.label}</span></div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </>
+        )
+      )}
+
+      {/* ── BRANCHES TAB ── */}
+      {activeTab === 'branches' && (
+        loading.branches ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          <TableWrapper title="Branches" icon={<FiMapPin className="w-4 h-4 text-violet-500" />} count={branches.length}>
+            <thead><tr><TH>Branch</TH><TH>Company</TH><TH>Location</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+            <tbody>
+              {fBranches.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center"><FiMapPin className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No branches found</p></td></tr>
+              ) : fBranches.map(b => {
+                const badge = getStatusBadge(b.status)
+                return (
+                  <tr key={b.id} className={`transition-colors ${deleteConfirmId === b.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    {deleteConfirmId === b.id ? (
+                      <td colSpan={5} className="px-4 py-3">{renderDeleteConfirm(b.id, b.name)}</td>
+                    ) : (
+                      <>
+                        <TD className="font-medium text-nexus-text-primary"><FiMapPin className="w-4 h-4 inline mr-2 text-violet-400" />{b.name}</TD>
+                        <TD>{b.company?.name || '—'}</TD>
+                        <TD>{b.city || '—'}, {b.state || ''}</TD>
+                        <TD><span className={badge.className}>{badge.label}</span></TD>
+                        <TD className="text-right">{renderActions('branches', b as unknown as Record<string, unknown>)}</TD>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </TableWrapper>
+        )
+      )}
+
+      {/* ── DEPARTMENTS TAB ── */}
+      {activeTab === 'departments' && (
+        loading.departments ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-violet-500" />} count={departments.length}>
+            <thead><tr><TH>Department</TH><TH>Company</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+            <tbody>
+              {fDepartments.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiBriefcase className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No departments found</p></td></tr>
+              ) : fDepartments.map(d => {
+                const badge = getStatusBadge(d.status)
+                return (
+                  <tr key={d.id} className={`transition-colors ${deleteConfirmId === d.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    {deleteConfirmId === d.id ? (
+                      <td colSpan={6} className="px-4 py-3">{renderDeleteConfirm(d.id, d.name)}</td>
+                    ) : (
+                      <>
+                        <TD className="font-medium text-nexus-text-primary">{d.name}</TD>
+                        <TD>{d.company?.name || '—'}</TD>
+                        <TD>{d._count?.employees || 0}</TD>
+                        <TD>{d._count?.designations || 0}</TD>
+                        <TD><span className={badge.className}>{badge.label}</span></TD>
+                        <TD className="text-right">{renderActions('departments', d as unknown as Record<string, unknown>)}</TD>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </TableWrapper>
+        )
+      )}
+
+      {/* ── DESIGNATIONS TAB ── */}
+      {activeTab === 'designations' && (
+        loading.designations ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          <TableWrapper title="Designations" icon={<FiAward className="w-4 h-4 text-violet-500" />} count={designations.length}>
+            <thead><tr><TH>Designation</TH><TH>Grade</TH><TH>Department</TH><TH>Salary Range</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+            <tbody>
+              {fDesignations.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiAward className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No designations found</p></td></tr>
+              ) : fDesignations.map(d => {
+                const badge = getStatusBadge(d.status)
+                return (
+                  <tr key={d.id} className={`transition-colors ${deleteConfirmId === d.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    {deleteConfirmId === d.id ? (
+                      <td colSpan={6} className="px-4 py-3">{renderDeleteConfirm(d.id, d.title)}</td>
+                    ) : (
+                      <>
+                        <TD className="font-medium text-nexus-text-primary">{d.title}</TD>
+                        <TD><span className="nexus-badge nexus-badge-info">{gradeCode(d.level)}</span></TD>
+                        <TD>{d.department?.name || '—'}</TD>
+                        <TD className="text-emerald-600 font-medium">{fmtSalary(d.minSalary)} - {fmtSalary(d.maxSalary)}</TD>
+                        <TD><span className={badge.className}>{badge.label}</span></TD>
+                        <TD className="text-right">{renderActions('designations', d as unknown as Record<string, unknown>)}</TD>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </TableWrapper>
+        )
+      )}
+
+      {/* ── GRADES TAB ── */}
+      {activeTab === 'grades' && (
+        loading.designations ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          (() => {
+            const grades = designations.reduce((acc, d) => {
+              const g = gradeCode(d.level)
+              if (!acc[g]) acc[g] = { name: gradeName(d.level), code: g, level: d.level, min: d.minSalary || 0, max: d.maxSalary || 0, employees: 0, status: 'active' }
+              acc[g].employees += d._count?.employees || 0
+              if (d.minSalary && (!acc[g].min || d.minSalary < acc[g].min)) acc[g].min = d.minSalary
+              if (d.maxSalary && (!acc[g].max || d.maxSalary > acc[g].max)) acc[g].max = d.maxSalary
+              return acc
+            }, {} as Record<string, { name: string; code: string; level: number; min: number; max: number; employees: number; status: string }>)
+            const gradeList = Object.values(grades).filter(g => g.name.toLowerCase().includes(q))
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {gradeList.length === 0 ? (
+                  <div className="col-span-full text-center py-12"><FiLayers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No grades found</p><p className="text-xs text-nexus-text-muted mt-1">Grades are derived from designation levels</p></div>
+                ) : gradeList.map(g => (
+                  <div key={g.code} className="nexus-card nexus-card-hover p-5 transition-colors">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="nexus-badge nexus-badge-info text-base px-3 py-1">{g.code}</span>
+                      <span className="nexus-badge nexus-badge-success">{g.status}</span>
+                    </div>
+                    <p className="text-nexus-text-primary font-semibold text-lg">{g.name}</p>
+                    <p className="text-violet-600 text-2xl font-bold mt-2">₹{(g.min / 100000).toFixed(0)}-{(g.max / 100000).toFixed(0)}L</p>
+                    <p className="text-nexus-text-muted text-sm mt-1">Per annum</p>
+                    <div className="mt-3 pt-3 border-t border-nexus-border space-y-1">
+                      <div className="flex justify-between text-sm"><span className="text-nexus-text-muted">Employees</span><span className="text-nexus-text-primary font-medium">{g.employees}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-nexus-text-muted">Min</span><span className="text-nexus-text-secondary">₹{(g.min / 100000).toFixed(0)}L</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-nexus-text-muted">Max</span><span className="text-nexus-text-secondary">₹{(g.max / 100000).toFixed(0)}L</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()
+        )
+      )}
+
+      {/* ── SHIFTS TAB ── */}
+      {activeTab === 'shifts' && (
+        loading.shifts ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          <TableWrapper title="Shifts" icon={<FiClock className="w-4 h-4 text-violet-500" />} count={shifts.length}>
+            <thead><tr><TH>Shift</TH><TH>Start</TH><TH>End</TH><TH>Break</TH><TH>Grace</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+            <tbody>
+              {fShifts.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-12 text-center"><FiClock className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No shifts found</p></td></tr>
+              ) : fShifts.map(s => {
+                const badge = getStatusBadge(s.status)
+                return (
+                  <tr key={s.id} className={`transition-colors ${deleteConfirmId === s.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    {deleteConfirmId === s.id ? (
+                      <td colSpan={7} className="px-4 py-3">{renderDeleteConfirm(s.id, s.name)}</td>
+                    ) : (
+                      <>
+                        <TD className="font-medium text-nexus-text-primary">
+                          <span className="inline-flex items-center gap-2">
+                            {s.name.toLowerCase().includes('night') ? <FiMoon className="w-4 h-4 text-indigo-400" /> : <FiSun className="w-4 h-4 text-amber-400" />}
+                            {s.name}
+                          </span>
+                        </TD>
+                        <TD>{fmtTime(s.startTime)}</TD>
+                        <TD>{fmtTime(s.endTime)}</TD>
+                        <TD>{s.breakDuration} min</TD>
+                        <TD>{s.graceTime} min</TD>
+                        <TD><span className={badge.className}>{badge.label}</span></TD>
+                        <TD className="text-right">{renderActions('shifts', s as unknown as Record<string, unknown>)}</TD>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </TableWrapper>
+        )
+      )}
+
+      {/* ── HOLIDAYS TAB ── */}
+      {activeTab === 'holidays' && (
+        loading.holidays ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          <TableWrapper title="Holidays" icon={<FiCalendar className="w-4 h-4 text-violet-500" />} count={holidays.length}>
+            <thead><tr><TH>Holiday</TH><TH>Date</TH><TH>Day</TH><TH>Type</TH><TH className="text-right">Actions</TH></tr></thead>
+            <tbody>
+              {fHolidays.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No holidays found</p></td></tr>
+              ) : fHolidays.map(h => {
+                const typeMap: Record<string, string> = { public: 'nexus-badge nexus-badge-warning', festival: 'nexus-badge nexus-badge-info', state: 'nexus-badge nexus-badge-success', company: 'bg-slate-100 text-slate-600 nexus-badge', optional: 'nexus-badge nexus-badge-info' }
+                return (
+                  <tr key={h.id} className={`transition-colors ${deleteConfirmId === h.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    {deleteConfirmId === h.id ? (
+                      <td colSpan={5} className="px-4 py-3">{renderDeleteConfirm(h.id, h.name)}</td>
+                    ) : (
+                      <>
+                        <TD className="font-medium text-nexus-text-primary">{h.name}</TD>
+                        <TD>{fmtDate(h.date)}</TD>
+                        <TD>{fmtDay(h.date)}</TD>
+                        <TD><span className={typeMap[h.type] || 'nexus-badge nexus-badge-info'}>{h.type}</span></TD>
+                        <TD className="text-right">{renderActions('holidays', h as unknown as Record<string, unknown>)}</TD>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </TableWrapper>
+        )
+      )}
+
+      {/* ── POLICIES TAB ── */}
+      {activeTab === 'policies' && (
+        loading.policies ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+          <TableWrapper title="Company Policies" icon={<FiFileText className="w-4 h-4 text-violet-500" />} count={policies.length}>
+            <thead><tr><TH>Policy</TH><TH>Category</TH><TH>Version</TH><TH>Effective</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+            <tbody>
+              {fPolicies.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No policies found</p></td></tr>
+              ) : fPolicies.map(p => {
+                const badge = getStatusBadge(p.status)
+                return (
+                  <tr key={p.id} className={`transition-colors ${deleteConfirmId === p.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    {deleteConfirmId === p.id ? (
+                      <td colSpan={6} className="px-4 py-3">{renderDeleteConfirm(p.id, p.title)}</td>
+                    ) : (
+                      <>
+                        <TD className="font-medium text-nexus-text-primary">{p.title}</TD>
+                        <TD><span className="nexus-badge nexus-badge-info">{p.category}</span></TD>
+                        <TD>v{p.version}</TD>
+                        <TD>{p.effectiveDate ? fmtDate(p.effectiveDate) : '—'}</TD>
+                        <TD><span className={badge.className}>{badge.label}</span></TD>
+                        <TD className="text-right">{renderActions('policies', p as unknown as Record<string, unknown>)}</TD>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </TableWrapper>
+        )
+      )}
     </div>
   )
 }

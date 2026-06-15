@@ -17,6 +17,10 @@ export async function POST(request: Request) {
 
     console.log('[Reseed] Starting database reseed...');
 
+    // BRANDING GUARD: After any reseed operation, ALWAYS force the tenant name
+    // to "3 Boxes Corp" to prevent eh2r or any other wrong branding from showing.
+    // This is a critical business requirement.
+
     // Create a PrismaClient that works with whatever DB is available
     const { PrismaClient } = await import('@/generated/prisma/client');
     const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
