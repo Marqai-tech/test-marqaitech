@@ -14,6 +14,21 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// Helper: safely convert Date/null/undefined to ISO string or empty string
+function toISOStr(val: Date | string | null | undefined): string {
+  if (!val) return '';
+  try {
+    return new Date(val).toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+}
+
+// Helper: safely get string or empty string
+function toStr(val: string | null | undefined): string {
+  return val || '';
+}
+
 // GET - Fetch current user profile
 export async function GET(request: Request) {
   try {
@@ -27,22 +42,58 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     }
 
+    // Step 1: Fetch user with tenant (lightweight, no deep nested includes)
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId as string },
       include: {
         tenant: true,
-        employee: {
-          include: {
-            department: true,
-            designation: true,
-            branch: true,
-          },
-        },
       },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Step 2: Try to fetch employee data separately (may not exist for all users)
+    let employeeData = null;
+    try {
+      const employee = await prisma.employee.findUnique({
+        where: { userId: user.id },
+        include: {
+          department: { select: { name: true } },
+          designation: { select: { name: true } },
+          branch: { select: { name: true } },
+        },
+      });
+
+      if (employee) {
+        employeeData = {
+          id: employee.id,
+          employeeId: employee.employeeId,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          email: employee.email,
+          phone: toStr(employee.phone),
+          emergencyContactName: toStr(employee.emergencyContactName),
+          emergencyContactPhone: toStr(employee.emergencyContactPhone),
+          address: toStr(employee.address),
+          city: toStr(employee.city),
+          state: toStr(employee.state),
+          zipCode: toStr(employee.zipCode),
+          country: toStr(employee.country),
+          dateOfBirth: toISOStr(employee.dateOfBirth),
+          gender: toStr(employee.gender),
+          bloodGroup: toStr(employee.bloodGroup),
+          department: employee.department?.name || '',
+          designation: employee.designation?.name || '',
+          branch: employee.branch?.name || '',
+          dateOfJoining: toISOStr(employee.dateOfJoining),
+          status: employee.status,
+        };
+      }
+    } catch (empErr) {
+      console.error('Get profile employee error (non-fatal):', empErr);
+      // Employee data is optional — continue without it
     }
 
     return NextResponse.json(
@@ -61,40 +112,19 @@ export async function GET(request: Request) {
           currency: user.tenant.currency,
           timezone: user.tenant.timezone,
         },
-        employee: user.employee
-          ? {
-              id: user.employee.id,
-              employeeId: user.employee.employeeId,
-              firstName: user.employee.firstName,
-              lastName: user.employee.lastName,
-              email: user.employee.email,
-              phone: user.employee.phone || '',
-              emergencyContactName: user.employee.emergencyContactName || '',
-              emergencyContactPhone: user.employee.emergencyContactPhone || '',
-              address: user.employee.address || '',
-              city: user.employee.city || '',
-              state: user.employee.state || '',
-              zipCode: user.employee.zipCode || '',
-              country: user.employee.country || '',
-              dateOfBirth: user.employee.dateOfBirth,
-              gender: user.employee.gender || '',
-              bloodGroup: user.employee.bloodGroup || '',
-              department: user.employee.department?.name || '',
-              designation: user.employee.designation?.name || '',
-              branch: user.employee.branch?.name || '',
-              dateOfJoining: user.employee.dateOfJoining,
-              status: user.employee.status,
-            }
-          : null,
-        lastLogin: user.lastLogin,
-        createdAt: user.createdAt,
+        employee: employeeData,
+        lastLogin: user.lastLogin ? toISOStr(user.lastLogin) : null,
+        createdAt: user.createdAt ? toISOStr(user.createdAt) : null,
       },
       { headers: corsHeaders() }
     );
   } catch (error) {
     console.error('Get profile error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Get profile error stack:', errorStack);
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal server error', details: errorMsg },
       { status: 500, headers: corsHeaders() }
     );
   }

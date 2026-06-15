@@ -729,14 +729,14 @@ function SettingsContent() {
           state: data.employee?.state || '',
           zipCode: data.employee?.zipCode || '',
           country: data.employee?.country || '',
-          dateOfBirth: data.employee?.dateOfBirth ? new Date(data.employee.dateOfBirth).toISOString().split('T')[0] : '',
+          dateOfBirth: data.employee?.dateOfBirth || '',
           gender: data.employee?.gender || '',
           bloodGroup: data.employee?.bloodGroup || '',
           department: data.employee?.department || '',
           designation: data.employee?.designation || '',
           branch: data.employee?.branch || '',
           employeeId: data.employee?.employeeId || '',
-          dateOfJoining: data.employee?.dateOfJoining ? new Date(data.employee.dateOfJoining).toISOString().split('T')[0] : '',
+          dateOfJoining: data.employee?.dateOfJoining || '',
         });
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -1157,7 +1157,7 @@ function SettingsContent() {
                             {editingProfile ? (
                               <input type="date" value={profileData.dateOfBirth} onChange={(e) => setProfileData(p => p ? { ...p, dateOfBirth: e.target.value } : p)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                             ) : (
-                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString() : '—'}</p>
+                              <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfBirth ? new Date(profileData.dateOfBirth + 'T00:00:00').toLocaleDateString() : '—'}</p>
                             )}
                           </div>
                           <div>
@@ -1202,7 +1202,7 @@ function SettingsContent() {
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Joining</label>
-                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfJoining ? new Date(profileData.dateOfJoining).toLocaleDateString() : '—'}</p>
+                            <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfJoining ? new Date(profileData.dateOfJoining + 'T00:00:00').toLocaleDateString() : '—'}</p>
                           </div>
                         </div>
                       </div>

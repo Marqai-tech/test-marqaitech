@@ -32,17 +32,11 @@ export async function GET(request: Request) {
       );
     }
 
+    // Step 1: Fetch user with tenant only (avoids deep nested includes that fail on Neon)
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId as string },
       include: {
         tenant: true,
-        employee: {
-          include: {
-            department: true,
-            designation: true,
-            branch: true,
-          },
-        },
       },
     });
 
@@ -51,6 +45,36 @@ export async function GET(request: Request) {
         { error: 'User not found' },
         { status: 404, headers: corsHeaders() }
       );
+    }
+
+    // Step 2: Try to fetch employee data separately (graceful fallback)
+    let employeeData = null;
+    try {
+      const employee = await prisma.employee.findUnique({
+        where: { userId: user.id },
+        include: {
+          department: { select: { name: true } },
+          designation: { select: { name: true } },
+          branch: { select: { name: true } },
+        },
+      });
+
+      if (employee) {
+        employeeData = {
+          id: employee.id,
+          employeeId: employee.employeeId,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          department: employee.department?.name || null,
+          designation: employee.designation?.name || null,
+          branch: employee.branch?.name || null,
+          status: employee.status,
+          salary: employee.salary,
+        };
+      }
+    } catch (empErr) {
+      console.error('[Auth/Me] Employee fetch error (non-fatal):', empErr);
+      // Continue without employee data — user can still be authenticated
     }
 
     // Always ensure tenant name is "3 Boxes Corp" — never return EH2R, Nexus, or any wrong branding
@@ -90,19 +114,7 @@ export async function GET(request: Request) {
           currency: user.tenant.currency,
           timezone: user.tenant.timezone,
         },
-        employee: user.employee
-          ? {
-              id: user.employee.id,
-              employeeId: user.employee.employeeId,
-              firstName: user.employee.firstName,
-              lastName: user.employee.lastName,
-              department: user.employee.department,
-              designation: user.employee.designation,
-              branch: user.employee.branch,
-              status: user.employee.status,
-              salary: user.employee.salary,
-            }
-          : null,
+        employee: employeeData,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
       },
@@ -111,7 +123,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Get current user error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers: corsHeaders() }
     );
   }
