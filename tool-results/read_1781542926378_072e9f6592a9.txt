@@ -1,0 +1,516 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useEffect, useCallback } from 'react';
+     4→import { getEmployees, createEmployee, updateEmployee, getDepartments, getBranches } from '@/lib/api';
+     5→import { useAppStore } from '@/store/app-store';
+     6→import { EMPLOYMENT_STATUS_COLORS } from '@/lib/types';
+     7→import { Card, CardContent } from '@/components/ui/card';
+     8→import { Badge } from '@/components/ui/badge';
+     9→import { Button } from '@/components/ui/button';
+    10→import { Input } from '@/components/ui/input';
+    11→import { Label } from '@/components/ui/label';
+    12→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    13→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+    14→import {
+    15→  Users, Search, Plus, LayoutGrid, List, Mail, Phone,
+    16→  Building2, Calendar, ChevronRight, UserCircle, Loader2, Eye, Pencil
+    17→} from 'lucide-react';
+    18→import { toast } from 'sonner';
+    19→
+    20→interface EmployeeData {
+    21→  id: string; employeeId: string; firstName: string; lastName: string; email: string; phone: string | null;
+    22→  designation: string; jobTitle: string | null; employmentType: string; status: string; joiningDate: string;
+    23→  department: { id: string; name: string }; branch: { id: string; name: string } | null; company: { id: string; name: string };
+    24→}
+    25→
+    26→export function Employees() {
+    27→  const { currentCompany } = useAppStore();
+    28→  const [employees, setEmployees] = useState<EmployeeData[]>([]);
+    29→  const [loading, setLoading] = useState(true);
+    30→  const [searchQuery, setSearchQuery] = useState('');
+    31→  const [deptFilter, setDeptFilter] = useState('all');
+    32→  const [statusFilter, setStatusFilter] = useState('all');
+    33→  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    34→  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeData | null>(null);
+    35→  const [showAddDialog, setShowAddDialog] = useState(false);
+    36→  const [showEditDialog, setShowEditDialog] = useState(false);
+    37→  const [editingEmployee, setEditingEmployee] = useState<EmployeeData | null>(null);
+    38→  const [submitting, setSubmitting] = useState(false);
+    39→  const [form, setForm] = useState({
+    40→    firstName: '', lastName: '', email: '', phone: '',
+    41→    designation: '', departmentId: '', employmentType: 'full-time', branchId: '',
+    42→  });
+    43→  const [editForm, setEditForm] = useState({
+    44→    firstName: '', lastName: '', email: '', phone: '',
+    45→    designation: '', departmentId: '', employmentType: 'full-time',
+    46→    status: 'active', branchId: '',
+    47→  });
+    48→  const [departmentOptions, setDepartmentOptions] = useState<{ id: string; name: string }[]>([]);
+    49→  const [branchOptions, setBranchOptions] = useState<{ id: string; name: string }[]>([]);
+    50→
+    51→  const fetchEmployees = useCallback(async () => {
+    52→    try {
+    53→      setLoading(true);
+    54→      const params: Record<string, string> = {};
+    55→      if (searchQuery) params.search = searchQuery;
+    56→      if (deptFilter !== 'all') params.departmentId = deptFilter;
+    57→      if (statusFilter !== 'all') params.status = statusFilter;
+    58→      if (currentCompany?.id) params.companyId = currentCompany.id;
+    59→      const res = await getEmployees(params);
+    60→      setEmployees(res.data || []);
+    61→    } catch {
+    62→      toast.error('Failed to load employees');
+    63→    } finally {
+    64→      setLoading(false);
+    65→    }
+    66→  }, [searchQuery, deptFilter, statusFilter, currentCompany?.id]);
+    67→
+    68→  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+    69→
+    70→  // Fetch department and branch options for dropdowns
+    71→  useEffect(() => {
+    72→    if (currentCompany?.id) {
+    73→      getDepartments({ companyId: currentCompany.id }).then(res => {
+    74→        const data = Array.isArray(res) ? res : [];
+    75→        setDepartmentOptions(data.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+    76→      }).catch(() => {});
+    77→      getBranches({ companyId: currentCompany.id }).then(res => {
+    78→        const data = Array.isArray(res) ? res : [];
+    79→        setBranchOptions(data.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })));
+    80→      }).catch(() => {});
+    81→    }
+    82→  }, [currentCompany?.id]);
+    83→
+    84→  const departments = [...new Set(employees.map(e => e.department?.name).filter(Boolean))].filter(d => d && d.trim() !== '');
+    85→
+    86→  const filteredEmployees = employees.filter(emp => {
+    87→    const matchesSearch = `${emp.firstName} ${emp.lastName} ${emp.email}`.toLowerCase().includes(searchQuery.toLowerCase());
+    88→    const matchesDept = deptFilter === 'all' || emp.department?.name === deptFilter;
+    89→    const matchesStatus = statusFilter === 'all' || emp.status === statusFilter;
+    90→    return matchesSearch && matchesDept && matchesStatus;
+    91→  });
+    92→
+    93→  const handleAddEmployee = async () => {
+    94→    if (!form.firstName || !form.lastName || !form.email || !form.designation) {
+    95→      toast.error('Please fill in all required fields');
+    96→      return;
+    97→    }
+    98→    if (!form.departmentId) {
+    99→      toast.error('Please select a department');
+   100→      return;
+   101→    }
+   102→    try {
+   103→      setSubmitting(true);
+   104→      const empId = `EMP${String(Date.now()).slice(-6)}`;
+   105→      await createEmployee({
+   106→        ...form,
+   107→        employeeId: empId,
+   108→        companyId: currentCompany?.id,
+   109→        joiningDate: new Date().toISOString().split('T')[0],
+   110→        status: 'active',
+   111→        departmentId: form.departmentId,
+   112→        branchId: form.branchId || undefined,
+   113→      });
+   114→      toast.success('Employee created successfully');
+   115→      setShowAddDialog(false);
+   116→      setForm({ firstName: '', lastName: '', email: '', phone: '', designation: '', departmentId: '', employmentType: 'full-time', branchId: '' });
+   117→      fetchEmployees();
+   118→    } catch {
+   119→      toast.error('Failed to create employee');
+   120→    } finally {
+   121→      setSubmitting(false);
+   122→    }
+   123→  };
+   124→
+   125→  const handleOpenEdit = (emp: EmployeeData) => {
+   126→    setEditingEmployee(emp);
+   127→    setEditForm({
+   128→      firstName: emp.firstName,
+   129→      lastName: emp.lastName,
+   130→      email: emp.email,
+   131→      phone: emp.phone || '',
+   132→      designation: emp.designation,
+   133→      departmentId: emp.department?.id || '',
+   134→      employmentType: emp.employmentType,
+   135→      status: emp.status,
+   136→      branchId: emp.branch?.id || '',
+   137→    });
+   138→    setShowEditDialog(true);
+   139→  };
+   140→
+   141→  const handleEditEmployee = async () => {
+   142→    if (!editingEmployee) return;
+   143→    try {
+   144→      setSubmitting(true);
+   145→      await updateEmployee(editingEmployee.id, {
+   146→        ...editForm,
+   147→        departmentId: editForm.departmentId || undefined,
+   148→        branchId: editForm.branchId || undefined,
+   149→      });
+   150→      toast.success('Employee updated successfully');
+   151→      setShowEditDialog(false);
+   152→      setEditingEmployee(null);
+   153→      fetchEmployees();
+   154→    } catch {
+   155→      toast.error('Failed to update employee');
+   156→    } finally {
+   157→      setSubmitting(false);
+   158→    }
+   159→  };
+   160→
+   161→  if (loading) {
+   162→    return (
+   163→      <div className="flex items-center justify-center py-20">
+   164→        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+   165→      </div>
+   166→    );
+   167→  }
+   168→
+   169→  return (
+   170→    <div className="space-y-6">
+   171→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   172→        <div>
+   173→          <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
+   174→          <p className="text-muted-foreground text-sm">Manage your organization&apos;s workforce</p>
+   175→        </div>
+   176→        <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowAddDialog(true)}>
+   177→          <Plus className="h-4 w-4 mr-2" /> Add Employee
+   178→        </Button>
+   179→      </div>
+   180→
+   181→      {/* Stats */}
+   182→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   183→        <Card>
+   184→          <CardContent className="p-4 text-center">
+   185→            <p className="text-2xl font-bold text-emerald-600">{employees.length}</p>
+   186→            <p className="text-xs text-muted-foreground">Total Employees</p>
+   187→          </CardContent>
+   188→        </Card>
+   189→        <Card>
+   190→          <CardContent className="p-4 text-center">
+   191→            <p className="text-2xl font-bold text-green-600">{employees.filter(e => e.status === 'active').length}</p>
+   192→            <p className="text-xs text-muted-foreground">Active</p>
+   193→          </CardContent>
+   194→        </Card>
+   195→        <Card>
+   196→          <CardContent className="p-4 text-center">
+   197→            <p className="text-2xl font-bold text-blue-600">{employees.filter(e => e.status === 'probation').length}</p>
+   198→            <p className="text-xs text-muted-foreground">On Probation</p>
+   199→          </CardContent>
+   200→        </Card>
+   201→        <Card>
+   202→          <CardContent className="p-4 text-center">
+   203→            <p className="text-2xl font-bold text-yellow-600">{employees.filter(e => e.status === 'on_leave').length}</p>
+   204→            <p className="text-xs text-muted-foreground">On Leave</p>
+   205→          </CardContent>
+   206→        </Card>
+   207→      </div>
+   208→
+   209→      {/* Filters */}
+   210→      <div className="flex flex-col sm:flex-row gap-3">
+   211→        <div className="relative flex-1">
+   212→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   213→          <Input placeholder="Search employees..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+   214→        </div>
+   215→        <Select value={deptFilter} onValueChange={setDeptFilter}>
+   216→          <SelectTrigger className="w-full sm:w-44">
+   217→            <SelectValue placeholder="Department" />
+   218→          </SelectTrigger>
+   219→          <SelectContent>
+   220→            <SelectItem value="all">All Departments</SelectItem>
+   221→            {departments.filter(d => d && d.trim()).map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+   222→          </SelectContent>
+   223→        </Select>
+   224→        <Select value={statusFilter} onValueChange={setStatusFilter}>
+   225→          <SelectTrigger className="w-full sm:w-36">
+   226→            <SelectValue placeholder="Status" />
+   227→          </SelectTrigger>
+   228→          <SelectContent>
+   229→            <SelectItem value="all">All Status</SelectItem>
+   230→            <SelectItem value="active">Active</SelectItem>
+   231→            <SelectItem value="probation">Probation</SelectItem>
+   232→            <SelectItem value="on_leave">On Leave</SelectItem>
+   233→            <SelectItem value="notice_period">Notice Period</SelectItem>
+   234→          </SelectContent>
+   235→        </Select>
+   236→        <div className="flex border rounded-md">
+   237→          <Button variant={viewMode === 'grid' ? 'default' : 'ghost'} size="icon" className="h-9 w-9 rounded-r-none" onClick={() => setViewMode('grid')}>
+   238→            <LayoutGrid className="h-4 w-4" />
+   239→          </Button>
+   240→          <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-9 w-9 rounded-l-none" onClick={() => setViewMode('list')}>
+   241→            <List className="h-4 w-4" />
+   242→          </Button>
+   243→        </div>
+   244→      </div>
+   245→
+   246→      {/* Employee Grid/List */}
+   247→      {viewMode === 'grid' ? (
+   248→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+   249→          {filteredEmployees.map(emp => (
+   250→            <Card key={emp.id} className="hover:shadow-md transition-shadow">
+   251→              <CardContent className="p-4 text-center">
+   252→                <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mb-3">
+   253→                  <span className="text-white text-lg font-bold">{emp.firstName[0]}{emp.lastName[0]}</span>
+   254→                </div>
+   255→                <h3 className="font-semibold text-sm">{emp.firstName} {emp.lastName}</h3>
+   256→                <p className="text-xs text-muted-foreground">{emp.designation}</p>
+   257→                <p className="text-xs text-muted-foreground">{emp.department?.name || 'N/A'}</p>
+   258→                <Badge className={`mt-2 text-[10px] ${EMPLOYMENT_STATUS_COLORS[emp.status] || 'bg-slate-100 text-slate-800'}`}>
+   259→                  {emp.status.replace('_', ' ')}
+   260→                </Badge>
+   261→                <div className="flex items-center justify-center gap-2 mt-3">
+   262→                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp); }}>
+   263→                    <Eye className="h-3 w-3 mr-1" /> View
+   264→                  </Button>
+   265→                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); handleOpenEdit(emp); }}>
+   266→                    <Pencil className="h-3 w-3 mr-1" /> Edit
+   267→                  </Button>
+   268→                </div>
+   269→              </CardContent>
+   270→            </Card>
+   271→          ))}
+   272→        </div>
+   273→      ) : (
+   274→        <div className="space-y-2">
+   275→          {filteredEmployees.map(emp => (
+   276→            <Card key={emp.id} className="hover:shadow-md transition-shadow">
+   277→              <CardContent className="p-3 flex items-center gap-3">
+   278→                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shrink-0">
+   279→                  <span className="text-white text-xs font-bold">{emp.firstName[0]}{emp.lastName[0]}</span>
+   280→                </div>
+   281→                <div className="flex-1 min-w-0">
+   282→                  <div className="flex items-center gap-2">
+   283→                    <p className="font-medium text-sm">{emp.firstName} {emp.lastName}</p>
+   284→                    <Badge className={`text-[10px] ${EMPLOYMENT_STATUS_COLORS[emp.status] || ''}`}>{emp.status.replace('_', ' ')}</Badge>
+   285→                  </div>
+   286→                  <p className="text-xs text-muted-foreground">{emp.designation} · {emp.department?.name || 'N/A'}</p>
+   287→                </div>
+   288→                <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
+   289→                  <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{emp.email}</span>
+   290→                  <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{emp.company?.name || 'N/A'}</span>
+   291→                </div>
+   292→                <div className="flex items-center gap-1 shrink-0">
+   293→                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp); }}>
+   294→                    <Eye className="h-3.5 w-3.5" />
+   295→                  </Button>
+   296→                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleOpenEdit(emp); }}>
+   297→                    <Pencil className="h-3.5 w-3.5" />
+   298→                  </Button>
+   299→                </div>
+   300→              </CardContent>
+   301→            </Card>
+   302→          ))}
+   303→        </div>
+   304→      )}
+   305→
+   306→      {/* Employee Detail Dialog */}
+   307→      <Dialog open={!!selectedEmployee} onOpenChange={() => setSelectedEmployee(null)}>
+   308→        <DialogContent className="max-w-lg">
+   309→          {selectedEmployee && (
+   310→            <>
+   311→              <DialogHeader>
+   312→                <DialogTitle className="flex items-center gap-3">
+   313→                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+   314→                    <span className="text-white font-bold">{selectedEmployee.firstName[0]}{selectedEmployee.lastName[0]}</span>
+   315→                  </div>
+   316→                  <div>
+   317→                    <div>{selectedEmployee.firstName} {selectedEmployee.lastName}</div>
+   318→                    <Badge className={`text-xs ${EMPLOYMENT_STATUS_COLORS[selectedEmployee.status] || ''}`}>{selectedEmployee.status.replace('_', ' ')}</Badge>
+   319→                  </div>
+   320→                </DialogTitle>
+   321→                <DialogDescription>Employee Details</DialogDescription>
+   322→              </DialogHeader>
+   323→              <div className="space-y-3">
+   324→                <div className="grid grid-cols-2 gap-3">
+   325→                  <div className="flex items-center gap-2 text-sm">
+   326→                    <UserCircle className="h-4 w-4 text-muted-foreground" />
+   327→                    <span className="text-muted-foreground">ID:</span> {selectedEmployee.employeeId}
+   328→                  </div>
+   329→                  <div className="flex items-center gap-2 text-sm">
+   330→                    <Building2 className="h-4 w-4 text-muted-foreground" />
+   331→                    <span className="text-muted-foreground">Dept:</span> {selectedEmployee.department?.name || 'N/A'}
+   332→                  </div>
+   333→                  <div className="flex items-center gap-2 text-sm">
+   334→                    <Mail className="h-4 w-4 text-muted-foreground" />
+   335→                    <span className="text-muted-foreground">Email:</span> {selectedEmployee.email}
+   336→                  </div>
+   337→                  <div className="flex items-center gap-2 text-sm">
+   338→                    <Calendar className="h-4 w-4 text-muted-foreground" />
+   339→                    <span className="text-muted-foreground">Joined:</span> {selectedEmployee.joiningDate}
+   340→                  </div>
+   341→                </div>
+   342→                <div className="text-sm">
+   343→                  <span className="text-muted-foreground">Designation:</span> {selectedEmployee.designation}
+   344→                </div>
+   345→                <div className="text-sm">
+   346→                  <span className="text-muted-foreground">Company:</span> {selectedEmployee.company?.name || 'N/A'}
+   347→                </div>
+   348→              </div>
+   349→            </>
+   350→          )}
+   351→        </DialogContent>
+   352→      </Dialog>
+   353→
+   354→      {/* Add Employee Dialog */}
+   355→      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+   356→        <DialogContent className="max-w-md">
+   357→          <DialogHeader>
+   358→            <DialogTitle>Add New Employee</DialogTitle>
+   359→            <DialogDescription>Fill in the details to create a new employee record</DialogDescription>
+   360→          </DialogHeader>
+   361→          <div className="space-y-3">
+   362→            <div className="grid grid-cols-2 gap-3">
+   363→              <div className="space-y-1">
+   364→                <Label className="text-sm">First Name</Label>
+   365→                <Input placeholder="First name" value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+   366→              </div>
+   367→              <div className="space-y-1">
+   368→                <Label className="text-sm">Last Name</Label>
+   369→                <Input placeholder="Last name" value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+   370→              </div>
+   371→            </div>
+   372→            <div className="space-y-1">
+   373→              <Label className="text-sm">Email</Label>
+   374→              <Input type="email" placeholder="Email address" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+   375→            </div>
+   376→            <div className="space-y-1">
+   377→              <Label className="text-sm">Phone</Label>
+   378→              <Input placeholder="Phone number" value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
+   379→            </div>
+   380→            <div className="space-y-1">
+   381→              <Label className="text-sm">Designation</Label>
+   382→              <Input placeholder="Job title / designation" value={form.designation} onChange={(e) => setForm(f => ({ ...f, designation: e.target.value }))} />
+   383→            </div>
+   384→            <div className="space-y-1">
+   385→              <Label className="text-sm">Department</Label>
+   386→              <Select value={form.departmentId || '_none'} onValueChange={(v) => setForm(f => ({ ...f, departmentId: v === '_none' ? '' : v }))}>
+   387→                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+   388→                <SelectContent>
+   389→                  <SelectItem value="_none">Select department</SelectItem>
+   390→                  {departmentOptions.filter(d => d.id && d.id.trim()).map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+   391→                  {departmentOptions.length === 0 && <SelectItem value="_empty_dept" disabled>No departments found</SelectItem>}
+   392→                </SelectContent>
+   393→              </Select>
+   394→            </div>
+   395→            <div className="space-y-1">
+   396→              <Label className="text-sm">Branch</Label>
+   397→              <Select value={form.branchId || '_none'} onValueChange={(v) => setForm(f => ({ ...f, branchId: v === '_none' ? '' : v }))}>
+   398→                <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+   399→                <SelectContent>
+   400→                  <SelectItem value="_none">None</SelectItem>
+   401→                  {branchOptions.filter(b => b.id && b.id.trim()).map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+   402→                  {branchOptions.length === 0 && <SelectItem value="_empty" disabled>No branches found</SelectItem>}
+   403→                </SelectContent>
+   404→              </Select>
+   405→            </div>
+   406→            <div className="space-y-1">
+   407→              <Label className="text-sm">Employment Type</Label>
+   408→              <Select value={form.employmentType} onValueChange={(v) => setForm(f => ({ ...f, employmentType: v }))}>
+   409→                <SelectTrigger><SelectValue /></SelectTrigger>
+   410→                <SelectContent>
+   411→                  <SelectItem value="full-time">Full-time</SelectItem>
+   412→                  <SelectItem value="part-time">Part-time</SelectItem>
+   413→                  <SelectItem value="contract">Contract</SelectItem>
+   414→                  <SelectItem value="intern">Intern</SelectItem>
+   415→                </SelectContent>
+   416→              </Select>
+   417→            </div>
+   418→            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleAddEmployee} disabled={submitting}>
+   419→              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   420→              Create Employee
+   421→            </Button>
+   422→          </div>
+   423→        </DialogContent>
+   424→      </Dialog>
+   425→
+   426→      {/* Edit Employee Dialog */}
+   427→      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+   428→        <DialogContent className="max-w-md">
+   429→          <DialogHeader>
+   430→            <DialogTitle>Edit Employee</DialogTitle>
+   431→            <DialogDescription>Update employee information</DialogDescription>
+   432→          </DialogHeader>
+   433→          <div className="space-y-3">
+   434→            <div className="grid grid-cols-2 gap-3">
+   435→              <div className="space-y-1">
+   436→                <Label className="text-sm">First Name</Label>
+   437→                <Input placeholder="First name" value={editForm.firstName} onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))} />
+   438→              </div>
+   439→              <div className="space-y-1">
+   440→                <Label className="text-sm">Last Name</Label>
+   441→                <Input placeholder="Last name" value={editForm.lastName} onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))} />
+   442→              </div>
+   443→            </div>
+   444→            <div className="space-y-1">
+   445→              <Label className="text-sm">Email</Label>
+   446→              <Input type="email" placeholder="Email address" value={editForm.email} onChange={(e) => setEditForm(f => ({ ...f, email: e.target.value }))} />
+   447→            </div>
+   448→            <div className="space-y-1">
+   449→              <Label className="text-sm">Phone</Label>
+   450→              <Input placeholder="Phone number" value={editForm.phone} onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))} />
+   451→            </div>
+   452→            <div className="space-y-1">
+   453→              <Label className="text-sm">Designation</Label>
+   454→              <Input placeholder="Job title / designation" value={editForm.designation} onChange={(e) => setEditForm(f => ({ ...f, designation: e.target.value }))} />
+   455→            </div>
+   456→            <div className="grid grid-cols-2 gap-3">
+   457→              <div className="space-y-1">
+   458→                <Label className="text-sm">Department</Label>
+   459→                <Select value={editForm.departmentId || '_none'} onValueChange={(v) => setEditForm(f => ({ ...f, departmentId: v === '_none' ? '' : v }))}>
+   460→                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+   461→                  <SelectContent>
+   462→                    <SelectItem value="_none">None</SelectItem>
+   463→                    {departmentOptions.filter(d => d.id && d.id.trim()).map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+   464→                    {departmentOptions.length === 0 && <SelectItem value="_empty_dept" disabled>No departments found</SelectItem>}
+   465→                  </SelectContent>
+   466→                </Select>
+   467→              </div>
+   468→              <div className="space-y-1">
+   469→                <Label className="text-sm">Branch</Label>
+   470→                <Select value={editForm.branchId || '_none'} onValueChange={(v) => setEditForm(f => ({ ...f, branchId: v === '_none' ? '' : v }))}>
+   471→                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+   472→                  <SelectContent>
+   473→                    <SelectItem value="_none">None</SelectItem>
+   474→                    {branchOptions.filter(b => b.id && b.id.trim()).map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+   475→                  </SelectContent>
+   476→                </Select>
+   477→              </div>
+   478→            </div>
+   479→            <div className="grid grid-cols-2 gap-3">
+   480→              <div className="space-y-1">
+   481→                <Label className="text-sm">Employment Type</Label>
+   482→                <Select value={editForm.employmentType} onValueChange={(v) => setEditForm(f => ({ ...f, employmentType: v }))}>
+   483→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   484→                  <SelectContent>
+   485→                    <SelectItem value="full-time">Full-time</SelectItem>
+   486→                    <SelectItem value="part-time">Part-time</SelectItem>
+   487→                    <SelectItem value="contract">Contract</SelectItem>
+   488→                    <SelectItem value="intern">Intern</SelectItem>
+   489→                  </SelectContent>
+   490→                </Select>
+   491→              </div>
+   492→              <div className="space-y-1">
+   493→                <Label className="text-sm">Status</Label>
+   494→                <Select value={editForm.status} onValueChange={(v) => setEditForm(f => ({ ...f, status: v }))}>
+   495→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   496→                  <SelectContent>
+   497→                    <SelectItem value="active">Active</SelectItem>
+   498→                    <SelectItem value="probation">Probation</SelectItem>
+   499→                    <SelectItem value="on_leave">On Leave</SelectItem>
+   500→                    <SelectItem value="notice_period">Notice Period</SelectItem>
+   501→                    <SelectItem value="inactive">Inactive</SelectItem>
+   502→                  </SelectContent>
+   503→                </Select>
+   504→              </div>
+   505→            </div>
+   506→            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleEditEmployee} disabled={submitting}>
+   507→              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   508→              Save Changes
+   509→            </Button>
+   510→          </div>
+   511→        </DialogContent>
+   512→      </Dialog>
+   513→    </div>
+   514→  );
+   515→}
+   516→

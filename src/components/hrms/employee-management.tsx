@@ -109,6 +109,7 @@ export default function EmployeeManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [addFormTab, setAddFormTab] = useState('personal')
   const pageSize = 10
 
   // Data state
@@ -236,6 +237,7 @@ export default function EmployeeManagement() {
         bankName: '', bankAccount: '', ifscCode: '', panNumber: '',
         taxRegime: '', aadhaarNumber: '',
       })
+      setAddFormTab('personal')
       fetchData()
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to create employee', variant: 'destructive' })
@@ -262,6 +264,7 @@ export default function EmployeeManagement() {
       bankName: '', bankAccount: '', ifscCode: '', panNumber: '',
       taxRegime: '', aadhaarNumber: '',
     })
+    setAddFormTab('personal')
   }
 
   if (loading) {
@@ -378,73 +381,134 @@ export default function EmployeeManagement() {
         </TabsContent>
 
         <TabsContent value="add">
-          <Card className="bg-slate-900 border-slate-800 mt-4 max-w-3xl">
-            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-400" /> Add New Employee</CardTitle></CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-emerald-400 font-semibold mb-3 text-sm uppercase tracking-wider">Personal Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label className="text-slate-300">First Name *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter first name" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Last Name *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter last name" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Email *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="email" placeholder="firstname.lastname@company.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Phone</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="+91 XXXXX XXXXX" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Date of Birth</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="date" value={form.dateOfBirth} onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Gender</Label>
-                    <Select value={form.gender} onValueChange={v => setForm(f => ({ ...f, gender: v }))}>
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        <SelectItem value="male" className="text-slate-300">Male</SelectItem>
-                        <SelectItem value="female" className="text-slate-300">Female</SelectItem>
-                        <SelectItem value="other" className="text-slate-300">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+          <Card className="bg-slate-900 border-slate-800 mt-4">
+            <CardHeader>
+              <CardTitle className="text-white text-lg flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-emerald-400" /> Add New Employee
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Horizontal Section Tabs */}
+              <div className="flex items-center gap-1 border-b border-slate-700 mb-6 overflow-x-auto">
+                {[
+                  { key: 'personal', label: 'Personal Info', icon: '👤' },
+                  { key: 'employment', label: 'Employment', icon: '💼' },
+                  { key: 'bank', label: 'Bank Details', icon: '🏦' },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setAddFormTab(tab.key)}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      addFormTab === tab.key
+                        ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
+                        : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Personal Information Section */}
+              {addFormTab === 'personal' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><Label className="text-slate-300">First Name *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter first name" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Last Name *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter last name" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Email *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="email" placeholder="firstname.lastname@company.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Phone</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="+91 XXXXX XXXXX" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Date of Birth</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="date" value={form.dateOfBirth} onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Gender</Label>
+                      <Select value={form.gender} onValueChange={v => setForm(f => ({ ...f, gender: v }))}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          <SelectItem value="male" className="text-slate-300">Male</SelectItem>
+                          <SelectItem value="female" className="text-slate-300">Female</SelectItem>
+                          <SelectItem value="other" className="text-slate-300">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white px-6" onClick={() => setAddFormTab('employment')}>
+                      Next: Employment <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
                   </div>
                 </div>
-              </div>
-              <div>
-                <h3 className="text-emerald-400 font-semibold mb-3 text-sm uppercase tracking-wider">Employment Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label className="text-slate-300">Employee Code</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Auto-generated" disabled /></div>
-                  <div><Label className="text-slate-300">Department</Label>
-                    <Select value={form.departmentId} onValueChange={v => setForm(f => ({ ...f, departmentId: v }))}>
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        {employees.filter(e => e.department).reduce((acc: { id: string; name: string }[], e) => {
-                          if (e.department && !acc.find(d => d.id === e.department!.id)) acc.push({ id: e.department!.id, name: e.department!.name })
-                          return acc
-                        }, []).map(d => <SelectItem key={d.id} value={d.id} className="text-slate-300">{d.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+              )}
+
+              {/* Employment Details Section */}
+              {addFormTab === 'employment' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><Label className="text-slate-300">Employee Code</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Auto-generated" disabled /></div>
+                    <div><Label className="text-slate-300">Department</Label>
+                      <Select value={form.departmentId} onValueChange={v => setForm(f => ({ ...f, departmentId: v }))}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {employees.filter(e => e.department).reduce((acc: { id: string; name: string }[], e) => {
+                            if (e.department && !acc.find(d => d.id === e.department!.id)) acc.push({ id: e.department!.id, name: e.department!.name })
+                            return acc
+                          }, []).map(d => <SelectItem key={d.id} value={d.id} className="text-slate-300">{d.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label className="text-slate-300">Designation</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter designation" value={form.designation} onChange={e => setForm(f => ({ ...f, designation: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Joining Date</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="date" value={form.joiningDate} onChange={e => setForm(f => ({ ...f, joiningDate: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Salary (Annual INR)</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="number" placeholder="Enter annual salary" value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Reporting Manager</Label>
+                      <Select value={form.reportingManager} onValueChange={v => setForm(f => ({ ...f, reportingManager: v }))}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select manager" /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {employees.filter(e => e.status === 'active').map(e => (
+                            <SelectItem key={e.id} value={e.id} className="text-slate-300">{e.firstName} {e.lastName} ({e.employeeCode})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div><Label className="text-slate-300">Designation</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter designation" value={form.designation} onChange={e => setForm(f => ({ ...f, designation: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Joining Date</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="date" value={form.joiningDate} onChange={e => setForm(f => ({ ...f, joiningDate: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Salary (Annual INR)</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" type="number" placeholder="Enter annual salary" value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Reporting Manager</Label>
-                    <Select value={form.reportingManager} onValueChange={v => setForm(f => ({ ...f, reportingManager: v }))}>
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select manager" /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        {employees.filter(e => e.status === 'active').map(e => (
-                          <SelectItem key={e.id} value={e.id} className="text-slate-300">{e.firstName} {e.lastName} ({e.employeeCode})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex gap-3 pt-4">
+                    <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 px-6" onClick={() => setAddFormTab('personal')}>
+                      Back
+                    </Button>
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white px-6" onClick={() => setAddFormTab('bank')}>
+                      Next: Bank Details <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
                   </div>
                 </div>
-              </div>
-              <div>
-                <h3 className="text-emerald-400 font-semibold mb-3 text-sm uppercase tracking-wider">Bank Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label className="text-slate-300">Bank Name</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter bank name" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">Account Number</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter account number" value={form.bankAccount} onChange={e => setForm(f => ({ ...f, bankAccount: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">IFSC Code</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter IFSC code" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} /></div>
-                  <div><Label className="text-slate-300">PAN Number</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter PAN number" value={form.panNumber} onChange={e => setForm(f => ({ ...f, panNumber: e.target.value }))} /></div>
+              )}
+
+              {/* Bank Details Section */}
+              {addFormTab === 'bank' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><Label className="text-slate-300">Bank Name</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter bank name" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">Account Number</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter account number" value={form.bankAccount} onChange={e => setForm(f => ({ ...f, bankAccount: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">IFSC Code</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter IFSC code" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} /></div>
+                    <div><Label className="text-slate-300">PAN Number</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter PAN number" value={form.panNumber} onChange={e => setForm(f => ({ ...f, panNumber: e.target.value }))} /></div>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 px-6" onClick={() => setAddFormTab('employment')}>
+                      Back
+                    </Button>
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white px-8" onClick={handleCreateEmployee} disabled={creating}>
+                      {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</> : 'Create Employee'}
+                    </Button>
+                    <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 px-8" onClick={handleResetForm}>Reset</Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white px-8" onClick={handleCreateEmployee} disabled={creating}>
-                  {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</> : 'Create Employee'}
-                </Button>
-                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 px-8" onClick={handleResetForm}>Reset</Button>
+              )}
+
+              {/* Progress indicator */}
+              <div className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-800">
+                <div className={`h-1.5 flex-1 rounded-full transition-colors ${addFormTab === 'personal' || addFormTab === 'employment' || addFormTab === 'bank' ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                <div className={`h-1.5 flex-1 rounded-full transition-colors ${addFormTab === 'employment' || addFormTab === 'bank' ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                <div className={`h-1.5 flex-1 rounded-full transition-colors ${addFormTab === 'bank' ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                <span className="text-xs text-slate-500 ml-2">
+                  Step {addFormTab === 'personal' ? '1' : addFormTab === 'employment' ? '2' : '3'} of 3
+                </span>
               </div>
             </CardContent>
           </Card>
