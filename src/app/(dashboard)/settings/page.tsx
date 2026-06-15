@@ -584,7 +584,7 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const navItems: NavItem[] = [
+const allNavItems: NavItem[] = [
   { key: 'profile', label: 'My Profile', icon: <FiUser className="w-4 h-4" /> },
   { key: 'general', label: 'General', icon: <FiSettings className="w-4 h-4" /> },
   { key: 'payroll', label: 'Payroll', icon: <FiDollarSign className="w-4 h-4" /> },
@@ -596,6 +596,11 @@ const navItems: NavItem[] = [
   { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
+];
+
+/** Tabs visible to non-admin roles (employee, manager, etc.) */
+const employeeOnlyNavItems: NavItem[] = [
+  { key: 'profile', label: 'My Profile', icon: <FiUser className="w-4 h-4" /> },
 ];
 
 /* ──────────────────────────────────────────────
@@ -614,10 +619,14 @@ function SettingsContent() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
+  // Determine which nav items this user can see
+  const navItems = isAdmin ? allNavItems : employeeOnlyNavItems;
+  const allowedTabKeys = navItems.map((n) => n.key);
+
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
   const validTabs: TabKey[] = ['profile', 'general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
-  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'profile';
+  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl) && allowedTabKeys.includes(tabFromUrl)) ? tabFromUrl : 'profile';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [saving, setSaving] = useState(false);
@@ -625,9 +634,9 @@ function SettingsContent() {
   // Sync activeTab with URL search params when they change
   useEffect(() => {
     const tabFromUrlUpdate = searchParams.get('tab') as TabKey | null;
-    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'profile';
+    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate) && allowedTabKeys.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'profile';
     setActiveTab(newTab);
-  }, [searchParams]);
+  }, [searchParams, allowedTabKeys]);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -891,18 +900,7 @@ function SettingsContent() {
     }
   };
 
-  /* Access restriction - profile tab is available to all users, other tabs require admin */
-  if (!isAdmin && activeTab !== 'profile') {
-    return (
-      <div className="space-y-6">
-        <div className="nexus-card p-12 text-center">
-          <FiAlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-nexus-text-primary mb-2">Access Restricted</h2>
-          <p className="text-nexus-text-secondary">Only administrators can access Settings.</p>
-        </div>
-      </div>
-    );
-  }
+  /* No longer needed — navItems are filtered by role, so employees never reach admin tabs */
 
   /* Build section cards for module settings tabs */
   const renderModuleSections = (sections: SettingSection[]) => (
@@ -943,10 +941,10 @@ function SettingsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
-            <FiSettings className="w-6 h-6 text-slate-500" />
-            Settings
+            {isAdmin ? <FiSettings className="w-6 h-6 text-slate-500" /> : <FiUser className="w-6 h-6 text-slate-500" />}
+            {isAdmin ? 'Settings' : 'My Profile'}
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage system configuration and preferences</p>
+          <p className="text-nexus-text-secondary mt-1">{isAdmin ? 'Manage system configuration and preferences' : 'View and update your personal information'}</p>
         </div>
         {/* Mobile tab selector */}
         <button
@@ -958,7 +956,8 @@ function SettingsContent() {
         </button>
       </div>
 
-      {/* Module Tips & Workflow */}
+      {/* Module Tips & Workflow — only shown for admins */}
+      {isAdmin && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ModuleTips
           moduleKey="settings"
@@ -990,6 +989,7 @@ function SettingsContent() {
           userRole={user?.role}
         />
       </div>
+      )}
 
       {/* Mobile Dropdown Navigation */}
       {mobileSidebarOpen && (
@@ -1013,9 +1013,10 @@ function SettingsContent() {
         </div>
       )}
 
-      {/* Main Layout: Sidebar + Content */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Left Sidebar Navigation (desktop) */}
+      {/* Main Layout: Sidebar + Content — sidebar hidden for employees (only 1 tab) */}
+      <div className={`flex flex-col md:flex-row gap-6${!isAdmin ? ' !flex-col' : ''}`}>
+        {/* Left Sidebar Navigation (desktop) — only for admins who have multiple tabs */}
+        {isAdmin && navItems.length > 1 && (
         <nav className="hidden md:block w-56 shrink-0">
           <div className="nexus-card p-2 sticky top-24">
             <div className="space-y-0.5">
@@ -1039,6 +1040,7 @@ function SettingsContent() {
             </div>
           </div>
         </nav>
+        )}
 
         {/* Right Content Area */}
         <div className="flex-1 min-w-0">
