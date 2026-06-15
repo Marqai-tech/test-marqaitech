@@ -621,6 +621,13 @@ function SettingsContent() {
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [saving, setSaving] = useState(false);
+
+  // Sync activeTab with URL search params when they change
+  useEffect(() => {
+    const tabFromUrlUpdate = searchParams.get('tab') as TabKey | null;
+    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'profile';
+    setActiveTab(newTab);
+  }, [searchParams]);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -648,6 +655,7 @@ function SettingsContent() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   /* General settings state */
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -706,6 +714,7 @@ function SettingsContent() {
   const fetchProfile = useCallback(async () => {
     try {
       setProfileLoading(true);
+      setProfileError(null);
       const res = await fetch('/api/users/profile', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -729,9 +738,12 @@ function SettingsContent() {
           employeeId: data.employee?.employeeId || '',
           dateOfJoining: data.employee?.dateOfJoining ? new Date(data.employee.dateOfJoining).toISOString().split('T')[0] : '',
         });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setProfileError(errData.error || 'Failed to load profile. Please try again.');
       }
     } catch {
-      /* ignore */
+      setProfileError('Network error. Please check your connection and try again.');
     } finally {
       setProfileLoading(false);
     }
@@ -1037,6 +1049,18 @@ function SettingsContent() {
                 <div className="nexus-card p-12 text-center">
                   <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
                   <p className="text-sm text-nexus-text-muted">Loading profile...</p>
+                </div>
+              ) : profileError ? (
+                <div className="nexus-card p-12 text-center">
+                  <FiAlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+                  <h2 className="text-lg font-semibold text-nexus-text-primary mb-2">Failed to Load Profile</h2>
+                  <p className="text-sm text-nexus-text-secondary mb-4">{profileError}</p>
+                  <button
+                    onClick={() => fetchProfile()}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    Retry
+                  </button>
                 </div>
               ) : profileData ? (
                 <>

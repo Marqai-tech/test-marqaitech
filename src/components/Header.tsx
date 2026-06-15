@@ -150,7 +150,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
           {/* Notification Dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-96 nexus-card shadow-xl animate-slide-in-down overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-96 nexus-card shadow-xl animate-slide-in-down overflow-hidden z-50">
               <div className="flex items-center justify-between p-4 border-b border-nexus-border">
                 <h3 className="font-semibold text-nexus-text-primary">Notifications</h3>
                 {unreadCount > 0 && (
@@ -248,7 +248,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
           {/* User Dropdown */}
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-56 nexus-card shadow-xl animate-slide-in-down overflow-hidden py-1">
+            <div className="absolute right-0 top-full mt-2 w-56 nexus-card shadow-xl animate-slide-in-down overflow-hidden py-1 z-50">
               <div className="px-4 py-3 border-b border-nexus-border">
                 <p className="text-sm font-semibold text-nexus-text-primary">{user?.name}</p>
                 <p className="text-xs text-nexus-text-muted mt-0.5">{user?.email}</p>
