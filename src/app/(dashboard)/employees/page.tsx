@@ -202,6 +202,19 @@ export default function EmployeesPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Horizontal form tab state
+  const [formTab, setFormTab] = useState('personal');
+  const formTabs = [
+    { key: 'personal', label: 'Personal', icon: '👤' },
+    { key: 'address', label: 'Address', icon: '📍' },
+    { key: 'employment', label: 'Employment', icon: '💼' },
+    { key: 'bank', label: 'Bank & Finance', icon: '🏦' },
+    { key: 'salary', label: 'Salary', icon: '💰' },
+    { key: 'emergency', label: 'Emergency', icon: '🚨' },
+    { key: 'health', label: 'Health', icon: '❤️' },
+    { key: 'policies', label: 'Policies', icon: '🛡️' },
+  ] as const;
+
   /* Fetch employees */
   const fetchEmployees = useCallback(async (page = 1) => {
     try {
@@ -278,6 +291,7 @@ export default function EmployeesPage() {
       employeeId: `EMP${String(Date.now()).slice(-6)}`,
     });
     setShowForm(true);
+    setFormTab('personal');
     setDeleteConfirmId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
@@ -336,6 +350,7 @@ export default function EmployeesPage() {
       salaryStructureId: emp.salaryStructureId || '',
     });
     setShowForm(true);
+    setFormTab('personal');
     setDeleteConfirmId(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
@@ -344,6 +359,7 @@ export default function EmployeesPage() {
     setShowForm(false);
     setEditingId(null);
     setForm(initialForm);
+    setFormTab('personal');
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -456,374 +472,448 @@ export default function EmployeesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Horizontal Section Tabs */}
+            <div className="flex items-center gap-1 border-b border-nexus-border mb-6 overflow-x-auto pb-px -mx-1 px-1">
+              {formTabs.map((tab, idx) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFormTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors shrink-0 ${
+                    formTab === tab.key
+                      ? 'border-blue-500 text-blue-600 bg-blue-50'
+                      : 'border-transparent text-nexus-text-muted hover:text-nexus-text-primary hover:border-slate-300'
+                  }`}
+                >
+                  <span className="text-base">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="flex items-center gap-1.5 mb-6">
+              {formTabs.map((tab, idx) => (
+                <div
+                  key={tab.key}
+                  className={`h-1 flex-1 rounded-full transition-colors ${
+                    formTabs.findIndex(t => t.key === formTab) >= idx ? 'bg-blue-500' : 'bg-slate-200'
+                  }`}
+                />
+              ))}
+              <span className="text-xs text-nexus-text-muted ml-2 shrink-0">
+                Step {formTabs.findIndex(t => t.key === formTab) + 1} of {formTabs.length}
+              </span>
+            </div>
+
+            <form onSubmit={handleSubmit}>
               {/* Personal Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">First Name *</label>
-                    <input type="text" value={form.firstName} onChange={e => updateForm('firstName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Last Name *</label>
-                    <input type="text" value={form.lastName} onChange={e => updateForm('lastName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee ID *</label>
-                    <input type="text" value={form.employeeId} onChange={e => updateForm('employeeId', e.target.value)} required disabled={!!editingId} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email *</label>
-                    <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Phone</label>
-                    <input type="tel" value={form.phone} onChange={e => updateForm('phone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Birth</label>
-                    <input type="date" value={form.dateOfBirth} onChange={e => updateForm('dateOfBirth', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Gender</label>
-                    <select value={form.gender} onChange={e => updateForm('gender', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Marital Status</label>
-                    <select value={form.maritalStatus} onChange={e => updateForm('maritalStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="single">Single</option>
-                      <option value="married">Married</option>
-                      <option value="divorced">Divorced</option>
-                      <option value="widowed">Widowed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nationality</label>
-                    <input type="text" value={form.nationality} onChange={e => updateForm('nationality', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Address */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                  Address
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2 lg:col-span-3">
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Address</label>
-                    <input type="text" value={form.address} onChange={e => updateForm('address', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label>
-                    <input type="text" value={form.city} onChange={e => updateForm('city', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label>
-                    <input type="text" value={form.state} onChange={e => updateForm('state', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">ZIP Code</label>
-                    <input type="text" value={form.zipCode} onChange={e => updateForm('zipCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
-                    <input type="text" value={form.country} onChange={e => updateForm('country', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Employment Details */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Employment Details
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department *</label>
-                    <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select Department</option>
-                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation *</label>
-                    <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select Designation</option>
-                      {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Branch</label>
-                    <select value={form.branchId} onChange={e => updateForm('branchId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select Branch</option>
-                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Joining *</label>
-                    <input type="date" value={form.dateOfJoining} onChange={e => updateForm('dateOfJoining', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Details */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  Bank &amp; Financial Details
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Bank Name</label>
-                    <input type="text" value={form.bankName} onChange={e => updateForm('bankName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Bank Account No</label>
-                    <input type="text" value={form.bankAccountNo} onChange={e => updateForm('bankAccountNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">IFSC Code</label>
-                    <input type="text" value={form.bankIfscCode} onChange={e => updateForm('bankIfscCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">PAN Number</label>
-                    <input type="text" value={form.panNumber} onChange={e => updateForm('panNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Aadhaar Number</label>
-                    <input type="text" value={form.aadhaarNumber} onChange={e => updateForm('aadhaarNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Salary */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Salary Information
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary</label>
-                    <input type="number" step="0.01" value={form.salary} onChange={e => updateForm('salary', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
-                    <select value={form.salaryCurrency} onChange={e => updateForm('salaryCurrency', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="INR">INR (₹) — Indian Rupee</option>
-                      <option value="USD">USD ($) — US Dollar</option>
-                      <option value="EUR">EUR (€) — Euro</option>
-                      <option value="GBP">GBP (£) — British Pound</option>
-                      <option value="SGD">SGD (S$) — Singapore Dollar</option>
-                      <option value="AED">AED (د.إ) — UAE Dirham</option>
-                      <option value="AUD">AUD (A$) — Australian Dollar</option>
-                      <option value="CAD">CAD (C$) — Canadian Dollar</option>
-                      <option value="JPY">JPY (¥) — Japanese Yen</option>
-                      <option value="CNY">CNY (¥) — Chinese Yuan</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Emergency Contact */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  Emergency Contact
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Name</label>
-                    <input type="text" value={form.emergencyContactName} onChange={e => updateForm('emergencyContactName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Phone</label>
-                    <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Health History Questionnaire */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                  <FiActivity className="w-4 h-4 text-red-500" />
-                  Health History Questionnaire
-                </h3>
-                <p className="text-xs text-nexus-text-muted mb-4">Capture employee health information for workplace safety and emergency preparedness. All fields are optional and confidential.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Blood Group</label>
-                    <select value={form.bloodGroup} onChange={e => updateForm('bloodGroup', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="A+">A+</option><option value="A-">A-</option>
-                      <option value="B+">B+</option><option value="B-">B-</option>
-                      <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                      <option value="O+">O+</option><option value="O-">O-</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Chronic Illness</label>
-                    <select value={form.hasChronicIllness} onChange={e => updateForm('hasChronicIllness', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="no">No</option>
-                      <option value="yes">Yes</option>
-                    </select>
-                  </div>
-                  {form.hasChronicIllness === 'yes' && (
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Chronic Illness Details</label>
-                      <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="e.g., Diabetes, Hypertension" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Known Allergies</label>
-                    <select value={form.hasAllergies} onChange={e => updateForm('hasAllergies', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="no">No</option>
-                      <option value="yes">Yes</option>
-                    </select>
-                  </div>
-                  {form.hasAllergies === 'yes' && (
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Allergy Details</label>
-                      <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="e.g., Penicillin, Peanuts, Dust" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disability</label>
-                    <select value={form.hasDisability} onChange={e => updateForm('hasDisability', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="no">No</option>
-                      <option value="yes">Yes</option>
-                    </select>
-                  </div>
-                  {form.hasDisability === 'yes' && (
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disability Details</label>
-                      <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability & accommodations needed" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currently on Medication</label>
-                    <select value={form.isOnMedication} onChange={e => updateForm('isOnMedication', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="no">No</option>
-                      <option value="yes">Yes</option>
-                    </select>
-                  </div>
-                  {form.isOnMedication === 'yes' && (
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Medication Details</label>
-                      <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications & dosage" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Previous Surgeries</label>
-                    <select value={form.hasHadSurgery} onChange={e => updateForm('hasHadSurgery', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">Select</option>
-                      <option value="no">No</option>
-                      <option value="yes">Yes</option>
-                    </select>
-                  </div>
-                  {form.hasHadSurgery === 'yes' && (
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Surgery Details</label>
-                      <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Type & year of surgery" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                    </div>
-                  )}
-                  <div className="sm:col-span-2 lg:col-span-3">
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Emergency Medical Condition</label>
-                    <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} placeholder="Any critical condition to alert medical responders (e.g., Epilepsy, Asthma)" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                  </div>
-                </div>
-
-                {/* Physician & Insurance */}
-                <div className="mt-4 pt-4 border-t border-nexus-border/50">
-                  <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Physician & Insurance</h4>
+              {formTab === 'personal' && (
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Primary Physician Name</label>
-                      <input type="text" value={form.primaryPhysicianName} onChange={e => updateForm('primaryPhysicianName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">First Name *</label>
+                      <input type="text" value={form.firstName} onChange={e => updateForm('firstName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Physician Phone</label>
-                      <input type="tel" value={form.primaryPhysicianPhone} onChange={e => updateForm('primaryPhysicianPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Last Name *</label>
+                      <input type="text" value={form.lastName} onChange={e => updateForm('lastName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Health Insurance Provider</label>
-                      <input type="text" value={form.healthInsuranceProvider} onChange={e => updateForm('healthInsuranceProvider', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee ID *</label>
+                      <input type="text" value={form.employeeId} onChange={e => updateForm('employeeId', e.target.value)} required disabled={!!editingId} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Insurance Policy Number</label>
-                      <input type="text" value={form.healthInsurancePolicyNo} onChange={e => updateForm('healthInsurancePolicyNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email *</label>
+                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Phone</label>
+                      <input type="tel" value={form.phone} onChange={e => updateForm('phone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Birth</label>
+                      <input type="date" value={form.dateOfBirth} onChange={e => updateForm('dateOfBirth', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Gender</label>
+                      <select value={form.gender} onChange={e => updateForm('gender', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Marital Status</label>
+                      <select value={form.maritalStatus} onChange={e => updateForm('maritalStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="single">Single</option>
+                        <option value="married">Married</option>
+                        <option value="divorced">Divorced</option>
+                        <option value="widowed">Widowed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nationality</label>
+                      <input type="text" value={form.nationality} onChange={e => updateForm('nationality', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
                   </div>
+                  <div className="flex justify-end pt-2">
+                    <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Address <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Address */}
+              {formTab === 'address' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Address</label>
+                      <input type="text" value={form.address} onChange={e => updateForm('address', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label>
+                      <input type="text" value={form.city} onChange={e => updateForm('city', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label>
+                      <input type="text" value={form.state} onChange={e => updateForm('state', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">ZIP Code</label>
+                      <input type="text" value={form.zipCode} onChange={e => updateForm('zipCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+                      <input type="text" value={form.country} onChange={e => updateForm('country', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('personal')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Employment <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Employment Details */}
+              {formTab === 'employment' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department *</label>
+                      <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select Department</option>
+                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation *</label>
+                      <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select Designation</option>
+                        {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Branch</label>
+                      <select value={form.branchId} onChange={e => updateForm('branchId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select Branch</option>
+                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date of Joining *</label>
+                      <input type="date" value={form.dateOfJoining} onChange={e => updateForm('dateOfJoining', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Bank & Finance <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bank & Financial Details */}
+              {formTab === 'bank' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Bank Name</label>
+                      <input type="text" value={form.bankName} onChange={e => updateForm('bankName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Bank Account No</label>
+                      <input type="text" value={form.bankAccountNo} onChange={e => updateForm('bankAccountNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">IFSC Code</label>
+                      <input type="text" value={form.bankIfscCode} onChange={e => updateForm('bankIfscCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">PAN Number</label>
+                      <input type="text" value={form.panNumber} onChange={e => updateForm('panNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Aadhaar Number</label>
+                      <input type="text" value={form.aadhaarNumber} onChange={e => updateForm('aadhaarNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('salary')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Salary <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Salary Information */}
+              {formTab === 'salary' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary</label>
+                      <input type="number" step="0.01" value={form.salary} onChange={e => updateForm('salary', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                      <select value={form.salaryCurrency} onChange={e => updateForm('salaryCurrency', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="INR">INR — Indian Rupee</option>
+                        <option value="USD">USD — US Dollar</option>
+                        <option value="EUR">EUR — Euro</option>
+                        <option value="GBP">GBP — British Pound</option>
+                        <option value="SGD">SGD — Singapore Dollar</option>
+                        <option value="AED">AED — UAE Dirham</option>
+                        <option value="AUD">AUD — Australian Dollar</option>
+                        <option value="CAD">CAD — Canadian Dollar</option>
+                        <option value="JPY">JPY — Japanese Yen</option>
+                        <option value="CNY">CNY — Chinese Yuan</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Emergency <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Emergency Contact */}
+              {formTab === 'emergency' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Name</label>
+                      <input type="text" value={form.emergencyContactName} onChange={e => updateForm('emergencyContactName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Contact Phone</label>
+                      <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('salary')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Health <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Health History Questionnaire */}
+              {formTab === 'health' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-nexus-text-muted">Capture employee health information for workplace safety and emergency preparedness. All fields are optional and confidential.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Blood Group</label>
+                      <select value={form.bloodGroup} onChange={e => updateForm('bloodGroup', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="A+">A+</option><option value="A-">A-</option>
+                        <option value="B+">B+</option><option value="B-">B-</option>
+                        <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                        <option value="O+">O+</option><option value="O-">O-</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Chronic Illness</label>
+                      <select value={form.hasChronicIllness} onChange={e => updateForm('hasChronicIllness', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.hasChronicIllness === 'yes' && (
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Chronic Illness Details</label>
+                        <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="e.g., Diabetes, Hypertension" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Known Allergies</label>
+                      <select value={form.hasAllergies} onChange={e => updateForm('hasAllergies', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.hasAllergies === 'yes' && (
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Allergy Details</label>
+                        <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="e.g., Penicillin, Peanuts, Dust" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disability</label>
+                      <select value={form.hasDisability} onChange={e => updateForm('hasDisability', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.hasDisability === 'yes' && (
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disability Details</label>
+                        <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability & accommodations needed" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currently on Medication</label>
+                      <select value={form.isOnMedication} onChange={e => updateForm('isOnMedication', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.isOnMedication === 'yes' && (
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Medication Details</label>
+                        <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications & dosage" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Previous Surgeries</label>
+                      <select value={form.hasHadSurgery} onChange={e => updateForm('hasHadSurgery', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.hasHadSurgery === 'yes' && (
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Surgery Details</label>
+                        <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Type & year of surgery" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    )}
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Emergency Medical Condition</label>
+                      <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} placeholder="Any critical condition to alert medical responders (e.g., Epilepsy, Asthma)" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                  </div>
+
+                  {/* Physician & Insurance */}
+                  <div className="mt-4 pt-4 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Physician & Insurance</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Primary Physician Name</label>
+                        <input type="text" value={form.primaryPhysicianName} onChange={e => updateForm('primaryPhysicianName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Physician Phone</label>
+                        <input type="tel" value={form.primaryPhysicianPhone} onChange={e => updateForm('primaryPhysicianPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Health Insurance Provider</label>
+                        <input type="text" value={form.healthInsuranceProvider} onChange={e => updateForm('healthInsuranceProvider', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Insurance Policy Number</label>
+                        <input type="text" value={form.healthInsurancePolicyNo} onChange={e => updateForm('healthInsurancePolicyNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('policies')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Policies <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Policy & Structure Mappings */}
-              <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                  <FiShield className="w-4 h-4 text-violet-500" />
-                  Policy &amp; Structure Mappings
-                </h3>
-                <p className="text-xs text-nexus-text-muted mb-4">Assign leave, attendance, travel policies and salary structure. Can also be configured later from the employee detail page.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Leave Policy</label>
-                    <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">— Not Assigned —</option>
-                      {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
-                    </select>
+              {formTab === 'policies' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-nexus-text-muted">Assign leave, attendance, travel policies and salary structure. Can also be configured later from the employee detail page.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Leave Policy</label>
+                      <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">— Not Assigned —</option>
+                        {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Attendance Policy</label>
+                      <select value={form.attendancePolicyId} onChange={e => updateForm('attendancePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">— Not Assigned —</option>
+                        {attendancePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Travel Policy</label>
+                      <select value={form.travelPolicyId} onChange={e => updateForm('travelPolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">— Not Assigned —</option>
+                        {travelPolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary Structure</label>
+                      <select value={form.salaryStructureId} onChange={e => updateForm('salaryStructureId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">— Not Assigned —</option>
+                        {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Attendance Policy</label>
-                    <select value={form.attendancePolicyId} onChange={e => updateForm('attendancePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">— Not Assigned —</option>
-                      {attendancePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Travel Policy</label>
-                    <select value={form.travelPolicyId} onChange={e => updateForm('travelPolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">— Not Assigned —</option>
-                      {travelPolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary Structure</label>
-                    <select value={form.salaryStructureId} onChange={e => updateForm('salaryStructureId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                      <option value="">— Not Assigned —</option>
-                      {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+
+                  {/* Form Actions */}
+                  <div className="flex items-center justify-between pt-4 border-t border-nexus-border mt-4">
+                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                        Cancel
+                      </button>
+                      <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                        {submitting ? 'Saving...' : editingId ? 'Update Employee' : 'Add Employee'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
-                <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
-                  {submitting ? 'Saving...' : editingId ? 'Update Employee' : 'Add Employee'}
-                </button>
-              </div>
+              )}
             </form>
           </div>
         </div>

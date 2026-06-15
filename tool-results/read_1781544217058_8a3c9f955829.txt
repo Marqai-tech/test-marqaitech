@@ -1,0 +1,749 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useState, useCallback } from 'react';
+     4→import { useParams, useRouter } from 'next/navigation';
+     5→import {
+     6→  FiArrowLeft,
+     7→  FiUser,
+     8→  FiMail,
+     9→  FiPhone,
+    10→  FiMapPin,
+    11→  FiCalendar,
+    12→  FiBriefcase,
+    13→  FiDollarSign,
+    14→  FiFileText,
+    15→  FiClock,
+    16→  FiHeart,
+    17→  FiShield,
+    18→  FiUpload,
+    19→} from 'react-icons/fi';
+    20→import toast from 'react-hot-toast';
+    21→import { useAuthStore } from '@/store/authStore';
+    22→
+    23→function getAuthHeaders() {
+    24→  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+    25→  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    26→}
+    27→
+    28→// ─── Employee Policies Tab Component ───
+    29→function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
+    30→  const { user } = useAuthStore();
+    31→  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+    32→  const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
+    33→  const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+    34→  const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+    35→  const [travelPolicies, setTravelPolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
+    36→  const [salaryStructures, setSalaryStructures] = useState<Array<{ id: string; name: string }>>([]);
+    37→  const [saving, setSaving] = useState<string | null>(null);
+    38→
+    39→  const fetchPolicies = useCallback(async () => {
+    40→    try {
+    41→      const [polRes, lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
+    42→        fetch(`/api/employees/${employeeId}/policies`, { headers: getAuthHeaders() }),
+    43→        fetch('/api/policies?category=leave', { headers: getAuthHeaders() }),
+    44→        fetch('/api/policies?category=attendance', { headers: getAuthHeaders() }),
+    45→        fetch('/api/policies?category=travel', { headers: getAuthHeaders() }),
+    46→        fetch('/api/salary-structures', { headers: getAuthHeaders() }),
+    47→      ]);
+    48→      if (polRes.status === 'fulfilled' && polRes.value.ok) { const d = await polRes.value.json(); setPolicies(d.data); }
+    49→      if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies((d.policies || d.data || [])); }
+    50→      if (apRes.status === 'fulfilled' && apRes.value.ok) { const d = await apRes.value.json(); setAttendancePolicies((d.policies || d.data || [])); }
+    51→      if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies((d.policies || d.data || [])); }
+    52→      if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures((d.salaryStructures || d.data || [])); }
+    53→    } catch { /* silently */ }
+    54→  }, [employeeId]);
+    55→
+    56→  useEffect(() => { queueMicrotask(() => fetchPolicies()); }, [fetchPolicies]);
+    57→
+    58→  const handleSave = async (field: string, value: string | null) => {
+    59→    setSaving(field);
+    60→    try {
+    61→      const res = await fetch(`/api/employees/${employeeId}/policies`, {
+    62→        method: 'PUT', headers: getAuthHeaders(),
+    63→        body: JSON.stringify({ [field]: value }),
+    64→      });
+    65→      if (res.ok) { toast.success('Updated'); fetchPolicies(); }
+    66→      else { toast.error('Failed'); }
+    67→    } catch { toast.error('Failed'); }
+    68→    finally { setSaving(null); }
+    69→  };
+    70→
+    71→  const policyDropdown = (label: string, field: string, items: Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>, currentId: string | null | undefined, icon: React.ReactNode) => (
+    72→    <div className="nexus-card p-4">
+    73→      <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">{icon}{label}</h4>
+    74→      <select
+    75→        value={currentId || ''}
+    76→        onChange={e => handleSave(field, e.target.value || null)}
+    77→        disabled={!isAdmin || saving === field}
+    78→        className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+    79→      >
+    80→        <option value="">— Not Assigned —</option>
+    81→        {items.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+    82→      </select>
+    83→      {currentId && items.find(p => p.id === currentId) && (
+    84→        <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-nexus-border text-xs text-nexus-text-secondary">
+    85→          <p><span className="font-medium">Title:</span> {items.find(p => p.id === currentId)?.title}</p>
+    86→          <p><span className="font-medium">Version:</span> {items.find(p => p.id === currentId)?.version}</p>
+    87→          {items.find(p => p.id === currentId)?.effectiveDate && <p><span className="font-medium">Effective:</span> {new Date(items.find(p => p.id === currentId)!.effectiveDate!).toLocaleDateString()}</p>}
+    88→        </div>
+    89→      )}
+    90→      {saving === field && <p className="text-xs text-blue-500 mt-2">Saving...</p>}
+    91→    </div>
+    92→  );
+    93→
+    94→  return (
+    95→    <div className="space-y-4">
+    96→      <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Policy & Structure Mappings</h3>
+    97→      {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
+    98→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    99→        {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-blue-500" />)}
+   100→        {policyDropdown('Attendance Policy', 'attendancePolicyId', attendancePolicies, policies?.attendancePolicyId, <FiClock className="w-4 h-4 text-emerald-500" />)}
+   101→        {policyDropdown('Travel Policy', 'travelPolicyId', travelPolicies, policies?.travelPolicyId, <FiBriefcase className="w-4 h-4 text-amber-500" />)}
+   102→        <div className="nexus-card p-4">
+   103→          <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Structure</h4>
+   104→          <select
+   105→            value={policies?.salaryStructureId || ''}
+   106→            onChange={e => handleSave('salaryStructureId', e.target.value || null)}
+   107→            disabled={!isAdmin || saving === 'salaryStructureId'}
+   108→            className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+   109→          >
+   110→            <option value="">— Not Assigned —</option>
+   111→            {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+   112→          </select>
+   113→          {saving === 'salaryStructureId' && <p className="text-xs text-blue-500 mt-2">Saving...</p>}
+   114→        </div>
+   115→      </div>
+   116→    </div>
+   117→  );
+   118→}
+   119→
+   120→function formatDate(d: string | null | undefined) {
+   121→  if (!d) return '—';
+   122→  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+   123→}
+   124→
+   125→function formatDateTime(d: string | null | undefined) {
+   126→  if (!d) return '—';
+   127→  return new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+   128→}
+   129→
+   130→function getStatusBadge(status: string) {
+   131→  const map: Record<string, string> = {
+   132→    active: 'nexus-badge nexus-badge-success',
+   133→    on_leave: 'nexus-badge nexus-badge-warning',
+   134→    terminated: 'nexus-badge nexus-badge-error',
+   135→    resigned: 'bg-slate-100 text-slate-600 nexus-badge',
+   136→  };
+   137→  const labels: Record<string, string> = { active: 'Active', on_leave: 'On Leave', terminated: 'Terminated', resigned: 'Resigned' };
+   138→  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+   139→}
+   140→
+   141→interface EmployeeData {
+   142→  id: string;
+   143→  employeeId: string;
+   144→  firstName: string;
+   145→  lastName: string;
+   146→  email: string;
+   147→  phone?: string | null;
+   148→  avatar?: string | null;
+   149→  department?: { id: string; name: string } | null;
+   150→  designation?: { id: string; title: string } | null;
+   151→  branch?: { id: string; name: string } | null;
+   152→  dateOfJoining: string;
+   153→  status: string;
+   154→  dateOfBirth?: string | null;
+   155→  gender?: string | null;
+   156→  maritalStatus?: string | null;
+   157→  nationality?: string | null;
+   158→  address?: string | null;
+   159→  city?: string | null;
+   160→  state?: string | null;
+   161→  zipCode?: string | null;
+   162→  country?: string | null;
+   163→  bloodGroup?: string | null;
+   164→  bankName?: string | null;
+   165→  bankAccountNo?: string | null;
+   166→  bankIfscCode?: string | null;
+   167→  panNumber?: string | null;
+   168→  aadhaarNumber?: string | null;
+   169→  salary?: number | null;
+   170→  salaryCurrency?: string;
+   171→  emergencyContactName?: string | null;
+   172→  emergencyContactPhone?: string | null;
+   173→  leaveBalances?: Array<{
+   174→    id: string;
+   175→    total: number;
+   176→    used: number;
+   177→    remaining: number;
+   178→    year: number;
+   179→    leaveType: { id: string; name: string; code: string };
+   180→  }>;
+   181→  dependents?: Array<{ id: string; name: string; relation: string; dateOfBirth?: string | null; gender?: string | null }>;
+   182→  qualifications?: Array<{ id: string; degree: string; institution: string; year: number; percentage?: number | null }>;
+   183→  experiences?: Array<{ id: string; company: string; designation: string; startDate: string; endDate?: string | null; isCurrent: boolean }>;
+   184→  skills?: Array<{ id: string; skill: string; level: string; yearsOfExp?: number | null }>;
+   185→  documents?: Array<{ id: string; name: string; type: string; fileUrl?: string | null; status: string; uploadedAt: string; expiryDate?: string | null }>;
+   186→  assetAssignments?: Array<{ id: string; status: string; assignedDate: string; asset: { id: string; name: string; assetTag: string; category: string } }>;
+   187→}
+   188→
+   189→const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies'] as const;
+   190→type TabName = typeof tabs[number];
+   191→
+   192→export default function EmployeeDetailPage() {
+   193→  const params = useParams();
+   194→  const router = useRouter();
+   195→  const id = params.id as string;
+   196→
+   197→  const [employee, setEmployee] = useState<EmployeeData | null>(null);
+   198→  const [loading, setLoading] = useState(true);
+   199→  const [activeTab, setActiveTab] = useState<TabName>('Overview');
+   200→
+   201→  const [attendance, setAttendance] = useState<Array<{ id: string; date: string; checkIn?: string | null; checkOut?: string | null; workHours?: number | null; overtime?: number | null; status: string }>>([]);
+   202→  const [payrolls, setPayrolls] = useState<Array<{ id: string; month: number; year: number; grossSalary: number; totalDeductions: number; netSalary: number; status: string; paidDate?: string | null }>>([]);
+   203→  const [leaveRequests, setLeaveRequests] = useState<Array<{ id: string; startDate: string; endDate: string; reason?: string | null; status: string; halfDay: boolean; leaveType: { name: string } }>>([]);
+   204→  const [now] = useState(() => Date.now());
+   205→
+   206→  const fetchEmployee = useCallback(async () => {
+   207→    try {
+   208→      setLoading(true);
+   209→      const res = await fetch(`/api/employees/${id}`, { headers: getAuthHeaders() });
+   210→      if (!res.ok) throw new Error('Failed to fetch employee');
+   211→      const data = await res.json();
+   212→      setEmployee(data.employee);
+   213→    } catch (err) {
+   214→      console.error('Failed to load employee details:', err);
+   215→      // Don't show error toast - the page shows a "not found" state that handles this gracefully
+   216→      setEmployee(null);
+   217→    } finally {
+   218→      setLoading(false);
+   219→    }
+   220→  }, [id]);
+   221→
+   222→  const fetchRelatedData = useCallback(async () => {
+   223→    if (!employee) return;
+   224→    try {
+   225→      const headers = getAuthHeaders();
+   226→      const [attRes, payRes, leaveRes] = await Promise.allSettled([
+   227→        fetch(`/api/attendance?employeeId=${employee.id}&limit=30`, { headers }),
+   228→        fetch(`/api/payroll?employeeId=${employee.id}&limit=12`, { headers }),
+   229→        fetch(`/api/leave?employeeId=${employee.id}&limit=20`, { headers }),
+   230→      ]);
+   231→      if (attRes.status === 'fulfilled' && attRes.value.ok) {
+   232→        const d = await attRes.value.json();
+   233→        setAttendance(d.attendance || []);
+   234→      }
+   235→      if (payRes.status === 'fulfilled' && payRes.value.ok) {
+   236→        const d = await payRes.value.json();
+   237→        setPayrolls(d.payrolls || []);
+   238→      }
+   239→      if (leaveRes.status === 'fulfilled' && leaveRes.value.ok) {
+   240→        const d = await leaveRes.value.json();
+   241→        setLeaveRequests(d.leaveRequests || []);
+   242→      }
+   243→    } catch (err) {
+   244→      console.error(err);
+   245→    }
+   246→  }, [employee]);
+   247→
+   248→  useEffect(() => {
+   249→    queueMicrotask(() => fetchEmployee());
+   250→  }, [fetchEmployee]);
+   251→
+   252→  useEffect(() => {
+   253→    if (employee) queueMicrotask(() => fetchRelatedData());
+   254→  }, [employee, fetchRelatedData]);
+   255→
+   256→  if (loading) {
+   257→    return (
+   258→      <div className="space-y-6">
+   259→        <div className="nexus-card p-6 animate-pulse">
+   260→          <div className="flex items-center gap-4">
+   261→            <div className="w-16 h-16 bg-slate-200 rounded-full" />
+   262→            <div className="space-y-2"><div className="h-5 w-48 bg-slate-200 rounded" /><div className="h-3 w-32 bg-slate-200 rounded" /></div>
+   263→          </div>
+   264→        </div>
+   265→        <div className="nexus-card p-6 animate-pulse"><div className="h-8 bg-slate-200 rounded w-full" /></div>
+   266→      </div>
+   267→    );
+   268→  }
+   269→
+   270→  if (!employee) {
+   271→    return (
+   272→      <div className="text-center py-12">
+   273→        <FiUser className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
+   274→        <p className="text-nexus-text-secondary font-medium">Employee not found</p>
+   275→        <button onClick={() => router.push('/employees')} className="mt-4 text-blue-500 hover:text-blue-700 text-sm font-medium">Back to Employees</button>
+   276→      </div>
+   277→    );
+   278→  }
+   279→
+   280→  const badge = getStatusBadge(employee.status);
+   281→  const initials = `${employee.firstName[0]}${employee.lastName[0]}`;
+   282→  const daysEmployed = Math.floor((now - new Date(employee.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
+   283→  const totalLeaveBalance = employee.leaveBalances?.reduce((sum, lb) => sum + lb.remaining, 0) || 0;
+   284→  const attendanceRate = attendance.length > 0 ? Math.round((attendance.filter(a => ['present', 'late'].includes(a.status)).length / attendance.length) * 100) : 0;
+   285→
+   286→  return (
+   287→    <div className="space-y-6">
+   288→      {/* Back button */}
+   289→      <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 text-sm text-nexus-text-secondary hover:text-nexus-text-primary transition-colors">
+   290→        <FiArrowLeft className="w-4 h-4" />
+   291→        Back to Employees
+   292→      </button>
+   293→
+   294→      {/* Employee Header */}
+   295→      <div className="nexus-card p-6">
+   296→        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+   297→          {employee.avatar ? (
+   298→            <img src={employee.avatar} alt="" className="w-16 h-16 rounded-full object-cover ring-4 ring-slate-100" />
+   299→          ) : (
+   300→            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold ring-4 ring-slate-100 flex-shrink-0">
+   301→              {initials}
+   302→            </div>
+   303→          )}
+   304→          <div className="flex-1 min-w-0">
+   305→            <div className="flex flex-wrap items-center gap-3">
+   306→              <h1 className="text-xl font-bold text-nexus-text-primary">{employee.firstName} {employee.lastName}</h1>
+   307→              <span className={badge.className}>{badge.label}</span>
+   308→            </div>
+   309→            <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-nexus-text-secondary">
+   310→              <span className="flex items-center gap-1"><FiBriefcase className="w-3.5 h-3.5" />{employee.employeeId}</span>
+   311→              <span className="flex items-center gap-1"><FiMail className="w-3.5 h-3.5" />{employee.email}</span>
+   312→              <span>{employee.department?.name} · {employee.designation?.title}</span>
+   313→            </div>
+   314→          </div>
+   315→        </div>
+   316→      </div>
+   317→
+   318→      {/* Tab Navigation */}
+   319→      <div className="nexus-card">
+   320→        <div className="border-b border-nexus-border overflow-x-auto">
+   321→          <nav className="flex -mb-px">
+   322→            {tabs.map(tab => (
+   323→              <button
+   324→                key={tab}
+   325→                onClick={() => setActiveTab(tab)}
+   326→                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+   327→                  activeTab === tab
+   328→                    ? 'border-blue-500 text-blue-600'
+   329→                    : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary hover:border-slate-300'
+   330→                }`}
+   331→              >
+   332→                {tab}
+   333→              </button>
+   334→            ))}
+   335→          </nav>
+   336→        </div>
+   337→
+   338→        <div className="p-6">
+   339→          {/* ── Overview Tab ── */}
+   340→          {activeTab === 'Overview' && (
+   341→            <div className="space-y-6">
+   342→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   343→                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+   344→                  <p className="text-xs font-medium text-blue-600 mb-1">Days Employed</p>
+   345→                  <p className="text-2xl font-bold text-blue-700">{daysEmployed}</p>
+   346→                  <p className="text-xs text-blue-500 mt-1">Since {formatDate(employee.dateOfJoining)}</p>
+   347→                </div>
+   348→                <div className="p-4 rounded-xl bg-amber-50 border border-amber-100">
+   349→                  <p className="text-xs font-medium text-amber-600 mb-1">Leave Balance</p>
+   350→                  <p className="text-2xl font-bold text-amber-700">{totalLeaveBalance}</p>
+   351→                  <p className="text-xs text-amber-500 mt-1">Days remaining</p>
+   352→                </div>
+   353→                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+   354→                  <p className="text-xs font-medium text-emerald-600 mb-1">Attendance Rate</p>
+   355→                  <p className="text-2xl font-bold text-emerald-700">{attendanceRate}%</p>
+   356→                  <p className="text-xs text-emerald-500 mt-1">Last 30 days</p>
+   357→                </div>
+   358→              </div>
+   359→
+   360→              {/* Quick Info */}
+   361→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   362→                <div className="nexus-card p-4 space-y-3">
+   363→                  <h3 className="text-sm font-semibold text-nexus-text-primary">Contact Information</h3>
+   364→                  <div className="space-y-2">
+   365→                    <div className="flex items-center gap-2 text-sm"><FiMail className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.email}</span></div>
+   366→                    <div className="flex items-center gap-2 text-sm"><FiPhone className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.phone || '—'}</span></div>
+   367→                    <div className="flex items-center gap-2 text-sm"><FiMapPin className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{[employee.city, employee.state, employee.country].filter(Boolean).join(', ') || '—'}</span></div>
+   368→                  </div>
+   369→                </div>
+   370→                <div className="nexus-card p-4 space-y-3">
+   371→                  <h3 className="text-sm font-semibold text-nexus-text-primary">Employment</h3>
+   372→                  <div className="space-y-2">
+   373→                    <div className="flex items-center gap-2 text-sm"><FiBriefcase className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.department?.name || '—'}</span></div>
+   374→                    <div className="flex items-center gap-2 text-sm"><FiUser className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.designation?.title || '—'}</span></div>
+   375→                    <div className="flex items-center gap-2 text-sm"><FiCalendar className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">Joined {formatDate(employee.dateOfJoining)}</span></div>
+   376→                  </div>
+   377→                </div>
+   378→              </div>
+   379→
+   380→              {/* Skills */}
+   381→              {employee.skills && employee.skills.length > 0 && (
+   382→                <div className="nexus-card p-4">
+   383→                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Skills</h3>
+   384→                  <div className="flex flex-wrap gap-2">
+   385→                    {employee.skills.map(s => (
+   386→                      <span key={s.id} className="nexus-badge nexus-badge-info">{s.skill} · {s.level}</span>
+   387→                    ))}
+   388→                  </div>
+   389→                </div>
+   390→              )}
+   391→            </div>
+   392→          )}
+   393→
+   394→          {/* ── Personal Tab ── */}
+   395→          {activeTab === 'Personal' && (
+   396→            <div className="space-y-6">
+   397→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   398→                {[
+   399→                  { label: 'First Name', value: employee.firstName },
+   400→                  { label: 'Last Name', value: employee.lastName },
+   401→                  { label: 'Email', value: employee.email },
+   402→                  { label: 'Phone', value: employee.phone },
+   403→                  { label: 'Date of Birth', value: formatDate(employee.dateOfBirth) },
+   404→                  { label: 'Gender', value: employee.gender },
+   405→                  { label: 'Marital Status', value: employee.maritalStatus },
+   406→                  { label: 'Nationality', value: employee.nationality },
+   407→                  { label: 'Blood Group', value: employee.bloodGroup },
+   408→                  { label: 'Address', value: employee.address },
+   409→                  { label: 'City', value: employee.city },
+   410→                  { label: 'State', value: employee.state },
+   411→                  { label: 'ZIP Code', value: employee.zipCode },
+   412→                  { label: 'Country', value: employee.country },
+   413→                ].map(field => (
+   414→                  <div key={field.label}>
+   415→                    <p className="text-xs font-medium text-nexus-text-muted mb-1">{field.label}</p>
+   416→                    <p className="text-sm font-medium text-nexus-text-primary">{field.value || '—'}</p>
+   417→                  </div>
+   418→                ))}
+   419→              </div>
+   420→
+   421→              {/* Emergency Contact */}
+   422→              <div className="nexus-card p-4">
+   423→                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiHeart className="w-4 h-4 text-rose-500" />Emergency Contact</h3>
+   424→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   425→                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Name</p><p className="text-sm font-medium text-nexus-text-primary">{employee.emergencyContactName || '—'}</p></div>
+   426→                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Phone</p><p className="text-sm font-medium text-nexus-text-primary">{employee.emergencyContactPhone || '—'}</p></div>
+   427→                </div>
+   428→              </div>
+   429→
+   430→              {/* Dependents */}
+   431→              {employee.dependents && employee.dependents.length > 0 && (
+   432→                <div className="nexus-card p-4">
+   433→                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Dependents</h3>
+   434→                  <div className="overflow-x-auto">
+   435→                    <table className="w-full">
+   436→                      <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Relation</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">DOB</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Gender</th></tr></thead>
+   437→                      <tbody>
+   438→                        {employee.dependents.map(dep => (
+   439→                          <tr key={dep.id} className="border-b border-nexus-border/50"><td className="py-2 text-sm">{dep.name}</td><td className="py-2 text-sm text-nexus-text-secondary">{dep.relation}</td><td className="py-2 text-sm text-nexus-text-secondary">{formatDate(dep.dateOfBirth)}</td><td className="py-2 text-sm text-nexus-text-secondary">{dep.gender || '—'}</td></tr>
+   440→                        ))}
+   441→                      </tbody>
+   442→                    </table>
+   443→                  </div>
+   444→                </div>
+   445→              )}
+   446→            </div>
+   447→          )}
+   448→
+   449→          {/* ── Employment Tab ── */}
+   450→          {activeTab === 'Employment' && (
+   451→            <div className="space-y-6">
+   452→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   453→                {[
+   454→                  { label: 'Employee ID', value: employee.employeeId },
+   455→                  { label: 'Department', value: employee.department?.name },
+   456→                  { label: 'Designation', value: employee.designation?.title },
+   457→                  { label: 'Branch', value: employee.branch?.name },
+   458→                  { label: 'Date of Joining', value: formatDate(employee.dateOfJoining) },
+   459→                  { label: 'Status', value: badge.label },
+   460→                ].map(field => (
+   461→                  <div key={field.label}>
+   462→                    <p className="text-xs font-medium text-nexus-text-muted mb-1">{field.label}</p>
+   463→                    <p className="text-sm font-medium text-nexus-text-primary">{field.value || '—'}</p>
+   464→                  </div>
+   465→                ))}
+   466→              </div>
+   467→
+   468→              {/* Salary Info */}
+   469→              <div className="nexus-card p-4">
+   470→                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Information</h3>
+   471→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   472→                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Salary</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salary ? `${employee.salaryCurrency || 'USD'} ${employee.salary.toLocaleString()}` : '—'}</p></div>
+   473→                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Currency</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salaryCurrency || 'USD'}</p></div>
+   474→                </div>
+   475→              </div>
+   476→
+   477→              {/* Bank Details */}
+   478→              <div className="nexus-card p-4">
+   479→                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Bank Details</h3>
+   480→                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   481→                  {[
+   482→                    { label: 'Bank Name', value: employee.bankName },
+   483→                    { label: 'Account No', value: employee.bankAccountNo },
+   484→                    { label: 'IFSC Code', value: employee.bankIfscCode },
+   485→                    { label: 'PAN Number', value: employee.panNumber },
+   486→                    { label: 'Aadhaar Number', value: employee.aadhaarNumber },
+   487→                  ].map(field => (
+   488→                    <div key={field.label}>
+   489→                      <p className="text-xs font-medium text-nexus-text-muted mb-1">{field.label}</p>
+   490→                      <p className="text-sm font-medium text-nexus-text-primary">{field.value || '—'}</p>
+   491→                    </div>
+   492→                  ))}
+   493→                </div>
+   494→              </div>
+   495→
+   496→              {/* Experience */}
+   497→              {employee.experiences && employee.experiences.length > 0 && (
+   498→                <div className="nexus-card p-4">
+   499→                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Work Experience</h3>
+   500→                  <div className="space-y-3">
+   501→                    {employee.experiences.map(exp => (
+   502→                      <div key={exp.id} className="p-3 rounded-lg border border-nexus-border">
+   503→                        <div className="flex items-center justify-between">
+   504→                          <p className="text-sm font-medium text-nexus-text-primary">{exp.company}</p>
+   505→                          {exp.isCurrent && <span className="nexus-badge nexus-badge-success">Current</span>}
+   506→                        </div>
+   507→                        <p className="text-xs text-nexus-text-secondary mt-1">{exp.designation} · {formatDate(exp.startDate)} – {exp.endDate ? formatDate(exp.endDate) : 'Present'}</p>
+   508→                      </div>
+   509→                    ))}
+   510→                  </div>
+   511→                </div>
+   512→              )}
+   513→            </div>
+   514→          )}
+   515→
+   516→          {/* ── Documents Tab ── */}
+   517→          {activeTab === 'Documents' && (
+   518→            <div className="space-y-4">
+   519→              <div className="flex items-center justify-between">
+   520→                <h3 className="text-sm font-semibold text-nexus-text-primary">Documents</h3>
+   521→                <button className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
+   522→                  <FiUpload className="w-3.5 h-3.5" />
+   523→                  Upload Document
+   524→                </button>
+   525→              </div>
+   526→              {(!employee.documents || employee.documents.length === 0) ? (
+   527→                <div className="text-center py-8">
+   528→                  <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+   529→                  <p className="text-nexus-text-secondary">No documents uploaded</p>
+   530→                </div>
+   531→              ) : (
+   532→                <div className="overflow-x-auto">
+   533→                  <table className="w-full">
+   534→                    <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Uploaded</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Expiry</th></tr></thead>
+   535→                    <tbody>
+   536→                      {employee.documents.map(doc => (
+   537→                        <tr key={doc.id} className="border-b border-nexus-border/50">
+   538→                          <td className="py-2 text-sm font-medium text-nexus-text-primary">{doc.name}</td>
+   539→                          <td className="py-2 text-sm text-nexus-text-secondary capitalize">{doc.type.replace('_', ' ')}</td>
+   540→                          <td className="py-2"><span className="nexus-badge nexus-badge-success">{doc.status}</span></td>
+   541→                          <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(doc.uploadedAt)}</td>
+   542→                          <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(doc.expiryDate)}</td>
+   543→                        </tr>
+   544→                      ))}
+   545→                    </tbody>
+   546→                  </table>
+   547→                </div>
+   548→              )}
+   549→            </div>
+   550→          )}
+   551→
+   552→          {/* ── Leave Tab ── */}
+   553→          {activeTab === 'Leave' && (
+   554→            <div className="space-y-6">
+   555→              {/* Leave Balances */}
+   556→              {employee.leaveBalances && employee.leaveBalances.length > 0 && (
+   557→                <div>
+   558→                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Leave Balances</h3>
+   559→                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   560→                    {employee.leaveBalances.map(lb => (
+   561→                      <div key={lb.id} className="p-4 rounded-xl border border-nexus-border">
+   562→                        <p className="text-sm font-medium text-nexus-text-primary">{lb.leaveType.name}</p>
+   563→                        <div className="flex items-center justify-between mt-2 text-xs text-nexus-text-secondary">
+   564→                          <span>Total: {lb.total}</span>
+   565→                          <span>Used: {lb.used}</span>
+   566→                          <span>Remaining: {lb.remaining}</span>
+   567→                        </div>
+   568→                        <div className="w-full h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+   569→                          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${lb.total > 0 ? (lb.used / lb.total) * 100 : 0}%` }} />
+   570→                        </div>
+   571→                      </div>
+   572→                    ))}
+   573→                  </div>
+   574→                </div>
+   575→              )}
+   576→
+   577→              {/* Leave History */}
+   578→              <div>
+   579→                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Leave History</h3>
+   580→                {leaveRequests.length === 0 ? (
+   581→                  <div className="text-center py-8"><FiCalendar className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">No leave requests</p></div>
+   582→                ) : (
+   583→                  <div className="overflow-x-auto">
+   584→                    <table className="w-full">
+   585→                      <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">From</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">To</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Reason</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th></tr></thead>
+   586→                      <tbody>
+   587→                        {leaveRequests.map(lr => {
+   588→                          const statusMap: Record<string, string> = { pending: 'nexus-badge nexus-badge-warning', approved: 'nexus-badge nexus-badge-success', rejected: 'nexus-badge nexus-badge-error', cancelled: 'bg-slate-100 text-slate-600 nexus-badge' };
+   589→                          return (
+   590→                            <tr key={lr.id} className="border-b border-nexus-border/50">
+   591→                              <td className="py-2 text-sm">{lr.leaveType.name}</td>
+   592→                              <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(lr.startDate)}</td>
+   593→                              <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(lr.endDate)}</td>
+   594→                              <td className="py-2 text-sm text-nexus-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
+   595→                              <td className="py-2"><span className={statusMap[lr.status] || 'nexus-badge nexus-badge-info'}>{lr.status}</span></td>
+   596→                            </tr>
+   597→                          );
+   598→                        })}
+   599→                      </tbody>
+   600→                    </table>
+   601→                  </div>
+   602→                )}
+   603→              </div>
+   604→            </div>
+   605→          )}
+   606→
+   607→          {/* ── Attendance Tab ── */}
+   608→          {activeTab === 'Attendance' && (
+   609→            <div className="space-y-4">
+   610→              <h3 className="text-sm font-semibold text-nexus-text-primary">Recent Attendance</h3>
+   611→              {attendance.length === 0 ? (
+   612→                <div className="text-center py-8"><FiClock className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">No attendance records</p></div>
+   613→              ) : (
+   614→                <div className="overflow-x-auto">
+   615→                  <table className="w-full">
+   616→                    <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Date</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Check In</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Check Out</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Work Hours</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Overtime</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th></tr></thead>
+   617→                    <tbody>
+   618→                      {attendance.map(a => {
+   619→                        const statusMap: Record<string, string> = { present: 'nexus-badge nexus-badge-success', absent: 'nexus-badge nexus-badge-error', late: 'bg-orange-50 text-orange-700 nexus-badge', half_day: 'nexus-badge nexus-badge-warning', holiday: 'nexus-badge nexus-badge-info', weekend: 'bg-slate-100 text-slate-600 nexus-badge', on_leave: 'nexus-badge nexus-badge-warning' };
+   620→                        return (
+   621→                          <tr key={a.id} className="border-b border-nexus-border/50">
+   622→                            <td className="py-2 text-sm">{formatDate(a.date)}</td>
+   623→                            <td className="py-2 text-sm text-nexus-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
+   624→                            <td className="py-2 text-sm text-nexus-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
+   625→                            <td className="py-2 text-sm text-nexus-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
+   626→                            <td className="py-2 text-sm text-nexus-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+   627→                            <td className="py-2"><span className={statusMap[a.status] || 'nexus-badge nexus-badge-info'}>{a.status.replace('_', ' ')}</span></td>
+   628→                          </tr>
+   629→                        );
+   630→                      })}
+   631→                    </tbody>
+   632→                  </table>
+   633→                </div>
+   634→              )}
+   635→            </div>
+   636→          )}
+   637→
+   638→          {/* ── Policies Tab ── */}
+   639→          {activeTab === 'Health' && (
+   640→            <div className="space-y-4">
+   641→              <div className="nexus-card p-6">
+   642→                <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2 mb-2">
+   643→                  <FiHeart className="w-5 h-5 text-red-500" />
+   644→                  Health History
+   645→                </h3>
+   646→                <p className="text-xs text-nexus-text-muted mb-6">Employee health information for workplace safety and emergency preparedness.</p>
+   647→
+   648→                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+   649→                  {/* Blood Group & Vitals */}
+   650→                  <div className="space-y-3">
+   651→                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Vitals & Blood</h4>
+   652→                    <div className="grid grid-cols-2 gap-3">
+   653→                      <div>
+   654→                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Blood Group</label>
+   655→                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{employee.bloodGroup || '—'}</p>
+   656→                      </div>
+   657→                      <div>
+   658→                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Emergency Condition</label>
+   659→                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).emergencyMedicalCondition as string || '—'}</p>
+   660→                      </div>
+   661→                    </div>
+   662→                  </div>
+   663→
+   664→                  {/* Medical History */}
+   665→                  <div className="space-y-3">
+   666→                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Medical History</h4>
+   667→                    <div className="space-y-2">
+   668→                      {[
+   669→                        { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
+   670→                        { label: 'Allergies', value: (employee as Record<string, unknown>).hasAllergies as string, details: (employee as Record<string, unknown>).allergyDetails as string },
+   671→                        { label: 'Disability', value: (employee as Record<string, unknown>).hasDisability as string, details: (employee as Record<string, unknown>).disabilityDetails as string },
+   672→                        { label: 'On Medication', value: (employee as Record<string, unknown>).isOnMedication as string, details: (employee as Record<string, unknown>).medicationDetails as string },
+   673→                        { label: 'Previous Surgery', value: (employee as Record<string, unknown>).hasHadSurgery as string, details: (employee as Record<string, unknown>).surgeryDetails as string },
+   674→                      ].map((item) => (
+   675→                        <div key={item.label} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 border border-nexus-border/30">
+   676→                          <span className={`shrink-0 mt-0.5 w-2 h-2 rounded-full ${item.value === 'yes' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+   677→                          <div>
+   678→                            <p className="text-xs font-medium text-nexus-text-primary">{item.label}</p>
+   679→                            <p className="text-xs text-nexus-text-muted">{item.value === 'yes' ? `Yes — ${item.details || 'No details provided'}` : item.value === 'no' ? 'No' : '—'}</p>
+   680→                          </div>
+   681→                        </div>
+   682→                      ))}
+   683→                    </div>
+   684→                  </div>
+   685→
+   686→                  {/* Physician & Insurance */}
+   687→                  <div className="space-y-3 md:col-span-2">
+   688→                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Physician & Insurance</h4>
+   689→                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+   690→                      <div>
+   691→                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Primary Physician</label>
+   692→                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).primaryPhysicianName as string || '—'}</p>
+   693→                      </div>
+   694→                      <div>
+   695→                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Physician Phone</label>
+   696→                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).primaryPhysicianPhone as string || '—'}</p>
+   697→                      </div>
+   698→                      <div>
+   699→                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Insurance Provider</label>
+   700→                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).healthInsuranceProvider as string || '—'}</p>
+   701→                      </div>
+   702→                      <div>
+   703→                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Policy Number</label>
+   704→                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).healthInsurancePolicyNo as string || '—'}</p>
+   705→                      </div>
+   706→                    </div>
+   707→                  </div>
+   708→                </div>
+   709→              </div>
+   710→            </div>
+   711→          )}
+   712→          {activeTab === 'Policies' && <EmployeePoliciesTab employeeId={employee.id} />}
+   713→
+   714→          {/* ── Payroll Tab ── */}
+   715→          {activeTab === 'Payroll' && (
+   716→            <div className="space-y-4">
+   717→              <h3 className="text-sm font-semibold text-nexus-text-primary">Recent Payslips</h3>
+   718→              {payrolls.length === 0 ? (
+   719→                <div className="text-center py-8"><FiDollarSign className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">No payroll records</p></div>
+   720→              ) : (
+   721→                <div className="overflow-x-auto">
+   722→                  <table className="w-full">
+   723→                    <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Month</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Gross Salary</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Deductions</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Net Salary</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th></tr></thead>
+   724→                    <tbody>
+   725→                      {payrolls.map(p => {
+   726→                        const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+   727→                        const statusMap: Record<string, string> = { draft: 'nexus-badge nexus-badge-warning', processed: 'nexus-badge nexus-badge-info', paid: 'nexus-badge nexus-badge-success', cancelled: 'nexus-badge nexus-badge-error' };
+   728→                        return (
+   729→                          <tr key={p.id} className="border-b border-nexus-border/50">
+   730→                            <td className="py-2 text-sm font-medium">{months[p.month]} {p.year}</td>
+   731→                            <td className="py-2 text-sm text-nexus-text-secondary">${p.grossSalary.toLocaleString()}</td>
+   732→                            <td className="py-2 text-sm text-red-500">${p.totalDeductions.toLocaleString()}</td>
+   733→                            <td className="py-2 text-sm font-medium text-emerald-600">${p.netSalary.toLocaleString()}</td>
+   734→                            <td className="py-2"><span className={statusMap[p.status] || 'nexus-badge nexus-badge-info'}>{p.status}</span></td>
+   735→                          </tr>
+   736→                        );
+   737→                      })}
+   738→                    </tbody>
+   739→                  </table>
+   740→                </div>
+   741→              )}
+   742→            </div>
+   743→          )}
+   744→        </div>
+   745→      </div>
+   746→    </div>
+   747→  );
+   748→}
+   749→
