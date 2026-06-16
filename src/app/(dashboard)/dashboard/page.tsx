@@ -3,46 +3,21 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  FiUsers, FiCalendar, FiDollarSign, FiClock,
-  FiArrowUp, FiArrowDown, FiUserPlus, FiBookOpen,
-  FiCheckCircle, FiAlertTriangle, FiInfo, FiGift,
-  FiSearch, FiFileText, FiHeart, FiBriefcase,
-  FiDownload, FiStar, FiHeadphones, FiShield,
-  FiBarChart2, FiTrendingUp, FiPlus, FiChevronRight,
+  FiCalendar, FiClock, FiFileText, FiHeadphones, FiUser,
+  FiDollarSign, FiBookOpen, FiTrendingUp, FiCheckCircle,
+  FiAlertCircle, FiChevronRight, FiPlus, FiDownload,
+  FiActivity, FiTarget, FiAward, FiBriefcase, FiFolder,
+  FiSend, FiMessageCircle, FiShield, FiZap, FiHeart,
+  FiArrowRight, FiInfo,
 } from 'react-icons/fi';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  RadialBarChart, RadialBar,
 } from 'recharts';
-import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useNotificationStore } from '@/store/notificationStore';
-import RoleAccessGuard from '@/components/RoleAccessGuard';
-import { getDashboardAccess, canRoleAccessModule } from '@/lib/roleAccess';
 
-interface DashboardStats {
-  totalEmployees: number;
-  activeLeaves: number;
-  openPositions: number;
-  pendingPayroll: number;
-  attendanceRate: number;
-  trainingPrograms: number;
-}
-
-interface DepartmentDist {
-  name: string;
-  count: number;
-  color: string;
-}
-
-interface BirthdayEmployee {
-  id: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string | null;
-  department?: { name: string };
-  avatar?: string | null;
-}
+/* ---------- helpers ---------- */
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -52,513 +27,835 @@ function getAuthHeaders() {
   };
 }
 
-function SkeletonCard() {
+const LEAVE_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#8B5CF6'];
+
+/* ---------- types ---------- */
+
+interface LeaveBalanceItem {
+  id: string;
+  leaveTypeId: string;
+  leaveType: { id: string; name: string; code: string };
+  year: number;
+  total: number;
+  used: number;
+  remaining: number;
+  carryForward: number;
+}
+
+interface AttendanceRow {
+  id?: string;
+  date: string;
+  status: string;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  workHours?: number | null;
+}
+
+interface PayslipRow {
+  id: string;
+  month: number;
+  year: number;
+  netSalary: number;
+  status: string;
+  currency?: string;
+  paidDate?: string | null;
+}
+
+interface PerformanceRow {
+  id: string;
+  reviewCycle: string;
+  rating: number;
+  overallRating?: number;
+  status: string;
+  reviewDate?: string | null;
+  reviewer?: { firstName: string; lastName: string } | null;
+}
+
+interface GoalRow {
+  id: string;
+  title: string;
+  progress: number;
+  status: string;
+  priority: string;
+  endDate?: string | null;
+}
+
+interface TrainingRow {
+  id: string;
+  title: string;
+  status: string;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+interface TrainingEnrollmentRow {
+  id: string;
+  status: string;
+  score?: number | null;
+  training: { id: string; title: string; startDate?: string | null; endDate?: string | null };
+}
+
+interface TimesheetRow {
+  id: string;
+  date: string;
+  project?: string | null;
+  task?: string | null;
+  hours: number;
+  status: string;
+}
+
+interface TicketRow {
+  id: string;
+  ticketId: string;
+  subject: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+}
+
+interface DocumentRow {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  uploadedAt: string;
+}
+
+/* ---------- skeleton ---------- */
+
+function SkeletonBlock({ className = '' }: { className?: string }) {
+  return <div className={`bg-slate-200/70 animate-pulse rounded-lg ${className}`} />;
+}
+
+function StatSkeleton() {
   return (
-    <div className="bg-white rounded-xl p-5 animate-pulse border border-slate-100 shadow-sm">
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
       <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <div className="h-3 w-24 bg-slate-200 rounded" />
-          <div className="h-7 w-16 bg-slate-200 rounded" />
+        <div className="space-y-2 flex-1">
+          <SkeletonBlock className="h-3 w-24" />
+          <SkeletonBlock className="h-7 w-16" />
         </div>
-        <div className="h-10 w-10 bg-slate-200 rounded-xl" />
+        <SkeletonBlock className="h-10 w-10 rounded-xl" />
       </div>
-      <div className="h-3 w-32 bg-slate-200 rounded mt-3" />
+      <SkeletonBlock className="h-3 w-32 mt-3" />
     </div>
   );
 }
 
-const ATTENDANCE_COLORS = ['#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-const DEPARTMENT_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#14B8A6'];
+/* ---------- main component ---------- */
 
-export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const { notifications, fetchNotifications } = useNotificationStore();
+export default function ESSDashboardPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
 
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [departmentDist, setDepartmentDist] = useState<DepartmentDist[]>([]);
-  const [birthdays, setBirthdays] = useState<BirthdayEmployee[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [heroSearch, setHeroSearch] = useState('');
-  const [employeeTrend, setEmployeeTrend] = useState<{month: string; count: number}[]>([]);
-  const [attendanceData, setAttendanceData] = useState<{name: string; value: number; color: string}[]>([]);
-  const [leaveSummary, setLeaveSummary] = useState({total: 0, approved: 0, pending: 0, rejected: 0});
-  const [payrollInfo, setPayrollInfo] = useState({status: 'Processing', totalCost: 0, employees: 0});
-  const [recruitmentInfo, setRecruitmentInfo] = useState({openings: 0, candidates: 0, interviews: 0, offers: 0});
-
+  const firstName = user?.name?.split(' ')[0] || 'there';
   const userRole = user?.role || 'employee';
-  const dashboardAccess = getDashboardAccess(userRole);
-  const isSelfService = dashboardAccess === 'self';
-
-  const firstName = user?.name?.split(' ')[0] || 'User';
-  const rawTenantName = user?.tenant?.name || '3 Boxes HRMS';
-  const tenantName = !rawTenantName.toLowerCase().includes('3 boxes') ? '3 Boxes Corp' : rawTenantName;
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  const moduleSuggestions = useMemo(() => {
-    const allSuggestions = [
-      { label: 'Employees', href: '/employees', icon: '👥', moduleKey: 'employees' },
-      { label: 'Recruitment', href: '/recruitment', icon: '💼', moduleKey: 'recruitment' },
-      { label: 'Attendance', href: '/attendance', icon: '🕐', moduleKey: 'attendance' },
-      { label: 'Leave Management', href: '/leave', icon: '📅', moduleKey: 'leave' },
-      { label: 'Payroll', href: '/payroll', icon: '💵', moduleKey: 'payroll' },
-      { label: 'Performance', href: '/performance', icon: '📈', moduleKey: 'performance' },
-      { label: 'Training', href: '/training', icon: '🎓', moduleKey: 'training' },
-      { label: 'Helpdesk', href: '/helpdesk', icon: '🎧', moduleKey: 'helpdesk' },
-      { label: 'Reports', href: '/reports', icon: '📊', moduleKey: 'reports' },
-    ];
-    return allSuggestions.filter(s => canRoleAccessModule(userRole, s.moduleKey));
-  }, [userRole]);
+  /* ----- state ----- */
+  const [loading, setLoading] = useState(true);
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceItem[]>([]);
+  const [leaveSummary, setLeaveSummary] = useState({ total: 0, used: 0, remaining: 0 });
+  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
+  const [pendingLeaves, setPendingLeaves] = useState(0);
+  const [payslips, setPayslips] = useState<PayslipRow[]>([]);
+  const [performance, setPerformance] = useState<PerformanceRow | null>(null);
+  const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [training, setTraining] = useState<TrainingEnrollmentRow[]>([]);
+  const [timesheets, setTimesheets] = useState<TimesheetRow[]>([]);
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
+  const [documents, setDocuments] = useState<DocumentRow[]>([]);
 
-  const filteredSuggestions = heroSearch.trim()
-    ? moduleSuggestions.filter(m => m.label.toLowerCase().includes(heroSearch.toLowerCase()))
-    : [];
+  /* ----- fetch all ESS data ----- */
+  const fetchESS = useCallback(async () => {
+    setLoading(true);
+    const headers = getAuthHeaders();
 
-  const handleHeroSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (heroSearch.trim() && filteredSuggestions.length > 0) {
-      router.push(filteredSuggestions[0].href);
-    }
-  };
-
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const headers = getAuthHeaders();
-
-      const [empRes, leaveRes, recruitRes, payrollRes, attendanceRes, trainingRes] = await Promise.allSettled([
-        fetch('/api/employees?limit=1', { headers }),
-        fetch('/api/leave?status=pending&limit=1', { headers }),
-        fetch('/api/recruitment?status=open&limit=1', { headers }),
-        fetch('/api/payroll?status=draft&limit=1', { headers }),
-        fetch('/api/attendance?limit=30', { headers }),
-        fetch('/api/training?status=upcoming&limit=1', { headers }),
-      ]);
-
-      const empData = empRes.status === 'fulfilled' && empRes.value.ok ? await empRes.value.json() : null;
-      const leaveData = leaveRes.status === 'fulfilled' && leaveRes.value.ok ? await leaveRes.value.json() : null;
-      const recruitData = recruitRes.status === 'fulfilled' && recruitRes.value.ok ? await recruitRes.value.json() : null;
-      const payrollData = payrollRes.status === 'fulfilled' && payrollRes.value.ok ? await payrollRes.value.json() : null;
-      const trainingData = trainingRes.status === 'fulfilled' && trainingRes.value.ok ? await trainingRes.value.json() : null;
-
-      const totalEmployees = empData?.pagination?.total || 0;
-      const activeLeaves = leaveData?.pagination?.total || 0;
-      const openPositions = recruitData?.pagination?.total || 0;
-      const pendingPayroll = payrollData?.pagination?.total || 0;
-      const trainingPrograms = trainingData?.pagination?.total || 0;
-
-      let attendanceRate = 0;
-      if (attendanceRes.status === 'fulfilled' && attendanceRes.value.ok) {
-        const attData = await attendanceRes.value.json();
-        const attRecords = attData?.attendance || [];
-        const presentCount = attRecords.filter((a: { status: string }) => ['present', 'late'].includes(a.status)).length;
-        attendanceRate = attRecords.length > 0 ? Math.round((presentCount / attRecords.length) * 100) : 0;
-      }
-
-      setStats({ totalEmployees, activeLeaves, openPositions, pendingPayroll, attendanceRate, trainingPrograms });
-
-      const presentToday = Math.round(totalEmployees * (attendanceRate / 100));
-      const onLeave = activeLeaves;
-      const absent = Math.max(totalEmployees - presentToday - onLeave, 0);
-      const halfDay = Math.round(totalEmployees * 0.016);
-      setAttendanceData([
-        { name: 'Present', value: presentToday, color: '#10B981' },
-        { name: 'On Leave', value: onLeave, color: '#F59E0B' },
-        { name: 'Absent', value: absent, color: '#EF4444' },
-        { name: 'Half Day', value: halfDay, color: '#8B5CF6' },
-      ]);
-
-      setLeaveSummary({
-        total: activeLeaves + Math.round(activeLeaves * 0.5) + Math.round(activeLeaves * 0.2),
-        approved: activeLeaves,
-        pending: Math.round(activeLeaves * 0.5),
-        rejected: Math.round(activeLeaves * 0.2),
-      });
-
-      setPayrollInfo({ status: 'Processing', totalCost: totalEmployees * 22000, employees: totalEmployees });
-      setRecruitmentInfo({ openings: openPositions, candidates: openPositions * 9, interviews: Math.round(openPositions * 1.8), offers: Math.round(openPositions * 0.7) });
-
-      const months = ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
-      const baseCount = Math.max(totalEmployees - Math.round(totalEmployees * 0.35), 10);
-      setEmployeeTrend(months.map((month, i) => ({
-        month,
-        count: Math.round(baseCount + (totalEmployees - baseCount) * (i / 5)),
-      })));
-
-      if (empData?.employees) {
-        const allEmpRes = await fetch('/api/employees?limit=1000', { headers });
-        if (allEmpRes.ok) {
-          const allEmpData = await allEmpRes.json();
-          const deptMap: Record<string, number> = {};
-          allEmpData.employees?.forEach((e: { department?: { name: string } }) => {
-            const deptName = e.department?.name || 'Unknown';
-            deptMap[deptName] = (deptMap[deptName] || 0) + 1;
-          });
-          setDepartmentDist(Object.entries(deptMap).map(([name, count], i) => ({
-            name, count, color: DEPARTMENT_COLORS[i % DEPARTMENT_COLORS.length],
-          })));
-        }
-      }
-
+    // Helper that swallows errors and returns null
+    const safe = async (url: string) => {
       try {
-        const bdayRes = await fetch('/api/employees?limit=500', { headers });
-        if (bdayRes.ok) {
-          const bdayData = await bdayRes.json();
-          const currentMonth = new Date().getMonth();
-          setBirthdays((bdayData.employees || []).filter((e: BirthdayEmployee) =>
-            e.dateOfBirth && new Date(e.dateOfBirth).getMonth() === currentMonth
-          ).slice(0, 5));
-        }
-      } catch { /* non-critical */ }
-    } catch (error) {
-      console.error('Dashboard fetch error:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
+        const res = await fetch(url, { headers });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    };
+
+    const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData] =
+      await Promise.all([
+        safe('/api/leave/balance'),
+        safe('/api/attendance?limit=30'),
+        safe('/api/leave?status=pending&limit=50'),
+        safe('/api/payroll/payslips?limit=5'),
+        safe('/api/performance?limit=1'),
+        safe('/api/goals?limit=5'),
+        safe('/api/training?limit=10'),
+        safe('/api/timesheets?limit=5'),
+        safe('/api/tickets?limit=5'),
+        safe('/api/documents?limit=5'),
+      ]);
+
+    /* leave balance */
+    if (leaveData?.balances) {
+      const balances: LeaveBalanceItem[] = leaveData.balances;
+      setLeaveBalances(balances);
+      const sum = balances.reduce(
+        (acc: { total: number; used: number; remaining: number }, b) => {
+          acc.total += b.total || 0;
+          acc.used += b.used || 0;
+          acc.remaining += b.remaining || 0;
+          return acc;
+        },
+        { total: 0, used: 0, remaining: 0 }
+      );
+      setLeaveSummary(sum);
+    } else if (leaveData?.summary) {
+      setLeaveSummary(leaveData.summary);
     }
+
+    /* attendance */
+    if (attData?.attendance || attData?.records) {
+      const rows: AttendanceRow[] = attData.attendance || attData.records || [];
+      setAttendanceRows(rows);
+      if (rows.length > 0) {
+        const present = rows.filter((a) => ['present', 'late'].includes(a.status)).length;
+        setAttendanceRate(Math.round((present / rows.length) * 100));
+      }
+    }
+
+    /* pending leaves (my own) */
+    if (leaveReqData?.leaveRequests || leaveReqData?.leaves) {
+      const rows = leaveReqData.leaveRequests || leaveReqData.leaves || [];
+      setPendingLeaves(rows.length);
+    }
+
+    /* payslips */
+    if (payslipData?.payslips || payslipData?.data) {
+      setPayslips((payslipData.payslips || payslipData.data).slice(0, 5));
+    }
+
+    /* performance */
+    const perfRows = perfData?.reviews || perfData?.data || [];
+    if (Array.isArray(perfRows) && perfRows.length > 0) {
+      setPerformance(perfRows[0]);
+    }
+
+    /* goals */
+    if (goalsData?.goals || goalsData?.data) {
+      setGoals((goalsData.goals || goalsData.data).slice(0, 5));
+    }
+
+    /* training enrollments - the /api/training endpoint may return a list with
+       enrollments attached, or we may need to derive from the response */
+    if (Array.isArray(trainData?.trainings)) {
+      // For ESS we want enrollments; the API may not support that directly,
+      // so we just show the list of upcoming trainings the employee can join.
+      const upcoming = trainData.trainings
+        .filter((t: TrainingRow) => ['upcoming', 'ongoing'].includes(t.status))
+        .slice(0, 4)
+        .map((t: TrainingRow) => ({
+          id: t.id,
+          status: t.status,
+          score: null,
+          training: {
+            id: t.id,
+            title: t.title,
+            startDate: t.startDate,
+            endDate: t.endDate,
+          },
+        }));
+      setTraining(upcoming);
+    }
+
+    /* timesheets */
+    if (tsData?.timesheets || tsData?.data) {
+      setTimesheets((tsData.timesheets || tsData.data).slice(0, 5));
+    }
+
+    /* tickets */
+    if (ticketData?.tickets || ticketData?.data) {
+      setTickets((ticketData.tickets || ticketData.data).slice(0, 5));
+    }
+
+    /* documents */
+    if (docData?.documents || docData?.data) {
+      setDocuments((docData.documents || docData.data).slice(0, 5));
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => { fetchDashboardData(); fetchNotifications(); });
-  }, [fetchDashboardData, fetchNotifications]);
+    fetchESS();
+  }, [fetchESS]);
 
-  const upcomingEvents = useMemo(() => {
-    const events: {icon: React.ReactNode; iconBg: string; title: string; subtitle: string; date: string}[] = [];
-    birthdays.slice(0, 1).forEach(emp => {
-      const dob = emp.dateOfBirth ? new Date(emp.dateOfBirth) : null;
-      events.push({
-        icon: <FiGift className="w-4 h-4" />, iconBg: 'bg-purple-100 text-purple-600',
-        title: 'Employee Birthday', subtitle: `${emp.firstName} ${emp.lastName}`,
-        date: dob ? dob.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
+  /* ----- derived data ----- */
+
+  const leaveChartData = useMemo(() => {
+    if (leaveBalances.length === 0) return [];
+    return leaveBalances.map((b, i) => ({
+      name: b.leaveType?.name || 'Leave',
+      remaining: b.remaining || 0,
+      used: b.used || 0,
+      color: LEAVE_COLORS[i % LEAVE_COLORS.length],
+    }));
+  }, [leaveBalances]);
+
+  const attendanceTrend = useMemo(() => {
+    // last 7 attendance records, oldest first
+    return [...attendanceRows]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-7)
+      .map((a) => {
+        const d = new Date(a.date);
+        return {
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          hours: Math.round((a.workHours || 0) * 10) / 10,
+          status: a.status,
+        };
       });
-    });
-    events.push({ icon: <FiStar className="w-4 h-4" />, iconBg: 'bg-yellow-100 text-yellow-600', title: 'Work Anniversary', subtitle: 'Team Celebration', date: 'This Week' });
-    const payrollDate = new Date(new Date().getFullYear(), new Date().getMonth(), 25);
-    if (payrollDate > new Date()) {
-      events.push({ icon: <FiDollarSign className="w-4 h-4" />, iconBg: 'bg-green-100 text-green-600', title: 'Payroll Processing', subtitle: `${new Date().toLocaleDateString('en-US', { month: 'long' })} Payroll`, date: payrollDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
+  }, [attendanceRows]);
+
+  const monthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  /* ----- quick actions ----- */
+  const quickActions = [
+    { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
+    { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', bg: 'from-cyan-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
+    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', bg: 'from-pink-400 to-rose-500', shadow: 'shadow-rose-500/25' },
+    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
+    { icon: <FiBookOpen className="w-5 h-5" />, label: 'Training', href: '/training', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
+    { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', bg: 'from-sky-400 to-indigo-500', shadow: 'shadow-indigo-500/25' },
+    { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'from-fuchsia-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiBriefcase className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-yellow-400 to-amber-500', shadow: 'shadow-amber-500/25' },
+    { icon: <FiHeart className="w-5 h-5" />, label: 'Grievance', href: '/grievances', bg: 'from-red-400 to-rose-500', shadow: 'shadow-rose-500/25' },
+  ];
+
+  /* ----- helpers ----- */
+  const fmtMoney = (n: number, currency = 'INR') => {
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n || 0);
+    } catch {
+      return `₹${(n || 0).toLocaleString('en-IN')}`;
     }
-    events.push({ icon: <FiBookOpen className="w-4 h-4" />, iconBg: 'bg-blue-100 text-blue-600', title: 'Training Program', subtitle: 'Leadership Training', date: 'This Month' });
-    return events;
-  }, [birthdays]);
+  };
+  const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  const monthLabel = (m: number, y: number) => new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
-  function formatTimeAgo(dateString: string) {
-    const date = new Date(dateString);
-    const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${Math.floor(diffHours / 24)}d ago`;
-  }
+  const statusBadge = (status: string) => {
+    const s = (status || '').toLowerCase();
+    const map: Record<string, string> = {
+      pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+      draft: 'bg-slate-100 text-slate-700 ring-slate-200',
+      submitted: 'bg-blue-50 text-blue-700 ring-blue-200',
+      approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+      paid: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+      processed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+      resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+      closed: 'bg-slate-100 text-slate-700 ring-slate-200',
+      rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
+      open: 'bg-amber-50 text-amber-700 ring-amber-200',
+      in_progress: 'bg-blue-50 text-blue-700 ring-blue-200',
+      completed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+      ongoing: 'bg-blue-50 text-blue-700 ring-blue-200',
+      upcoming: 'bg-violet-50 text-violet-700 ring-violet-200',
+      enrolled: 'bg-blue-50 text-blue-700 ring-blue-200',
+    };
+    const cls = map[s] || 'bg-slate-100 text-slate-700 ring-slate-200';
+    const label = s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ${cls}`}>{label}</span>;
+  };
 
-  function formatCurrency(amount: number) {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
-  }
-
-  const deptChartData = useMemo(() => departmentDist.map(d => ({ name: d.name, count: d.count })), [departmentDist]);
+  /* ----- render ----- */
 
   return (
     <div className="space-y-6">
-      {/* HERO BANNER */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-violet-500/15 rounded-full blur-3xl" />
-        <div className="relative z-10 px-6 py-6 sm:px-8 sm:py-7">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      {/* HERO */}
+      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-indigo-500/10">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-violet-500/20 rounded-full blur-[80px]" />
+        <div className="relative z-10 px-6 sm:px-8 py-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg ring-2 ring-white/10">
-                <svg viewBox="0 0 35 11" className="w-7 h-4" fill="none">
-                  <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-                  <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-                  <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-                </svg>
+              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20 text-white text-xl font-bold">
+                {firstName[0]?.toUpperCase()}
               </div>
               <div>
-                <div className="flex items-baseline gap-2">
-                  <h1 className="text-xl sm:text-2xl font-bold text-white">Dashboard</h1>
-                  <span className="text-xs text-blue-300/60 hidden sm:inline">|</span>
-                  <p className="text-xs text-blue-300/60 hidden sm:inline">{tenantName}</p>
-                </div>
-                <p className="text-white/80 text-sm font-medium mt-0.5">
-                  {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300 font-semibold">{firstName}</span>!
-                </p>
+                <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">Employee Self-Service</p>
+                <h1 className="text-2xl font-bold text-white">
+                  {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300">{firstName}</span>!
+                </h1>
+                <p className="text-blue-100/60 text-sm font-medium mt-0.5">{today}</p>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <div className="hidden md:block text-right">
-                <p className="text-slate-400 text-xs font-medium">{today}</p>
-              </div>
-              <form onSubmit={handleHeroSearch} className="relative w-full sm:w-72">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" value={heroSearch} onChange={(e) => setHeroSearch(e.target.value)}
-                  placeholder="Search employees, modules..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40 backdrop-blur-sm transition-all" />
-                {heroSearch.trim() && filteredSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50">
-                    {filteredSuggestions.slice(0, 5).map((s) => (
-                      <button key={s.href} type="button" onClick={() => { setHeroSearch(''); router.push(s.href); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
-                        <span className="text-sm">{s.icon}</span>
-                        <span className="text-sm font-medium text-slate-200">{s.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </form>
-              <button onClick={() => toast.success('Report download started')}
-                className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 transition-colors">
-                <FiDownload className="w-4 h-4" /> Download Report
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => router.push('/leave')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-semibold hover:bg-white/20 transition-all"
+              >
+                <FiPlus className="w-4 h-4" /> Apply Leave
+              </button>
+              <button
+                onClick={() => router.push('/helpdesk')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+              >
+                <FiHeadphones className="w-4 h-4" /> Raise Ticket
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* TOP STATS ROW */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {loading ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />) : (
-          <>
-            <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+      {/* STAT CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
+        ) : (
+          [
+            { label: 'Leave Balance', value: `${leaveSummary.remaining}`, sub: `${leaveSummary.used} of ${leaveSummary.total} days used`, icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
+            { label: 'Attendance Rate', value: `${attendanceRate}%`, sub: `${monthName}`, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
+            { label: 'Pending Approvals', value: pendingLeaves, sub: 'Awaiting manager response', icon: <FiClock className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-600', ring: 'ring-blue-100' },
+            { label: 'Open Tickets', value: tickets.filter((t) => ['open', 'in_progress'].includes(t.status)).length, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
-                <div><p className="text-xs font-medium text-slate-500">Total Employees</p><p className="text-2xl font-bold text-slate-900 mt-1">{stats?.totalEmployees ?? 0}</p></div>
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 ring-1 ring-indigo-100"><FiUsers className="w-5 h-5" /></div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">{s.label}</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{s.value}</p>
+                </div>
+                <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center ring-1 ${s.ring}`}>{s.icon}</div>
               </div>
-              <div className="flex items-center gap-1 mt-2"><FiArrowUp className="w-3 h-3 text-emerald-500" /><span className="text-xs font-semibold text-emerald-600">24 this month</span></div>
+              <p className="text-xs font-medium text-slate-500 mt-2">{s.sub}</p>
             </div>
-            <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div><p className="text-xs font-medium text-slate-500">Present Today</p><p className="text-2xl font-bold text-slate-900 mt-1">{stats ? Math.round(stats.totalEmployees * (stats.attendanceRate / 100)) : 0}</p></div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 ring-1 ring-emerald-100"><FiCheckCircle className="w-5 h-5" /></div>
-              </div>
-              <div className="flex items-center gap-1 mt-2"><span className="text-xs font-semibold text-slate-500">{stats?.attendanceRate ?? 0}% of total</span></div>
-            </div>
-            <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div><p className="text-xs font-medium text-slate-500">On Leave Today</p><p className="text-2xl font-bold text-slate-900 mt-1">{stats?.activeLeaves ?? 0}</p></div>
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 ring-1 ring-amber-100"><FiCalendar className="w-5 h-5" /></div>
-              </div>
-              <div className="flex items-center gap-1 mt-2"><span className="text-xs font-semibold text-slate-500">{stats ? ((stats.activeLeaves / Math.max(stats.totalEmployees, 1)) * 100).toFixed(1) : 0}% of total</span></div>
-            </div>
-            <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div><p className="text-xs font-medium text-slate-500">Absent Today</p><p className="text-2xl font-bold text-slate-900 mt-1">{stats ? Math.max(stats.totalEmployees - Math.round(stats.totalEmployees * (stats.attendanceRate / 100)) - stats.activeLeaves, 0) : 0}</p></div>
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 ring-1 ring-red-100"><FiAlertTriangle className="w-5 h-5" /></div>
-              </div>
-              <div className="flex items-center gap-1 mt-2"><span className="text-xs font-semibold text-slate-500">{stats ? (((stats.totalEmployees - Math.round(stats.totalEmployees * (stats.attendanceRate / 100)) - stats.activeLeaves) / Math.max(stats.totalEmployees, 1)) * 100).toFixed(1) : 0}% of total</span></div>
-            </div>
-            <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow col-span-2 sm:col-span-1">
-              <div className="flex items-start justify-between">
-                <div><p className="text-xs font-medium text-slate-500">New Joiners</p><p className="text-2xl font-bold text-slate-900 mt-1">24</p></div>
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 ring-1 ring-blue-100"><FiUserPlus className="w-5 h-5" /></div>
-              </div>
-              <div className="flex items-center gap-1 mt-2"><FiArrowUp className="w-3 h-3 text-emerald-500" /><span className="text-xs font-semibold text-emerald-600">12% from last month</span></div>
-            </div>
-          </>
+          ))
         )}
       </div>
 
-      {/* MIDDLE ROW: Attendance + Employee Trend + Events */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Attendance Overview */}
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
+      {/* LEAVE + ATTENDANCE */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Leave balance */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><FiBarChart2 className="w-4 h-4 text-blue-500" /><h2 className="text-sm font-semibold text-slate-900">Attendance Overview</h2></div>
-            <span className="text-xs text-slate-400 font-medium">This Month</span>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FiCalendar className="w-4 h-4 text-indigo-500" /> My Leave Balance
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">{new Date().getFullYear()} entitlements</p>
+            </div>
+            <button onClick={() => router.push('/leave')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
           </div>
+
           {loading ? (
-            <div className="h-48 flex items-center justify-center"><div className="w-32 h-32 rounded-full bg-slate-100 animate-pulse" /></div>
-          ) : attendanceData.length > 0 ? (
-            <>
-              <div className="relative h-48">
+            <div className="h-56"><SkeletonBlock className="h-full w-full" /></div>
+          ) : leaveChartData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+              <FiInfo className="w-8 h-8 mb-2" />
+              <p className="text-sm">No leave balances configured</p>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="w-44 h-44 flex-shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={attendanceData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                      {attendanceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+                    <Pie
+                      data={leaveChartData}
+                      dataKey="remaining"
+                      nameKey="name"
+                      innerRadius={48}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
+                      {leaveChartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px' }} />
+                    <Tooltip
+                      formatter={(v: number, _n, p) => {
+                        const item = p?.payload;
+                        return [`${v} day(s) remaining · ${item?.used || 0} used`, item?.name];
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center"><p className="text-2xl font-bold text-slate-900">{stats?.totalEmployees ?? 0}</p><p className="text-[10px] text-slate-400 font-medium">Total</p></div>
-                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                {attendanceData.map((item) => (
-                  <div key={item.name} className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-xs text-slate-600">{item.name}: <span className="font-semibold">{item.value}</span></span>
+              <div className="flex-1 w-full space-y-2">
+                {leaveBalances.slice(0, 5).map((b, i) => (
+                  <div key={b.id} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: LEAVE_COLORS[i % LEAVE_COLORS.length] }} />
+                      <span className="font-medium text-slate-700 truncate">{b.leaveType?.name || 'Leave'}</span>
+                    </div>
+                    <span className="text-slate-500 font-medium whitespace-nowrap">
+                      <span className="text-slate-900 font-bold">{b.remaining}</span>
+                      <span className="text-slate-400"> / {b.total}</span>
+                    </span>
                   </div>
                 ))}
               </div>
-              <button onClick={() => router.push('/attendance')} className="mt-3 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium">View Attendance Report <FiChevronRight className="w-3 h-3" /></button>
-            </>
-          ) : (<div className="h-48 flex items-center justify-center text-sm text-slate-400">No attendance data</div>)}
-        </div>
-
-        {/* Employee Trend */}
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><FiTrendingUp className="w-4 h-4 text-blue-500" /><h2 className="text-sm font-semibold text-slate-900">Employee Trend</h2></div>
-            <span className="text-xs text-slate-400 font-medium">Last 6 Months</span>
-          </div>
-          {loading ? (
-            <div className="h-48 flex items-center justify-center"><div className="w-full h-32 bg-slate-100 rounded animate-pulse" /></div>
-          ) : (
-            <>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={employeeTrend} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
-                    <defs><linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366F1" stopOpacity={0.2} /><stop offset="95%" stopColor="#6366F1" stopOpacity={0} /></linearGradient></defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px' }} />
-                    <Area type="monotone" dataKey="count" stroke="#6366F1" strokeWidth={2.5} fill="url(#colorCount)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <button onClick={() => router.push('/reports')} className="mt-3 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium">View Full Report <FiChevronRight className="w-3 h-3" /></button>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Upcoming Events */}
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
+        {/* Attendance trend */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-900">Upcoming Events</h2>
-            <button className="text-xs text-blue-500 hover:text-blue-700 font-medium">View All</button>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FiActivity className="w-4 h-4 text-emerald-500" /> My Attendance
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Last 7 records · {monthName}</p>
+            </div>
+            <button onClick={() => router.push('/attendance')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
           </div>
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {upcomingEvents.map((event, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className={`w-9 h-9 rounded-lg ${event.iconBg} flex items-center justify-center flex-shrink-0`}>{event.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{event.title}</p>
-                  <p className="text-xs text-slate-500 truncate">{event.subtitle}</p>
-                </div>
-                <span className="text-xs text-slate-400 font-medium flex-shrink-0">{event.date}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* BOTTOM ROW: Leave + Payroll + Recruitment + Quick Access */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><FiCalendar className="w-4 h-4 text-blue-500" /><h2 className="text-sm font-semibold text-slate-900">Leave Summary</h2></div>
-            <span className="text-xs text-slate-400 font-medium">This Month</span>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Total Leave</span><span className="text-sm font-bold text-slate-900">{leaveSummary.total}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Approved</span><span className="text-sm font-semibold text-emerald-600">{leaveSummary.approved}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Pending</span><span className="text-sm font-semibold text-amber-600">{leaveSummary.pending}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Rejected</span><span className="text-sm font-semibold text-red-600">{leaveSummary.rejected}</span></div>
-          </div>
-          <button onClick={() => router.push('/leave')} className="mt-4 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium">View Leave Report <FiChevronRight className="w-3 h-3" /></button>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-blue-500" /><h2 className="text-sm font-semibold text-slate-900">Payroll Summary</h2></div>
-            <span className="text-xs text-slate-400 font-medium">{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2"><FiCheckCircle className="w-3.5 h-3.5 text-emerald-500" /><span className="text-xs text-emerald-600 font-semibold">Payroll Status: {payrollInfo.status}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Total Employees</span><span className="text-sm font-bold text-slate-900">{payrollInfo.employees}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Total Payroll Cost</span><span className="text-sm font-bold text-slate-900">{formatCurrency(payrollInfo.totalCost)}</span></div>
-          </div>
-          <button onClick={() => router.push('/payroll')} className="mt-4 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium">View Payroll Dashboard <FiChevronRight className="w-3 h-3" /></button>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><FiBriefcase className="w-4 h-4 text-blue-500" /><h2 className="text-sm font-semibold text-slate-900">Recruitment Summary</h2></div>
-            <span className="text-xs text-slate-400 font-medium">This Month</span>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Total Openings</span><span className="text-sm font-bold text-slate-900">{recruitmentInfo.openings}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Active Candidates</span><span className="text-sm font-bold text-slate-900">{recruitmentInfo.candidates}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Interviews</span><span className="text-sm font-bold text-slate-900">{recruitmentInfo.interviews}</span></div>
-            <div className="flex items-center justify-between"><span className="text-xs text-slate-500">Offers Sent</span><span className="text-sm font-bold text-slate-900">{recruitmentInfo.offers}</span></div>
-          </div>
-          <button onClick={() => router.push('/recruitment')} className="mt-4 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium">View Recruitment Dashboard <FiChevronRight className="w-3 h-3" /></button>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-900 mb-4">Quick Access</h2>
-          <div className="grid grid-cols-4 gap-3">
-            {[
-              { icon: <FiUserPlus className="w-5 h-5" />, label: 'Add Employee', href: '/employees', bg: 'bg-indigo-50 text-indigo-600', roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-              { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'bg-amber-50 text-amber-600', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'] },
-              { icon: <FiClock className="w-5 h-5" />, label: 'Attendance', href: '/attendance', bg: 'bg-cyan-50 text-cyan-600', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'] },
-              { icon: <FiFileText className="w-5 h-5" />, label: 'Payslip', href: '/payroll', bg: 'bg-emerald-50 text-emerald-600', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'employee'] },
-              { icon: <FiBriefcase className="w-5 h-5" />, label: 'Recruitment', href: '/recruitment', bg: 'bg-violet-50 text-violet-600', roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-              { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'bg-rose-50 text-rose-600', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'employee'] },
-              { icon: <FiFileText className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'bg-slate-50 text-slate-600', roles: ['super_admin', 'tenant_admin', 'hr_admin', 'employee'] },
-              { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Reports', href: '/reports', bg: 'bg-teal-50 text-teal-600', roles: ['super_admin', 'tenant_admin', 'hr_admin'] },
-            ].filter(item => item.roles.includes(userRole)).map((item) => (
-              <button key={item.label} onClick={() => router.push(item.href)} className="flex flex-col items-center gap-1.5 group">
-                <div className={`w-11 h-11 rounded-xl ${item.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>{item.icon}</div>
-                <span className="text-[10px] font-medium text-slate-600 text-center leading-tight">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Department Headcount + Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RoleAccessGuard allowedRoles={['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'finance', 'recruiter', 'it_admin']} moduleKey="employees"
-          fallback={<div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm"><h2 className="text-sm font-semibold text-slate-900 mb-4">My Profile</h2><div className="py-8 text-center"><FiUsers className="w-8 h-8 text-slate-300 mx-auto mb-2" /><p className="text-sm text-slate-400">View your personal information</p><button onClick={() => router.push('/my-profile')} className="mt-3 px-4 py-2 rounded-lg bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors">Go to My Profile</button></div></div>}>
-          <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">Department-wise Headcount</h2>
-            {loading ? (
-              <div className="h-64 flex items-center justify-center"><div className="w-full h-48 bg-slate-100 rounded animate-pulse" /></div>
-            ) : deptChartData.length > 0 ? (
-              <div className="h-64">
+          {loading ? (
+            <div className="h-56"><SkeletonBlock className="h-full w-full" /></div>
+          ) : attendanceTrend.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+              <FiInfo className="w-8 h-8 mb-2" />
+              <p className="text-sm">No attendance records yet</p>
+            </div>
+          ) : (
+            <>
+              <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deptChartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <BarChart data={attendanceTrend} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px' }} />
-                    <Bar dataKey="count" fill="#6366F1" radius={[6, 6, 0, 0]} barSize={32} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} domain={[0, 'auto']} />
+                    <Tooltip
+                      formatter={(v: number) => [`${v} hrs`, 'Worked']}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }}
+                    />
+                    <Bar dataKey="hours" fill="#10B981" radius={[6, 6, 0, 0]} barSize={26} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            ) : (<div className="h-64 flex items-center justify-center text-sm text-slate-400">No department data</div>)}
-          </div>
-        </RoleAccessGuard>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-900">Recent Activities</h2>
-            <button onClick={() => router.push('/notifications')} className="text-xs text-blue-500 hover:text-blue-700 font-medium">View All</button>
-          </div>
-          <div className="space-y-0 max-h-64 overflow-y-auto">
-            {loading ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 py-3 border-b border-slate-50 animate-pulse">
-                <div className="w-2 h-2 rounded-full bg-slate-200" />
-                <div className="flex-1 space-y-1"><div className="h-3 w-48 bg-slate-200 rounded" /><div className="h-2 w-20 bg-slate-200 rounded" /></div>
-              </div>
-            )) : notifications.length === 0 ? (
-              <div className="py-8 text-center"><FiInfo className="w-8 h-8 text-slate-300 mx-auto mb-2" /><p className="text-sm text-slate-400">No recent activity</p></div>
-            ) : notifications.slice(0, 6).map((notif) => (
-              <div key={notif.id} className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
-                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${notif.type === 'success' ? 'bg-emerald-500' : notif.type === 'warning' ? 'bg-amber-500' : notif.type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{notif.title}</p>
-                  <p className="text-xs text-slate-500 truncate">{notif.message}</p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-emerald-50 py-2">
+                  <p className="text-[11px] font-medium text-emerald-700/70">Present</p>
+                  <p className="text-sm font-bold text-emerald-700">{attendanceRows.filter((a) => a.status === 'present').length}</p>
                 </div>
-                <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">{formatTimeAgo(notif.createdAt)}</span>
+                <div className="rounded-lg bg-amber-50 py-2">
+                  <p className="text-[11px] font-medium text-amber-700/70">Late</p>
+                  <p className="text-sm font-bold text-amber-700">{attendanceRows.filter((a) => a.status === 'late').length}</p>
+                </div>
+                <div className="rounded-lg bg-rose-50 py-2">
+                  <p className="text-[11px] font-medium text-rose-700/70">Absent</p>
+                  <p className="text-sm font-bold text-rose-700">{attendanceRows.filter((a) => a.status === 'absent').length}</p>
+                </div>
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
+      </div>
+
+      {/* PAYSLIPS + PERFORMANCE */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Payslips */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiFileText className="w-4 h-4 text-emerald-500" /> My Payslips
+            </h2>
+            <button onClick={() => router.push('/payroll')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : payslips.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <FiInfo className="w-8 h-8 mb-2" />
+              <p className="text-sm">No payslips available yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {payslips.map((p) => (
+                <div key={p.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">{monthLabel(p.month, p.year)}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Net: {fmtMoney(p.netSalary, p.currency)}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {statusBadge(p.status)}
+                    <button
+                      onClick={() => router.push(`/payroll`)}
+                      className="text-slate-400 hover:text-indigo-600 transition-colors"
+                      title="View payslip"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Performance + Goals */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiTrendingUp className="w-4 h-4 text-rose-500" /> My Performance
+            </h2>
+            <button onClick={() => router.push('/performance')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : (
+            <>
+              {/* Latest review summary */}
+              {performance ? (
+                <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-rose-700/70">Latest Review · {performance.reviewCycle || 'Current cycle'}</p>
+                      <p className="text-2xl font-bold text-rose-700 mt-0.5">
+                        {(performance.overallRating ?? performance.rating ?? 0).toFixed(1)}
+                        <span className="text-sm font-medium text-rose-400"> / 5</span>
+                      </p>
+                      <p className="text-xs text-rose-700/70 mt-0.5">
+                        {performance.reviewer ? `By ${performance.reviewer.firstName} ${performance.reviewer.lastName}` : 'Self / Manager review'}
+                      </p>
+                    </div>
+                    <div className="w-14 h-14 rounded-full bg-white/70 flex items-center justify-center">
+                      <FiAward className="w-7 h-7 text-rose-500" />
+                    </div>
+                  </div>
+                  <div className="mt-2">{statusBadge(performance.status)}</div>
+                </div>
+              ) : (
+                <div className="mb-4 flex flex-col items-center justify-center py-6 text-slate-400">
+                  <FiInfo className="w-8 h-8 mb-2" />
+                  <p className="text-sm">No performance reviews yet</p>
+                </div>
+              )}
+
+              {/* Goals progress */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Goals</p>
+                {goals.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-2">No active goals</p>
+                ) : (
+                  goals.slice(0, 3).map((g) => (
+                    <div key={g.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-slate-700 truncate">{g.title}</span>
+                        <span className="text-xs font-semibold text-slate-500">{g.progress || 0}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${g.progress >= 75 ? 'bg-emerald-500' : g.progress >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                          style={{ width: `${Math.min(g.progress || 0, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* TRAINING + TIMESHEETS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Training */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiBookOpen className="w-4 h-4 text-indigo-500" /> My Training
+            </h2>
+            <button onClick={() => router.push('/training')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : training.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <FiInfo className="w-8 h-8 mb-2" />
+              <p className="text-sm">No upcoming training programs</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {training.map((t) => (
+                <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-blue-500 text-white flex items-center justify-center flex-shrink-0">
+                    <FiBookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{t.training.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {t.training.startDate ? fmtDate(t.training.startDate) : 'Date TBD'}
+                      {t.training.endDate ? ` → ${fmtDate(t.training.endDate)}` : ''}
+                    </p>
+                  </div>
+                  {statusBadge(t.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Timesheets */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiClock className="w-4 h-4 text-sky-500" /> My Timesheets
+            </h2>
+            <button onClick={() => router.push('/timesheets')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : timesheets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <FiInfo className="w-8 h-8 mb-2" />
+              <p className="text-sm">No timesheets submitted yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {timesheets.map((t) => (
+                <div key={t.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">{fmtDate(t.date)}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">
+                      {t.project || t.task || 'General'} · {t.hours}h
+                    </p>
+                  </div>
+                  {statusBadge(t.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* TICKETS + DOCUMENTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Helpdesk tickets */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiHeadphones className="w-4 h-4 text-violet-500" /> My Helpdesk Tickets
+            </h2>
+            <button onClick={() => router.push('/helpdesk')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : tickets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <FiCheckCircle className="w-8 h-8 mb-2 text-emerald-400" />
+              <p className="text-sm">No tickets raised</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {tickets.map((t) => (
+                <div key={t.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      <span className="text-slate-400 font-mono text-xs mr-2">#{t.ticketId}</span>
+                      {t.subject}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{fmtDate(t.createdAt)}</p>
+                  </div>
+                  {statusBadge(t.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Documents */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiFolder className="w-4 h-4 text-fuchsia-500" /> My Documents
+            </h2>
+            <button onClick={() => router.push('/documents')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+              View all <FiChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : documents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <FiInfo className="w-8 h-8 mb-2" />
+              <p className="text-sm">No documents uploaded</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {documents.map((d) => (
+                <div key={d.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center flex-shrink-0">
+                      <FiFileText className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{d.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 capitalize">{d.type.replace(/_/g, ' ')} · {fmtDate(d.uploadedAt)}</p>
+                    </div>
+                  </div>
+                  {statusBadge(d.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* QUICK ACTIONS */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <FiZap className="w-4 h-4 text-amber-500" /> Quick Actions
+          </h2>
+          <span className="text-xs text-slate-500">Tap to jump into a self-service flow</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {quickActions.map((a) => (
+            <button
+              key={a.label}
+              onClick={() => router.push(a.href)}
+              className={`group flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br ${a.bg} ${a.shadow} shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all text-white`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                {a.icon}
+              </div>
+              <span className="text-xs font-semibold text-center">{a.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer hint */}
+      <div className="flex items-center justify-center pt-2 pb-4">
+        <button
+          onClick={() => router.push('/home')}
+          className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+        >
+          <FiArrowRight className="w-3 h-3 rotate-180" /> Back to role-based home
+        </button>
       </div>
     </div>
   );
