@@ -20,6 +20,7 @@ import type { Notification } from '@/store/notificationStore';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
+import CompanySwitcher from '@/components/CompanySwitcher';
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -132,6 +133,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           className="w-full pl-10 pr-4 py-2 rounded-lg border border-blue-200 bg-blue-50/30 text-sm text-nexus-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
         />
       </div>
+
+      {/* Company Switcher */}
+      <CompanySwitcher />
 
       <div className="flex items-center gap-2">
         {/* Notification Bell */}

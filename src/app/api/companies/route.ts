@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
   return {
@@ -13,17 +14,45 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+async function requireAuth(req: NextRequest) {
+  const token = getTokenFromHeaders(req);
+  if (!token) return null;
+  const decoded = await verifyToken(token);
+  if (!decoded) return null;
+  return decoded;
+}
+
 // GET /api/companies — List companies
 export async function GET(req: NextRequest) {
   try {
+    const decoded = await requireAuth(req);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+    const role = (decoded.role as string) || 'employee';
+    const callerTenantId = decoded.tenantId as string;
+
     const { searchParams } = new URL(req.url);
-    const tenantId = searchParams.get('tenantId');
+    const requestedTenantId = searchParams.get('tenantId');
     const search = searchParams.get('search');
 
+    // Scope by role
+    let effectiveTenantId: string | null = null;
+    if (role === 'super_admin') {
+      // Super admin can request any tenant, default to their own
+      effectiveTenantId = requestedTenantId || callerTenantId;
+    } else if (role === 'tenant_admin') {
+      // Tenant admin: only their own tenant
+      effectiveTenantId = callerTenantId;
+    } else {
+      // Other roles: scope to their own tenant as well (for read access)
+      effectiveTenantId = callerTenantId;
+    }
+
     const where: Record<string, unknown> = {};
-    if (tenantId) {
+    if (effectiveTenantId) {
       const companyGroups = await db.companyGroup.findMany({
-        where: { tenantId },
+        where: { tenantId: effectiveTenantId },
         select: { id: true },
       });
       const groupIds = companyGroups.map((g) => g.id);
@@ -48,69 +77,57 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ companies }, { headers: corsHeaders() });
   } catch (error: unknown) {
     console.error('Get companies error:', error);
-    // Demo data fallback
-    const demoCompanies = [
-      {
-        id: 'comp-1', name: '3 Boxes Technologies', code: '3BOXES',
-        companyGroupId: 'cg-1', companyGroup: { id: 'cg-1', name: '3 Boxes Group', tenantId: 't-1' },
-        registrationNo: 'U72200MH2020PTC345678', taxId: '27AABCN1234F1Z5',
-        country: 'India', currency: 'INR', timezone: 'Asia/Kolkata',
-        address: 'BKC, Bandra East', city: 'Mumbai', state: 'Maharashtra', zipCode: '400051',
-        phone: '+91 22 4567 8901', email: 'info@3boxestech.com', website: 'https://3boxestech.com',
-        logo: null, status: 'active',
-        _count: { departments: 8, branches: 3 },
-        createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
-      },
-      {
-        id: 'comp-2', name: '3 Boxes Solutions', code: 'NEXSOL',
-        companyGroupId: 'cg-1', companyGroup: { id: 'cg-1', name: '3 Boxes Group', tenantId: 't-1' },
-        registrationNo: 'U72200TG2021PTC123456', taxId: '36AABCN5678F1Z3',
-        country: 'India', currency: 'INR', timezone: 'Asia/Kolkata',
-        address: 'HITEC City, Madhapur', city: 'Hyderabad', state: 'Telangana', zipCode: '500081',
-        phone: '+91 40 2345 6789', email: 'info@3boxessol.com', website: 'https://3boxessol.com',
-        logo: null, status: 'active',
-        _count: { departments: 8, branches: 2 },
-        createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
-      },
-      {
-        id: 'comp-3', name: '3 Boxes Staffing', code: 'NEXSTAFF',
-        companyGroupId: 'cg-1', companyGroup: { id: 'cg-1', name: '3 Boxes Group', tenantId: 't-1' },
-        registrationNo: 'U72200MH2022PTC789012', taxId: '27AABCN9012F1Z1',
-        country: 'India', currency: 'INR', timezone: 'Asia/Kolkata',
-        address: 'Hinjewadi Phase 2', city: 'Pune', state: 'Maharashtra', zipCode: '411057',
-        phone: '+91 20 3456 7890', email: 'info@3boxesstaff.com', website: 'https://3boxesstaff.com',
-        logo: null, status: 'active',
-        _count: { departments: 8, branches: 1 },
-        createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'),
-      },
-    ];
-    return NextResponse.json({ companies: demoCompanies }, { headers: corsHeaders() });
+    return NextResponse.json({ companies: [] }, { headers: corsHeaders() });
   }
 }
 
-// POST /api/companies — Create a company
+// POST /api/companies — Create a company (super_admin or tenant_admin only)
 export async function POST(req: NextRequest) {
   try {
+    const decoded = await requireAuth(req);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+    const role = (decoded.role as string) || 'employee';
+    const callerTenantId = decoded.tenantId as string;
+
+    if (!['super_admin', 'tenant_admin'].includes(role)) {
+      return NextResponse.json({ error: 'Only admins can create companies' }, { status: 403, headers: corsHeaders() });
+    }
+
     const body = await req.json();
-    const { name, code, companyGroupId, registrationNo, taxId, country, currency, timezone,
-            address, city, state, zipCode, phone, email, website, status } = body;
+    const {
+      name, code, companyGroupId, companyGroupName,
+      registrationNo, taxId, country, currency, timezone,
+      address, city, state, zipCode, phone, email, website, status,
+      tenantId: bodyTenantId,
+    } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Try to find or create a company group if not provided
+    // Resolve target tenant
+    let targetTenantId = callerTenantId;
+    if (role === 'super_admin' && bodyTenantId) {
+      targetTenantId = bodyTenantId;
+    }
+
+    // Resolve company group: either use provided one (must belong to target tenant),
+    // or create a new one under the target tenant
     let groupId = companyGroupId;
-    if (!groupId) {
-      const existingGroup = await db.companyGroup.findFirst();
-      if (existingGroup) {
-        groupId = existingGroup.id;
-      } else {
-        const newGroup = await db.companyGroup.create({
-          data: { name: `${name} Group`, tenantId: 'default' },
-        });
-        groupId = newGroup.id;
+    if (groupId) {
+      const existingGroup = await db.companyGroup.findUnique({ where: { id: groupId } });
+      if (!existingGroup || existingGroup.tenantId !== targetTenantId) {
+        return NextResponse.json({ error: 'Invalid company group for the selected tenant' }, { status: 400, headers: corsHeaders() });
       }
+    } else {
+      // Auto-create a group under the target tenant
+      const groupName = companyGroupName || `${name} Group`;
+      const newGroup = await db.companyGroup.create({
+        data: { name: groupName, tenantId: targetTenantId },
+      });
+      groupId = newGroup.id;
     }
 
     const company = await db.company.create({
@@ -133,7 +150,7 @@ export async function POST(req: NextRequest) {
         status: status || 'active',
       },
       include: {
-        companyGroup: { select: { id: true, name: true } },
+        companyGroup: { select: { id: true, name: true, tenantId: true } },
         _count: { select: { departments: true, branches: true } },
       },
     });

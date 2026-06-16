@@ -16,6 +16,7 @@ import {
   RadialBarChart, RadialBar,
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ---------- helpers ---------- */
 
@@ -147,6 +148,13 @@ function StatSkeleton() {
 export default function ESSDashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { effectiveCompanyLabel, hydrated, hydrate } = useCompanyContextStore();
+
+  useEffect(() => {
+    if (!hydrated) hydrate();
+  }, [hydrated, hydrate]);
+
+  const companyName = effectiveCompanyLabel();
 
   const firstName = user?.name?.split(' ')[0] || 'there';
   const userRole = user?.role || 'employee';
@@ -389,7 +397,7 @@ export default function ESSDashboardPage() {
                 {firstName[0]?.toUpperCase()}
               </div>
               <div>
-                <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">Employee Self-Service</p>
+                <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">Employee Self-Service · {companyName}</p>
                 <h1 className="text-2xl font-bold text-white">
                   {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300">{firstName}</span>!
                 </h1>

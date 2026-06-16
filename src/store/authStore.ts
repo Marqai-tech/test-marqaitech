@@ -111,6 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } finally {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('tb_token');
+        localStorage.removeItem('tb_company_ctx');
       }
       set({
         user: null,

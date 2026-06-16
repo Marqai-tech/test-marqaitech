@@ -74,6 +74,7 @@ const navSections: NavSection[] = [
       { label: 'Home', href: '/home', icon: <FiGrid className="w-5 h-5" /> },
       { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, moduleKey: 'super_admin' },
       { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, moduleKey: 'tenant_admin', isNew: true },
+      { label: 'Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, moduleKey: 'rbac' },
       { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, moduleKey: 'rbac', isNew: true },

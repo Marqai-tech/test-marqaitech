@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   FiUsers, FiUserCheck, FiUserPlus, FiCalendar, FiClock,
   FiDollarSign, FiFileText, FiTrendingUp, FiHeadphones,
@@ -93,6 +94,8 @@ interface HeroProps {
 function RoleHero({ role, firstName, greeting, today, subtitle, searchQuery, onSearch, primaryCta, secondaryCta }: HeroProps) {
   const router = useRouter();
   const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const { effectiveCompanyLabel, canSwitch, ownCompany } = useCompanyContextStore();
+  const companyLabel = effectiveCompanyLabel();
   return (
     <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-indigo-500/10">
       <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
@@ -105,10 +108,17 @@ function RoleHero({ role, firstName, greeting, today, subtitle, searchQuery, onS
               {firstName[0]?.toUpperCase()}
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">{roleLabel}</p>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-blue-200 ring-1 ring-white/20">
                   {roleLabel}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/15 text-[10px] font-semibold text-amber-200 ring-1 ring-amber-300/30"
+                  title={canSwitch() ? 'Use the switcher in the header to change company' : 'Your configured company'}
+                >
+                  <FiBriefcase className="w-3 h-3" />
+                  {companyLabel}
                 </span>
               </div>
               <h1 className="text-2xl font-bold text-white">
@@ -223,9 +233,24 @@ function QuickLinkGrid({ links }: { links: { icon: React.ReactNode; label: strin
 /* ============== SUPER ADMIN / TENANT ADMIN ============== */
 function SuperAdminHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalEmployees: 0, totalUsers: 0, totalDepartments: 0, totalBranches: 0 });
   const [recentLogs, setRecentLogs] = useState<{ id: string; action: string; module: string; createdAt: string; user?: { name: string } }[]>([]);
+
+  // Build a query suffix that reflects the current company/tenant selection
+  const scopeQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedTenantId) params.set('tenantId', selectedTenantId);
+    if (selectedCompanyId) params.set('companyId', selectedCompanyId);
+    const s = params.toString();
+    return s ? `?${s}` : '';
+  }, [selectedTenantId, selectedCompanyId]);
+
+  const selectedTenantName = availableTenants.find((t) => t.id === selectedTenantId)?.name || 'All tenants';
+  const selectedCompanyName = selectedCompanyId
+    ? availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Unknown'
+    : 'All companies';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -239,11 +264,11 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
     };
 
     const [empData, deptData, branchData, usersData, logsData] = await Promise.all([
-      safe('/api/employees?limit=1'),
-      safe('/api/departments?limit=1'),
-      safe('/api/branches?limit=1'),
+      safe(`/api/employees?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+      safe(`/api/departments?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+      safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe('/api/users?limit=1'),
-      safe('/api/audit-logs?limit=8'),
+      safe(`/api/audit-logs?limit=8${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
     ]);
 
     setStats({
@@ -257,9 +282,12 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
     if (Array.isArray(logs)) setRecentLogs(logs.slice(0, 8));
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!hydrated) { hydrate(); return; }
+    fetchData();
+  }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
     { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
@@ -281,6 +309,18 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
         primaryCta={{ label: 'Open Admin Console', href: '/super-admin', icon: <FiShield className="w-4 h-4" /> }}
         secondaryCta={{ label: 'View ESS', href: '/dashboard', icon: <FiUserCheck className="w-4 h-4" /> }}
       />
+
+      {/* Scope banner */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100">
+        <FiLayers className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+        <div className="text-xs text-slate-700">
+          <span className="font-semibold text-slate-900">Viewing scope:</span>{' '}
+          <span className="font-semibold text-indigo-700">{selectedTenantName}</span>
+          <span className="mx-2 text-slate-400">›</span>
+          <span className="font-semibold text-indigo-700">{selectedCompanyName}</span>
+        </div>
+        <span className="ml-auto text-[11px] text-slate-500 hidden sm:block">Use the company switcher in the header to change</span>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
@@ -332,11 +372,21 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
 /* ============== HR ADMIN ============== */
 function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedCompanyId, availableCompanies, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalEmployees: 0, newJoiners: 0, pendingLeaves: 0, pendingPayroll: 0 });
   const [departmentDist, setDepartmentDist] = useState<{ name: string; count: number }[]>([]);
   const [recentJoiners, setRecentJoiners] = useState<{ id: string; firstName: string; lastName: string; dateOfJoining: string; department?: { name: string } }[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<{ id: string; employeeName: string; type: string; startDate: string; status: string }[]>([]);
+
+  const scopeQuery = useMemo(() => {
+    if (!selectedCompanyId) return '';
+    return `&companyId=${encodeURIComponent(selectedCompanyId)}`;
+  }, [selectedCompanyId]);
+
+  const selectedCompanyName = selectedCompanyId
+    ? availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Unknown'
+    : 'All companies (group)';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -350,10 +400,10 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     };
 
     const [empData, empList, leaveData, payrollData] = await Promise.all([
-      safe('/api/employees?limit=1'),
-      safe('/api/employees?limit=200'),
-      safe('/api/leave?status=pending&limit=10'),
-      safe('/api/payroll?status=draft&limit=1'),
+      safe(`/api/employees?limit=1${scopeQuery}`),
+      safe(`/api/employees?limit=200${scopeQuery}`),
+      safe(`/api/leave?status=pending&limit=10${scopeQuery}`),
+      safe(`/api/payroll?status=draft&limit=1${scopeQuery}`),
     ]);
 
     const total = empData?.pagination?.total || empData?.total || 0;
@@ -389,9 +439,12 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     })));
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!hydrated) { hydrate(); return; }
+    fetchData();
+  }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
     { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
@@ -413,6 +466,16 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
         primaryCta={{ label: 'Manage Employees', href: '/employees', icon: <FiUsers className="w-4 h-4" /> }}
         secondaryCta={{ label: 'Review Leave', href: '/leave', icon: <FiCalendar className="w-4 h-4" /> }}
       />
+
+      {/* Scope banner */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100">
+        <FiLayers className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+        <div className="text-xs text-slate-700">
+          <span className="font-semibold text-slate-900">Viewing:</span>{' '}
+          <span className="font-semibold text-indigo-700">{selectedCompanyName}</span>
+        </div>
+        <span className="ml-auto text-[11px] text-slate-500 hidden sm:block">Switch via the header company dropdown</span>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
@@ -1237,8 +1300,13 @@ export default function HomePage() {
 
   // Route to the appropriate role dashboard
   const role = userRole.toLowerCase();
-  if (role === 'super_admin' || role === 'tenant_admin') {
+  if (role === 'super_admin') {
     return <SuperAdminHome {...heroProps} />;
+  }
+  if (role === 'tenant_admin') {
+    // Tenant admin manages companies under their own tenant — same view as HR admin
+    // but with full company-switcher support (no tenant switcher).
+    return <HRAdminHome {...heroProps} />;
   }
   if (role === 'hr_admin') {
     return <HRAdminHome {...heroProps} />;
