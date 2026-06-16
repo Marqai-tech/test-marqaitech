@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { createNotification } from '@/lib/notifications';
 
 function corsHeaders() {
   return {
@@ -44,10 +43,21 @@ export async function GET(
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    return NextResponse.json({ ticket }, { headers: corsHeaders() });
+    // Transform category for backward compatibility
+    const { category, ...rest } = ticket;
+    const transformedTicket = {
+      ...rest,
+      category: category?.name || category?.type || rest.requesterType || 'general',
+      categoryDetails: category,
+    };
+
+    return NextResponse.json({ ticket: transformedTicket }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get ticket error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
 
@@ -84,7 +94,7 @@ export async function PATCH(
     // Handle status-specific timestamps
     if (status === 'resolved') {
       updateData.resolvedAt = new Date();
-      if (!resolutionNotes) updateData.resolutionNotes = resolutionNotes;
+      if (resolutionNotes) updateData.resolutionNotes = resolutionNotes;
     }
     if (status === 'closed') {
       updateData.closedAt = new Date();
@@ -97,40 +107,52 @@ export async function PATCH(
       include: { category: true },
     });
 
-    // Notify requester on status change
-    if (status && status !== existing.status) {
-      const requesterUser = await prisma.user.findFirst({
-        where: {
-          employee: { id: existing.requesterId },
-        },
-      });
-
-      if (requesterUser) {
-        await createNotification({
-          tenantId: decoded.tenantId as string,
-          userId: requesterUser.id,
-          title: 'Ticket Status Updated',
-          message: `Ticket ${existing.ticketId} status changed to ${status}.`,
-          type: status === 'resolved' || status === 'closed' ? 'success' : 'info',
-          category: 'alert',
-          link: `/tickets/${id}`,
+    // Notify requester on status change (wrapped in try-catch to prevent crashes)
+    if (status && status !== existing.status && decoded.tenantId) {
+      try {
+        // Try to find the requester's user record
+        const requesterUser = await prisma.user.findFirst({
+          where: { id: existing.requesterId },
         });
+
+        if (requesterUser) {
+          const { createNotification } = await import('@/lib/notifications');
+          await createNotification({
+            tenantId: decoded.tenantId as string,
+            userId: requesterUser.id,
+            title: 'Ticket Status Updated',
+            message: `Ticket ${existing.ticketId} status changed to ${status}.`,
+            type: status === 'resolved' || status === 'closed' ? 'success' : 'info',
+            category: 'alert',
+            link: `/helpdesk`,
+          });
+        }
+      } catch (notifErr) {
+        console.error('Failed to send ticket status notification (non-fatal):', notifErr);
+        // Continue - notification failure should not break the ticket update
       }
     }
 
-    await prisma.auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'UPDATE_TICKET',
-        module: 'tickets',
-        details: `Updated ticket ${existing.ticketId}: ${JSON.stringify(updateData)}`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'UPDATE_TICKET',
+          module: 'tickets',
+          details: `Updated ticket ${existing.ticketId}: ${JSON.stringify(updateData)}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log (non-fatal):', auditErr);
+    }
 
     return NextResponse.json({ ticket }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Patch ticket error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
 
@@ -169,19 +191,26 @@ export async function PUT(
       include: { category: true },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'UPDATE_TICKET',
-        module: 'tickets',
-        details: `Updated ticket ${existing.ticketId}`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'UPDATE_TICKET',
+          module: 'tickets',
+          details: `Updated ticket ${existing.ticketId}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log (non-fatal):', auditErr);
+    }
 
     return NextResponse.json({ ticket }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update ticket error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
 
@@ -211,18 +240,25 @@ export async function DELETE(
     await prisma.ticketComment.deleteMany({ where: { ticketId: id } });
     await prisma.ticket.delete({ where: { id } });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'DELETE_TICKET',
-        module: 'tickets',
-        details: `Deleted ticket ${existing.ticketId}`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'DELETE_TICKET',
+          module: 'tickets',
+          details: `Deleted ticket ${existing.ticketId}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log (non-fatal):', auditErr);
+    }
 
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Delete ticket error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }

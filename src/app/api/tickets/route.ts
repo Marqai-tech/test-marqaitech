@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { createNotification } from '@/lib/notifications';
 
 function corsHeaders() {
   return {
@@ -46,14 +45,22 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '50');
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const categoryId = searchParams.get('categoryId');
     const requesterId = searchParams.get('requesterId');
     const assignedAgentId = searchParams.get('assignedAgentId');
 
+    const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(decoded.role as string);
+
     const where: Record<string, unknown> = {};
+
+    // For non-admin users, only show their own tickets by default
+    if (!isAdmin && !requesterId && !assignedAgentId) {
+      where.requesterId = decoded.userId as string;
+    }
+
     if (status) where.status = status;
     if (priority) where.priority = priority;
     if (categoryId) where.categoryId = categoryId;
@@ -75,13 +82,27 @@ export async function GET(request: Request) {
       prisma.ticket.count({ where }),
     ]);
 
+    // Transform tickets to include a string category field for backward compatibility
+    const transformedTickets = tickets.map((ticket) => {
+      const { category, _count, ...rest } = ticket;
+      return {
+        ...rest,
+        category: category?.name || category?.type || rest.requesterType || 'general',
+        categoryDetails: category,
+        commentCount: _count?.comments || 0,
+      };
+    });
+
     return NextResponse.json(
-      { tickets, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
+      { tickets: transformedTickets, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
       { headers: corsHeaders() }
     );
   } catch (error) {
     console.error('Get tickets error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
 
@@ -104,12 +125,15 @@ export async function POST(request: Request) {
       slaDeadline, attachments, tags,
     } = body;
 
-    if (!subject || !description || !requesterId || !requesterName) {
+    if (!subject || !description) {
       return NextResponse.json(
-        { error: 'Missing required fields: subject, description, requesterId, requesterName' },
+        { error: 'Missing required fields: subject, description' },
         { status: 400, headers: corsHeaders() }
       );
     }
+
+    const effectiveRequesterId = requesterId || (decoded.userId as string);
+    const effectiveRequesterName = requesterName || (decoded.email as string) || 'Unknown';
 
     const ticketId = await generateTicketId();
 
@@ -118,59 +142,75 @@ export async function POST(request: Request) {
     if (slaDeadline) {
       slaDeadlineDate = new Date(slaDeadline);
     } else if (categoryId) {
-      const category = await prisma.ticketCategory.findUnique({ where: { id: categoryId } });
-      if (category) {
-        slaDeadlineDate = new Date(Date.now() + category.slaHours * 60 * 60 * 1000);
+      try {
+        const category = await prisma.ticketCategory.findUnique({ where: { id: categoryId } });
+        if (category) {
+          slaDeadlineDate = new Date(Date.now() + category.slaHours * 60 * 60 * 1000);
+        }
+      } catch (e) {
+        console.error('Failed to lookup category for SLA:', e);
       }
     }
 
     const ticket = await prisma.ticket.create({
       data: {
         ticketId,
-        categoryId,
+        categoryId: categoryId || null,
         requesterType: requesterType || 'employee',
-        requesterId,
-        requesterName,
+        requesterId: effectiveRequesterId,
+        requesterName: effectiveRequesterName,
         subject,
         description,
         priority: priority || 'medium',
         status: 'open',
-        assignedAgentId,
-        assignedAgentName,
+        assignedAgentId: assignedAgentId || null,
+        assignedAgentName: assignedAgentName || null,
         slaDeadline: slaDeadlineDate,
-        attachments,
-        tags,
+        attachments: attachments || null,
+        tags: tags || null,
       },
       include: {
         category: true,
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'CREATE_TICKET',
-        module: 'tickets',
-        details: `Created ticket ${ticketId}: ${subject}`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'CREATE_TICKET',
+          module: 'tickets',
+          details: `Created ticket ${ticketId}: ${subject}`,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to create audit log:', e);
+    }
 
     // Notify assigned agent if any
-    if (assignedAgentId) {
-      await createNotification({
-        tenantId: decoded.tenantId as string,
-        userId: assignedAgentId,
-        title: 'New Ticket Assigned',
-        message: `Ticket ${ticketId} has been assigned to you: ${subject}`,
-        type: 'info',
-        category: 'alert',
-        link: `/tickets/${ticket.id}`,
-      });
+    if (assignedAgentId && decoded.tenantId) {
+      try {
+        const { createNotification } = await import('@/lib/notifications');
+        await createNotification({
+          tenantId: decoded.tenantId as string,
+          userId: assignedAgentId,
+          title: 'New Ticket Assigned',
+          message: `Ticket ${ticketId} has been assigned to you: ${subject}`,
+          type: 'info',
+          category: 'alert',
+          link: `/helpdesk`,
+        });
+      } catch (e) {
+        console.error('Failed to send notification:', e);
+      }
     }
 
     return NextResponse.json({ ticket }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Create ticket error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }

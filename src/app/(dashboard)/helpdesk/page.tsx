@@ -8,21 +8,46 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import ModuleTips from '@/components/ModuleTips';
-import ModuleWorkflow from '@/components/ModuleWorkflow';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
+// Category can be a string (e.g. "hr") or an object from the API ({ id, name, type, slaHours })
+interface TicketCategory {
+  id?: string;
+  name?: string;
+  type?: string;
+  slaHours?: number;
+}
+
 interface Ticket {
-  id: string; ticketId: string; subject: string; description: string; priority: string; status: string;
-  requesterName: string; requesterType: string; category: string; assignedAgentName: string | null;
-  createdAt: string; comments: TicketComment[];
+  id: string;
+  ticketId: string;
+  subject: string;
+  description: string;
+  priority: string;
+  status: string;
+  requesterName: string;
+  requesterType: string;
+  category: string | TicketCategory | null;
+  assignedAgentName: string | null;
+  createdAt: string;
+  comments: TicketComment[];
 }
 
 interface TicketComment { id: string; authorName: string; content: string; isInternal: boolean; createdAt: string; }
+
+// Helper: extract a display string from the category field (which can be string or object)
+function getCategoryLabel(cat: string | TicketCategory | null | undefined): string {
+  if (!cat) return '';
+  if (typeof cat === 'string') return cat;
+  if (typeof cat === 'object' && cat !== null) {
+    return cat.name || cat.type || '';
+  }
+  return '';
+}
 
 const priorityConfig: Record<string, { bg: string; text: string }> = {
   low: { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -63,6 +88,7 @@ export default function HelpdeskPage() {
   const { user } = useAuthStore();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -77,16 +103,26 @@ export default function HelpdeskPage() {
   const fetchTickets = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch('/api/tickets', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setTickets(Array.isArray(data) ? data : data.tickets || []);
+        const ticketList = Array.isArray(data) ? data : (data.tickets || []);
+        setTickets(ticketList);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Tickets API error:', res.status, errData);
+        setError('Failed to load tickets. Please try again.');
       }
-    } catch { toast.error('Failed to load tickets'); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error('Fetch tickets error:', err);
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { queueMicrotask(() => fetchTickets()); }, [fetchTickets]);
+  useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
   const fetchViewingTicket = useCallback(async (id: string) => {
     try {
@@ -116,11 +152,11 @@ export default function HelpdeskPage() {
 
   const handleEdit = (ticket: Ticket) => {
     setForm({
-      subject: ticket.subject,
-      description: ticket.description,
-      category: ticket.category || 'hr',
-      priority: ticket.priority,
-      requesterType: ticket.requesterType,
+      subject: ticket.subject || '',
+      description: ticket.description || '',
+      category: getCategoryLabel(ticket.category) || 'hr',
+      priority: ticket.priority || 'medium',
+      requesterType: ticket.requesterType || 'employee',
     });
     setEditingId(ticket.id);
     setShowForm(true);
@@ -142,17 +178,24 @@ export default function HelpdeskPage() {
         const res = await fetch(`/api/tickets/${editingId}`, {
           method: 'PUT',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ subject: form.subject, description: form.description, priority: form.priority, category: form.category }),
+          body: JSON.stringify({ subject: form.subject, description: form.description, priority: form.priority }),
         });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to update'); }
         toast.success('Ticket updated successfully');
       } else {
         const res = await fetch('/api/tickets', {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ ...form, requesterId: user?.id, requesterName: user?.name }),
+          body: JSON.stringify({
+            subject: form.subject,
+            description: form.description,
+            priority: form.priority,
+            requesterType: form.requesterType,
+            requesterId: user?.id,
+            requesterName: user?.name,
+          }),
         });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to create'); }
         toast.success('Ticket created successfully');
       }
       handleCancelForm();
@@ -165,7 +208,7 @@ export default function HelpdeskPage() {
     try {
       setDeleting(true);
       const res = await fetch(`/api/tickets/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
       toast.success('Ticket deleted successfully');
       setDeleteConfirmId(null);
       if (viewingId === id) setViewingId(null);
@@ -201,8 +244,20 @@ export default function HelpdeskPage() {
     } catch { toast.error('Action failed'); }
   };
 
-  const myTickets = tickets.filter((t) => t.requesterName === user?.name);
-  const displayTickets = activeTab === 'my' ? myTickets : tickets;
+  // Safely compare requester: use requesterId if available, fall back to name match
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const myTickets = tickets.filter((t) => {
+    const ticketAny = t as Record<string, unknown>;
+    if (ticketAny.requesterId && user?.id) return ticketAny.requesterId === user.id;
+    return t.requesterName === user?.name;
+  });
+  const displayTickets = (activeTab === 'my' && !isAdmin) ? myTickets : tickets;
+
+  // Safely get status display text
+  const getStatusText = (status: string | null | undefined): string => {
+    if (!status) return 'unknown';
+    return String(status).replace('_', ' ');
+  };
 
   return (
     <div className="space-y-6">
@@ -216,8 +271,16 @@ export default function HelpdeskPage() {
         </button>
       </div>
 
-      <ModuleTips moduleKey="helpdesk" title="Helpdesk Tips" tips={helpdeskTips} userRole={user?.role} />
-      <ModuleWorkflow moduleKey="helpdesk" title="How to Resolve Support Tickets" subtitle="Follow this workflow to resolve support requests efficiently" steps={helpdeskWorkflowSteps} accentColor="cyan" userRole={user?.role} />
+      {/* Error State */}
+      {error && (
+        <div className="nexus-card p-6 text-center border-l-4 border-l-red-400">
+          <FiAlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+          <p className="text-nexus-text-secondary mb-3">{error}</p>
+          <button onClick={fetchTickets} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         {(['my', 'all'] as const).map((tab) => (
@@ -235,8 +298,8 @@ export default function HelpdeskPage() {
               <div>
                 <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingTicket.subject}</h2>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[viewingTicket.priority]?.bg || ''} ${priorityConfig[viewingTicket.priority]?.text || ''}`}>{viewingTicket.priority}</span>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[viewingTicket.status]?.bg || ''} ${statusConfig[viewingTicket.status]?.text || ''}`}>{viewingTicket.status.replace('_', ' ')}</span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[viewingTicket.priority]?.bg || 'bg-slate-100'} ${priorityConfig[viewingTicket.priority]?.text || 'text-slate-600'}`}>{viewingTicket.priority || 'medium'}</span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[viewingTicket.status]?.bg || 'bg-slate-100'} ${statusConfig[viewingTicket.status]?.text || 'text-slate-600'}`}>{getStatusText(viewingTicket.status)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -252,11 +315,11 @@ export default function HelpdeskPage() {
               </div>
               <div>
                 <span className="text-xs font-medium text-nexus-text-secondary">Requester</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiUser className="w-3.5 h-3.5" />{viewingTicket.requesterName}</p>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiUser className="w-3.5 h-3.5" />{viewingTicket.requesterName || 'Unknown'}</p>
               </div>
               <div>
                 <span className="text-xs font-medium text-nexus-text-secondary">Requester Type</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{viewingTicket.requesterType}</p>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{viewingTicket.requesterType || 'employee'}</p>
               </div>
               <div>
                 <span className="text-xs font-medium text-nexus-text-secondary">Assigned Agent</span>
@@ -264,17 +327,17 @@ export default function HelpdeskPage() {
               </div>
               <div>
                 <span className="text-xs font-medium text-nexus-text-secondary">Category</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{viewingTicket.category || '—'}</p>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{getCategoryLabel(viewingTicket.category) || '—'}</p>
               </div>
               <div>
                 <span className="text-xs font-medium text-nexus-text-secondary">Created</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiClock className="w-3.5 h-3.5" />{new Date(viewingTicket.createdAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiClock className="w-3.5 h-3.5" />{viewingTicket.createdAt ? new Date(viewingTicket.createdAt).toLocaleString() : '—'}</p>
               </div>
             </div>
 
             <div className="mb-6">
               <span className="text-xs font-medium text-nexus-text-secondary">Description</span>
-              <p className="text-sm text-nexus-text-primary mt-0.5 bg-slate-50 p-4 rounded-lg">{viewingTicket.description}</p>
+              <p className="text-sm text-nexus-text-primary mt-0.5 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap">{viewingTicket.description || 'No description'}</p>
             </div>
 
             {/* Status Actions */}
@@ -297,8 +360,8 @@ export default function HelpdeskPage() {
                 {(viewingTicket.comments || []).map((c) => (
                   <div key={c.id} className={`p-3 rounded-lg ${c.isInternal ? 'bg-amber-50 border border-amber-100' : 'bg-slate-50'}`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-nexus-text-primary">{c.authorName}{c.isInternal && ' (Internal)'}</span>
-                      <span className="text-xs text-nexus-text-muted">{new Date(c.createdAt).toLocaleString()}</span>
+                      <span className="text-xs font-medium text-nexus-text-primary">{c.authorName || 'Anonymous'}{c.isInternal && ' (Internal)'}</span>
+                      <span className="text-xs text-nexus-text-muted">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
                     </div>
                     <p className="text-sm text-nexus-text-secondary">{c.content}</p>
                   </div>
@@ -372,7 +435,15 @@ export default function HelpdeskPage() {
       {loading ? (
         <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="nexus-card p-5 animate-pulse"><div className="h-4 w-3/4 bg-slate-200 rounded mb-2" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
       ) : displayTickets.length === 0 ? (
-        <div className="nexus-card p-12 text-center"><FiAlertCircle className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary">No tickets found</p></div>
+        <div className="nexus-card p-12 text-center">
+          <FiAlertCircle className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+          <p className="text-nexus-text-secondary">
+            {activeTab === 'my' ? 'You haven\'t created any tickets yet' : 'No tickets found'}
+          </p>
+          <button onClick={handleAddNew} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+            <FiPlus className="w-4 h-4" /> Create Your First Ticket
+          </button>
+        </div>
       ) : (
         <div className="nexus-card overflow-hidden">
           <div className="overflow-x-auto">
@@ -401,11 +472,11 @@ export default function HelpdeskPage() {
                       <>
                         <td className="px-4 py-3 text-sm font-mono text-nexus-text-secondary">{t.ticketId?.slice(0, 8) || '—'}</td>
                         <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary max-w-[200px] truncate">{t.subject}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary capitalize">{t.category || t.requesterType}</td>
-                        <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[t.priority]?.bg || ''} ${priorityConfig[t.priority]?.text || ''}`}>{t.priority}</span></td>
-                        <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[t.status]?.bg || ''} ${statusConfig[t.status]?.text || ''}`}>{t.status.replace('_', ' ')}</span></td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary capitalize">{getCategoryLabel(t.category) || t.requesterType || '—'}</td>
+                        <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[t.priority]?.bg || 'bg-slate-100'} ${priorityConfig[t.priority]?.text || 'text-slate-600'}`}>{t.priority || 'medium'}</span></td>
+                        <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[t.status]?.bg || 'bg-slate-100'} ${statusConfig[t.status]?.text || 'text-slate-600'}`}>{getStatusText(t.status)}</span></td>
                         <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.assignedAgentName || 'Unassigned'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-muted">{new Date(t.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-muted">{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <button onClick={() => handleView(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
