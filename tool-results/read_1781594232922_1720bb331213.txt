@@ -1,0 +1,817 @@
+     1→'use client';
+     2→
+     3→import React, { useState } from 'react';
+     4→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+     5→import { Button } from '@/components/ui/button';
+     6→import { Input } from '@/components/ui/input';
+     7→import { Badge } from '@/components/ui/badge';
+     8→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+     9→import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+    10→import { Separator } from '@/components/ui/separator';
+    11→import {
+    12→  BookOpen, Video, FileText, Search, Play, Clock, Users, Briefcase,
+    13→  GraduationCap, DollarSign, Heart, ShieldCheck, Plane, Monitor,
+    14→  Headphones, Bot, Globe, WorkflowIcon, Building2, Truck, UserCog,
+    15→  BarChart3, MessageSquare, UserMinus, Building, ClipboardList,
+    16→  ChevronRight, Download, ExternalLink, CheckCircle2, Circle,
+    17→  LayoutDashboard, CalendarDays, TrendingUp, Settings, HelpCircle,
+    18→  Lightbulb, ArrowRight, Star
+    19→} from 'lucide-react';
+    20→
+    21→interface TrainingModule {
+    22→  id: string;
+    23→  key: string;
+    24→  title: string;
+    25→  icon: React.ReactNode;
+    26→  category: string;
+    27→  description: string;
+    28→  videoDuration: string;
+    29→  sopPages: number;
+    30→  tasks: { title: string; completed: boolean }[];
+    31→  keyFeatures: string[];
+    32→  workflowSteps: string[];
+    33→  tips: string[];
+    34→}
+    35→
+    36→const TRAINING_MODULES: TrainingModule[] = [
+    37→  {
+    38→    id: 'tm-1', key: 'dashboard', title: 'Dashboard & Analytics', icon: <LayoutDashboard className="h-5 w-5" />,
+    39→    category: 'OVERVIEW', description: 'Learn how to navigate the 3 Boxes HRMS dashboard, interpret key metrics, and use analytics to make data-driven HR decisions.',
+    40→    videoDuration: '12:30', sopPages: 8,
+    41→    tasks: [
+    42→      { title: 'Understanding the dashboard layout', completed: false },
+    43→      { title: 'Reading KPI cards and trends', completed: false },
+    44→      { title: 'Using department distribution charts', completed: false },
+    45→      { title: 'Reviewing recent activities feed', completed: false },
+    46→    ],
+    47→    keyFeatures: ['Real-time employee count and distribution', 'Department-wise headcount analytics', 'Attrition rate tracking', 'New hire onboarding pipeline', 'Pending approvals dashboard', 'Quick action shortcuts'],
+    48→    workflowSteps: ['Login to 3 Boxes HRMS', 'Review dashboard KPIs for anomalies', 'Check pending approvals section', 'Navigate to Analytics for detailed reports', 'Export data for stakeholder meetings'],
+    49→    tips: ['Pin frequently used metrics to the top', 'Set up automated daily summary emails', 'Use keyboard shortcuts for quick navigation (Ctrl+K for search)'],
+    50→  },
+    51→  {
+    52→    id: 'tm-2', key: 'employees', title: 'Employee Management', icon: <Users className="h-5 w-5" />,
+    53→    category: 'PEOPLE', description: 'Master employee lifecycle management from onboarding to offboarding, including profile management, department assignments, and status tracking.',
+    54→    videoDuration: '18:45', sopPages: 14,
+    55→    tasks: [
+    56→      { title: 'Adding a new employee', completed: false },
+    57→      { title: 'Editing employee details', completed: false },
+    58→      { title: 'Filtering employees by department/status', completed: false },
+    59→      { title: 'Viewing employee profile details', completed: false },
+    60→    ],
+    61→    keyFeatures: ['Complete employee profile management', 'Grid and list view options', 'Department and status filters', 'Quick search across all fields', 'Employment type tracking (Full-time, Part-time, Contract, Intern)', 'Bulk status updates'],
+    62→    workflowSteps: ['Navigate to Employees module', 'Click "Add Employee" to create new record', 'Fill in personal and professional details', 'Assign department and branch', 'Set employment type and status', 'Verify and save the record'],
+    63→    tips: ['Use bulk import for mass employee onboarding', 'Always assign a department for proper analytics', 'Set probation end dates for new hires to trigger automatic reminders'],
+    64→  },
+    65→  {
+    66→    id: 'tm-3', key: 'recruitment', title: 'Recruitment (ATS)', icon: <Briefcase className="h-5 w-5" />,
+    67→    category: 'RECRUITMENT', description: 'Manage the complete recruitment pipeline from job requisition to candidate hiring, including job postings, applicant tracking, and interview scheduling.',
+    68→    videoDuration: '22:15', sopPages: 18,
+    69→    tasks: [
+    70→      { title: 'Creating a job posting', completed: false },
+    71→      { title: 'Reviewing candidate applications', completed: false },
+    72→      { title: 'Scheduling interviews', completed: false },
+    73→      { title: 'Moving candidates through pipeline stages', completed: false },
+    74→    ],
+    75→    keyFeatures: ['Full applicant tracking system', 'Kanban-style pipeline management', 'Automated resume parsing', 'Interview scheduling and feedback', 'Offer letter generation', 'Pipeline analytics and time-to-hire metrics'],
+    76→    workflowSteps: ['Create job requisition with requirements', 'Post to internal job portal and external boards', 'Review incoming applications', 'Screen candidates and shortlist', 'Schedule and conduct interviews', 'Collect interviewer feedback', 'Extend offer and track acceptance', 'Initiate onboarding for accepted candidates'],
+    77→    tips: ['Use AI-powered candidate scoring for faster screening', 'Create interview templates for consistency', 'Set up automated rejection emails for better candidate experience'],
+    78→  },
+    79→  {
+    80→    id: 'tm-4', key: 'attendance', title: 'Attendance & Time Tracking', icon: <Clock className="h-5 w-5" />,
+    81→    category: 'TIME', description: 'Track employee attendance, manage check-in/check-out, handle shift schedules, and monitor attendance patterns across the organization.',
+    82→    videoDuration: '14:20', sopPages: 10,
+    83→    tasks: [
+    84→      { title: 'Employee check-in/check-out', completed: false },
+    85→      { title: 'Viewing attendance reports', completed: false },
+    86→      { title: 'Managing shift schedules', completed: false },
+    87→      { title: 'Handling attendance exceptions', completed: false },
+    88→    ],
+    89→    keyFeatures: ['Web and mobile check-in/check-out', 'Geofenced attendance for field staff', 'Shift management and scheduling', 'Overtime calculation', 'Attendance pattern analytics', 'Automated late arrival alerts'],
+    90→    workflowSteps: ['Employee checks in via web or mobile app', 'System records time and location', 'Admin reviews daily attendance report', 'Exceptions flagged for manager approval', 'Monthly attendance summary generated', 'Data flows to payroll for processing'],
+    91→    tips: ['Enable geofencing for accurate field staff tracking', 'Set up automatic late arrival notifications', 'Use shift templates for recurring schedules'],
+    92→  },
+    93→  {
+    94→    id: 'tm-5', key: 'leave', title: 'Leave Management', icon: <CalendarDays className="h-5 w-5" />,
+    95→    category: 'TIME', description: 'Manage employee leave requests, track leave balances, configure leave policies, and maintain compliance with organizational leave rules.',
+    96→    videoDuration: '15:10', sopPages: 12,
+    97→    tasks: [
+    98→      { title: 'Applying for leave', completed: false },
+    99→      { title: 'Approving/rejecting leave requests', completed: false },
+   100→      { title: 'Checking leave balances', completed: false },
+   101→      { title: 'Configuring leave policies', completed: false },
+   102→    ],
+   103→    keyFeatures: ['Multi-type leave management (Casual, Sick, Earned, etc.)', 'Automatic balance calculation', 'Manager approval workflow', 'Leave calendar with team visibility', 'Carry-forward configuration', 'Holiday calendar integration'],
+   104→    workflowSteps: ['Employee submits leave request', 'System validates leave balance', 'Manager receives notification', 'Manager approves or rejects with comments', 'Employee notified of decision', 'Leave calendar updated automatically', 'Attendance records adjusted'],
+   105→    tips: ['Configure leave carry-forward rules at fiscal year start', 'Set up team leave calendar for better coverage planning', 'Enable half-day leave options for flexibility'],
+   106→  },
+   107→  {
+   108→    id: 'tm-6', key: 'payroll', title: 'Payroll Processing', icon: <DollarSign className="h-5 w-5" />,
+   109→    category: 'COMPENSATION', description: 'Process monthly payroll, manage salary structures, handle deductions and reimbursements, and generate payslips and compliance reports.',
+   110→    videoDuration: '25:40', sopPages: 22,
+   111→    tasks: [
+   112→      { title: 'Running monthly payroll', completed: false },
+   113→      { title: 'Reviewing payroll summary', completed: false },
+   114→      { title: 'Generating payslips', completed: false },
+   115→      { title: 'Handling tax deductions', completed: false },
+   116→    ],
+   117→    keyFeatures: ['Automated salary calculation', 'Tax computation and deduction management', 'Multi-currency support', 'Payslip generation and distribution', 'Bank file generation for salary transfer', 'Statutory compliance reports (PF, ESI, TDS)'],
+   118→    workflowSteps: ['Verify attendance data for the month', 'Review and approve overtime calculations', 'Process reimbursements and deductions', 'Run payroll calculation', 'Review payroll summary report', 'Approve and lock payroll', 'Generate bank payment file', 'Distribute digital payslips', 'File statutory returns'],
+   119→    tips: ['Always run a trial payroll before final processing', 'Verify tax computations against latest regulations', 'Set up automated payslip email distribution', 'Keep salary structures updated for mid-year changes'],
+   120→  },
+   121→  {
+   122→    id: 'tm-7', key: 'performance', title: 'Performance Management', icon: <TrendingUp className="h-5 w-5" />,
+   123→    category: 'GROWTH', description: 'Set goals, conduct performance reviews, manage appraisal cycles, and track employee growth and development plans.',
+   124→    videoDuration: '20:15', sopPages: 16,
+   125→    tasks: [
+   126→      { title: 'Setting employee goals', completed: false },
+   127→      { title: 'Conducting performance review', completed: false },
+   128→      { title: 'Managing appraisal cycles', completed: false },
+   129→      { title: 'Tracking goal progress', completed: false },
+   130→    ],
+   131→    keyFeatures: ['OKR and KPI-based goal tracking', '360-degree feedback collection', 'Customizable review templates', 'Appraisal cycle management', 'Calibration and normalization tools', 'Development plan tracking'],
+   132→    workflowSteps: ['HR configures appraisal cycle', 'Employees set individual goals', 'Managers review and approve goals', 'Mid-cycle check-in and progress update', 'Self-assessment by employee', 'Manager assessment and feedback', 'Calibration sessions', 'Final ratings and compensation recommendations'],
+   133→    tips: ['Set SMART goals with measurable outcomes', 'Schedule regular 1-on-1 check-ins for continuous feedback', 'Use calibration sessions to ensure fairness across teams'],
+   134→  },
+   135→  {
+   136→    id: 'tm-8', key: 'learning', title: 'Learning & Development', icon: <GraduationCap className="h-5 w-5" />,
+   137→    category: 'GROWTH', description: 'Manage training programs, track course completions, handle certifications, and measure the effectiveness of learning initiatives.',
+   138→    videoDuration: '16:30', sopPages: 12,
+   139→    tasks: [
+   140→      { title: 'Creating a training course', completed: false },
+   141→      { title: 'Assigning courses to employees', completed: false },
+   142→      { title: 'Tracking completion status', completed: false },
+   143→      { title: 'Managing certifications', completed: false },
+   144→    ],
+   145→    keyFeatures: ['Course catalog management', 'Automated course assignment', 'Progress tracking and completion reports', 'Certification management and expiry alerts', 'Skill gap analysis', 'Training effectiveness surveys'],
+   146→    workflowSteps: ['Create training course with content', 'Define target audience and prerequisites', 'Assign to employees or departments', 'Track enrollment and progress', 'Collect feedback post-training', 'Issue certificates upon completion', 'Schedule refresher courses as needed'],
+   147→    tips: ['Use mandatory training assignments for compliance courses', 'Set up certification expiry alerts well in advance', 'Gather post-training feedback to improve content quality'],
+   148→  },
+   149→  {
+   150→    id: 'tm-9', key: 'engagement', title: 'Employee Engagement', icon: <Heart className="h-5 w-5" />,
+   151→    category: 'ENGAGEMENT', description: 'Run engagement surveys, measure employee satisfaction, manage recognition programs, and build a positive workplace culture.',
+   152→    videoDuration: '13:50', sopPages: 10,
+   153→    tasks: [
+   154→      { title: 'Creating engagement surveys', completed: false },
+   155→      { title: 'Reviewing survey results', completed: false },
+   156→      { title: 'Managing recognition programs', completed: false },
+   157→      { title: 'Tracking engagement metrics', completed: false },
+   158→    ],
+   159→    keyFeatures: ['Customizable pulse surveys', 'Anonymous feedback collection', 'Peer recognition and rewards', 'Engagement score trending', 'Action planning tools', 'Culture analytics dashboard'],
+   160→    workflowSteps: ['Design engagement survey questions', 'Configure anonymity and frequency settings', 'Launch survey to target audience', 'Monitor response rates in real-time', 'Analyze results and generate insights', 'Create action plans based on feedback', 'Track progress on improvement initiatives'],
+   161→    tips: ['Run pulse surveys monthly for continuous feedback', 'Keep surveys short (5-10 questions) for higher response rates', 'Always communicate action plans back to employees after surveys'],
+   162→  },
+   163→  {
+   164→    id: 'tm-10', key: 'helpdesk', title: 'Helpdesk & Support', icon: <Headphones className="h-5 w-5" />,
+   165→    category: 'ENGAGEMENT', description: 'Manage internal support tickets, handle employee queries, track resolution times, and maintain a knowledge base for common issues.',
+   166→    videoDuration: '11:40', sopPages: 8,
+   167→    tasks: [
+   168→      { title: 'Creating a support ticket', completed: false },
+   169→      { title: 'Assigning tickets to agents', completed: false },
+   170→      { title: 'Tracking ticket resolution', completed: false },
+   171→      { title: 'Managing knowledge base articles', completed: false },
+   172→    ],
+   173→    keyFeatures: ['Multi-category ticket management', 'Priority-based routing', 'SLA tracking and alerts', 'Knowledge base integration', 'Automated ticket assignment', 'Satisfaction rating collection'],
+   174→    workflowSteps: ['Employee submits support ticket', 'System categorizes and assigns priority', 'Ticket routed to appropriate team', 'Agent acknowledges and works on resolution', 'Resolution communicated to employee', 'Employee rates the support experience', 'Common resolutions added to knowledge base'],
+   175→    tips: ['Set up auto-assignment rules for faster resolution', 'Create template responses for common queries', 'Monitor SLA compliance weekly and address bottlenecks'],
+   176→  },
+   177→  {
+   178→    id: 'tm-11', key: 'travel_expense', title: 'Travel & Expense Management', icon: <Plane className="h-5 w-5" />,
+   179→    category: 'OPERATIONS', description: 'Manage travel requests, track expense claims, handle reimbursements, and enforce travel and expense policies.',
+   180→    videoDuration: '17:25', sopPages: 14,
+   181→    tasks: [
+   182→      { title: 'Submitting a travel request', completed: false },
+   183→      { title: 'Filing an expense claim', completed: false },
+   184→      { title: 'Approving travel and expenses', completed: false },
+   185→      { title: 'Processing reimbursements', completed: false },
+   186→    ],
+   187→    keyFeatures: ['Travel request workflow', 'Multi-currency expense claims', 'Receipt upload and OCR', 'Policy compliance checking', 'Mileage calculation', 'Integration with payroll for reimbursement'],
+   188→    workflowSteps: ['Employee submits travel request', 'Manager reviews and approves itinerary', 'Employee travels and collects receipts', 'Expense claim submitted with receipts', 'Manager verifies against policy', 'Finance processes reimbursement', 'Amount credited through next payroll cycle'],
+   189→    tips: ['Configure per-diem rates by city/country for accuracy', 'Set up policy violation alerts for out-of-policy claims', 'Enable receipt OCR for faster expense entry'],
+   190→  },
+   191→  {
+   192→    id: 'tm-12', key: 'assets', title: 'Asset Management', icon: <Monitor className="h-5 w-5" />,
+   193→    category: 'OPERATIONS', description: 'Track company assets, manage asset assignments, handle maintenance schedules, and maintain asset lifecycle records.',
+   194→    videoDuration: '14:00', sopPages: 10,
+   195→    tasks: [
+   196→      { title: 'Adding a new asset', completed: false },
+   197→      { title: 'Assigning assets to employees', completed: false },
+   198→      { title: 'Scheduling maintenance', completed: false },
+   199→      { title: 'Processing asset returns', completed: false },
+   200→    ],
+   201→    keyFeatures: ['Complete asset inventory management', 'Assignment and return tracking', 'Maintenance scheduling and alerts', 'Depreciation calculation', 'QR code/Barcode tracking', 'Asset audit trail'],
+   202→    workflowSteps: ['Register new asset with details', 'Assign to employee during onboarding', 'Schedule regular maintenance', 'Track usage and condition', 'Process return on employee exit', 'Update asset status and depreciation'],
+   203→    tips: ['Use QR codes for quick asset identification during audits', 'Set up automated maintenance reminders', 'Include asset return in employee exit checklist'],
+   204→  },
+   205→  {
+   206→    id: 'tm-13', key: 'compliance', title: 'Compliance & Regulatory', icon: <ShieldCheck className="h-5 w-5" />,
+   207→    category: 'OPERATIONS', description: 'Manage regulatory compliance, track statutory requirements, handle audit trails, and ensure organizational adherence to labor laws and regulations.',
+   208→    videoDuration: '19:30', sopPages: 16,
+   209→    tasks: [
+   210→      { title: 'Setting up compliance requirements', completed: false },
+   211→      { title: 'Tracking compliance status', completed: false },
+   212→      { title: 'Running compliance audits', completed: false },
+   213→      { title: 'Managing document submissions', completed: false },
+   214→    ],
+   215→    keyFeatures: ['Statutory compliance calendar', 'Document management and tracking', 'Automated compliance reminders', 'Audit trail and reporting', 'Regulatory update notifications', 'Multi-jurisdiction support'],
+   216→    workflowSteps: ['Configure compliance requirements by jurisdiction', 'Set up calendar with filing deadlines', 'Assign responsible persons for each compliance', 'Track document collection and filing status', 'Run periodic compliance audits', 'Generate compliance reports for leadership'],
+   217→    tips: ['Set reminders at least 30 days before filing deadlines', 'Maintain a centralized document repository for easy access during audits', 'Review compliance status weekly to avoid last-minute rushes'],
+   218→  },
+   219→  {
+   220→    id: 'tm-14', key: 'workflow', title: 'Workflow Builder', icon: <WorkflowIcon className="h-5 w-5" />,
+   221→    category: 'AUTOMATION', description: 'Design and automate HR workflows, configure approval chains, set up triggers and conditions, and monitor workflow execution.',
+   222→    videoDuration: '21:00', sopPages: 18,
+   223→    tasks: [
+   224→      { title: 'Creating a workflow definition', completed: false },
+   225→      { title: 'Configuring approval steps', completed: false },
+   226→      { title: 'Setting up triggers', completed: false },
+   227→      { title: 'Monitoring workflow instances', completed: false },
+   228→    ],
+   229→    keyFeatures: ['Visual workflow designer', 'Multi-step approval chains', 'Conditional routing logic', 'Email and notification triggers', 'SLA and escalation configuration', 'Workflow analytics and bottleneck detection'],
+   230→    workflowSteps: ['Define workflow trigger (e.g., leave request created)', 'Design approval chain with roles', 'Configure conditions and routing rules', 'Set up notifications and reminders', 'Test workflow with sample data', 'Deploy and monitor execution', 'Analyze and optimize based on metrics'],
+   231→    tips: ['Start with simple workflows and add complexity gradually', 'Always include an escalation path for unattended approvals', 'Test thoroughly with different scenarios before deployment'],
+   232→  },
+   233→  {
+   234→    id: 'tm-15', key: 'ai_interview', title: 'AI Interview System', icon: <Bot className="h-5 w-5" />,
+   235→    category: 'RECRUITMENT', description: 'Set up AI-powered interviews, configure interview questions, manage candidate evaluations, and leverage AI insights for better hiring decisions.',
+   236→    videoDuration: '16:45', sopPages: 12,
+   237→    tasks: [
+   238→      { title: 'Configuring AI interview parameters', completed: false },
+   239→      { title: 'Setting up question templates', completed: false },
+   240→      { title: 'Reviewing AI-generated assessments', completed: false },
+   241→      { title: 'Comparing candidate scores', completed: false },
+   242→    ],
+   243→    keyFeatures: ['AI-powered question generation', 'Automated candidate scoring', 'Video interview recording and analysis', 'Competency-based evaluation', 'Bias detection and mitigation', 'Interview summary generation'],
+   244→    workflowSteps: ['Configure interview parameters for the role', 'Select or generate question templates', 'Invite candidates for AI interview', 'System conducts and records interview', 'AI analyzes responses and generates scores', 'Recruiter reviews AI assessment', 'Combine with human evaluation for final decision'],
+   245→    tips: ['Always review AI assessments alongside human judgment', 'Customize question templates for each role for better relevance', 'Use bias detection features to ensure fair evaluation'],
+   246→  },
+   247→];
+   248→
+   249→const CATEGORIES = [
+   250→  { key: 'all', label: 'All Modules' },
+   251→  { key: 'OVERVIEW', label: 'Overview' },
+   252→  { key: 'PEOPLE', label: 'People' },
+   253→  { key: 'RECRUITMENT', label: 'Recruitment' },
+   254→  { key: 'TIME', label: 'Time' },
+   255→  { key: 'COMPENSATION', label: 'Compensation' },
+   256→  { key: 'GROWTH', label: 'Growth' },
+   257→  { key: 'ENGAGEMENT', label: 'Engagement' },
+   258→  { key: 'OPERATIONS', label: 'Operations' },
+   259→  { key: 'AUTOMATION', label: 'Automation' },
+   260→];
+   261→
+   262→export function HelpTraining() {
+   263→  const [searchQuery, setSearchQuery] = useState('');
+   264→  const [selectedCategory, setSelectedCategory] = useState('all');
+   265→  const [expandedModule, setExpandedModule] = useState<string | null>(null);
+   266→  const [activeTab, setActiveTab] = useState('training');
+   267→  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
+   268→
+   269→  const filteredModules = TRAINING_MODULES.filter(m => {
+   270→    const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+   271→      m.description.toLowerCase().includes(searchQuery.toLowerCase());
+   272→    const matchesCategory = selectedCategory === 'all' || m.category === selectedCategory;
+   273→    return matchesSearch && matchesCategory;
+   274→  });
+   275→
+   276→  const toggleTask = (moduleId: string, taskIndex: number) => {
+   277→    const key = `${moduleId}-${taskIndex}`;
+   278→    setCompletedTasks(prev => ({ ...prev, [key]: !prev[key] }));
+   279→  };
+   280→
+   281→  const getTaskStatus = (moduleId: string, taskIndex: number) => {
+   282→    return completedTasks[`${moduleId}-${taskIndex}`] || false;
+   283→  };
+   284→
+   285→  const getModuleProgress = (module: TrainingModule) => {
+   286→    const completed = module.tasks.filter((_, i) => getTaskStatus(module.id, i)).length;
+   287→    return Math.round((completed / module.tasks.length) * 100);
+   288→  };
+   289→
+   290→  return (
+   291→    <div className="space-y-6">
+   292→      {/* Header */}
+   293→      <div className="flex flex-col sm:flex-row justify-between gap-4">
+   294→        <div>
+   295→          <h2 className="text-2xl font-bold flex items-center gap-2">
+   296→            <BookOpen className="h-6 w-6 text-emerald-600" />
+   297→            Help & Training Center
+   298→          </h2>
+   299→          <p className="text-muted-foreground mt-1">Master every module with training videos, SOPs, and technical documentation</p>
+   300→        </div>
+   301→        <div className="flex items-center gap-2">
+   302→          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+   303→            {Object.keys(completedTasks).filter(k => completedTasks[k]).length} tasks completed
+   304→          </Badge>
+   305→        </div>
+   306→      </div>
+   307→
+   308→      {/* Search and Filter */}
+   309→      <div className="flex flex-col sm:flex-row gap-3">
+   310→        <div className="relative flex-1">
+   311→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   312→          <Input
+   313→            placeholder="Search modules, features, or workflows..."
+   314→            className="pl-9"
+   315→            value={searchQuery}
+   316→            onChange={(e) => setSearchQuery(e.target.value)}
+   317→          />
+   318→        </div>
+   319→        <div className="flex gap-2 flex-wrap">
+   320→          {CATEGORIES.map(cat => (
+   321→            <Button
+   322→              key={cat.key}
+   323→              variant={selectedCategory === cat.key ? 'default' : 'outline'}
+   324→              size="sm"
+   325→              onClick={() => setSelectedCategory(cat.key)}
+   326→              className={selectedCategory === cat.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+   327→            >
+   328→              {cat.label}
+   329→            </Button>
+   330→          ))}
+   331→        </div>
+   332→      </div>
+   333→
+   334→      {/* Tabs */}
+   335→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   336→        <TabsList className="grid w-full grid-cols-3">
+   337→          <TabsTrigger value="training" className="flex items-center gap-2">
+   338→            <Video className="h-4 w-4" /> Training Videos
+   339→          </TabsTrigger>
+   340→          <TabsTrigger value="sops" className="flex items-center gap-2">
+   341→            <FileText className="h-4 w-4" /> SOPs & Guides
+   342→          </TabsTrigger>
+   343→          <TabsTrigger value="technical" className="flex items-center gap-2">
+   344→            <Settings className="h-4 w-4" /> Technical Docs
+   345→          </TabsTrigger>
+   346→        </TabsList>
+   347→
+   348→        {/* Training Videos Tab */}
+   349→        <TabsContent value="training" className="space-y-4 mt-4">
+   350→          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+   351→            {filteredModules.map(module => (
+   352→              <Card
+   353→                key={module.id}
+   354→                className={`cursor-pointer transition-all hover:shadow-md ${expandedModule === module.id ? 'ring-2 ring-emerald-500' : ''}`}
+   355→                onClick={() => setExpandedModule(expandedModule === module.id ? null : module.id)}
+   356→              >
+   357→                <CardHeader className="pb-3">
+   358→                  <div className="flex items-start justify-between">
+   359→                    <div className="flex items-center gap-3">
+   360→                      <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+   361→                        {module.icon}
+   362→                      </div>
+   363→                      <div>
+   364→                        <CardTitle className="text-base">{module.title}</CardTitle>
+   365→                        <Badge variant="outline" className="text-[10px] mt-1">{module.category}</Badge>
+   366→                      </div>
+   367→                    </div>
+   368→                  </div>
+   369→                  <CardDescription className="text-xs mt-2 line-clamp-2">{module.description}</CardDescription>
+   370→                </CardHeader>
+   371→                <CardContent className="pt-0">
+   372→                  <div className="space-y-3">
+   373→                    {/* Video Info */}
+   374→                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+   375→                      <span className="flex items-center gap-1"><Play className="h-3 w-3" /> {module.videoDuration}</span>
+   376→                      <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {module.sopPages} pages</span>
+   377→                      <span>{getModuleProgress(module)}% done</span>
+   378→                    </div>
+   379→
+   380→                    {/* Progress bar */}
+   381→                    <div className="w-full bg-muted rounded-full h-1.5">
+   382→                      <div
+   383→                        className="bg-emerald-500 h-1.5 rounded-full transition-all"
+   384→                        style={{ width: `${getModuleProgress(module)}%` }}
+   385→                      />
+   386→                    </div>
+   387→
+   388→                    {/* Expanded Content */}
+   389→                    {expandedModule === module.id && (
+   390→                      <div className="space-y-4 pt-3 border-t">
+   391→                        {/* Training Tasks */}
+   392→                        <div>
+   393→                          <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   394→                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+   395→                            Learning Tasks
+   396→                          </h4>
+   397→                          <div className="space-y-2">
+   398→                            {module.tasks.map((task, idx) => (
+   399→                              <div
+   400→                                key={idx}
+   401→                                className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted p-1.5 rounded"
+   402→                                onClick={(e) => { e.stopPropagation(); toggleTask(module.id, idx); }}
+   403→                              >
+   404→                                {getTaskStatus(module.id, idx) ? (
+   405→                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+   406→                                ) : (
+   407→                                  <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   408→                                )}
+   409→                                <span className={getTaskStatus(module.id, idx) ? 'line-through text-muted-foreground' : ''}>
+   410→                                  {task.title}
+   411→                                </span>
+   412→                              </div>
+   413→                            ))}
+   414→                          </div>
+   415→                        </div>
+   416→
+   417→                        {/* Key Features */}
+   418→                        <div>
+   419→                          <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   420→                            <Star className="h-3.5 w-3.5 text-yellow-500" />
+   421→                            Key Features
+   422→                          </h4>
+   423→                          <div className="space-y-1">
+   424→                            {module.keyFeatures.map((feature, idx) => (
+   425→                              <div key={idx} className="flex items-center gap-2 text-xs">
+   426→                                <ChevronRight className="h-3 w-3 text-emerald-600 shrink-0" />
+   427→                                <span>{feature}</span>
+   428→                              </div>
+   429→                            ))}
+   430→                          </div>
+   431→                        </div>
+   432→
+   433→                        {/* Workflow */}
+   434→                        <div>
+   435→                          <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   436→                            <WorkflowIcon className="h-3.5 w-3.5 text-blue-500" />
+   437→                            Workflow Steps
+   438→                          </h4>
+   439→                          <div className="space-y-1">
+   440→                            {module.workflowSteps.map((step, idx) => (
+   441→                              <div key={idx} className="flex items-start gap-2 text-xs">
+   442→                                <span className="bg-emerald-600 text-white rounded-full w-4 h-4 flex items-center justify-center shrink-0 text-[9px] mt-0.5">
+   443→                                  {idx + 1}
+   444→                                </span>
+   445→                                <span>{step}</span>
+   446→                              </div>
+   447→                            ))}
+   448→                          </div>
+   449→                        </div>
+   450→
+   451→                        {/* Tips */}
+   452→                        <div>
+   453→                          <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   454→                            <Lightbulb className="h-3.5 w-3.5 text-yellow-500" />
+   455→                            Pro Tips
+   456→                          </h4>
+   457→                          <div className="space-y-1.5">
+   458→                            {module.tips.map((tip, idx) => (
+   459→                              <div key={idx} className="bg-yellow-50 dark:bg-yellow-950/30 p-2 rounded text-xs border border-yellow-200 dark:border-yellow-900">
+   460→                                {tip}
+   461→                              </div>
+   462→                            ))}
+   463→                          </div>
+   464→                        </div>
+   465→
+   466→                        {/* Watch Video Button */}
+   467→                        <Button className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2" size="sm">
+   468→                          <Play className="h-4 w-4" /> Watch Training Video
+   469→                        </Button>
+   470→                      </div>
+   471→                    )}
+   472→                  </div>
+   473→                </CardContent>
+   474→              </Card>
+   475→            ))}
+   476→          </div>
+   477→        </TabsContent>
+   478→
+   479→        {/* SOPs & Guides Tab */}
+   480→        <TabsContent value="sops" className="space-y-4 mt-4">
+   481→          <Card>
+   482→            <CardHeader>
+   483→              <CardTitle className="text-lg">Standard Operating Procedures</CardTitle>
+   484→              <CardDescription>Step-by-step guides for every HR process and workflow</CardDescription>
+   485→            </CardHeader>
+   486→            <CardContent>
+   487→              <Accordion type="multiple" className="w-full">
+   488→                {filteredModules.map(module => (
+   489→                  <AccordionItem key={module.id} value={module.id}>
+   490→                    <AccordionTrigger className="hover:no-underline">
+   491→                      <div className="flex items-center gap-3">
+   492→                        <div className="p-1.5 bg-emerald-100 rounded text-emerald-600">
+   493→                          {module.icon}
+   494→                        </div>
+   495→                        <div className="text-left">
+   496→                          <p className="font-medium text-sm">{module.title} - SOP</p>
+   497→                          <p className="text-xs text-muted-foreground">{module.sopPages} pages | Last updated: May 2026</p>
+   498→                        </div>
+   499→                      </div>
+   500→                    </AccordionTrigger>
+   501→                    <AccordionContent>
+   502→                      <div className="space-y-4 pl-11">
+   503→                        {/* SOP Purpose */}
+   504→                        <div>
+   505→                          <h4 className="text-sm font-semibold mb-1">Purpose</h4>
+   506→                          <p className="text-xs text-muted-foreground">{module.description}</p>
+   507→                        </div>
+   508→
+   509→                        {/* SOP Procedure */}
+   510→                        <div>
+   511→                          <h4 className="text-sm font-semibold mb-2">Procedure</h4>
+   512→                          <div className="space-y-2">
+   513→                            {module.workflowSteps.map((step, idx) => (
+   514→                              <div key={idx} className="flex items-start gap-3 text-xs border-l-2 border-emerald-200 pl-3 py-1">
+   515→                                <span className="font-semibold text-emerald-600">Step {idx + 1}:</span>
+   516→                                <span>{step}</span>
+   517→                              </div>
+   518→                            ))}
+   519→                          </div>
+   520→                        </div>
+   521→
+   522→                        {/* Key Features Reference */}
+   523→                        <div>
+   524→                          <h4 className="text-sm font-semibold mb-2">Key Features Used</h4>
+   525→                          <div className="grid grid-cols-2 gap-1">
+   526→                            {module.keyFeatures.map((feature, idx) => (
+   527→                              <div key={idx} className="flex items-center gap-1.5 text-xs">
+   528→                                <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+   529→                                <span>{feature}</span>
+   530→                              </div>
+   531→                            ))}
+   532→                          </div>
+   533→                        </div>
+   534→
+   535→                        {/* Best Practices */}
+   536→                        <div>
+   537→                          <h4 className="text-sm font-semibold mb-2">Best Practices</h4>
+   538→                          <div className="space-y-1">
+   539→                            {module.tips.map((tip, idx) => (
+   540→                              <div key={idx} className="bg-muted p-2 rounded text-xs">
+   541→                                <Lightbulb className="h-3 w-3 text-yellow-500 inline mr-1" />
+   542→                                {tip}
+   543→                              </div>
+   544→                            ))}
+   545→                          </div>
+   546→                        </div>
+   547→
+   548→                        <div className="flex gap-2 pt-2">
+   549→                          <Button variant="outline" size="sm" className="gap-1">
+   550→                            <Download className="h-3 w-3" /> Download PDF
+   551→                          </Button>
+   552→                          <Button variant="outline" size="sm" className="gap-1">
+   553→                            <ExternalLink className="h-3 w-3" /> View on Wiki
+   554→                          </Button>
+   555→                        </div>
+   556→                      </div>
+   557→                    </AccordionContent>
+   558→                  </AccordionItem>
+   559→                ))}
+   560→              </Accordion>
+   561→            </CardContent>
+   562→          </Card>
+   563→        </TabsContent>
+   564→
+   565→        {/* Technical Docs Tab */}
+   566→        <TabsContent value="technical" className="space-y-4 mt-4">
+   567→          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   568→            {/* Architecture Overview */}
+   569→            <Card>
+   570→              <CardHeader className="pb-3">
+   571→                <CardTitle className="text-base flex items-center gap-2">
+   572→                  <Building2 className="h-4 w-4 text-blue-600" />
+   573→                  System Architecture
+   574→                </CardTitle>
+   575→              </CardHeader>
+   576→              <CardContent className="space-y-3">
+   577→                <div className="text-xs space-y-2 text-muted-foreground">
+   578→                  <p><strong className="text-foreground">Frontend:</strong> Next.js 16 with App Router, React 19, TypeScript 5</p>
+   579→                  <p><strong className="text-foreground">UI Library:</strong> shadcn/ui (Radix UI primitives) with Tailwind CSS 4</p>
+   580→                  <p><strong className="text-foreground">State Management:</strong> Zustand for global state, React hooks for local state</p>
+   581→                  <p><strong className="text-foreground">Backend:</strong> Next.js API Routes with Prisma ORM</p>
+   582→                  <p><strong className="text-foreground">Database:</strong> PostgreSQL (Neon serverless) with Prisma Client</p>
+   583→                  <p><strong className="text-foreground">Deployment:</strong> Vercel with automatic CI/CD from GitHub</p>
+   584→                  <p><strong className="text-foreground">Authentication:</strong> Custom auth with JWT tokens and role-based access</p>
+   585→                </div>
+   586→                <Button variant="outline" size="sm" className="gap-1 w-full">
+   587→                  <Download className="h-3 w-3" /> Download Architecture Diagram
+   588→                </Button>
+   589→              </CardContent>
+   590→            </Card>
+   591→
+   592→            {/* API Documentation */}
+   593→            <Card>
+   594→              <CardHeader className="pb-3">
+   595→                <CardTitle className="text-base flex items-center gap-2">
+   596→                  <Globe className="h-4 w-4 text-purple-600" />
+   597→                  API Documentation
+   598→                </CardTitle>
+   599→              </CardHeader>
+   600→              <CardContent className="space-y-3">
+   601→                <div className="text-xs space-y-2 text-muted-foreground">
+   602→                  <p><strong className="text-foreground">Base URL:</strong> <code className="bg-muted px-1 rounded">/api/*</code></p>
+   603→                  <p><strong className="text-foreground">Auth:</strong> Session-based with role validation</p>
+   604→                  <p><strong className="text-foreground">Format:</strong> JSON request/response</p>
+   605→                  <p><strong className="text-foreground">Pagination:</strong> Cursor and offset based</p>
+   606→                  <p><strong className="text-foreground">Error Handling:</strong> Structured error responses with status codes</p>
+   607→                </div>
+   608→                <div className="space-y-1">
+   609→                  <p className="text-xs font-semibold">Available Endpoints:</p>
+   610→                  <div className="grid grid-cols-2 gap-1 text-xs">
+   611→                    {['/api/auth', '/api/employees', '/api/departments', '/api/branches', '/api/companies',
+   612→                      '/api/attendance', '/api/leaves', '/api/payroll', '/api/jobs', '/api/candidates',
+   613→                      '/api/interviews', '/api/assets', '/api/travel', '/api/expenses', '/api/tickets',
+   614→                      '/api/clients', '/api/vendors', '/api/workflows', '/api/surveys', '/api/learning',
+   615→                      '/api/compliance', '/api/analytics', '/api/notifications', '/api/audit', '/api/dashboard'
+   616→                    ].map(endpoint => (
+   617→                      <code key={endpoint} className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{endpoint}</code>
+   618→                    ))}
+   619→                  </div>
+   620→                </div>
+   621→                <Button variant="outline" size="sm" className="gap-1 w-full">
+   622→                  <ExternalLink className="h-3 w-3" /> View Full API Reference
+   623→                </Button>
+   624→              </CardContent>
+   625→            </Card>
+   626→
+   627→            {/* Database Schema */}
+   628→            <Card>
+   629→              <CardHeader className="pb-3">
+   630→                <CardTitle className="text-base flex items-center gap-2">
+   631→                  <BarChart3 className="h-4 w-4 text-orange-600" />
+   632→                  Database Schema
+   633→                </CardTitle>
+   634→              </CardHeader>
+   635→              <CardContent className="space-y-3">
+   636→                <div className="text-xs space-y-2 text-muted-foreground">
+   637→                  <p><strong className="text-foreground">ORM:</strong> Prisma with PostgreSQL</p>
+   638→                  <p><strong className="text-foreground">Schema:</strong> <code className="bg-muted px-1 rounded">prisma/schema.prisma</code></p>
+   639→                  <p><strong className="text-foreground">Migrations:</strong> Managed via <code className="bg-muted px-1 rounded">prisma db push</code></p>
+   640→                  <p><strong className="text-foreground">Connection:</strong> Pooled via Neon serverless driver</p>
+   641→                </div>
+   642→                <div className="space-y-1">
+   643→                  <p className="text-xs font-semibold">Core Models:</p>
+   644→                  <div className="grid grid-cols-2 gap-1 text-xs">
+   645→                    {['User', 'Company', 'Employee', 'Department', 'Branch', 'Job', 'Candidate',
+   646→                      'Interview', 'Attendance', 'Leave', 'Payroll', 'Asset', 'TravelRequest',
+   647→                      'Expense', 'Ticket', 'Client', 'Vendor', 'WorkflowDefinition',
+   648→                      'WorkflowInstance', 'Survey', 'AuditLog', 'Notification', 'Shift', 'OnboardingTask'
+   649→                    ].map(model => (
+   650→                      <code key={model} className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{model}</code>
+   651→                    ))}
+   652→                  </div>
+   653→                </div>
+   654→                <Button variant="outline" size="sm" className="gap-1 w-full">
+   655→                  <Download className="h-3 w-3" /> Download ER Diagram
+   656→                </Button>
+   657→              </CardContent>
+   658→            </Card>
+   659→
+   660→            {/* Development Setup */}
+   661→            <Card>
+   662→              <CardHeader className="pb-3">
+   663→                <CardTitle className="text-base flex items-center gap-2">
+   664→                  <Settings className="h-4 w-4 text-teal-600" />
+   665→                  Development Setup
+   666→                </CardTitle>
+   667→              </CardHeader>
+   668→              <CardContent className="space-y-3">
+   669→                <div className="text-xs space-y-2 text-muted-foreground">
+   670→                  <p><strong className="text-foreground">Prerequisites:</strong> Node.js 20+, bun, PostgreSQL</p>
+   671→                  <p><strong className="text-foreground">Setup:</strong> <code className="bg-muted px-1 rounded">git clone → bun install → prisma generate → bun dev</code></p>
+   672→                  <p><strong className="text-foreground">Environment:</strong> <code className="bg-muted px-1 rounded">POSTGRES_URL</code> in .env</p>
+   673→                  <p><strong className="text-foreground">Linting:</strong> <code className="bg-muted px-1 rounded">bun run lint</code></p>
+   674→                  <p><strong className="text-foreground">Build:</strong> <code className="bg-muted px-1 rounded">bun run build</code></p>
+   675→                </div>
+   676→                <div className="space-y-1">
+   677→                  <p className="text-xs font-semibold">Project Structure:</p>
+   678→                  <div className="text-xs font-mono space-y-0.5 text-muted-foreground">
+   679→                    <p>src/app/api/ - API routes</p>
+   680→                    <p>src/components/hrms/ - Module components</p>
+   681→                    <p>src/components/ui/ - shadcn/ui components</p>
+   682→                    <p>src/lib/ - Utilities and API helpers</p>
+   683→                    <p>src/store/ - Zustand stores</p>
+   684→                    <p>prisma/ - Database schema</p>
+   685→                  </div>
+   686→                </div>
+   687→                <Button variant="outline" size="sm" className="gap-1 w-full">
+   688→                  <ExternalLink className="h-3 w-3" /> View on GitHub
+   689→                </Button>
+   690→              </CardContent>
+   691→            </Card>
+   692→          </div>
+   693→
+   694→          {/* Module-wise Technical Details */}
+   695→          <Card>
+   696→            <CardHeader>
+   697→              <CardTitle className="text-lg">Module Technical Specifications</CardTitle>
+   698→              <CardDescription>Detailed technical documentation for each module</CardDescription>
+   699→            </CardHeader>
+   700→            <CardContent>
+   701→              <Accordion type="multiple" className="w-full">
+   702→                {filteredModules.map(module => (
+   703→                  <AccordionItem key={module.id} value={module.id}>
+   704→                    <AccordionTrigger className="hover:no-underline">
+   705→                      <div className="flex items-center gap-3">
+   706→                        <div className="p-1.5 bg-blue-100 rounded text-blue-600">
+   707→                          {module.icon}
+   708→                        </div>
+   709→                        <div className="text-left">
+   710→                          <p className="font-medium text-sm">{module.title}</p>
+   711→                          <p className="text-xs text-muted-foreground">API routes, data models, and integration points</p>
+   712→                        </div>
+   713→                      </div>
+   714→                    </AccordionTrigger>
+   715→                    <AccordionContent>
+   716→                      <div className="space-y-4 pl-11">
+   717→                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   718→                          <div>
+   719→                            <h4 className="text-xs font-semibold mb-2">API Endpoints</h4>
+   720→                            <div className="space-y-1 text-xs">
+   721→                              <div className="flex items-center gap-2">
+   722→                                <Badge className="bg-green-100 text-green-800 text-[9px]">GET</Badge>
+   723→                                <code className="bg-muted px-1 rounded">/api/{module.key}</code>
+   724→                              </div>
+   725→                              <div className="flex items-center gap-2">
+   726→                                <Badge className="bg-blue-100 text-blue-800 text-[9px]">POST</Badge>
+   727→                                <code className="bg-muted px-1 rounded">/api/{module.key}</code>
+   728→                              </div>
+   729→                              <div className="flex items-center gap-2">
+   730→                                <Badge className="bg-yellow-100 text-yellow-800 text-[9px]">PUT</Badge>
+   731→                                <code className="bg-muted px-1 rounded">/api/{module.key}</code>
+   732→                              </div>
+   733→                              <div className="flex items-center gap-2">
+   734→                                <Badge className="bg-red-100 text-red-800 text-[9px]">DELETE</Badge>
+   735→                                <code className="bg-muted px-1 rounded">/api/{module.key}</code>
+   736→                              </div>
+   737→                            </div>
+   738→                          </div>
+   739→                          <div>
+   740→                            <h4 className="text-xs font-semibold mb-2">Integration Points</h4>
+   741→                            <div className="space-y-1 text-xs text-muted-foreground">
+   742→                              {module.keyFeatures.slice(0, 4).map((feature, idx) => (
+   743→                                <div key={idx} className="flex items-center gap-1.5">
+   744→                                  <ArrowRight className="h-3 w-3 text-blue-500 shrink-0" />
+   745→                                  <span>{feature}</span>
+   746→                                </div>
+   747→                              ))}
+   748→                            </div>
+   749→                          </div>
+   750→                        </div>
+   751→
+   752→                        <div>
+   753→                          <h4 className="text-xs font-semibold mb-2">Data Flow</h4>
+   754→                          <div className="flex items-center gap-2 text-xs overflow-x-auto pb-2">
+   755→                            {module.workflowSteps.slice(0, 5).map((step, idx) => (
+   756→                              <React.Fragment key={idx}>
+   757→                                <span className="bg-muted px-2 py-1 rounded whitespace-nowrap">{step.split(' ').slice(0, 3).join(' ')}</span>
+   758→                                {idx < 4 && <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />}
+   759→                              </React.Fragment>
+   760→                            ))}
+   761→                          </div>
+   762→                        </div>
+   763→
+   764→                        <div className="flex gap-2">
+   765→                          <Button variant="outline" size="sm" className="gap-1">
+   766→                            <Download className="h-3 w-3" /> Download Module Spec
+   767→                          </Button>
+   768→                          <Button variant="outline" size="sm" className="gap-1">
+   769→                            <ExternalLink className="h-3 w-3" /> View Source Code
+   770→                          </Button>
+   771→                        </div>
+   772→                      </div>
+   773→                    </AccordionContent>
+   774→                  </AccordionItem>
+   775→                ))}
+   776→              </Accordion>
+   777→            </CardContent>
+   778→          </Card>
+   779→        </TabsContent>
+   780→      </Tabs>
+   781→
+   782→      {/* Quick Links */}
+   783→      <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-200 dark:border-emerald-900">
+   784→        <CardContent className="p-6">
+   785→          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+   786→            <HelpCircle className="h-5 w-5 text-emerald-600" />
+   787→            Need More Help?
+   788→          </h3>
+   789→          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   790→            <div className="space-y-2">
+   791→              <h4 className="text-sm font-medium">Documentation</h4>
+   792→              <p className="text-xs text-muted-foreground">Browse comprehensive docs on GitHub Wiki</p>
+   793→              <Button variant="outline" size="sm" className="gap-1">
+   794→                <ExternalLink className="h-3 w-3" /> GitHub Wiki
+   795→              </Button>
+   796→            </div>
+   797→            <div className="space-y-2">
+   798→              <h4 className="text-sm font-medium">Video Tutorials</h4>
+   799→              <p className="text-xs text-muted-foreground">Watch module-wise walkthroughs with voiceover</p>
+   800→              <Button variant="outline" size="sm" className="gap-1">
+   801→                <Video className="h-3 w-3" /> Video Library
+   802→              </Button>
+   803→            </div>
+   804→            <div className="space-y-2">
+   805→              <h4 className="text-sm font-medium">Support</h4>
+   806→              <p className="text-xs text-muted-foreground">Contact support for technical assistance</p>
+   807→              <Button variant="outline" size="sm" className="gap-1">
+   808→                <Headphones className="h-3 w-3" /> Contact Support
+   809→              </Button>
+   810→            </div>
+   811→          </div>
+   812→        </CardContent>
+   813→      </Card>
+   814→    </div>
+   815→  );
+   816→}
+   817→
