@@ -254,12 +254,12 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                 <p className="text-xs text-nexus-text-muted mt-0.5">{user?.email}</p>
               </div>
               <Link
-                href="/settings?tab=profile"
+                href="/my-profile"
                 onClick={() => setShowUserMenu(false)}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-nexus-text-secondary hover:bg-slate-50 hover:text-nexus-text-primary transition-colors"
               >
                 <FiUser className="w-4 h-4" />
-                Profile
+                My Profile
               </Link>
               {['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '') && (
               <Link

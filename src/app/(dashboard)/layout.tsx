@@ -217,8 +217,8 @@ export default function DashboardLayout({
                 <p className="text-[11px] text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>
               <div className="py-1">
-                <button onClick={() => { setShowMobileProfile(false); router.push('/settings?tab=profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                  <FiUser className="w-4 h-4" /> Profile
+                <button onClick={() => { setShowMobileProfile(false); router.push('/my-profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                  <FiUser className="w-4 h-4" /> My Profile
                 </button>
                 <button onClick={() => { setShowMobileProfile(false); router.push('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                   <FiMoreHorizontal className="w-4 h-4" /> Settings

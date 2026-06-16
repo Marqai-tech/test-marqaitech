@@ -63,6 +63,10 @@ export async function GET(request: Request) {
           department: { select: { name: true } },
           designation: { select: { name: true } },
           branch: { select: { name: true } },
+          dependents: true,
+          qualifications: true,
+          experiences: true,
+          documents: { select: { id: true, name: true, type: true, status: true } },
         },
       });
 
@@ -83,12 +87,34 @@ export async function GET(request: Request) {
           country: toStr(employee.country),
           dateOfBirth: toISOStr(employee.dateOfBirth),
           gender: toStr(employee.gender),
+          maritalStatus: toStr(employee.maritalStatus),
+          nationality: toStr(employee.nationality),
           bloodGroup: toStr(employee.bloodGroup),
           department: employee.department?.name || '',
           designation: employee.designation?.name || '',
           branch: employee.branch?.name || '',
           dateOfJoining: toISOStr(employee.dateOfJoining),
           status: employee.status,
+          // Bank & Finance
+          bankName: toStr(employee.bankName),
+          bankAccountNo: toStr(employee.bankAccountNo),
+          bankIfscCode: toStr(employee.bankIfscCode),
+          panNumber: toStr(employee.panNumber),
+          aadhaarNumber: toStr(employee.aadhaarNumber),
+          taxId: toStr(employee.taxId),
+          // Salary
+          salary: employee.salary,
+          salaryCurrency: toStr(employee.salaryCurrency),
+          // Policies
+          leavePolicyId: toStr(employee.leavePolicyId),
+          attendancePolicyId: toStr(employee.attendancePolicyId),
+          travelPolicyId: toStr(employee.travelPolicyId),
+          salaryStructureId: toStr(employee.salaryStructureId),
+          // Related data
+          dependents: employee.dependents || [],
+          qualifications: employee.qualifications || [],
+          experiences: employee.experiences || [],
+          documents: (employee.documents || []).map((d: { id: string; name: string; type: string; status: string }) => ({ id: d.id, name: d.name, type: d.type, status: d.status })),
         };
       }
     } catch (empErr) {

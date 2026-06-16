@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   FiHome,
   FiGrid,
+  FiUser,
   FiUsers,
   FiBriefcase,
   FiUserPlus,
@@ -83,6 +84,7 @@ const navSections: NavSection[] = [
     label: 'Core HR',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: <FiHome className="w-5 h-5" />, moduleKey: 'dashboard' },
+      { label: 'My Profile', href: '/my-profile', icon: <FiUser className="w-5 h-5" /> },
       { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, moduleKey: 'employees' },
       { label: 'Company Management', href: '/company', icon: <FiLayers className="w-5 h-5" />, moduleKey: 'company' },
     ],

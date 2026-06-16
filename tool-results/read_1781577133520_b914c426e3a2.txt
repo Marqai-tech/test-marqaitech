@@ -1,0 +1,436 @@
+  1250→                          <div className="grid grid-cols-2 gap-3">
+  1251→                            <div>
+  1252→                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">City</label>
+  1253→                              {editingProfile ? (
+  1254→                                <input type="text" value={profileData.city} onChange={(e) => setProfileData(p => p ? { ...p, city: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1255→                              ) : (
+  1256→                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.city || '—'}</p>
+  1257→                              )}
+  1258→                            </div>
+  1259→                            <div>
+  1260→                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">State</label>
+  1261→                              {editingProfile ? (
+  1262→                                <input type="text" value={profileData.state} onChange={(e) => setProfileData(p => p ? { ...p, state: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1263→                              ) : (
+  1264→                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.state || '—'}</p>
+  1265→                              )}
+  1266→                            </div>
+  1267→                          </div>
+  1268→                          <div className="grid grid-cols-2 gap-3">
+  1269→                            <div>
+  1270→                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">ZIP Code</label>
+  1271→                              {editingProfile ? (
+  1272→                                <input type="text" value={profileData.zipCode} onChange={(e) => setProfileData(p => p ? { ...p, zipCode: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1273→                              ) : (
+  1274→                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.zipCode || '—'}</p>
+  1275→                              )}
+  1276→                            </div>
+  1277→                            <div>
+  1278→                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Country</label>
+  1279→                              {editingProfile ? (
+  1280→                                <input type="text" value={profileData.country} onChange={(e) => setProfileData(p => p ? { ...p, country: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1281→                              ) : (
+  1282→                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.country || '—'}</p>
+  1283→                              )}
+  1284→                            </div>
+  1285→                          </div>
+  1286→                        </div>
+  1287→                      </div>
+  1288→                    </div>
+  1289→
+  1290→                    {/* Emergency Contact Card */}
+  1291→                    <div className="nexus-card">
+  1292→                      <div className="p-5">
+  1293→                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
+  1294→                          <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center"><FiHeart className="w-4 h-4 text-rose-500" /></div>
+  1295→                          Emergency Contact
+  1296→                        </h4>
+  1297→                        <div className="space-y-3">
+  1298→                          <div>
+  1299→                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Contact Name</label>
+  1300→                            {editingProfile ? (
+  1301→                              <input type="text" value={profileData.emergencyContactName} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactName: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1302→                            ) : (
+  1303→                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactName || '—'}</p>
+  1304→                            )}
+  1305→                          </div>
+  1306→                          <div>
+  1307→                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Contact Phone</label>
+  1308→                            {editingProfile ? (
+  1309→                              <input type="tel" value={profileData.emergencyContactPhone} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactPhone: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1310→                            ) : (
+  1311→                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactPhone || '—'}</p>
+  1312→                            )}
+  1313→                          </div>
+  1314→                        </div>
+  1315→                      </div>
+  1316→                    </div>
+  1317→                  </div>
+  1318→                </>
+  1319→              ) : (
+  1320→                <div className="nexus-card p-12 text-center">
+  1321→                  <FiUser className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
+  1322→                  <h2 className="text-lg font-semibold text-nexus-text-primary mb-2">No Profile Data</h2>
+  1323→                  <p className="text-nexus-text-secondary">Unable to load your profile information. Please try again later.</p>
+  1324→                </div>
+  1325→              )}
+  1326→            </div>
+  1327→          )}
+  1328→
+  1329→          {/* General Tab */}
+  1330→          {activeTab === 'general' && (
+  1331→            <div className="space-y-4">
+  1332→              <div className="nexus-card">
+  1333→                <div className="p-6">
+  1334→                  <div className="flex items-center justify-between mb-6">
+  1335→                    <div className="flex items-center gap-3">
+  1336→                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+  1337→                        <FiGlobe className="w-5 h-5" />
+  1338→                      </div>
+  1339→                      <div>
+  1340→                        <h2 className="text-lg font-semibold text-nexus-text-primary">General Settings</h2>
+  1341→                        <p className="text-xs text-nexus-text-muted">Configure basic application settings</p>
+  1342→                      </div>
+  1343→                    </div>
+  1344→                    {editingSection !== 'general' ? (
+  1345→                      <button onClick={() => setEditingSection('general')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+  1346→                        <FiEdit2 className="w-4 h-4" />
+  1347→                        Edit
+  1348→                      </button>
+  1349→                    ) : (
+  1350→                      <button onClick={() => setEditingSection(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+  1351→                        <FiX className="w-5 h-5" />
+  1352→                      </button>
+  1353→                    )}
+  1354→                  </div>
+  1355→
+  1356→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+  1357→                    <div>
+  1358→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+  1359→                        <span className="flex items-center gap-1"><FiDatabase className="w-3 h-3" /> Company Name</span>
+  1360→                      </label>
+  1361→                      {editingSection === 'general' ? (
+  1362→                        <input type="text" value={generalForm.companyName} onChange={e => setGeneralForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+  1363→                      ) : (
+  1364→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.companyName || '—'}</p>
+  1365→                      )}
+  1366→                    </div>
+  1367→                    <div>
+  1368→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+  1369→                        <span className="flex items-center gap-1"><FiClock className="w-3 h-3" /> Timezone</span>
+  1370→                      </label>
+  1371→                      {editingSection === 'general' ? (
+  1372→                        <select value={generalForm.timezone} onChange={e => setGeneralForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+  1373→                          <option value="UTC">UTC</option>
+  1374→                          <option value="America/New_York">Eastern Time (ET)</option>
+  1375→                          <option value="America/Chicago">Central Time (CT)</option>
+  1376→                          <option value="America/Denver">Mountain Time (MT)</option>
+  1377→                          <option value="America/Los_Angeles">Pacific Time (PT)</option>
+  1378→                          <option value="Asia/Kolkata">India (IST)</option>
+  1379→                          <option value="Europe/London">London (GMT)</option>
+  1380→                          <option value="Asia/Tokyo">Tokyo (JST)</option>
+  1381→                        </select>
+  1382→                      ) : (
+  1383→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.timezone}</p>
+  1384→                      )}
+  1385→                    </div>
+  1386→                    <div>
+  1387→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+  1388→                        <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Date Format</span>
+  1389→                      </label>
+  1390→                      {editingSection === 'general' ? (
+  1391→                        <select value={generalForm.dateFormat} onChange={e => setGeneralForm(p => ({ ...p, dateFormat: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+  1392→                          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+  1393→                          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+  1394→                          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+  1395→                        </select>
+  1396→                      ) : (
+  1397→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.dateFormat}</p>
+  1398→                      )}
+  1399→                    </div>
+  1400→                    <div>
+  1401→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+  1402→                        <span className="flex items-center gap-1"><FiDollarSign className="w-3 h-3" /> Currency</span>
+  1403→                      </label>
+  1404→                      {editingSection === 'general' ? (
+  1405→                        <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+  1406→                          <option value="INR">INR (₹) — Indian Rupee</option>
+  1407→                          <option value="USD">USD ($) — US Dollar</option>
+  1408→                          <option value="EUR">EUR (€) — Euro</option>
+  1409→                          <option value="GBP">GBP (£) — British Pound</option>
+  1410→                          <option value="SGD">SGD (S$) — Singapore Dollar</option>
+  1411→                          <option value="AED">AED (د.إ) — UAE Dirham</option>
+  1412→                          <option value="AUD">AUD (A$) — Australian Dollar</option>
+  1413→                          <option value="CAD">CAD (C$) — Canadian Dollar</option>
+  1414→                          <option value="JPY">JPY (¥) — Japanese Yen</option>
+  1415→                          <option value="CNY">CNY (¥) — Chinese Yuan</option>
+  1416→                        </select>
+  1417→                      ) : (
+  1418→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.currency}</p>
+  1419→                      )}
+  1420→                    </div>
+  1421→                  </div>
+  1422→
+  1423→                  {editingSection === 'general' && (
+  1424→                    <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+  1425→                      <button onClick={() => setEditingSection(null)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50">Cancel</button>
+  1426→                      <button onClick={handleSaveGeneral} disabled={saving} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors">
+  1427→                        <FiSave className="w-4 h-4" />
+  1428→                        {saving ? 'Saving...' : 'Save Changes'}
+  1429→                      </button>
+  1430→                    </div>
+  1431→                  )}
+  1432→                </div>
+  1433→              </div>
+  1434→            </div>
+  1435→          )}
+  1436→
+  1437→          {/* Payroll Tab */}
+  1438→          {activeTab === 'payroll' && (
+  1439→            <div className="space-y-2">
+  1440→              <div className="mb-4">
+  1441→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1442→                  <FiDollarSign className="w-5 h-5 text-emerald-500" />
+  1443→                  Payroll Settings
+  1444→                </h2>
+  1445→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure payroll processing, tax, and calculation rules</p>
+  1446→              </div>
+  1447→              {renderModuleSections(payrollSections)}
+  1448→            </div>
+  1449→          )}
+  1450→
+  1451→          {/* Leave Tab */}
+  1452→          {activeTab === 'leave' && (
+  1453→            <div className="space-y-2">
+  1454→              <div className="mb-4">
+  1455→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1456→                  <FiCalendar className="w-5 h-5 text-blue-500" />
+  1457→                  Leave Settings
+  1458→                </h2>
+  1459→                <p className="text-xs text-nexus-text-muted mt-0.5">Manage leave policies, carry forward rules, and special leaves</p>
+  1460→              </div>
+  1461→              {renderModuleSections(leaveSections)}
+  1462→            </div>
+  1463→          )}
+  1464→
+  1465→          {/* Attendance Tab */}
+  1466→          {activeTab === 'attendance' && (
+  1467→            <div className="space-y-2">
+  1468→              <div className="mb-4">
+  1469→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1470→                  <FiClock className="w-5 h-5 text-orange-500" />
+  1471→                  Attendance Settings
+  1472→                </h2>
+  1473→                <p className="text-xs text-nexus-text-muted mt-0.5">Define work hours, attendance thresholds, and geofencing rules</p>
+  1474→              </div>
+  1475→              {renderModuleSections(attendanceSections)}
+  1476→            </div>
+  1477→          )}
+  1478→
+  1479→          {/* Employee Tab */}
+  1480→          {activeTab === 'employee' && (
+  1481→            <div className="space-y-2">
+  1482→              <div className="mb-4">
+  1483→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1484→                  <FiUsers className="w-5 h-5 text-indigo-500" />
+  1485→                  Employee Settings
+  1486→                </h2>
+  1487→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
+  1488→              </div>
+  1489→              {renderModuleSections(employeeSections)}
+  1490→            </div>
+  1491→          )}
+  1492→
+  1493→          {/* Recruitment Tab */}
+  1494→          {activeTab === 'recruitment' && (
+  1495→            <div className="space-y-2">
+  1496→              <div className="mb-4">
+  1497→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1498→                  <FiBriefcase className="w-5 h-5 text-amber-500" />
+  1499→                  Recruitment Settings
+  1500→                </h2>
+  1501→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure hiring pipeline, offer letters, and application defaults</p>
+  1502→              </div>
+  1503→              {renderModuleSections(recruitmentSections)}
+  1504→            </div>
+  1505→          )}
+  1506→
+  1507→          {/* Performance Tab */}
+  1508→          {activeTab === 'performance' && (
+  1509→            <div className="space-y-2">
+  1510→              <div className="mb-4">
+  1511→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1512→                  <FiTrendingUp className="w-5 h-5 text-violet-500" />
+  1513→                  Performance Settings
+  1514→                </h2>
+  1515→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
+  1516→              </div>
+  1517→              {renderModuleSections(performanceSections)}
+  1518→            </div>
+  1519→          )}
+  1520→
+  1521→          {/* Company Tab */}
+  1522→          {activeTab === 'company' && (
+  1523→            <div className="space-y-4">
+  1524→              <div className="nexus-card">
+  1525→                <div className="p-6">
+  1526→                  <div className="flex items-center gap-3 mb-6">
+  1527→                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+  1528→                      <FiDatabase className="w-5 h-5" />
+  1529→                    </div>
+  1530→                    <div>
+  1531→                      <h2 className="text-lg font-semibold text-nexus-text-primary">Company Information</h2>
+  1532→                      <p className="text-xs text-nexus-text-muted">Current tenant configuration</p>
+  1533→                    </div>
+  1534→                  </div>
+  1535→
+  1536→                  {tenant ? (
+  1537→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+  1538→                      <div>
+  1539→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company Name</label>
+  1540→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('3 boxes') ? '3 Boxes Corp' : n; })()}</p>
+  1541→                      </div>
+  1542→                      <div>
+  1543→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slug</label>
+  1544→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{tenant.slug}</p>
+  1545→                      </div>
+  1546→                      <div>
+  1547→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Domain</label>
+  1548→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{tenant.domain || '—'}</p>
+  1549→                      </div>
+  1550→                      <div>
+  1551→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Plan</label>
+  1552→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{tenant.plan}</p>
+  1553→                      </div>
+  1554→                      <div>
+  1555→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+  1556→                        <span className={`nexus-badge ${tenant.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-warning'}`}>{tenant.status}</span>
+  1557→                      </div>
+  1558→                      <div>
+  1559→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+  1560→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{tenant.country || '—'}</p>
+  1561→                      </div>
+  1562→                    </div>
+  1563→                  ) : (
+  1564→                    <div className="text-center py-8">
+  1565→                      <FiDatabase className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+  1566→                      <p className="text-nexus-text-secondary font-medium">No tenant information available</p>
+  1567→                      <p className="text-sm text-nexus-text-muted mt-1">Tenant data will appear once configured</p>
+  1568→                    </div>
+  1569→                  )}
+  1570→                </div>
+  1571→              </div>
+  1572→            </div>
+  1573→          )}
+  1574→
+  1575→          {/* Roles & Permissions Tab */}
+  1576→          {activeTab === 'roles' && (
+  1577→            <div className="space-y-4">
+  1578→              <div className="nexus-card">
+  1579→                <div className="p-6">
+  1580→                  <div className="flex items-center gap-3 mb-6">
+  1581→                    <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500">
+  1582→                      <FiShield className="w-5 h-5" />
+  1583→                    </div>
+  1584→                    <div>
+  1585→                      <h2 className="text-lg font-semibold text-nexus-text-primary">Roles & Permissions</h2>
+  1586→                      <p className="text-xs text-nexus-text-muted">View role definitions and access levels</p>
+  1587→                    </div>
+  1588→                  </div>
+  1589→
+  1590→                  <div className="space-y-4">
+  1591→                    {rolesData.map(role => (
+  1592→                      <div key={role.key} className="p-4 rounded-lg border border-nexus-border/50 hover:border-nexus-border transition-colors">
+  1593→                        <div className="flex items-center justify-between mb-2">
+  1594→                          <div className="flex items-center gap-3">
+  1595→                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
+  1596→                              role.key === 'super_admin' ? 'bg-red-500' :
+  1597→                              role.key === 'tenant_admin' ? 'bg-orange-500' :
+  1598→                              role.key === 'hr_admin' ? 'bg-blue-500' :
+  1599→                              role.key === 'manager' ? 'bg-emerald-500' :
+  1600→                              'bg-slate-500'
+  1601→                            }`}>
+  1602→                              {role.name.split(' ').map(w => w[0]).join('')}
+  1603→                            </div>
+  1604→                            <div>
+  1605→                              <p className="text-sm font-semibold text-nexus-text-primary">{role.name}</p>
+  1606→                              <p className="text-xs text-nexus-text-muted">{role.description}</p>
+  1607→                            </div>
+  1608→                          </div>
+  1609→                          <span className={`nexus-badge ${role.key === user?.role ? 'nexus-badge-success' : 'bg-slate-50 text-slate-500'}`}>
+  1610→                            {role.key === user?.role ? 'Your Role' : role.key}
+  1611→                          </span>
+  1612→                        </div>
+  1613→                        <div className="flex flex-wrap gap-1.5 mt-3">
+  1614→                          {role.permissions.map(perm => (
+  1615→                            <span key={perm} className="text-[10px] px-2 py-1 rounded-md bg-slate-50 text-nexus-text-secondary font-medium border border-nexus-border/50">
+  1616→                              {perm}
+  1617→                            </span>
+  1618→                          ))}
+  1619→                        </div>
+  1620→                      </div>
+  1621→                    ))}
+  1622→                  </div>
+  1623→
+  1624→                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 mt-4">
+  1625→                    <p className="text-xs text-amber-700 font-medium">Role management is currently view-only</p>
+  1626→                    <p className="text-xs text-amber-600 mt-0.5">Custom role creation and permission editing will be available in a future update.</p>
+  1627→                  </div>
+  1628→                </div>
+  1629→              </div>
+  1630→            </div>
+  1631→          )}
+  1632→
+  1633→          {/* Notifications Tab */}
+  1634→          {activeTab === 'notifications' && (
+  1635→            <div className="space-y-4">
+  1636→              <div className="nexus-card">
+  1637→                <div className="p-6">
+  1638→                  <div className="flex items-center gap-3 mb-6">
+  1639→                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+  1640→                      <FiBell className="w-5 h-5" />
+  1641→                    </div>
+  1642→                    <div>
+  1643→                      <h2 className="text-lg font-semibold text-nexus-text-primary">Notification Preferences</h2>
+  1644→                      <p className="text-xs text-nexus-text-muted">Choose what notifications you receive</p>
+  1645→                    </div>
+  1646→                  </div>
+  1647→
+  1648→                  <div className="space-y-3">
+  1649→                    {[
+  1650→                      { key: 'email' as const, label: 'Email Notifications', desc: 'Receive notifications via email' },
+  1651→                      { key: 'leave' as const, label: 'Leave Updates', desc: 'Leave request approvals and rejections' },
+  1652→                      { key: 'payroll' as const, label: 'Payroll Alerts', desc: 'Payroll processing and payment notifications' },
+  1653→                      { key: 'recruitment' as const, label: 'Recruitment Updates', desc: 'New applications and interview schedules' },
+  1654→                      { key: 'workflow' as const, label: 'Workflow Notifications', desc: 'Approval requests and workflow updates' },
+  1655→                      { key: 'system' as const, label: 'System Alerts', desc: 'System maintenance and announcements' },
+  1656→                    ].map(pref => (
+  1657→                      <div key={pref.key} className="flex items-center justify-between p-4 rounded-lg border border-nexus-border/50 hover:border-nexus-border transition-colors">
+  1658→                        <div>
+  1659→                          <p className="text-sm font-medium text-nexus-text-primary">{pref.label}</p>
+  1660→                          <p className="text-xs text-nexus-text-muted">{pref.desc}</p>
+  1661→                        </div>
+  1662→                        <ToggleSwitch
+  1663→                          enabled={notifPrefs[pref.key]}
+  1664→                          onToggle={() => setNotifPrefs(p => ({ ...p, [pref.key]: !p[pref.key] }))}
+  1665→                        />
+  1666→                      </div>
+  1667→                    ))}
+  1668→                  </div>
+  1669→
+  1670→                  <div className="flex items-center justify-end mt-6 pt-4 border-t border-nexus-border">
+  1671→                    <button onClick={handleSaveNotifPrefs} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors flex items-center gap-2">
+  1672→                      <FiSave className="w-4 h-4" />
+  1673→                      Save Preferences
+  1674→                    </button>
+  1675→                  </div>
+  1676→                </div>
+  1677→              </div>
+  1678→            </div>
+  1679→          )}
+  1680→        </div>
+  1681→      </div>
+  1682→    </div>
+  1683→  );
+  1684→}
+  1685→

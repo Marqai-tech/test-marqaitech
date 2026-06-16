@@ -13,7 +13,6 @@ import {
   FiClock,
   FiDollarSign,
   FiCalendar,
-  FiAlertTriangle,
   FiUserCheck,
   FiUsers,
   FiInfo,
@@ -21,15 +20,9 @@ import {
   FiMenu,
   FiBriefcase,
   FiTrendingUp,
-  FiUser,
-  FiMail,
-  FiPhone,
-  FiMapPin,
-  FiHeart,
-  FiCamera,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -576,7 +569,7 @@ function SettingsSectionCard({
 /* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'profile' | 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
+type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
 
 interface NavItem {
   key: TabKey;
@@ -585,7 +578,6 @@ interface NavItem {
 }
 
 const allNavItems: NavItem[] = [
-  { key: 'profile', label: 'My Profile', icon: <FiUser className="w-4 h-4" /> },
   { key: 'general', label: 'General', icon: <FiSettings className="w-4 h-4" /> },
   { key: 'payroll', label: 'Payroll', icon: <FiDollarSign className="w-4 h-4" /> },
   { key: 'leave', label: 'Leave', icon: <FiCalendar className="w-4 h-4" /> },
@@ -596,11 +588,6 @@ const allNavItems: NavItem[] = [
   { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
-];
-
-/** Tabs visible to non-admin roles (employee, manager, etc.) */
-const employeeOnlyNavItems: NavItem[] = [
-  { key: 'profile', label: 'My Profile', icon: <FiUser className="w-4 h-4" /> },
 ];
 
 /* ──────────────────────────────────────────────
@@ -616,17 +603,34 @@ export default function SettingsPage() {
 
 function SettingsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
-  // Determine which nav items this user can see
-  const navItems = isAdmin ? allNavItems : employeeOnlyNavItems;
-  const allowedTabKeys = navItems.map((n) => n.key);
+  // Redirect non-admins to My Profile page
+  useEffect(() => {
+    if (!isAdmin) {
+      router.replace('/my-profile');
+    }
+  }, [isAdmin, router]);
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-sm text-nexus-text-muted">Redirecting to My Profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
-  const validTabs: TabKey[] = ['profile', 'general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
-  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl) && allowedTabKeys.includes(tabFromUrl)) ? tabFromUrl : 'profile';
+  const navItems = allNavItems;
+  const allowedTabKeys = navItems.map((n) => n.key);
+  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
+  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl) && allowedTabKeys.includes(tabFromUrl)) ? tabFromUrl : 'general';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [saving, setSaving] = useState(false);
@@ -634,37 +638,11 @@ function SettingsContent() {
   // Sync activeTab with URL search params when they change
   useEffect(() => {
     const tabFromUrlUpdate = searchParams.get('tab') as TabKey | null;
-    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate) && allowedTabKeys.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'profile';
+    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate) && allowedTabKeys.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'general';
     setActiveTab(newTab);
   }, [searchParams, allowedTabKeys]);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
-  /* Profile state */
-  const [profileData, setProfileData] = useState<{
-    name: string;
-    email: string;
-    phone: string;
-    emergencyContactName: string;
-    emergencyContactPhone: string;
-    address: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-    dateOfBirth: string;
-    gender: string;
-    bloodGroup: string;
-    department: string;
-    designation: string;
-    branch: string;
-    employeeId: string;
-    dateOfJoining: string;
-  } | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   /* General settings state */
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -718,84 +696,6 @@ function SettingsContent() {
   }, []);
 
   useEffect(() => { queueMicrotask(() => fetchTenant()); }, [fetchTenant]);
-
-  /* Fetch user profile */
-  const fetchProfile = useCallback(async () => {
-    try {
-      setProfileLoading(true);
-      setProfileError(null);
-      const res = await fetch('/api/users/profile', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setProfileData({
-          name: data.name || '',
-          email: data.email || '',
-          phone: data.employee?.phone || '',
-          emergencyContactName: data.employee?.emergencyContactName || '',
-          emergencyContactPhone: data.employee?.emergencyContactPhone || '',
-          address: data.employee?.address || '',
-          city: data.employee?.city || '',
-          state: data.employee?.state || '',
-          zipCode: data.employee?.zipCode || '',
-          country: data.employee?.country || '',
-          dateOfBirth: data.employee?.dateOfBirth || '',
-          gender: data.employee?.gender || '',
-          bloodGroup: data.employee?.bloodGroup || '',
-          department: data.employee?.department || '',
-          designation: data.employee?.designation || '',
-          branch: data.employee?.branch || '',
-          employeeId: data.employee?.employeeId || '',
-          dateOfJoining: data.employee?.dateOfJoining || '',
-        });
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        setProfileError(errData.error || 'Failed to load profile. Please try again.');
-      }
-    } catch {
-      setProfileError('Network error. Please check your connection and try again.');
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
-
-  /* Save user profile */
-  const handleSaveProfile = async () => {
-    try {
-      setProfileSaving(true);
-      const res = await fetch('/api/users/profile', {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          name: profileData?.name,
-          phone: profileData?.phone,
-          emergencyContactName: profileData?.emergencyContactName,
-          emergencyContactPhone: profileData?.emergencyContactPhone,
-          address: profileData?.address,
-          city: profileData?.city,
-          state: profileData?.state,
-          zipCode: profileData?.zipCode,
-          country: profileData?.country,
-          dateOfBirth: profileData?.dateOfBirth || null,
-          gender: profileData?.gender,
-          bloodGroup: profileData?.bloodGroup,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Profile updated successfully');
-        setEditingProfile(false);
-        fetchProfile();
-      } else {
-        const data = await res.json();
-        toast.error(data.error || 'Failed to update profile');
-      }
-    } catch {
-      toast.error('Failed to update profile');
-    } finally {
-      setProfileSaving(false);
-    }
-  };
 
   /* Get default value for a field */
   const getDefaultValue = useCallback((key: string): string | number | boolean => {
@@ -941,10 +841,10 @@ function SettingsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
-            {isAdmin ? <FiSettings className="w-6 h-6 text-slate-500" /> : <FiUser className="w-6 h-6 text-slate-500" />}
-            {isAdmin ? 'Settings' : 'My Profile'}
+            <FiSettings className="w-6 h-6 text-slate-500" />
+            Settings
           </h1>
-          <p className="text-nexus-text-secondary mt-1">{isAdmin ? 'Manage system configuration and preferences' : 'View and update your personal information'}</p>
+          <p className="text-nexus-text-secondary mt-1">Manage system configuration and preferences</p>
         </div>
         {/* Mobile tab selector */}
         <button
@@ -1014,7 +914,7 @@ function SettingsContent() {
       )}
 
       {/* Main Layout: Sidebar + Content — sidebar hidden for employees (only 1 tab) */}
-      <div className={`flex flex-col md:flex-row gap-6${!isAdmin ? ' !flex-col' : ''}`}>
+      <div className="flex flex-col md:flex-row gap-6">
         {/* Left Sidebar Navigation (desktop) — only for admins who have multiple tabs */}
         {isAdmin && navItems.length > 1 && (
         <nav className="hidden md:block w-56 shrink-0">
@@ -1044,288 +944,6 @@ function SettingsContent() {
 
         {/* Right Content Area */}
         <div className="flex-1 min-w-0">
-          {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <div className="space-y-4">
-              {profileLoading ? (
-                <div className="nexus-card p-12 text-center">
-                  <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-                  <p className="text-sm text-nexus-text-muted">Loading profile...</p>
-                </div>
-              ) : profileError ? (
-                <div className="nexus-card p-12 text-center">
-                  <FiAlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-                  <h2 className="text-lg font-semibold text-nexus-text-primary mb-2">Failed to Load Profile</h2>
-                  <p className="text-sm text-nexus-text-secondary mb-4">{profileError}</p>
-                  <button
-                    onClick={() => fetchProfile()}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : profileData ? (
-                <>
-                  {/* Profile Header Card */}
-                  <div className="nexus-card">
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-                            <FiUser className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h2 className="text-lg font-semibold text-nexus-text-primary">My Profile</h2>
-                            <p className="text-xs text-nexus-text-muted">View and update your personal information</p>
-                          </div>
-                        </div>
-                        {!editingProfile ? (
-                          <button
-                            onClick={() => setEditingProfile(true)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
-                          >
-                            <FiEdit2 className="w-4 h-4" />
-                            Edit Profile
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setEditingProfile(false)}
-                              className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={handleSaveProfile}
-                              disabled={profileSaving}
-                              className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors"
-                            >
-                              <FiSave className="w-4 h-4" />
-                              {profileSaving ? 'Saving...' : 'Save Profile'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Avatar + Name Row */}
-                      <div className="flex items-center gap-4 pb-6 border-b border-nexus-border">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/20">
-                          {profileData.name ? profileData.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '??'}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-nexus-text-primary">{profileData.name || 'User'}</h3>
-                          <p className="text-sm text-nexus-text-muted">{profileData.email}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="nexus-badge nexus-badge-success capitalize">{user?.role?.replace('_', ' ') || 'employee'}</span>
-                            {profileData.employeeId && (
-                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 font-mono">{profileData.employeeId}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Horizontal Section Cards */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Basic Information Card */}
-                    <div className="nexus-card">
-                      <div className="p-5">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><FiUser className="w-4 h-4 text-blue-500" /></div>
-                          Basic Information
-                        </h4>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Full Name</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.name} onChange={(e) => setProfileData(p => p ? { ...p, name: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.name || '—'}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1 flex items-center gap-1"><FiMail className="w-3 h-3" /> Official Email</label>
-                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.email || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1 flex items-center gap-1"><FiPhone className="w-3 h-3" /> Phone</label>
-                            {editingProfile ? (
-                              <input type="tel" value={profileData.phone} onChange={(e) => setProfileData(p => p ? { ...p, phone: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="+91 98765 43210" />
-                            ) : (
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.phone || '—'}</p>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Gender</label>
-                              {editingProfile ? (
-                                <select value={profileData.gender} onChange={(e) => setProfileData(p => p ? { ...p, gender: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
-                                  <option value="">Select</option>
-                                  <option value="male">Male</option>
-                                  <option value="female">Female</option>
-                                  <option value="other">Other</option>
-                                </select>
-                              ) : (
-                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{profileData.gender || '—'}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Blood Group</label>
-                              {editingProfile ? (
-                                <select value={profileData.bloodGroup} onChange={(e) => setProfileData(p => p ? { ...p, bloodGroup: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white">
-                                  <option value="">Select</option>
-                                  <option value="A+">A+</option><option value="A-">A-</option>
-                                  <option value="B+">B+</option><option value="B-">B-</option>
-                                  <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                                  <option value="O+">O+</option><option value="O-">O-</option>
-                                </select>
-                              ) : (
-                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.bloodGroup || '—'}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Date of Birth</label>
-                            {editingProfile ? (
-                              <input type="date" value={profileData.dateOfBirth} onChange={(e) => setProfileData(p => p ? { ...p, dateOfBirth: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfBirth ? new Date(profileData.dateOfBirth + 'T00:00:00').toLocaleDateString() : '—'}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Work Information Card */}
-                    <div className="nexus-card">
-                      <div className="p-5">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center"><FiBriefcase className="w-4 h-4 text-emerald-500" /></div>
-                          Work Information
-                        </h4>
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Employee ID</label>
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{profileData.employeeId || '—'}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Date of Joining</label>
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.dateOfJoining ? new Date(profileData.dateOfJoining + 'T00:00:00').toLocaleDateString() : '—'}</p>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Department</label>
-                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.department || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Designation</label>
-                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.designation || '—'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Branch</label>
-                            <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.branch || '—'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Address Card */}
-                    <div className="nexus-card">
-                      <div className="p-5">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
-                          <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center"><FiMapPin className="w-4 h-4 text-violet-500" /></div>
-                          Address
-                        </h4>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Street Address</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.address} onChange={(e) => setProfileData(p => p ? { ...p, address: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.address || '—'}</p>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">City</label>
-                              {editingProfile ? (
-                                <input type="text" value={profileData.city} onChange={(e) => setProfileData(p => p ? { ...p, city: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                              ) : (
-                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.city || '—'}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">State</label>
-                              {editingProfile ? (
-                                <input type="text" value={profileData.state} onChange={(e) => setProfileData(p => p ? { ...p, state: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                              ) : (
-                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.state || '—'}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">ZIP Code</label>
-                              {editingProfile ? (
-                                <input type="text" value={profileData.zipCode} onChange={(e) => setProfileData(p => p ? { ...p, zipCode: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                              ) : (
-                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.zipCode || '—'}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-nexus-text-muted mb-1">Country</label>
-                              {editingProfile ? (
-                                <input type="text" value={profileData.country} onChange={(e) => setProfileData(p => p ? { ...p, country: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                              ) : (
-                                <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.country || '—'}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Emergency Contact Card */}
-                    <div className="nexus-card">
-                      <div className="p-5">
-                        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
-                          <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center"><FiHeart className="w-4 h-4 text-rose-500" /></div>
-                          Emergency Contact
-                        </h4>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Contact Name</label>
-                            {editingProfile ? (
-                              <input type="text" value={profileData.emergencyContactName} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactName: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactName || '—'}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-nexus-text-muted mb-1">Contact Phone</label>
-                            {editingProfile ? (
-                              <input type="tel" value={profileData.emergencyContactPhone} onChange={(e) => setProfileData(p => p ? { ...p, emergencyContactPhone: e.target.value } : p)} className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                            ) : (
-                              <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{profileData.emergencyContactPhone || '—'}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="nexus-card p-12 text-center">
-                  <FiUser className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
-                  <h2 className="text-lg font-semibold text-nexus-text-primary mb-2">No Profile Data</h2>
-                  <p className="text-nexus-text-secondary">Unable to load your profile information. Please try again later.</p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* General Tab */}
           {activeTab === 'general' && (
             <div className="space-y-4">
