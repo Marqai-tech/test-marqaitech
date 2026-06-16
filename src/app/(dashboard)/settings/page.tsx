@@ -607,23 +607,7 @@ function SettingsContent() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
-  // Redirect non-admins to My Profile page
-  useEffect(() => {
-    if (!isAdmin) {
-      router.replace('/my-profile');
-    }
-  }, [isAdmin, router]);
-
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-sm text-nexus-text-muted">Redirecting to My Profile...</p>
-        </div>
-      </div>
-    );
-  }
+  // ALL hooks must be called before any conditional returns (Rules of Hooks)
 
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
@@ -641,6 +625,14 @@ function SettingsContent() {
     const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate) && allowedTabKeys.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'general';
     setActiveTab(newTab);
   }, [searchParams, allowedTabKeys]);
+
+  // Redirect non-admins to My Profile page
+  useEffect(() => {
+    if (!isAdmin) {
+      router.replace('/my-profile');
+    }
+  }, [isAdmin, router]);
+
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -801,6 +793,18 @@ function SettingsContent() {
   };
 
   /* No longer needed — navItems are filtered by role, so employees never reach admin tabs */
+
+  // Early return for non-admins (after all hooks are called to satisfy Rules of Hooks)
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-sm text-nexus-text-muted">Redirecting to My Profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   /* Build section cards for module settings tabs */
   const renderModuleSections = (sections: SettingSection[]) => (
