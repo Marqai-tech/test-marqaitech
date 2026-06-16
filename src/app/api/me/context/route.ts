@@ -104,7 +104,7 @@ export async function GET(request: Request) {
       // Super admin: list all tenants
       availableTenants = await prisma.tenant.findMany({
         where: { status: 'active' },
-        select: { id: true, name: true, slug: true, plan: true, status: true },
+        select: { id: true, name: true, slug: true, plan: true, status: true, maxCompaniesAllowed: true },
         orderBy: { name: 'asc' },
       });
 
@@ -113,7 +113,15 @@ export async function GET(request: Request) {
       if (effectiveTenantId) {
         availableCompanyGroups = await prisma.companyGroup.findMany({
           where: { tenantId: effectiveTenantId },
-          select: { id: true, name: true, tenantId: true },
+          select: {
+            id: true,
+            name: true,
+            tenantId: true,
+            employeeLimitMode: true,
+            maxEmployees: true,
+            maxCompanies: true,
+            notes: true,
+          },
           orderBy: { name: 'asc' },
         });
         const groupIds = availableCompanyGroups.map((g) => g.id);
@@ -126,7 +134,7 @@ export async function GET(request: Request) {
               code: true,
               companyGroupId: true,
               companyGroup: { select: { id: true, name: true } },
-              _count: { select: { branches: true } },
+              _count: { select: { branches: true, employees: true } },
             },
             orderBy: { name: 'asc' },
           });
@@ -136,7 +144,15 @@ export async function GET(request: Request) {
       // Tenant admin: scope to own tenant only
       availableCompanyGroups = await prisma.companyGroup.findMany({
         where: { tenantId: callerTenantId },
-        select: { id: true, name: true, tenantId: true },
+        select: {
+          id: true,
+          name: true,
+          tenantId: true,
+          employeeLimitMode: true,
+          maxEmployees: true,
+          maxCompanies: true,
+          notes: true,
+        },
         orderBy: { name: 'asc' },
       });
       const groupIds = availableCompanyGroups.map((g) => g.id);
@@ -149,7 +165,7 @@ export async function GET(request: Request) {
             code: true,
             companyGroupId: true,
             companyGroup: { select: { id: true, name: true } },
-            _count: { select: { branches: true } },
+            _count: { select: { branches: true, employees: true } },
           },
           orderBy: { name: 'asc' },
         });
@@ -157,9 +173,51 @@ export async function GET(request: Request) {
     }
     // For all other roles, availableCompanies stays empty (no switching allowed)
 
+    // Resolve caller's tenant info (for header display + quota info)
+    const callerTenant = callerTenantId
+      ? await prisma.tenant.findUnique({
+          where: { id: callerTenantId },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            plan: true,
+            status: true,
+            maxCompaniesAllowed: true,
+            country: true,
+            currency: true,
+            timezone: true,
+          },
+        })
+      : null;
+
+    // Compute tenant-level company quota usage for tenant_admin
+    let tenantQuota: {
+      maxCompanies: number;
+      used: number;
+      remaining: number | null;
+    } | null = null;
+    if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
+      const groupsForQuota = await prisma.companyGroup.findMany({
+        where: { tenantId: callerTenant.id },
+        select: { id: true },
+      });
+      const groupIdsForQuota = groupsForQuota.map((g) => g.id);
+      const usedCompanies = groupIdsForQuota.length
+        ? await prisma.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } })
+        : 0;
+      tenantQuota = {
+        maxCompanies: callerTenant.maxCompaniesAllowed,
+        used: usedCompanies,
+        remaining: callerTenant.maxCompaniesAllowed > 0 ? Math.max(0, callerTenant.maxCompaniesAllowed - usedCompanies) : null,
+      };
+    }
+
     return NextResponse.json({
       role,
       tenantId: callerTenantId,
+      tenant: callerTenant,
+      tenantQuota,
       ownCompanyId,
       ownCompany,
       availableTenants,

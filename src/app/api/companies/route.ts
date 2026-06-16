@@ -68,13 +68,37 @@ export async function GET(req: NextRequest) {
     const companies = await db.company.findMany({
       where,
       include: {
-        companyGroup: { select: { id: true, name: true, tenantId: true } },
-        _count: { select: { departments: true, branches: true } },
+        companyGroup: {
+          select: {
+            id: true,
+            name: true,
+            tenantId: true,
+            maxEmployees: true,
+            employeeLimitMode: true,
+            maxCompanies: true,
+            notes: true,
+            tenant: { select: { id: true, name: true, slug: true, maxCompaniesAllowed: true } },
+          },
+        },
+        _count: { select: { departments: true, branches: true, employees: true } },
       },
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({ companies }, { headers: corsHeaders() });
+    return NextResponse.json(
+      {
+        companies,
+        // Also expose the caller's tenant-level quota so the UI can render
+        // "X of Y companies used" without an extra round-trip.
+        tenantQuota: effectiveTenantId
+          ? await db.tenant.findUnique({
+              where: { id: effectiveTenantId },
+              select: { id: true, name: true, slug: true, maxCompaniesAllowed: true },
+            })
+          : null,
+      },
+      { headers: corsHeaders() }
+    );
   } catch (error: unknown) {
     console.error('Get companies error:', error);
     return NextResponse.json({ companies: [] }, { headers: corsHeaders() });
@@ -82,6 +106,16 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/companies — Create a company (super_admin or tenant_admin only)
+//
+// Multi-tenancy rules enforced:
+//   1. The target tenant is the caller's tenant for tenant_admin, or any tenant
+//      for super_admin (via body.tenantId).
+//   2. The company MUST be inducted into an explicit company group (a.k.a. "group
+//      company"). If `companyGroupId` is missing we'll try to auto-create a group
+//      named after the company, but only if the tenant's quota allows it.
+//   3. Enforce tenant.maxCompaniesAllowed — the cap on total companies the
+//      tenant_admin can create under this tenant.
+//   4. Enforce group.maxCompanies — the per-group company cap set by super_admin.
 export async function POST(req: NextRequest) {
   try {
     const decoded = await requireAuth(req);
@@ -108,26 +142,88 @@ export async function POST(req: NextRequest) {
     }
 
     // Resolve target tenant
-    let targetTenantId = callerTenantId;
-    if (role === 'super_admin' && bodyTenantId) {
-      targetTenantId = bodyTenantId;
+    const targetTenantId = role === 'super_admin' ? (bodyTenantId || callerTenantId) : callerTenantId;
+    if (!targetTenantId) {
+      return NextResponse.json({ error: 'Could not resolve target tenant' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve company group: either use provided one (must belong to target tenant),
-    // or create a new one under the target tenant
-    let groupId = companyGroupId;
+    // Fetch the tenant (we need maxCompaniesAllowed + name for the response)
+    const targetTenant = await db.tenant.findUnique({
+      where: { id: targetTenantId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        maxCompaniesAllowed: true,
+        _count: { select: { companyGroups: true } },
+      },
+    });
+    if (!targetTenant) {
+      return NextResponse.json({ error: 'Target tenant not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // ─── Quota check #1: tenant.maxCompaniesAllowed ───
+    // Count current companies across all groups in this tenant
+    const groupsInTenant = await db.companyGroup.findMany({
+      where: { tenantId: targetTenantId },
+      select: { id: true },
+    });
+    const groupIdsInTenant = groupsInTenant.map((g) => g.id);
+    const currentCompanyCount = groupIdsInTenant.length
+      ? await db.company.count({ where: { companyGroupId: { in: groupIdsInTenant } } })
+      : 0;
+
+    if (targetTenant.maxCompaniesAllowed > 0 && currentCompanyCount >= targetTenant.maxCompaniesAllowed) {
+      return NextResponse.json(
+        {
+          error: `Company limit reached. This tenant ("${targetTenant.name}") is allowed to create ${targetTenant.maxCompaniesAllowed} compan(y/ies) max (currently ${currentCompanyCount}). Contact your super admin to raise the limit.`,
+          code: 'TENANT_COMPANY_LIMIT_REACHED',
+          limit: targetTenant.maxCompaniesAllowed,
+          current: currentCompanyCount,
+        },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
+    // ─── Resolve the group company (must belong to the target tenant) ───
+    let groupId = companyGroupId as string | undefined;
+    let groupRecord: { id: string; name: string; tenantId: string; maxCompanies: number | null; employeeLimitMode: string; maxEmployees: number | null } | null = null;
+
     if (groupId) {
-      const existingGroup = await db.companyGroup.findUnique({ where: { id: groupId } });
-      if (!existingGroup || existingGroup.tenantId !== targetTenantId) {
-        return NextResponse.json({ error: 'Invalid company group for the selected tenant' }, { status: 400, headers: corsHeaders() });
+      groupRecord = await db.companyGroup.findUnique({
+        where: { id: groupId },
+        select: { id: true, name: true, tenantId: true, maxCompanies: true, employeeLimitMode: true, maxEmployees: true },
+      });
+      if (!groupRecord || groupRecord.tenantId !== targetTenantId) {
+        return NextResponse.json(
+          { error: 'The selected group company does not belong to the target tenant' },
+          { status: 400, headers: corsHeaders() }
+        );
       }
     } else {
-      // Auto-create a group under the target tenant
-      const groupName = companyGroupName || `${name} Group`;
-      const newGroup = await db.companyGroup.create({
+      // Auto-create a group under the target tenant (back-compat)
+      const groupName = (companyGroupName && String(companyGroupName).trim()) || `${name} Group`;
+      groupRecord = await db.companyGroup.create({
         data: { name: groupName, tenantId: targetTenantId },
+        select: { id: true, name: true, tenantId: true, maxCompanies: true, employeeLimitMode: true, maxEmployees: true },
       });
-      groupId = newGroup.id;
+      groupId = groupRecord.id;
+    }
+
+    // ─── Quota check #2: group.maxCompanies ───
+    if (groupRecord.maxCompanies !== null && groupRecord.maxCompanies > 0) {
+      const companiesInThisGroup = await db.company.count({ where: { companyGroupId: groupId } });
+      if (companiesInThisGroup >= groupRecord.maxCompanies) {
+        return NextResponse.json(
+          {
+            error: `Group company "${groupRecord.name}" has reached its cap of ${groupRecord.maxCompanies} compan(y/ies). Choose another group or ask the super admin to raise the cap.`,
+            code: 'GROUP_COMPANY_LIMIT_REACHED',
+            limit: groupRecord.maxCompanies,
+            current: companiesInThisGroup,
+          },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
     }
 
     const company = await db.company.create({
@@ -150,12 +246,39 @@ export async function POST(req: NextRequest) {
         status: status || 'active',
       },
       include: {
-        companyGroup: { select: { id: true, name: true, tenantId: true } },
+        companyGroup: {
+          select: {
+            id: true,
+            name: true,
+            tenantId: true,
+            maxEmployees: true,
+            employeeLimitMode: true,
+            maxCompanies: true,
+            tenant: { select: { id: true, name: true, slug: true } },
+          },
+        },
         _count: { select: { departments: true, branches: true } },
       },
     });
 
-    return NextResponse.json({ company }, { status: 201, headers: corsHeaders() });
+    return NextResponse.json(
+      {
+        company,
+        // Echo back the parent tenant + group context so the UI can show
+        // exactly where this company was inducted.
+        context: {
+          tenant: { id: targetTenant.id, name: targetTenant.name, slug: targetTenant.slug },
+          companyGroup: { id: groupRecord.id, name: groupRecord.name },
+          quota: {
+            tenantMaxCompanies: targetTenant.maxCompaniesAllowed,
+            tenantCompaniesUsed: currentCompanyCount + 1,
+            groupMaxCompanies: groupRecord.maxCompanies,
+            groupCompaniesUsed: (await db.company.count({ where: { companyGroupId: groupId } })),
+          },
+        },
+      },
+      { status: 201, headers: corsHeaders() }
+    );
   } catch (error: unknown) {
     console.error('Create company error:', error);
     return NextResponse.json({ error: 'Failed to create company' }, { status: 500, headers: corsHeaders() });

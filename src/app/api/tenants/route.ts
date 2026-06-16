@@ -94,9 +94,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    let {
+    const {
       name, slug, domain, plan, country, currency, timezone, logo,
       adminName, adminEmail, adminPassword,
+      maxCompaniesAllowed,
     } = body;
 
     if (!name || !slug || !adminName || !adminEmail || !adminPassword) {
@@ -104,14 +105,6 @@ export async function POST(request: Request) {
         { error: 'Missing required fields: name, slug, adminName, adminEmail, adminPassword' },
         { status: 400, headers: corsHeaders() }
       );
-    }
-
-    // BRANDING GUARD: If creating a tenant with a non-"3 Boxes" name, force it to "3 Boxes Corp"
-    // This prevents eh2r, nexus, or any other wrong branding from being created
-    const ALLOWED_TENANT_NAMES = ['3 boxes corp', '3 boxes hrms', '3 boxes hrms demo'];
-    if (!ALLOWED_TENANT_NAMES.includes(name.toLowerCase())) {
-      console.warn('[Tenants] Blocked creation of tenant with name:', name, '- forcing to "3 Boxes Corp"');
-      name = '3 Boxes Corp';
     }
 
     // Check for duplicate slug
@@ -139,6 +132,8 @@ export async function POST(request: Request) {
         timezone: timezone || 'UTC',
         logo,
         status: 'pending_approval',
+        // Quota: how many companies the tenant_admin can create (0 = unlimited)
+        maxCompaniesAllowed: typeof maxCompaniesAllowed === 'number' && maxCompaniesAllowed >= 0 ? maxCompaniesAllowed : 0,
         users: {
           create: {
             email: adminEmail,

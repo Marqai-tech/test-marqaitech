@@ -320,6 +320,15 @@ export async function POST() {
       // Add unique constraint for PayrollComponent if missing
       `ALTER TABLE "PayrollComponent" DROP CONSTRAINT IF EXISTS "PayrollComponent_code_countryCode_key"`,
       `ALTER TABLE "PayrollComponent" ADD CONSTRAINT "PayrollComponent_code_countryCode_key" UNIQUE ("code", "countryCode")`,
+
+      // ─── Multi-tenancy quota / employee strength barriers ───
+      // Tenant: max companies the tenant_admin can create (0 = unlimited)
+      `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "maxCompaniesAllowed" INTEGER NOT NULL DEFAULT 0`,
+      // CompanyGroup: employee strength limits + per-group company cap + notes
+      `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "employeeLimitMode" TEXT NOT NULL DEFAULT 'group_total'`,
+      `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "maxEmployees" INTEGER`,
+      `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "maxCompanies" INTEGER`,
+      `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "notes" TEXT`,
     ];
 
     let altersExecuted = 0;

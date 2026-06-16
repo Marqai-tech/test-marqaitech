@@ -67,12 +67,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { token, user } = data;
 
-      // BRANDING GUARD: Never show wrong branding (eh2r, nexus, etc.)
-      if (user?.tenant && !user.tenant.name.toLowerCase().includes('3 boxes')) {
-        user.tenant.name = '3 Boxes Corp';
-        user.tenant.slug = '3boxes-corp';
-      }
-
       if (typeof window !== 'undefined') {
         localStorage.setItem('tb_token', token);
       }
@@ -152,12 +146,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const user = await res.json();
-
-      // BRANDING GUARD: Never show wrong branding
-      if (user?.tenant && !user.tenant.name.toLowerCase().includes('3 boxes')) {
-        user.tenant.name = '3 Boxes Corp';
-        user.tenant.slug = '3boxes-corp';
-      }
 
       set({
         user,

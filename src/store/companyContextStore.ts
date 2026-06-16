@@ -9,12 +9,17 @@ export interface TenantOption {
   slug: string;
   plan: string;
   status: string;
+  maxCompaniesAllowed?: number;
 }
 
 export interface CompanyGroupOption {
   id: string;
   name: string;
   tenantId: string;
+  employeeLimitMode?: 'per_company' | 'group_total';
+  maxEmployees?: number | null;
+  maxCompanies?: number | null;
+  notes?: string | null;
 }
 
 export interface CompanyOption {
@@ -23,7 +28,7 @@ export interface CompanyOption {
   code: string | null;
   companyGroupId: string;
   companyGroup: { id: string; name: string };
-  _count?: { branches: number };
+  _count?: { branches: number; employees?: number };
 }
 
 export interface OwnCompanyInfo {
@@ -32,11 +37,31 @@ export interface OwnCompanyInfo {
   code: string | null;
 }
 
+export interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  status: string;
+  maxCompaniesAllowed: number;
+  country?: string | null;
+  currency?: string;
+  timezone?: string;
+}
+
+export interface TenantQuota {
+  maxCompanies: number;
+  used: number;
+  remaining: number | null; // null = unlimited
+}
+
 interface CompanyContextState {
   // Hydrated from /api/me/context
   hydrated: boolean;
   role: string;
   tenantId: string | null;
+  tenant: TenantInfo | null;
+  tenantQuota: TenantQuota | null;
   ownCompanyId: string | null;
   ownCompany: OwnCompanyInfo | null;
   availableTenants: TenantOption[];
@@ -58,6 +83,8 @@ interface CompanyContextState {
   effectiveCompanyId: () => string | null;
   effectiveCompanyLabel: () => string;
   canSwitch: () => boolean;
+  selectedTenant: () => TenantOption | null;
+  selectedCompanyGroup: () => CompanyGroupOption | null;
 }
 
 function getAuthHeaders() {
@@ -71,6 +98,8 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       hydrated: false,
       role: 'employee',
       tenantId: null,
+      tenant: null,
+      tenantQuota: null,
       ownCompanyId: null,
       ownCompany: null,
       availableTenants: [],
@@ -114,6 +143,8 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             hydrated: true,
             role,
             tenantId: data.tenantId,
+            tenant: data.tenant || null,
+            tenantQuota: data.tenantQuota || null,
             ownCompanyId: data.ownCompanyId,
             ownCompany: data.ownCompany,
             availableTenants: data.availableTenants || [],
@@ -156,6 +187,8 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       reset: () => {
         set({
           hydrated: false,
+          tenant: null,
+          tenantQuota: null,
           availableTenants: [],
           availableCompanyGroups: [],
           availableCompanies: [],
@@ -191,6 +224,19 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       canSwitch: () => {
         const r = get().role;
         return r === 'super_admin' || r === 'tenant_admin';
+      },
+
+      selectedTenant: () => {
+        const s = get();
+        return s.availableTenants.find((t) => t.id === s.selectedTenantId) || null;
+      },
+
+      selectedCompanyGroup: () => {
+        const s = get();
+        if (!s.selectedCompanyId) return null;
+        const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
+        if (!c) return null;
+        return s.availableCompanyGroups.find((g) => g.id === c.companyGroupId) || null;
       },
     }),
     {

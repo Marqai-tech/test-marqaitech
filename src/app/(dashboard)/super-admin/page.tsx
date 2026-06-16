@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   FiServer, FiUsers, FiPlus, FiEdit2, FiEye, FiTrash2,
   FiX, FiSearch, FiRefreshCw, FiCreditCard, FiShield,
-  FiGlobe, FiSettings, FiDollarSign,
+  FiGlobe, FiSettings, FiDollarSign, FiLayers, FiHome,
   FiActivity, FiClock, FiFileText,
   FiChevronLeft, FiChevronRight as FiChevronRightIcon,
 } from 'react-icons/fi';
@@ -20,10 +20,26 @@ function getAuthHeaders() {
 interface Tenant {
   id: string; name: string; slug: string; domain: string | null; plan: string; status: string;
   country: string | null; currency: string; timezone: string; createdAt: string; logo?: string | null;
+  maxCompaniesAllowed?: number;
   _count?: { users: number; companyGroups: number; subscriptions: number };
   subscriptions?: { id: string; plan: { name: string }; status: string; startDate: string; endDate: string; amount: number }[];
   companyGroups?: { id: string; name: string; companies: { id: string; name: string; code: string | null; _count: { departments: number; branches: number; employees: number } }[] }[];
   users?: { id: string; name: string; email: string; role: string; status: string; lastLogin: string | null }[];
+}
+
+interface CompanyGroupRow {
+  id: string;
+  name: string;
+  tenantId: string;
+  tenantName?: string | null;
+  tenantSlug?: string | null;
+  employeeLimitMode: 'per_company' | 'group_total';
+  maxEmployees: number | null;
+  maxCompanies: number | null;
+  notes?: string | null;
+  createdAt: string;
+  _count?: { companies: number; employees: number };
+  companies?: { id: string; name: string; code: string | null; status: string; _count: { employees: number } }[];
 }
 
 interface SubscriptionPlan {
@@ -73,7 +89,7 @@ const planTypeLabel: Record<string, string> = {
 // ─── Main Component ───────────────────────────────────────
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'plans' | 'audit'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'groups' | 'plans' | 'audit'>('dashboard');
 
   // Dashboard state
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -94,6 +110,22 @@ export default function SuperAdminPage() {
   const [tenantForm, setTenantForm] = useState({
     name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC',
     adminName: '', adminEmail: '', adminPassword: '',
+    maxCompaniesAllowed: 0, // 0 = unlimited
+  });
+
+  // Company Groups state (super admin creates group companies with employee strength barriers)
+  const [groups, setGroups] = useState<CompanyGroupRow[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [submittingGroup, setSubmittingGroup] = useState(false);
+  const [groupForm, setGroupForm] = useState({
+    tenantId: '',
+    name: '',
+    employeeLimitMode: 'group_total' as 'per_company' | 'group_total',
+    maxEmployees: 0, // 0 = unlimited (will be sent as null)
+    maxCompanies: 0, // 0 = unlimited (will be sent as null)
+    notes: '',
   });
 
   // Plan state
@@ -206,6 +238,10 @@ export default function SuperAdminPage() {
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (activeTab === 'groups') queueMicrotask(() => fetchGroups());
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (activeTab === 'audit') queueMicrotask(() => fetchAuditLogs());
   }, [activeTab, auditPage, auditAction, auditModule, auditStartDate, auditEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -245,6 +281,7 @@ export default function SuperAdminPage() {
       name: tenant.name, slug: tenant.slug, domain: tenant.domain || '',
       plan: tenant.plan, country: tenant.country || '', currency: tenant.currency,
       timezone: tenant.timezone, adminName: '', adminEmail: '', adminPassword: '',
+      maxCompaniesAllowed: tenant.maxCompaniesAllowed ?? 0,
     });
   };
 
@@ -257,7 +294,7 @@ export default function SuperAdminPage() {
   const handleCancelTenantForm = () => {
     setShowTenantForm(false);
     setEditingTenantId(null);
-    setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '' });
+    setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 });
   };
 
   const handleSubmitTenant = async (e: React.FormEvent) => {
@@ -274,9 +311,15 @@ export default function SuperAdminPage() {
     try {
       const url = editingTenantId ? `/api/tenants/${editingTenantId}` : '/api/tenants';
       const method = editingTenantId ? 'PATCH' : 'POST';
+      // Always send maxCompaniesAllowed (0 = unlimited) so the questionnaire value is persisted
       const body = editingTenantId
-        ? { name: tenantForm.name, slug: tenantForm.slug, domain: tenantForm.domain || null, plan: tenantForm.plan, country: tenantForm.country || null, currency: tenantForm.currency, timezone: tenantForm.timezone }
-        : tenantForm;
+        ? {
+            name: tenantForm.name, slug: tenantForm.slug, domain: tenantForm.domain || null,
+            plan: tenantForm.plan, country: tenantForm.country || null,
+            currency: tenantForm.currency, timezone: tenantForm.timezone,
+            maxCompaniesAllowed: Number(tenantForm.maxCompaniesAllowed) || 0,
+          }
+        : { ...tenantForm, maxCompaniesAllowed: Number(tenantForm.maxCompaniesAllowed) || 0 };
       const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success(editingTenantId ? 'Tenant updated' : 'Tenant created');
@@ -305,6 +348,79 @@ export default function SuperAdminPage() {
       toast.success(`Tenant ${newStatus === 'active' ? 'activated' : 'suspended'}`);
       fetchTenants();
     } catch { toast.error('Action failed'); }
+  };
+
+  // ─── Company Group Handlers ───────────────────────────
+  const fetchGroups = useCallback(async () => {
+    try {
+      setGroupsLoading(true);
+      const res = await fetch('/api/company-groups', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setGroups(data.groups || []);
+      } else {
+        setGroups([]);
+      }
+    } catch {
+      toast.error('Failed to load group companies');
+      setGroups([]);
+    } finally {
+      setGroupsLoading(false);
+    }
+  }, []);
+
+  const handleCancelGroupForm = () => {
+    setShowGroupForm(false);
+    setEditingGroupId(null);
+    setGroupForm({ tenantId: '', name: '', employeeLimitMode: 'group_total', maxEmployees: 0, maxCompanies: 0, notes: '' });
+  };
+
+  const handleEditGroup = (g: CompanyGroupRow) => {
+    setEditingGroupId(g.id);
+    setShowGroupForm(true);
+    setGroupForm({
+      tenantId: g.tenantId,
+      name: g.name,
+      employeeLimitMode: g.employeeLimitMode === 'per_company' ? 'per_company' : 'group_total',
+      maxEmployees: g.maxEmployees ?? 0,
+      maxCompanies: g.maxCompanies ?? 0,
+      notes: g.notes || '',
+    });
+  };
+
+  const handleSubmitGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupForm.name.trim()) { toast.error('Group company name is required'); return; }
+    if (!groupForm.tenantId) { toast.error('Please select a tenant under which to create this group'); return; }
+    setSubmittingGroup(true);
+    try {
+      const payload = {
+        tenantId: groupForm.tenantId,
+        name: groupForm.name.trim(),
+        employeeLimitMode: groupForm.employeeLimitMode,
+        maxEmployees: Number(groupForm.maxEmployees) > 0 ? Number(groupForm.maxEmployees) : null,
+        maxCompanies: Number(groupForm.maxCompanies) > 0 ? Number(groupForm.maxCompanies) : null,
+        notes: groupForm.notes?.trim() || null,
+      };
+      const url = editingGroupId ? `/api/company-groups/${editingGroupId}` : '/api/company-groups';
+      const method = editingGroupId ? 'PATCH' : 'POST';
+      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      toast.success(editingGroupId ? 'Group company updated' : 'Group company created');
+      handleCancelGroupForm();
+      fetchGroups();
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Operation failed'); }
+    finally { setSubmittingGroup(false); }
+  };
+
+  const handleDeleteGroup = async (id: string, name: string) => {
+    if (!confirm(`Delete group company "${name}"? This is only allowed if the group has no companies attached.`)) return;
+    try {
+      const res = await fetch(`/api/company-groups/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      toast.success('Group company deleted');
+      fetchGroups();
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
   };
 
   // ─── Plan Handlers ──────────────────────────────────────
@@ -575,6 +691,18 @@ export default function SuperAdminPage() {
                 <div><p className="text-xs text-nexus-text-muted">Currency</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.currency}</p></div>
                 <div><p className="text-xs text-nexus-text-muted">Timezone</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.timezone}</p></div>
                 <div><p className="text-xs text-nexus-text-muted">Created</p><p className="text-sm font-medium text-nexus-text-primary">{new Date(viewingTenant.createdAt).toLocaleDateString()}</p></div>
+                <div className="sm:col-span-2 lg:col-span-2">
+                  <p className="text-xs text-nexus-text-muted">Max companies allowed for tenant admin</p>
+                  <p className="text-sm font-medium text-nexus-text-primary flex items-center gap-2">
+                    <FiShield className="w-3.5 h-3.5 text-amber-500" />
+                    {viewingTenant.maxCompaniesAllowed && viewingTenant.maxCompaniesAllowed > 0
+                      ? `${viewingTenant.maxCompaniesAllowed} companies max`
+                      : 'Unlimited (no cap)'}
+                    <span className="text-xs text-nexus-text-muted font-normal">
+                      · {viewingTenant._count?.companyGroups || 0} groups created so far
+                    </span>
+                  </p>
+                </div>
               </div>
 
               {/* Company Groups */}
@@ -674,6 +802,39 @@ export default function SuperAdminPage() {
                   <div><label className={labelCls}>Timezone</label><input value={tenantForm.timezone} onChange={(e) => setTenantForm({ ...tenantForm, timezone: e.target.value })} className={inputCls} placeholder="UTC" /></div>
                 </div>
 
+                {/* ─── Multi-tenancy questionnaire: max companies allowed for tenant admin ─── */}
+                <div className="pt-4 border-t border-nexus-border">
+                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+                    <FiShield className="w-4 h-4 text-amber-500" /> Company Quota for Tenant Admin
+                  </h4>
+                  <p className="text-xs text-nexus-text-muted mb-3">
+                    How many companies should this tenant admin be allowed to create under their tenant?
+                    Set <b>0</b> for unlimited. Once the limit is reached, the tenant admin will be blocked
+                    from creating more companies.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Max companies allowed</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={tenantForm.maxCompaniesAllowed}
+                        onChange={(e) => setTenantForm({ ...tenantForm, maxCompaniesAllowed: parseInt(e.target.value) || 0 })}
+                        className={inputCls}
+                        placeholder="0 = unlimited"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <p className="text-[11px] text-nexus-text-muted leading-snug pb-2.5">
+                        {Number(tenantForm.maxCompaniesAllowed) === 0
+                          ? 'Unlimited companies allowed for this tenant.'
+                          : `Tenant admin can create up to ${tenantForm.maxCompaniesAllowed} compan${tenantForm.maxCompaniesAllowed === 1 ? 'y' : 'ies'} under this tenant.`}
+                        <br />Use the <b>Group Companies</b> tab to set per-group employee-strength barriers.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Admin User (create only) */}
                 {!editingTenantId && (
                   <div className="pt-4 border-t border-nexus-border">
@@ -739,6 +900,11 @@ export default function SuperAdminPage() {
                           <span className={planBadgeCls[t.plan] || 'nexus-badge nexus-badge-info'}>{planTypeLabel[t.plan] || t.plan}</span>
                           <span className={statusBadgeCls[t.status] || 'nexus-badge nexus-badge-info'}>{t.status}</span>
                           {t.country && <span className="text-xs text-nexus-text-muted">{t.country}</span>}
+                          {t.maxCompaniesAllowed !== undefined && t.maxCompaniesAllowed > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-[10px] font-semibold" title="Max companies this tenant admin can create">
+                              <FiShield className="w-2.5 h-2.5" /> cap: {t.maxCompaniesAllowed} cos
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
@@ -757,6 +923,227 @@ export default function SuperAdminPage() {
                         </div>
                       </div>
                     </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ TAB 2.5: GROUP COMPANIES (super admin sets employee strength barriers) ═══ */}
+      {activeTab === 'groups' && (
+        <div className="space-y-4">
+          {/* Educational banner */}
+          <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <div className="flex items-start gap-3">
+              <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900">
+                <p className="font-semibold mb-1">Employee Strength Barriers</p>
+                <p>
+                  Create group companies under each tenant and cap how many employees they can hold. Choose
+                  <b> per-company </b> mode (cap applies to EACH company) or <b>group-total</b> mode (cap applies to
+                  the SUM across all companies in the group). The tenant admin will be blocked from creating more
+                  companies or loading more employees beyond these limits.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Create/Edit Group Form */}
+          {showGroupForm && (
+            <div className="nexus-card border-l-4 border-l-violet-500 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                  <FiLayers className="w-4 h-4 text-violet-500" />
+                  {editingGroupId ? 'Edit Group Company' : 'Create Group Company'}
+                </h3>
+                <button onClick={handleCancelGroupForm} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+              </div>
+              <form onSubmit={handleSubmitGroup} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Tenant (group company&apos;s parent) *</label>
+                    <select
+                      value={groupForm.tenantId}
+                      onChange={(e) => setGroupForm({ ...groupForm, tenantId: e.target.value })}
+                      required
+                      className={selectCls}
+                      disabled={!!editingGroupId}
+                    >
+                      <option value="">— Select a tenant —</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name} ({t.slug})</option>
+                      ))}
+                    </select>
+                    {editingGroupId && <p className="text-[11px] text-nexus-text-muted mt-1">Tenant cannot be changed after creation.</p>}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Group Company Name *</label>
+                    <input
+                      value={groupForm.name}
+                      onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                      required
+                      placeholder="e.g., Acme Group"
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-nexus-border">
+                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+                    <FiUsers className="w-4 h-4 text-amber-500" /> Employee Strength Barrier
+                  </h4>
+                  <p className="text-xs text-nexus-text-muted mb-3">
+                    Set a cap on how many employees can be loaded under this group. Leave 0 for unlimited.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Limit mode</label>
+                      <select
+                        value={groupForm.employeeLimitMode}
+                        onChange={(e) => setGroupForm({ ...groupForm, employeeLimitMode: e.target.value as 'per_company' | 'group_total' })}
+                        className={selectCls}
+                      >
+                        <option value="group_total">Group total — cap = SUM across all companies in this group</option>
+                        <option value="per_company">Per company — cap applies to EACH company in this group</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Max employees (0 = unlimited)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={groupForm.maxEmployees}
+                        onChange={(e) => setGroupForm({ ...groupForm, maxEmployees: parseInt(e.target.value) || 0 })}
+                        className={inputCls}
+                        placeholder="e.g., 500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-nexus-border">
+                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+                    <FiLayers className="w-4 h-4 text-blue-500" /> Company Cap (optional)
+                  </h4>
+                  <p className="text-xs text-nexus-text-muted mb-3">
+                    Optionally cap how many companies can be inducted under this group. Leave 0 for unlimited.
+                    (The tenant-level maxCompaniesAllowed still applies on top of this.)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Max companies in this group (0 = unlimited)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={groupForm.maxCompanies}
+                        onChange={(e) => setGroupForm({ ...groupForm, maxCompanies: parseInt(e.target.value) || 0 })}
+                        className={inputCls}
+                        placeholder="e.g., 5"
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Admin notes (optional)</label>
+                      <input
+                        value={groupForm.notes}
+                        onChange={(e) => setGroupForm({ ...groupForm, notes: e.target.value })}
+                        className={inputCls}
+                        placeholder="e.g., Sales cluster — cap at 200 staff"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={handleCancelGroupForm} className="px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
+                  <button type="submit" disabled={submittingGroup} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-500 hover:bg-violet-600 shadow-sm shadow-violet-500/25 rounded-lg disabled:opacity-50">
+                    {submittingGroup ? 'Saving...' : editingGroupId ? 'Update Group' : 'Create Group'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Search + refresh */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => fetchGroups()} className="p-2.5 border border-nexus-border rounded-lg hover:bg-slate-50"><FiRefreshCw className="w-4 h-4 text-nexus-text-muted" /></button>
+            <p className="text-xs text-nexus-text-muted">{groups.length} group companies across all tenants</p>
+          </div>
+
+          {/* Groups list */}
+          {groupsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="nexus-card p-5 animate-pulse">
+                  <div className="flex justify-between">
+                    <div className="space-y-2"><div className="h-4 w-40 bg-slate-200 rounded" /><div className="h-3 w-28 bg-slate-100 rounded" /></div>
+                    <div className="h-6 w-24 bg-slate-100 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="nexus-card p-12 text-center">
+              <FiLayers className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" />
+              <p className="text-nexus-text-secondary">No group companies created yet</p>
+              <p className="text-xs text-nexus-text-muted mt-1">Create a group company under a tenant to set employee-strength barriers.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {groups.map((g) => (
+                <div key={g.id} className="nexus-card p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        <FiLayers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-nexus-text-primary">{g.name}</h3>
+                        <p className="text-sm text-nexus-text-muted flex items-center gap-1.5 flex-wrap">
+                          <FiHome className="w-3 h-3" /> Tenant: <span className="font-medium text-nexus-text-secondary">{g.tenantName || g.tenantId}</span>
+                          <span className="opacity-50">·</span> {g._count?.companies || 0} companies
+                          <span className="opacity-50">·</span> {g._count?.employees || 0} employees
+                        </p>
+                        {g.notes && <p className="text-xs text-nexus-text-muted italic mt-1">“{g.notes}”</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Employee strength badge */}
+                      {g.maxEmployees !== null && g.maxEmployees !== undefined && g.maxEmployees > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-[11px] font-semibold">
+                          <FiUsers className="w-3 h-3" />
+                          {g.employeeLimitMode === 'per_company' ? 'per-co' : 'group-total'}: {g._count?.employees || 0}/{g.maxEmployees}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-[11px] font-semibold">
+                          <FiUsers className="w-3 h-3" /> no emp cap
+                        </span>
+                      )}
+                      {/* Company cap badge */}
+                      {g.maxCompanies !== null && g.maxCompanies !== undefined && g.maxCompanies > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 ring-1 ring-blue-200 text-[11px] font-semibold">
+                          <FiLayers className="w-3 h-3" /> co cap: {g._count?.companies || 0}/{g.maxCompanies}
+                        </span>
+                      )}
+                      <button onClick={() => handleEditGroup(g)} className="p-1.5 text-nexus-text-muted hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDeleteGroup(g.id, g.name)} className="p-1.5 text-nexus-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+
+                  {/* Companies under this group */}
+                  {g.companies && g.companies.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                      {g.companies.map((c) => (
+                        <div key={c.id} className="flex items-center gap-3 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
+                          <FiServer className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-medium text-nexus-text-primary">{c.name}</span>
+                          {c.code && <span className="nexus-badge nexus-badge-info text-[10px]">{c.code}</span>}
+                          <span className="ml-auto">{c._count?.employees || 0} emp</span>
+                          <span className={`nexus-badge text-[10px] ${c.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-info'}`}>{c.status}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               ))}

@@ -360,6 +360,94 @@ export async function POST(request: Request) {
         );
       }
 
+      // ─── Multi-tenancy: enforce group company employee strength limit ───
+      //
+      // If the new employee is being attached to a company that belongs to a
+      // CompanyGroup with a `maxEmployees` barrier set, we need to verify the
+      // barrier won't be breached.
+      //
+      // Two modes (group.employeeLimitMode):
+      //   - 'per_company'  -> maxEmployees applies to EACH company in the group
+      //   - 'group_total'  -> maxEmployees applies to the SUM across all companies
+      //
+      // If the company is not provided but a branch is, we'll resolve the
+      // company from the branch.
+      let effectiveCompanyId: string | null = companyId || null;
+      if (!effectiveCompanyId && branchId) {
+        const branch = await prisma.branch.findUnique({
+          where: { id: branchId },
+          select: { companyId: true },
+        });
+        if (branch) effectiveCompanyId = branch.companyId;
+      }
+
+      if (effectiveCompanyId) {
+        const company = await prisma.company.findUnique({
+          where: { id: effectiveCompanyId },
+          select: {
+            id: true,
+            name: true,
+            companyGroupId: true,
+            companyGroup: {
+              select: {
+                id: true,
+                name: true,
+                employeeLimitMode: true,
+                maxEmployees: true,
+              },
+            },
+          },
+        });
+
+        if (company?.companyGroup && company.companyGroup.maxEmployees !== null && company.companyGroup.maxEmployees > 0) {
+          const grp = company.companyGroup;
+          if (grp.employeeLimitMode === 'per_company') {
+            const countInCompany = await prisma.employee.count({
+              where: { companyId: effectiveCompanyId, status: 'active' },
+            });
+            if (countInCompany >= grp.maxEmployees) {
+              return NextResponse.json(
+                {
+                  error: `Employee strength barrier reached. Company "${company.name}" already has ${countInCompany} active employee(s); the group "${grp.name}" caps each company at ${grp.maxEmployees}. Ask the super admin to raise the limit.`,
+                  code: 'EMPLOYEE_STRENGTH_LIMIT_REACHED',
+                  mode: 'per_company',
+                  limit: grp.maxEmployees,
+                  current: countInCompany,
+                  companyName: company.name,
+                  groupName: grp.name,
+                },
+                { status: 403, headers: corsHeaders() }
+              );
+            }
+          } else {
+            // group_total mode
+            const groupCompanyIds = await prisma.company.findMany({
+              where: { companyGroupId: grp.id },
+              select: { id: true },
+            });
+            const countInGroup = await prisma.employee.count({
+              where: {
+                companyId: { in: groupCompanyIds.map((c) => c.id) },
+                status: 'active',
+              },
+            });
+            if (countInGroup >= grp.maxEmployees) {
+              return NextResponse.json(
+                {
+                  error: `Employee strength barrier reached. Group company "${grp.name}" already has ${countInGroup} active employee(s) across all its companies; the cap is ${grp.maxEmployees}. Ask the super admin to raise the limit.`,
+                  code: 'EMPLOYEE_STRENGTH_LIMIT_REACHED',
+                  mode: 'group_total',
+                  limit: grp.maxEmployees,
+                  current: countInGroup,
+                  groupName: grp.name,
+                },
+                { status: 403, headers: corsHeaders() }
+              );
+            }
+          }
+        }
+      }
+
       const employee = await prisma.employee.create({
         data: {
           employeeId,

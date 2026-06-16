@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiPlus, FiBriefcase, FiEdit2, FiSearch, FiRefreshCw,
   FiX, FiCheck, FiInfo, FiLayers, FiServer, FiAlertCircle,
+  FiHome, FiShield, FiUsers, FiChevronDown,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -14,6 +15,39 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
+// Common countries + currencies for the dropdowns
+const COUNTRIES = [
+  'India', 'United States', 'United Kingdom', 'Australia', 'Canada',
+  'Singapore', 'United Arab Emirates', 'Saudi Arabia', 'Germany',
+  'France', 'Netherlands', 'Ireland', 'Japan', 'South Africa',
+  'Malaysia', 'Philippines', 'Indonesia', 'Bangladesh', 'Nepal', 'Sri Lanka',
+];
+
+const CURRENCIES = [
+  { code: 'INR', label: 'INR — Indian Rupee' },
+  { code: 'USD', label: 'USD — US Dollar' },
+  { code: 'EUR', label: 'EUR — Euro' },
+  { code: 'GBP', label: 'GBP — British Pound' },
+  { code: 'AUD', label: 'AUD — Australian Dollar' },
+  { code: 'CAD', label: 'CAD — Canadian Dollar' },
+  { code: 'SGD', label: 'SGD — Singapore Dollar' },
+  { code: 'AED', label: 'AED — UAE Dirham' },
+  { code: 'SAR', label: 'SAR — Saudi Riyal' },
+  { code: 'JPY', label: 'JPY — Japanese Yen' },
+  { code: 'ZAR', label: 'ZAR — South African Rand' },
+  { code: 'MYR', label: 'MYR — Malaysian Ringgit' },
+  { code: 'BDT', label: 'BDT — Bangladeshi Taka' },
+  { code: 'NPR', label: 'NPR — Nepalese Rupee' },
+  { code: 'LKR', label: 'LKR — Sri Lankan Rupee' },
+];
+
+const TIMEZONES = [
+  'Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Asia/Tokyo',
+  'America/New_York', 'America/Los_Angeles', 'America/Toronto',
+  'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'Europe/Amsterdam',
+  'Australia/Sydney', 'Africa/Johannesburg', 'UTC',
+];
+
 interface CompanyRow {
   id: string;
   name: string;
@@ -22,40 +56,67 @@ interface CompanyRow {
   city?: string | null;
   state?: string | null;
   country?: string | null;
+  currency?: string | null;
   email?: string | null;
   phone?: string | null;
-  companyGroup: { id: string; name: string; tenantId: string };
-  _count?: { departments: number; branches: number };
+  companyGroup: {
+    id: string;
+    name: string;
+    tenantId: string;
+    maxEmployees?: number | null;
+    employeeLimitMode?: 'per_company' | 'group_total';
+    maxCompanies?: number | null;
+    notes?: string | null;
+    tenant?: { id: string; name: string; slug: string; maxCompaniesAllowed: number };
+  };
+  _count?: { departments: number; branches: number; employees: number };
 }
+
+interface TenantQuota {
+  maxCompanies: number;
+  used: number;
+  remaining: number | null;
+}
+
+const EMPTY_FORM = {
+  name: '',
+  code: '',
+  companyGroupId: '',
+  companyGroupName: '',
+  registrationNo: '',
+  taxId: '',
+  country: 'India',
+  currency: 'INR',
+  timezone: 'Asia/Kolkata',
+  address: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  phone: '',
+  email: '',
+  website: '',
+};
 
 export default function TenantCompaniesPage() {
   const { user } = useAuthStore();
-  const { hydrate, availableCompanyGroups, hydrated: ctxHydrated } = useCompanyContextStore();
+  const { hydrate, availableCompanyGroups, hydrated: ctxHydrated, tenant, tenantQuota } = useCompanyContextStore();
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [activeTenantName, setActiveTenantName] = useState<string | null>(null);
+  const [activeTenantQuota, setActiveTenantQuota] = useState<TenantQuota | null>(null);
 
   // Create-form state
-  const [form, setForm] = useState({
-    name: '',
-    code: '',
-    companyGroupId: '',
-    companyGroupName: '',
-    registrationNo: '',
-    taxId: '',
-    country: 'India',
-    currency: 'INR',
-    timezone: 'Asia/Kolkata',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    phone: '',
-    email: '',
-    website: '',
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+
+  // Selected group for the create modal — when user picks a group, we display
+  // the inherited employee-strength barrier so they know what they're working with
+  const selectedGroupForForm = useMemo(
+    () => availableCompanyGroups.find((g) => g.id === form.companyGroupId) || null,
+    [availableCompanyGroups, form.companyGroupId]
+  );
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -64,6 +125,17 @@ export default function TenantCompaniesPage() {
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setCompanies(data.companies || []);
+      // Also pick up the tenantQuota that the API returns alongside
+      if (data.tenantQuota) {
+        setActiveTenantName(data.tenantQuota.name || null);
+        setActiveTenantQuota({
+          maxCompanies: data.tenantQuota.maxCompaniesAllowed ?? 0,
+          used: (data.companies || []).length,
+          remaining: data.tenantQuota.maxCompaniesAllowed > 0
+            ? Math.max(0, data.tenantQuota.maxCompaniesAllowed - (data.companies || []).length)
+            : null,
+        });
+      }
     } catch (e) {
       console.error(e);
       toast.error('Failed to load companies');
@@ -80,7 +152,11 @@ export default function TenantCompaniesPage() {
   const filtered = companies.filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return c.name.toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q) || c.companyGroup?.name?.toLowerCase().includes(q);
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.code || '').toLowerCase().includes(q) ||
+      c.companyGroup?.name?.toLowerCase().includes(q)
+    );
   });
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -88,6 +164,16 @@ export default function TenantCompaniesPage() {
     if (!form.name.trim()) {
       toast.error('Company name is required');
       return;
+    }
+    // If a group is selected, make sure it has room for another company
+    if (selectedGroupForForm?.maxCompanies !== null && selectedGroupForForm?.maxCompanies !== undefined && selectedGroupForForm.maxCompanies > 0) {
+      const usedInGroup = companies.filter((c) => c.companyGroup?.id === selectedGroupForForm.id).length;
+      if (usedInGroup >= selectedGroupForForm.maxCompanies) {
+        toast.error(
+          `Group "${selectedGroupForForm.name}" has reached its cap of ${selectedGroupForForm.maxCompanies} companies. Pick another group or ask your super admin to raise the cap.`
+        );
+        return;
+      }
     }
     setCreating(true);
     try {
@@ -100,13 +186,19 @@ export default function TenantCompaniesPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to create company');
       }
-      toast.success(`Company "${form.name}" created`);
+      const data = await res.json();
+      // The API echoes back the parent context — surface it in the toast so the
+      // user can clearly see WHICH tenant and WHICH group the company went into.
+      const ctx = data?.context;
+      if (ctx) {
+        toast.success(
+          `Created "${form.name}" under tenant "${ctx.tenant.name}" → group "${ctx.companyGroup.name}"`
+        );
+      } else {
+        toast.success(`Company "${form.name}" created`);
+      }
       setShowCreate(false);
-      setForm({
-        name: '', code: '', companyGroupId: '', companyGroupName: '',
-        registrationNo: '', taxId: '', country: 'India', currency: 'INR', timezone: 'Asia/Kolkata',
-        address: '', city: '', state: '', zipCode: '', phone: '', email: '', website: '',
-      });
+      setForm({ ...EMPTY_FORM });
       fetchCompanies();
       hydrate(true); // refresh context so the new company appears in the switcher
     } catch (e) {
@@ -119,6 +211,12 @@ export default function TenantCompaniesPage() {
 
   const totalBranches = companies.reduce((s, c) => s + (c._count?.branches || 0), 0);
   const totalGroups = new Set(companies.map((c) => c.companyGroup?.id)).size;
+  const totalEmployees = companies.reduce((s, c) => s + (c._count?.employees || 0), 0);
+
+  // Quota display: prefer tenantQuota from context store, fall back to the per-fetch one
+  const quota = tenantQuota || activeTenantQuota;
+  const tenantName = tenant?.name || activeTenantName || user?.tenant?.name || 'your tenant';
+  const quotaReached = !!quota && quota.maxCompanies > 0 && quota.used >= quota.maxCompanies;
 
   return (
     <div className="space-y-6">
@@ -131,8 +229,16 @@ export default function TenantCompaniesPage() {
             <div>
               <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">Tenant Administration</p>
               <h1 className="text-2xl font-bold text-white mt-1">Companies</h1>
-              <p className="text-blue-100/60 text-sm font-medium mt-1">
-                Manage companies under your group · {companies.length} companies · {totalGroups} groups · {totalBranches} branches
+              <p className="text-blue-100/60 text-sm font-medium mt-1 flex items-center gap-1.5 flex-wrap">
+                <FiHome className="w-3.5 h-3.5" />
+                <span>Inducted under tenant:</span>
+                <span className="font-bold text-white">{tenantName}</span>
+                <span className="opacity-50">·</span>
+                <span>{companies.length} companies</span>
+                <span className="opacity-50">·</span>
+                <span>{totalGroups} groups</span>
+                <span className="opacity-50">·</span>
+                <span>{totalBranches} branches</span>
               </p>
             </div>
             <div className="flex gap-2">
@@ -143,8 +249,18 @@ export default function TenantCompaniesPage() {
                 <FiRefreshCw className="w-4 h-4" /> Refresh
               </button>
               <button
-                onClick={() => setShowCreate(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+                onClick={() => {
+                  if (quotaReached) {
+                    toast.error(
+                      `Company quota reached — your tenant is allowed ${quota!.maxCompanies} companies max. Contact your super admin to raise the limit.`
+                    );
+                    return;
+                  }
+                  setShowCreate(true);
+                }}
+                disabled={quotaReached}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                title={quotaReached ? 'Company quota reached' : 'Create new company'}
               >
                 <FiPlus className="w-4 h-4" /> New Company
               </button>
@@ -153,12 +269,41 @@ export default function TenantCompaniesPage() {
         </div>
       </div>
 
+      {/* QUOTA BANNER */}
+      {quota && (
+        <div
+          className={`rounded-xl p-4 border flex items-start gap-3 ${
+            quotaReached
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : quota.maxCompanies > 0
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          }`}
+        >
+          <FiShield className={`w-5 h-5 mt-0.5 flex-shrink-0 ${quotaReached ? 'text-red-500' : quota.maxCompanies > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+          <div className="flex-1">
+            <p className="text-sm font-bold">
+              {quota.maxCompanies > 0
+                ? `Company quota: ${quota.used} of ${quota.maxCompanies} used`
+                : `Company quota: ${quota.used} created (unlimited allowed)`}
+            </p>
+            <p className="text-xs opacity-80 mt-0.5">
+              {quota.maxCompanies > 0
+                ? quotaReached
+                  ? `You have reached the cap of ${quota.maxCompanies} companies under tenant "${tenantName}". Ask your super admin to raise the limit to create more.`
+                  : `${quota.remaining} more compan${quota.remaining === 1 ? 'y' : 'ies'} can be created under this tenant.`
+                : `Tenant "${tenantName}" has no company cap — create as many as you need.`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Companies" value={companies.length} icon={<FiBriefcase className="w-5 h-5" />} bg="bg-indigo-50 text-indigo-600" ring="ring-indigo-100" />
         <StatCard label="Group Companies" value={totalGroups} icon={<FiLayers className="w-5 h-5" />} bg="bg-violet-50 text-violet-600" ring="ring-violet-100" />
         <StatCard label="Branches" value={totalBranches} icon={<FiServer className="w-5 h-5" />} bg="bg-emerald-50 text-emerald-600" ring="ring-emerald-100" />
-        <StatCard label="Active" value={companies.filter((c) => c.status === 'active').length} icon={<FiCheck className="w-5 h-5" />} bg="bg-amber-50 text-amber-600" ring="ring-amber-100" />
+        <StatCard label="Employees" value={totalEmployees} icon={<FiUsers className="w-5 h-5" />} bg="bg-amber-50 text-amber-600" ring="ring-amber-100" />
       </div>
 
       {/* SEARCH */}
@@ -186,9 +331,11 @@ export default function TenantCompaniesPage() {
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <FiAlertCircle className="w-10 h-10 mb-3" />
             <p className="text-sm font-medium">No companies found</p>
-            <button onClick={() => setShowCreate(true)} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-              + Create your first company
-            </button>
+            {!quotaReached && (
+              <button onClick={() => setShowCreate(true)} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                + Create your first company
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -196,8 +343,10 @@ export default function TenantCompaniesPage() {
               <thead className="bg-slate-50/80 border-b border-slate-100">
                 <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-3">Company</th>
-                  <th className="px-5 py-3">Group</th>
+                  <th className="px-5 py-3">Group Company</th>
                   <th className="px-5 py-3">Location</th>
+                  <th className="px-5 py-3">Currency</th>
+                  <th className="px-5 py-3 text-center">Employees</th>
                   <th className="px-5 py-3 text-center">Branches</th>
                   <th className="px-5 py-3 text-center">Departments</th>
                   <th className="px-5 py-3">Status</th>
@@ -205,43 +354,58 @@ export default function TenantCompaniesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-                          {c.name[0]?.toUpperCase()}
+                {filtered.map((c) => {
+                  const groupMax = c.companyGroup?.maxEmployees;
+                  const groupMode = c.companyGroup?.employeeLimitMode;
+                  const groupHasLimit = groupMax !== null && groupMax !== undefined && (groupMax as number) > 0;
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            {c.name[0]?.toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{c.name}</p>
+                            <p className="text-xs text-slate-500">{c.code || '—'}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 truncate">{c.name}</p>
-                          <p className="text-xs text-slate-500">{c.code || '—'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-sm text-slate-700">{c.companyGroup?.name || '—'}</td>
-                    <td className="px-5 py-3 text-sm text-slate-700">
-                      {[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}
-                    </td>
-                    <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.branches || 0}</td>
-                    <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.departments || 0}</td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ${
-                        c.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-slate-100 text-slate-700 ring-slate-200'
-                      }`}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => toast('Editing coming soon — use the sidebar to manage branches & departments')}
-                        className="text-slate-400 hover:text-indigo-600"
-                        title="Edit (coming soon)"
-                      >
-                        <FiEdit2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-3">
+                        <p className="text-sm text-slate-700 font-medium">{c.companyGroup?.name || '—'}</p>
+                        {groupHasLimit && (
+                          <p className="text-[10px] text-amber-700 flex items-center gap-0.5 mt-0.5">
+                            <FiUsers className="w-2.5 h-2.5" />
+                            {groupMode === 'per_company' ? 'per-company' : 'group-total'} cap: {groupMax}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-slate-700">
+                        {[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-slate-700">{c.currency || '—'}</td>
+                      <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.employees || 0}</td>
+                      <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.branches || 0}</td>
+                      <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.departments || 0}</td>
+                      <td className="px-5 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ${
+                          c.status === 'active' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-slate-100 text-slate-700 ring-slate-200'
+                        }`}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => toast('Editing coming soon — use the sidebar to manage branches & departments')}
+                          className="text-slate-400 hover:text-indigo-600"
+                          title="Edit (coming soon)"
+                        >
+                          <FiEdit2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -257,8 +421,10 @@ export default function TenantCompaniesPage() {
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <FiPlus className="w-4 h-4 text-indigo-500" /> Create New Company
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Add a company under your tenant. A group company will be auto-created if not specified.
+                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 flex-wrap">
+                  <FiHome className="w-3 h-3" />
+                  <span>Inducting under tenant:</span>
+                  <span className="font-bold text-indigo-700">{tenantName}</span>
                 </p>
               </div>
               <button
@@ -270,6 +436,20 @@ export default function TenantCompaniesPage() {
             </div>
 
             <form onSubmit={handleCreate} className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Tenant context badge — read-only */}
+              <div className="px-4 py-3 rounded-xl bg-indigo-50/60 border border-indigo-100 flex items-center gap-3">
+                <FiHome className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[11px] uppercase tracking-wider text-indigo-700/70 font-semibold">Parent Tenant</p>
+                  <p className="text-sm font-bold text-indigo-900">{tenantName}</p>
+                </div>
+                <span className="text-[11px] text-indigo-700/70">
+                  {quota && quota.maxCompanies > 0
+                    ? `${quota.used}/${quota.maxCompanies} used`
+                    : `${quota?.used || 0} created (unlimited)`}
+                </span>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Company Name *">
                   <input
@@ -277,7 +457,7 @@ export default function TenantCompaniesPage() {
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     required
                     placeholder="e.g., Acme Technologies"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300"
+                    className="form-input"
                   />
                 </Field>
                 <Field label="Code">
@@ -285,33 +465,65 @@ export default function TenantCompaniesPage() {
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value })}
                     placeholder="Auto from name"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300"
+                    className="form-input"
                   />
                 </Field>
               </div>
 
-              <Field label="Group Company (optional — leave blank to auto-create)">
-              <select
-                value={form.companyGroupId}
-                onChange={(e) => setForm({ ...form, companyGroupId: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 bg-white"
-              >
-                <option value="">— Auto-create new group —</option>
-                {availableCompanyGroups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </Field>
-            {form.companyGroupId === '' && (
-              <Field label="New Group Name (optional)">
-                <input
-                  value={form.companyGroupName}
-                  onChange={(e) => setForm({ ...form, companyGroupName: e.target.value })}
-                  placeholder={`Defaults to "${form.name || 'Company'} Group"`}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300"
-                />
+              {/* Group company selector — explicit, no more silent auto-create */}
+              <Field label="Group Company *">
+                <select
+                  value={form.companyGroupId}
+                  onChange={(e) => setForm({ ...form, companyGroupId: e.target.value })}
+                  required
+                  className="form-input bg-white"
+                >
+                  <option value="">— Select a group company —</option>
+                  {availableCompanyGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                      {g.maxEmployees ? ` (emp cap: ${g.maxEmployees} ${g.employeeLimitMode === 'per_company' ? 'per-co' : 'group'})` : ''}
+                      {g.maxCompanies ? ` · co cap: ${g.maxCompanies}` : ''}
+                    </option>
+                  ))}
+                </select>
               </Field>
-            )}
+              {form.companyGroupId === '' && (
+                <Field label="…or create a new group company (will be inducted under the same tenant)">
+                  <input
+                    value={form.companyGroupName}
+                    onChange={(e) => setForm({ ...form, companyGroupName: e.target.value })}
+                    placeholder="New group company name (e.g., Acme Group)"
+                    className="form-input"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                    <FiInfo className="w-3 h-3" />
+                    Note: new group companies created here inherit <b>no</b> employee-strength cap. Ask the super admin to set caps via the super-admin module.
+                  </p>
+                </Field>
+              )}
+
+              {/* Show the inherited employee-strength barrier of the selected group */}
+              {selectedGroupForForm && (
+                <div className="px-4 py-3 rounded-xl bg-amber-50/70 border border-amber-200 flex items-start gap-3">
+                  <FiShield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 text-xs text-amber-900">
+                    <p className="font-bold">Inherited employee strength barrier</p>
+                    {selectedGroupForForm.maxEmployees !== null && selectedGroupForForm.maxEmployees !== undefined && selectedGroupForForm.maxEmployees > 0 ? (
+                      <p className="mt-0.5">
+                        Group <b>{selectedGroupForForm.name}</b> caps at{' '}
+                        <b>{selectedGroupForForm.maxEmployees} employees</b> ({selectedGroupForForm.employeeLimitMode === 'per_company' ? 'per company' : 'across all companies in the group'}).
+                        Once that limit is reached you won't be able to add more employees to this company.
+                      </p>
+                    ) : (
+                      <p className="mt-0.5">Group <b>{selectedGroupForForm.name}</b> has no employee cap set — you can add as many employees as you need (subject to tenant-level limits).</p>
+                    )}
+                    {selectedGroupForForm.maxCompanies !== null && selectedGroupForForm.maxCompanies !== undefined && selectedGroupForForm.maxCompanies > 0 && (
+                      <p className="mt-0.5">Group also caps at <b>{selectedGroupForForm.maxCompanies} companies</b>.</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Registration No.">
@@ -320,12 +532,59 @@ export default function TenantCompaniesPage() {
                 <Field label="Tax ID (GSTIN)">
                   <input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} className="form-input" />
                 </Field>
+
                 <Field label="Country">
-                  <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="form-input" />
+                  <div className="relative">
+                    <select
+                      value={form.country}
+                      onChange={(e) => setForm({ ...form, country: e.target.value })}
+                      className="form-input bg-white appearance-none pr-8"
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      {/* Allow previously-saved values not in the list */}
+                      {!COUNTRIES.includes(form.country) && form.country && (
+                        <option value={form.country}>{form.country}</option>
+                      )}
+                    </select>
+                    <FiChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </Field>
+
                 <Field label="Currency">
-                  <input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="form-input" />
+                  <div className="relative">
+                    <select
+                      value={form.currency}
+                      onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                      className="form-input bg-white appearance-none pr-8"
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                      {!CURRENCIES.some((c) => c.code === form.currency) && form.currency && (
+                        <option value={form.currency}>{form.currency}</option>
+                      )}
+                    </select>
+                    <FiChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </Field>
+
+                <Field label="Timezone">
+                  <div className="relative">
+                    <select
+                      value={form.timezone}
+                      onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                      className="form-input bg-white appearance-none pr-8"
+                    >
+                      {TIMEZONES.map((tz) => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </select>
+                    <FiChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </Field>
+
                 <Field label="City">
                   <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="form-input" />
                 </Field>
@@ -345,14 +604,14 @@ export default function TenantCompaniesPage() {
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300"
+                  className="form-input"
                 />
               </Field>
 
               <div className="flex items-center gap-2 pt-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
                 <FiInfo className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <p className="text-xs text-slate-500">
-                  After creation, the new company will appear in the header switcher and you can start configuring branches, departments and employees under it.
+                  After creation, the new company will appear in the header switcher (under <b>{tenantName}</b>) and you can start configuring branches, departments and employees under it.
                 </p>
               </div>
 

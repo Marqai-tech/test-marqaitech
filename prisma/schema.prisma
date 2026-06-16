@@ -20,6 +20,13 @@ model Tenant {
   country     String?
   currency    String   @default("INR")
   timezone    String   @default("UTC")
+
+  // ─── Quota / Barrier fields (set by super_admin) ───
+  // Maximum number of companies this tenant is allowed to create under all its groups.
+  // 0 = unlimited. When tenant_admin tries to create a company beyond this count,
+  // the API rejects the request.
+  maxCompaniesAllowed Int @default(0)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -35,6 +42,20 @@ model CompanyGroup {
   name     String
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // ─── Employee strength barriers (set by super_admin) ───
+  // Mode: 'per_company'  -> maxEmployees applies to EACH company in this group
+  //       'group_total'  -> maxEmployees applies to the SUM of all employees across all companies in this group
+  // null maxEmployees = unlimited
+  employeeLimitMode String  @default("group_total") // 'per_company' | 'group_total'
+  maxEmployees      Int?
+
+  // Optional cap on how many companies can live under this group.
+  // null = unlimited. (Tenant-level maxCompaniesAllowed still applies on top.)
+  maxCompanies      Int?
+
+  // Optional admin notes (e.g. "Sales cluster — cap at 200 staff")
+  notes             String?
 
   companies Company[]
 
