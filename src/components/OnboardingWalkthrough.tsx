@@ -286,17 +286,22 @@ export default function OnboardingWalkthrough() {
   const [currentStep, setCurrentStep] = useState(0);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
   const [isAnimating, setIsAnimating] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const isAdmin = user?.role === 'tenant_admin' || user?.role === 'hr_admin' || user?.role === 'super_admin';
   const steps = isAdmin ? adminSteps : employeeSteps;
 
   useEffect(() => {
-    // Only show if welcome has been completed and onboarding not yet completed
-    const welcomed = localStorage.getItem('nexus_welcomed');
-    const onboardingCompleted = localStorage.getItem('nexus_onboarding_completed');
-    if (welcomed && !onboardingCompleted) {
-      // Use timeout to avoid synchronous setState in effect
-      const timer = setTimeout(() => setShow(true), 500);
-      return () => clearTimeout(timer);
+    setMounted(true);
+    try {
+      // Only show if welcome has been completed and onboarding not yet completed
+      const welcomed = localStorage.getItem('nexus_welcomed');
+      const onboardingCompleted = localStorage.getItem('nexus_onboarding_completed');
+      if (welcomed && !onboardingCompleted) {
+        const timer = setTimeout(() => setShow(true), 500);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // localStorage might not be available
     }
   }, []);
 
@@ -352,36 +357,15 @@ export default function OnboardingWalkthrough() {
   const step = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
 
-  if (!show || !step) return null;
+  if (!mounted || !show || !step) return null;
 
   const Icon = step.icon;
 
   return (
-    <>
-      <style jsx global>{`
-        @keyframes onboardingFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideInLeft {
-          from { opacity: 0; transform: translateX(30px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes slideInRight {
-          from { opacity: 0; transform: translateX(-30px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
-
-      {/* Full-screen overlay */}
-      <div
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-        style={{ animation: 'onboardingFadeIn 0.3s ease-out' }}
-      >
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ animation: 'onboardingFadeIn 0.3s ease-out' }}
+    >
         {/* Backdrop with spotlight */}
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleSkip} />
 
@@ -519,6 +503,5 @@ export default function OnboardingWalkthrough() {
           </div>
         </div>
       </div>
-    </>
   );
 }

@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
 import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
+import SafeRender from '@/components/SafeRender';
 import {
   FiHome, FiUsers, FiBriefcase, FiClock, FiMenu,
   FiCpu, FiGrid, FiBell, FiUser, FiDollarSign,
@@ -121,8 +122,8 @@ export default function DashboardLayout({
   if (isMobile) {
     return (
       <div className="min-h-screen bg-nexus-background flex flex-col">
-        <WelcomeGreeting onComplete={() => setShowOnboarding(true)} />
-        {showOnboarding && <OnboardingWalkthrough />}
+        <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
+        <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
         <Toaster
           position="top-center"
           toastOptions={{
@@ -280,8 +281,8 @@ export default function DashboardLayout({
   // ========= DESKTOP LAYOUT =========
   return (
     <div className="min-h-screen bg-nexus-background">
-      <WelcomeGreeting onComplete={() => setShowOnboarding(true)} />
-      {showOnboarding && <OnboardingWalkthrough />}
+      <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
+      <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
       <Toaster
         position="top-right"
         toastOptions={{
