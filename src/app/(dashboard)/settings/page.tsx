@@ -612,19 +612,19 @@ function SettingsContent() {
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
   const navItems = allNavItems;
-  const allowedTabKeys = navItems.map((n) => n.key);
   const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
-  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl) && allowedTabKeys.includes(tabFromUrl)) ? tabFromUrl : 'general';
+  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'general';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [saving, setSaving] = useState(false);
 
-  // Sync activeTab with URL search params when they change
+  // Sync activeTab with URL search params ONLY when URL actually changes
   useEffect(() => {
     const tabFromUrlUpdate = searchParams.get('tab') as TabKey | null;
-    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate) && allowedTabKeys.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'general';
-    setActiveTab(newTab);
-  }, [searchParams, allowedTabKeys]);
+    if (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate)) {
+      setActiveTab(tabFromUrlUpdate);
+    }
+  }, [searchParams]);
 
   // Redirect non-admins to My Profile page
   useEffect(() => {

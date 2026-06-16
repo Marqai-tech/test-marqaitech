@@ -1,0 +1,1307 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, Suspense } from 'react';
+     4→import {
+     5→  FiSettings,
+     6→  FiEdit2,
+     7→  FiX,
+     8→  FiSave,
+     9→  FiBell,
+    10→  FiGlobe,
+    11→  FiDatabase,
+    12→  FiShield,
+    13→  FiClock,
+    14→  FiDollarSign,
+    15→  FiCalendar,
+    16→  FiUserCheck,
+    17→  FiUsers,
+    18→  FiInfo,
+    19→  FiCheck,
+    20→  FiMenu,
+    21→  FiBriefcase,
+    22→  FiTrendingUp,
+    23→} from 'react-icons/fi';
+    24→import toast from 'react-hot-toast';
+    25→import { useSearchParams, useRouter } from 'next/navigation';
+    26→import { useAuthStore } from '@/store/authStore';
+    27→import ModuleTips from '@/components/ModuleTips';
+    28→import ModuleWorkflow from '@/components/ModuleWorkflow';
+    29→
+    30→/* ──────────────────────────────────────────────
+    31→   Types
+    32→   ────────────────────────────────────────────── */
+    33→interface TenantInfo {
+    34→  id: string;
+    35→  name: string;
+    36→  slug: string;
+    37→  domain?: string | null;
+    38→  plan: string;
+    39→  status: string;
+    40→  country?: string | null;
+    41→  currency: string;
+    42→  timezone: string;
+    43→  logo?: string | null;
+    44→}
+    45→
+    46→interface NotifPref {
+    47→  email: boolean;
+    48→  leave: boolean;
+    49→  payroll: boolean;
+    50→  recruitment: boolean;
+    51→  workflow: boolean;
+    52→  system: boolean;
+    53→}
+    54→
+    55→type SettingType = 'toggle' | 'select' | 'number' | 'text';
+    56→
+    57→interface SettingField {
+    58→  key: string;
+    59→  label: string;
+    60→  type: SettingType;
+    61→  defaultValue: string | number | boolean;
+    62→  description: string;
+    63→  options?: { value: string; label: string }[];
+    64→  min?: number;
+    65→  max?: number;
+    66→  step?: number;
+    67→}
+    68→
+    69→interface SettingSection {
+    70→  title: string;
+    71→  description: string;
+    72→  icon: React.ReactNode;
+    73→  iconBg: string;
+    74→  iconColor: string;
+    75→  fields: SettingField[];
+    76→}
+    77→
+    78→/* ──────────────────────────────────────────────
+    79→   localStorage Helper
+    80→   ────────────────────────────────────────────── */
+    81→const SETTINGS_KEY = 'nexus_hrms_settings';
+    82→
+    83→function loadSettings(): Record<string, string | number | boolean> {
+    84→  if (typeof window === 'undefined') return {};
+    85→  try {
+    86→    const stored = localStorage.getItem(SETTINGS_KEY);
+    87→    if (stored) return JSON.parse(stored);
+    88→  } catch { /* ignore */ }
+    89→  return {};
+    90→}
+    91→
+    92→function saveSettings(settings: Record<string, string | number | boolean>) {
+    93→  if (typeof window === 'undefined') return;
+    94→  try {
+    95→    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    96→  } catch { /* ignore */ }
+    97→}
+    98→
+    99→/* ──────────────────────────────────────────────
+   100→   Auth Helper
+   101→   ────────────────────────────────────────────── */
+   102→function getAuthHeaders() {
+   103→  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+   104→  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+   105→}
+   106→
+   107→/* ──────────────────────────────────────────────
+   108→   Roles Data
+   109→   ────────────────────────────────────────────── */
+   110→const rolesData = [
+   111→  { name: 'Super Admin', key: 'super_admin', description: 'Full system access across all tenants', permissions: ['All Permissions'] },
+   112→  { name: 'Tenant Admin', key: 'tenant_admin', description: 'Full access within their tenant', permissions: ['User Management', 'Employee Management', 'Payroll', 'Reports', 'Settings'] },
+   113→  { name: 'HR Admin', key: 'hr_admin', description: 'HR module access', permissions: ['Employee Management', 'Leave Management', 'Attendance', 'Recruitment', 'Performance', 'Training'] },
+   114→  { name: 'Manager', key: 'manager', description: 'Team management access', permissions: ['Team View', 'Leave Approvals', 'Performance Reviews', 'Timesheet Approvals'] },
+   115→  { name: 'Employee', key: 'employee', description: 'Self-service access', permissions: ['Self Profile', 'Leave Request', 'Attendance', 'Timesheet', 'Documents'] },
+   116→];
+   117→
+   118→/* ──────────────────────────────────────────────
+   119→   Setting Definitions
+   120→   ────────────────────────────────────────────── */
+   121→const payrollSections: SettingSection[] = [
+   122→  {
+   123→    title: 'Pay Schedule',
+   124→    description: 'Configure how and when employees are paid',
+   125→    icon: <FiCalendar className="w-5 h-5" />,
+   126→    iconBg: 'bg-emerald-50',
+   127→    iconColor: 'text-emerald-500',
+   128→    fields: [
+   129→      { key: 'payroll_pay_frequency', label: 'Pay Frequency', type: 'select', defaultValue: 'monthly', description: 'How often employees are paid', options: [{ value: 'monthly', label: 'Monthly' }, { value: 'bi_monthly', label: 'Bi-monthly' }, { value: 'weekly', label: 'Weekly' }] },
+   130→      { key: 'payroll_default_pay_day', label: 'Default Pay Day', type: 'number', defaultValue: 1, description: 'Day of the month when salary is disbursed', min: 1, max: 31 },
+   131→      { key: 'payroll_cutoff_day', label: 'Default Cut-off Day', type: 'number', defaultValue: 25, description: 'Day of the month after which attendance is counted in next cycle', min: 1, max: 31 },
+   132→    ],
+   133→  },
+   134→  {
+   135→    title: 'Overtime & Calculation',
+   136→    description: 'Rules for overtime pay and payroll calculations',
+   137→    icon: <FiClock className="w-5 h-5" />,
+   138→    iconBg: 'bg-amber-50',
+   139→    iconColor: 'text-amber-500',
+   140→    fields: [
+   141→      { key: 'payroll_overtime_method', label: 'Overtime Calculation Method', type: 'select', defaultValue: '1.5x', description: 'Rate multiplier applied to overtime hours', options: [{ value: 'flat_rate', label: 'Flat Rate' }, { value: '1.5x', label: '1.5x (Time & Half)' }, { value: '2x', label: '2x (Double Time)' }] },
+   142→      { key: 'payroll_auto_approve_overtime', label: 'Auto-approve Overtime', type: 'toggle', defaultValue: false, description: 'Automatically approve overtime requests without manager approval' },
+   143→      { key: 'payroll_round_off_net_pay', label: 'Round Off Net Pay', type: 'toggle', defaultValue: false, description: 'Round net pay to the nearest whole currency unit' },
+   144→      { key: 'payroll_proration_method', label: 'Proration Method', type: 'select', defaultValue: 'calendar_days', description: 'How salary is prorated for partial months', options: [{ value: 'calendar_days', label: 'Calendar Days' }, { value: 'working_days', label: 'Working Days' }] },
+   145→    ],
+   146→  },
+   147→  {
+   148→    title: 'Tax & Compliance',
+   149→    description: 'Tax regime and TDS calculation preferences',
+   150→    icon: <FiDollarSign className="w-5 h-5" />,
+   151→    iconBg: 'bg-rose-50',
+   152→    iconColor: 'text-rose-500',
+   153→    fields: [
+   154→      { key: 'payroll_tax_regime', label: 'Tax Regime Default', type: 'select', defaultValue: 'new', description: 'Default tax regime for new employees', options: [{ value: 'old', label: 'Old Regime' }, { value: 'new', label: 'New Regime' }] },
+   155→      { key: 'payroll_tds_method', label: 'TDS Calculation Method', type: 'select', defaultValue: 'cumulative', description: 'Method for calculating Tax Deducted at Source', options: [{ value: 'cumulative', label: 'Cumulative' }, { value: 'non_cumulative', label: 'Non-cumulative' }] },
+   156→    ],
+   157→  },
+   158→  {
+   159→    title: 'Advanced',
+   160→    description: 'Additional payroll processing configuration',
+   161→    icon: <FiSettings className="w-5 h-5" />,
+   162→    iconBg: 'bg-slate-100',
+   163→    iconColor: 'text-slate-500',
+   164→    fields: [
+   165→      { key: 'payroll_loan_interest_rate', label: 'Loan Interest Rate Default (%)', type: 'number', defaultValue: 5, description: 'Default annual interest rate for employee loans', min: 0, max: 30, step: 0.5 },
+   166→      { key: 'payroll_auto_post_accounting', label: 'Auto-post to Accounting', type: 'toggle', defaultValue: false, description: 'Automatically post payroll entries to the accounting module' },
+   167→      { key: 'payroll_salary_structure_default', label: 'Default Salary Structure', type: 'text', defaultValue: 'Standard', description: 'Name of the default salary structure for new employees' },
+   168→      { key: 'payroll_processing_mode', label: 'Payroll Processing Mode', type: 'select', defaultValue: 'full', description: 'Full processes all employees; Delta processes only changes', options: [{ value: 'full', label: 'Full Processing' }, { value: 'delta', label: 'Delta Processing' }] },
+   169→    ],
+   170→  },
+   171→];
+   172→
+   173→const leaveSections: SettingSection[] = [
+   174→  {
+   175→    title: 'Leave Year & Carry Forward',
+   176→    description: 'Configure leave year start and carry forward rules',
+   177→    icon: <FiCalendar className="w-5 h-5" />,
+   178→    iconBg: 'bg-blue-50',
+   179→    iconColor: 'text-blue-500',
+   180→    fields: [
+   181→      { key: 'leave_year_start_month', label: 'Leave Year Start Month', type: 'select', defaultValue: 'january', description: 'Month when the leave year begins', options: [{ value: 'january', label: 'January' }, { value: 'april', label: 'April' }, { value: 'july', label: 'July' }, { value: 'october', label: 'October' }] },
+   182→      { key: 'leave_max_carry_forward', label: 'Max Carry Forward Days', type: 'number', defaultValue: 5, description: 'Maximum number of leave days that can be carried forward to the next year', min: 0, max: 30 },
+   183→      { key: 'leave_encashment_enabled', label: 'Leave Encashment Enabled', type: 'toggle', defaultValue: true, description: 'Allow employees to encash unused leave days' },
+   184→      { key: 'leave_encashment_rate_basis', label: 'Encashment Rate Basis', type: 'select', defaultValue: 'basic', description: 'Salary component used for leave encashment calculation', options: [{ value: 'basic', label: 'Basic Salary' }, { value: 'gross', label: 'Gross Salary' }] },
+   185→    ],
+   186→  },
+   187→  {
+   188→    title: 'Leave Application Rules',
+   189→    description: 'Rules governing leave applications',
+   190→    icon: <FiClock className="w-5 h-5" />,
+   191→    iconBg: 'bg-violet-50',
+   192→    iconColor: 'text-violet-500',
+   193→    fields: [
+   194→      { key: 'leave_comp_off_expiry_days', label: 'Comp-off Expiry Days', type: 'number', defaultValue: 30, description: 'Number of days after which compensatory off expires', min: 1, max: 365 },
+   195→      { key: 'leave_min_balance_before_apply', label: 'Minimum Leave Balance Before Applying', type: 'number', defaultValue: 0, description: 'Minimum leaves that must remain after the current application', min: 0, max: 15 },
+   196→      { key: 'leave_advance_days', label: 'Leave Application Advance Days', type: 'number', defaultValue: 3, description: 'Minimum days in advance a leave must be applied for', min: 0, max: 30 },
+   197→      { key: 'leave_sandwich_policy', label: 'Sandwich Leave Policy', type: 'toggle', defaultValue: false, description: 'Count weekends/holidays between leave days as part of leave' },
+   198→    ],
+   199→  },
+   200→  {
+   201→    title: 'Special Leaves & Calendar',
+   202→    description: 'Holiday calendar and special leave entitlements',
+   203→    icon: <FiGlobe className="w-5 h-5" />,
+   204→    iconBg: 'bg-teal-50',
+   205→    iconColor: 'text-teal-500',
+   206→    fields: [
+   207→      { key: 'leave_holiday_calendar_default', label: 'Default Holiday Calendar', type: 'text', defaultValue: 'Indian National', description: 'Default holiday calendar applied to new employees' },
+   208→      { key: 'leave_maternity_days', label: 'Maternity Leave Days', type: 'number', defaultValue: 182, description: 'Number of maternity leave days allowed', min: 0, max: 365 },
+   209→      { key: 'leave_paternity_days', label: 'Paternity Leave Days', type: 'number', defaultValue: 15, description: 'Number of paternity leave days allowed', min: 0, max: 90 },
+   210→    ],
+   211→  },
+   212→];
+   213→
+   214→const attendanceSections: SettingSection[] = [
+   215→  {
+   216→    title: 'Work Hours & Thresholds',
+   217→    description: 'Define work hours and attendance thresholds',
+   218→    icon: <FiClock className="w-5 h-5" />,
+   219→    iconBg: 'bg-orange-50',
+   220→    iconColor: 'text-orange-500',
+   221→    fields: [
+   222→      { key: 'attendance_work_hours', label: 'Work Hours Per Day', type: 'number', defaultValue: 8, description: 'Standard work hours per day', min: 1, max: 24, step: 0.5 },
+   223→      { key: 'attendance_late_threshold', label: 'Late Arrival Threshold (minutes)', type: 'number', defaultValue: 15, description: 'Minutes after shift start time to mark as late', min: 0, max: 120 },
+   224→      { key: 'attendance_early_departure_threshold', label: 'Early Departure Threshold (minutes)', type: 'number', defaultValue: 15, description: 'Minutes before shift end time to mark as early departure', min: 0, max: 120 },
+   225→      { key: 'attendance_half_day_threshold', label: 'Half-day Threshold (hours)', type: 'number', defaultValue: 4, description: 'Minimum hours worked to count as half day', min: 1, max: 12, step: 0.5 },
+   226→      { key: 'attendance_overtime_start_after', label: 'Overtime Starts After (hours)', type: 'number', defaultValue: 8, description: 'Hours after which additional time counts as overtime', min: 1, max: 24, step: 0.5 },
+   227→    ],
+   228→  },
+   229→  {
+   230→    title: 'Shift & Weekend Rules',
+   231→    description: 'Weekend definitions and shift change policies',
+   232→    icon: <FiCalendar className="w-5 h-5" />,
+   233→    iconBg: 'bg-cyan-50',
+   234→    iconColor: 'text-cyan-500',
+   235→    fields: [
+   236→      { key: 'attendance_weekend_saturday', label: 'Saturday as Weekend', type: 'toggle', defaultValue: false, description: 'Include Saturday as a weekend (non-working day)' },
+   237→      { key: 'attendance_weekend_sunday', label: 'Sunday as Weekend', type: 'toggle', defaultValue: true, description: 'Include Sunday as a weekend (non-working day)' },
+   238→      { key: 'attendance_shift_change_notice_days', label: 'Shift Change Notice Period (days)', type: 'number', defaultValue: 3, description: 'Minimum days notice required before a shift change', min: 0, max: 30 },
+   239→      { key: 'attendance_auto_clockout_time', label: 'Auto Clock-out Time', type: 'text', defaultValue: '23:59', description: 'Time at which employees are automatically clocked out (HH:MM format)' },
+   240→    ],
+   241→  },
+   242→  {
+   243→    title: 'Geofencing & Grace Period',
+   244→    description: 'Location-based attendance and grace periods',
+   245→    icon: <FiGlobe className="w-5 h-5" />,
+   246→    iconBg: 'bg-lime-50',
+   247→    iconColor: 'text-lime-600',
+   248→    fields: [
+   249→      { key: 'attendance_geofencing_enabled', label: 'Geofencing Enabled', type: 'toggle', defaultValue: false, description: 'Require employees to be within a geofenced area to clock in' },
+   250→      { key: 'attendance_grace_period', label: 'Grace Period for Late Arrival (minutes)', type: 'number', defaultValue: 5, description: 'Buffer minutes allowed after shift start before marking as late', min: 0, max: 60 },
+   251→    ],
+   252→  },
+   253→];
+   254→
+   255→const employeeSections: SettingSection[] = [
+   256→  {
+   257→    title: 'Employee Code',
+   258→    description: 'Configure employee code generation rules',
+   259→    icon: <FiUserCheck className="w-5 h-5" />,
+   260→    iconBg: 'bg-indigo-50',
+   261→    iconColor: 'text-indigo-500',
+   262→    fields: [
+   263→      { key: 'employee_code_prefix', label: 'Employee Code Prefix', type: 'text', defaultValue: 'EMP', description: 'Prefix for auto-generated employee codes' },
+   264→      { key: 'employee_code_sequence', label: 'Code Sequence Start', type: 'number', defaultValue: 1001, description: 'Starting number for auto-generated employee codes', min: 1, max: 99999 },
+   265→      { key: 'employee_code_auto_generation', label: 'Auto-generate Employee Code', type: 'toggle', defaultValue: true, description: 'Automatically generate employee code on creation' },
+   266→    ],
+   267→  },
+   268→  {
+   269→    title: 'Probation & Notice',
+   270→    description: 'Default probation and notice period settings',
+   271→    icon: <FiClock className="w-5 h-5" />,
+   272→    iconBg: 'bg-pink-50',
+   273→    iconColor: 'text-pink-500',
+   274→    fields: [
+   275→      { key: 'employee_probation_period', label: 'Probation Period Default (months)', type: 'number', defaultValue: 6, description: 'Default probation period for new employees', min: 0, max: 24 },
+   276→      { key: 'employee_notice_period', label: 'Notice Period Default (months)', type: 'number', defaultValue: 2, description: 'Default notice period for resignations', min: 0, max: 12 },
+   277→      { key: 'employee_doc_expiry_reminder_days', label: 'Document Expiry Reminder Days', type: 'number', defaultValue: 30, description: 'Days before document expiry to send a reminder', min: 1, max: 180 },
+   278→    ],
+   279→  },
+   280→  {
+   281→    title: 'Access & Permissions',
+   282→    description: 'Employee self-service and profile settings',
+   283→    icon: <FiShield className="w-5 h-5" />,
+   284→    iconBg: 'bg-emerald-50',
+   285→    iconColor: 'text-emerald-500',
+   286→    fields: [
+   287→      { key: 'employee_email_domain_restriction', label: 'Email Domain Restriction', type: 'text', defaultValue: '', description: 'Restrict employee emails to this domain (leave empty for no restriction)' },
+   288→      { key: 'employee_self_service_access', label: 'Employee Self-Service Access', type: 'toggle', defaultValue: true, description: 'Allow employees to access the self-service portal' },
+   289→      { key: 'employee_profile_edit_permissions', label: 'Profile Edit Permissions', type: 'select', defaultValue: 'limited', description: 'What profile fields employees can edit themselves', options: [{ value: 'none', label: 'None' }, { value: 'limited', label: 'Limited (Contact Info)' }, { value: 'full', label: 'Full (All Fields)' }] },
+   290→      { key: 'employee_max_reporting_levels', label: 'Maximum Reporting Manager Levels', type: 'number', defaultValue: 3, description: 'Maximum depth of the reporting hierarchy', min: 1, max: 10 },
+   291→    ],
+   292→  },
+   293→];
+   294→
+   295→const recruitmentSections: SettingSection[] = [
+   296→  {
+   297→    title: 'Application Defaults',
+   298→    description: 'Configure default recruitment application settings',
+   299→    icon: <FiBriefcase className="w-5 h-5" />,
+   300→    iconBg: 'bg-amber-50',
+   301→    iconColor: 'text-amber-500',
+   302→    fields: [
+   303→      { key: 'recruitment_default_application_source', label: 'Default Application Source', type: 'select', defaultValue: 'company_website', description: 'Default source attributed to new job applications', options: [{ value: 'company_website', label: 'Company Website' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'naukri', label: 'Naukri' }, { value: 'indeed', label: 'Indeed' }, { value: 'referral', label: 'Employee Referral' }, { value: 'other', label: 'Other' }] },
+   304→      { key: 'recruitment_auto_reject_days', label: 'Auto-reject After (days without response)', type: 'number', defaultValue: 30, description: 'Automatically reject applications with no response after this many days', min: 7, max: 180 },
+   305→    ],
+   306→  },
+   307→  {
+   308→    title: 'Offer & Onboarding',
+   309→    description: 'Offer letter and new hire onboarding defaults',
+   310→    icon: <FiUserCheck className="w-5 h-5" />,
+   311→    iconBg: 'bg-teal-50',
+   312→    iconColor: 'text-teal-500',
+   313→    fields: [
+   314→      { key: 'recruitment_offer_letter_template', label: 'Offer Letter Template', type: 'select', defaultValue: 'standard', description: 'Default offer letter template for new hires', options: [{ value: 'standard', label: 'Standard Offer Letter' }, { value: 'senior', label: 'Senior/Executive Offer' }, { value: 'intern', label: 'Internship Offer' }, { value: 'contract', label: 'Contract Offer' }] },
+   315→      { key: 'recruitment_probation_default_months', label: 'Probation Period for New Hires (months)', type: 'number', defaultValue: 6, description: 'Default probation period applied to all new hires from recruitment', min: 0, max: 24 },
+   316→      { key: 'recruitment_offer_expiry_days', label: 'Offer Expiry Days', type: 'number', defaultValue: 7, description: 'Number of days before an offer letter expires if not accepted', min: 1, max: 30 },
+   317→    ],
+   318→  },
+   319→  {
+   320→    title: 'Pipeline & Process',
+   321→    description: 'Recruitment pipeline and workflow defaults',
+   322→    icon: <FiSettings className="w-5 h-5" />,
+   323→    iconBg: 'bg-slate-100',
+   324→    iconColor: 'text-slate-500',
+   325→    fields: [
+   326→      { key: 'recruitment_auto_screening', label: 'Auto-screening Enabled', type: 'toggle', defaultValue: false, description: 'Automatically screen applications based on predefined criteria' },
+   327→      { key: 'recruitment_min_interview_score', label: 'Minimum Interview Score to Advance', type: 'number', defaultValue: 3, description: 'Minimum score (out of 5) required to advance to next interview round', min: 1, max: 5 },
+   328→      { key: 'recruitment_background_check_required', label: 'Background Check Required', type: 'toggle', defaultValue: true, description: 'Require background verification before final offer' },
+   329→      { key: 'recruitment_requisition_approval_levels', label: 'Requisition Approval Levels', type: 'number', defaultValue: 2, description: 'Number of approval levels required for a job requisition', min: 1, max: 5 },
+   330→    ],
+   331→  },
+   332→];
+   333→
+   334→const performanceSections: SettingSection[] = [
+   335→  {
+   336→    title: 'Review Cycle',
+   337→    description: 'Configure performance review cycle settings',
+   338→    icon: <FiCalendar className="w-5 h-5" />,
+   339→    iconBg: 'bg-violet-50',
+   340→    iconColor: 'text-violet-500',
+   341→    fields: [
+   342→      { key: 'performance_review_cycle_frequency', label: 'Review Cycle Frequency', type: 'select', defaultValue: 'quarterly', description: 'How often performance reviews are conducted', options: [{ value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' }, { value: 'semi_annual', label: 'Semi-Annual' }, { value: 'annual', label: 'Annual' }] },
+   343→      { key: 'performance_rating_scale', label: 'Rating Scale', type: 'select', defaultValue: '1-5', description: 'Scale used for performance ratings', options: [{ value: '1-3', label: '1-3 (Meets/Exceeds/Below)' }, { value: '1-5', label: '1-5 (Standard 5-point)' }, { value: '1-10', label: '1-10 (Granular 10-point)' }] },
+   344→      { key: 'performance_review_window_days', label: 'Review Window (days)', type: 'number', defaultValue: 14, description: 'Number of days the review form stays open for completion', min: 3, max: 60 },
+   345→    ],
+   346→  },
+   347→  {
+   348→    title: 'Appraisal Methods',
+   349→    description: 'Configure self-appraisal and 360-degree feedback settings',
+   350→    icon: <FiTrendingUp className="w-5 h-5" />,
+   351→    iconBg: 'bg-emerald-50',
+   352→    iconColor: 'text-emerald-500',
+   353→    fields: [
+   354→      { key: 'performance_self_appraisal_enabled', label: 'Self-Appraisal Enabled', type: 'toggle', defaultValue: true, description: 'Allow employees to submit self-appraisals as part of the review process' },
+   355→      { key: 'performance_360_feedback_enabled', label: '360-degree Feedback Enabled', type: 'toggle', defaultValue: false, description: 'Collect feedback from peers, subordinates, and cross-functional colleagues' },
+   356→      { key: 'performance_calibration_required', label: 'Calibration Session Required', type: 'toggle', defaultValue: true, description: 'Require a calibration session to normalize ratings across teams before finalization' },
+   357→      { key: 'performance_goal_setting_enabled', label: 'Goal Setting (OKR/MB0) Enabled', type: 'toggle', defaultValue: true, description: 'Enable goal or objective setting as part of the performance cycle' },
+   358→    ],
+   359→  },
+   360→  {
+   361→    title: 'Feedback & Improvement',
+   362→    description: 'Continuous feedback and performance improvement settings',
+   363→    icon: <FiUsers className="w-5 h-5" />,
+   364→    iconBg: 'bg-cyan-50',
+   365→    iconColor: 'text-cyan-500',
+   366→    fields: [
+   367→      { key: 'performance_continuous_feedback', label: 'Continuous Feedback Enabled', type: 'toggle', defaultValue: true, description: 'Allow managers and peers to give real-time feedback outside of review cycles' },
+   368→      { key: 'performance_pip_enabled', label: 'Performance Improvement Plan (PIP)', type: 'toggle', defaultValue: true, description: 'Enable formal PIP process for underperforming employees' },
+   369→      { key: 'performance_pip_duration_days', label: 'PIP Default Duration (days)', type: 'number', defaultValue: 30, description: 'Default duration for a Performance Improvement Plan', min: 7, max: 180 },
+   370→      { key: 'performance_rating_visibility', label: 'Rating Visibility', type: 'select', defaultValue: 'manager_only', description: 'Who can see the final performance rating', options: [{ value: 'manager_only', label: 'Manager Only' }, { value: 'employee_and_manager', label: 'Employee & Manager' }, { value: 'team_visible', label: 'Team Visible' }] },
+   371→    ],
+   372→  },
+   373→];
+   374→
+   375→/* ──────────────────────────────────────────────
+   376→   Toggle Switch Component
+   377→   ────────────────────────────────────────────── */
+   378→function ToggleSwitch({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: () => void; disabled?: boolean }) {
+   379→  return (
+   380→    <button
+   381→      type="button"
+   382→      onClick={onToggle}
+   383→      disabled={disabled}
+   384→      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${enabled ? 'bg-blue-500' : 'bg-slate-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+   385→    >
+   386→      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+   387→    </button>
+   388→  );
+   389→}
+   390→
+   391→/* ──────────────────────────────────────────────
+   392→   Info Tooltip Component
+   393→   ────────────────────────────────────────────── */
+   394→function InfoTooltip({ text }: { text: string }) {
+   395→  const [show, setShow] = useState(false);
+   396→  return (
+   397→    <span className="relative inline-flex items-center ml-1.5">
+   398→      <button
+   399→        type="button"
+   400→        onMouseEnter={() => setShow(true)}
+   401→        onMouseLeave={() => setShow(false)}
+   402→        onFocus={() => setShow(true)}
+   403→        onBlur={() => setShow(false)}
+   404→        className="text-nexus-text-muted hover:text-nexus-text-secondary transition-colors"
+   405→        aria-label="More info"
+   406→      >
+   407→        <FiInfo className="w-3.5 h-3.5" />
+   408→      </button>
+   409→      {show && (
+   410→        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 text-xs text-white bg-slate-800 rounded-lg shadow-lg animate-fade-in pointer-events-none">
+   411→          {text}
+   412→          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-slate-800" />
+   413→        </div>
+   414→      )}
+   415→    </span>
+   416→  );
+   417→}
+   418→
+   419→/* ──────────────────────────────────────────────
+   420→   Settings Section Card
+   421→   ────────────────────────────────────────────── */
+   422→function SettingsSectionCard({
+   423→  section,
+   424→  settings,
+   425→  editing,
+   426→  onToggleEdit,
+   427→  onChange,
+   428→  onSave,
+   429→  onReset,
+   430→  saving,
+   431→}: {
+   432→  section: SettingSection;
+   433→  settings: Record<string, string | number | boolean>;
+   434→  editing: boolean;
+   435→  onToggleEdit: () => void;
+   436→  onChange: (key: string, value: string | number | boolean) => void;
+   437→  onSave: () => void;
+   438→  onReset: () => void;
+   439→  saving: boolean;
+   440→}) {
+   441→  return (
+   442→    <div className="nexus-card">
+   443→      <div className="p-6">
+   444→        {/* Section Header */}
+   445→        <div className="flex items-center justify-between mb-6">
+   446→          <div className="flex items-center gap-3">
+   447→            <div className={`w-10 h-10 rounded-xl ${section.iconBg} flex items-center justify-center ${section.iconColor}`}>
+   448→              {section.icon}
+   449→            </div>
+   450→            <div>
+   451→              <h3 className="text-lg font-semibold text-nexus-text-primary">{section.title}</h3>
+   452→              <p className="text-xs text-nexus-text-muted">{section.description}</p>
+   453→            </div>
+   454→          </div>
+   455→          {!editing ? (
+   456→            <button
+   457→              onClick={onToggleEdit}
+   458→              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+   459→            >
+   460→              <FiEdit2 className="w-4 h-4" />
+   461→              Edit
+   462→            </button>
+   463→          ) : (
+   464→            <button
+   465→              onClick={onReset}
+   466→              className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+   467→              aria-label="Cancel editing"
+   468→            >
+   469→              <FiX className="w-5 h-5" />
+   470→            </button>
+   471→          )}
+   472→        </div>
+   473→
+   474→        {/* Fields Grid */}
+   475→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+   476→          {section.fields.map((field) => (
+   477→            <div key={field.key} className={field.type === 'toggle' ? 'flex items-center justify-between p-4 rounded-lg border border-nexus-border/50' : ''}>
+   478→              {field.type === 'toggle' ? (
+   479→                <>
+   480→                  <div className="pr-4">
+   481→                    <label className="text-sm font-medium text-nexus-text-primary flex items-center">
+   482→                      {field.label}
+   483→                      <InfoTooltip text={field.description} />
+   484→                    </label>
+   485→                  </div>
+   486→                  {editing ? (
+   487→                    <ToggleSwitch
+   488→                      enabled={!!settings[field.key]}
+   489→                      onToggle={() => onChange(field.key, !settings[field.key])}
+   490→                    />
+   491→                  ) : (
+   492→                    <span className={`nexus-badge ${settings[field.key] ? 'nexus-badge-success' : 'bg-slate-50 text-slate-500'}`}>
+   493→                      {settings[field.key] ? 'Enabled' : 'Disabled'}
+   494→                    </span>
+   495→                  )}
+   496→                </>
+   497→              ) : (
+   498→                <>
+   499→                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">
+   500→                    {field.label}
+   501→                    <InfoTooltip text={field.description} />
+   502→                  </label>
+   503→                  {editing ? (
+   504→                    field.type === 'select' ? (
+   505→                      <select
+   506→                        value={String(settings[field.key] ?? field.defaultValue)}
+   507→                        onChange={(e) => onChange(field.key, e.target.value)}
+   508→                        className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+   509→                      >
+   510→                        {field.options?.map((opt) => (
+   511→                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+   512→                        ))}
+   513→                      </select>
+   514→                    ) : field.type === 'number' ? (
+   515→                      <input
+   516→                        type="number"
+   517→                        value={String(settings[field.key] ?? field.defaultValue)}
+   518→                        onChange={(e) => onChange(field.key, Number(e.target.value))}
+   519→                        min={field.min}
+   520→                        max={field.max}
+   521→                        step={field.step ?? 1}
+   522→                        className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+   523→                      />
+   524→                    ) : (
+   525→                      <input
+   526→                        type="text"
+   527→                        value={String(settings[field.key] ?? field.defaultValue)}
+   528→                        onChange={(e) => onChange(field.key, e.target.value)}
+   529→                        className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+   530→                      />
+   531→                    )
+   532→                  ) : (
+   533→                    <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">
+   534→                      {field.type === 'select'
+   535→                        ? field.options?.find((o) => o.value === String(settings[field.key]))?.label ?? String(settings[field.key] ?? field.defaultValue)
+   536→                        : String(settings[field.key] ?? field.defaultValue) || '—'}
+   537→                    </p>
+   538→                  )}
+   539→                </>
+   540→              )}
+   541→            </div>
+   542→          ))}
+   543→        </div>
+   544→
+   545→        {/* Save/Cancel */}
+   546→        {editing && (
+   547→          <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+   548→            <button
+   549→              onClick={onReset}
+   550→              className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+   551→            >
+   552→              Cancel
+   553→            </button>
+   554→            <button
+   555→              onClick={onSave}
+   556→              disabled={saving}
+   557→              className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors"
+   558→            >
+   559→              <FiSave className="w-4 h-4" />
+   560→              {saving ? 'Saving...' : 'Save Changes'}
+   561→            </button>
+   562→          </div>
+   563→        )}
+   564→      </div>
+   565→    </div>
+   566→  );
+   567→}
+   568→
+   569→/* ──────────────────────────────────────────────
+   570→   Sidebar Navigation Item
+   571→   ────────────────────────────────────────────── */
+   572→type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
+   573→
+   574→interface NavItem {
+   575→  key: TabKey;
+   576→  label: string;
+   577→  icon: React.ReactNode;
+   578→}
+   579→
+   580→const allNavItems: NavItem[] = [
+   581→  { key: 'general', label: 'General', icon: <FiSettings className="w-4 h-4" /> },
+   582→  { key: 'payroll', label: 'Payroll', icon: <FiDollarSign className="w-4 h-4" /> },
+   583→  { key: 'leave', label: 'Leave', icon: <FiCalendar className="w-4 h-4" /> },
+   584→  { key: 'attendance', label: 'Attendance', icon: <FiClock className="w-4 h-4" /> },
+   585→  { key: 'employee', label: 'Employee', icon: <FiUsers className="w-4 h-4" /> },
+   586→  { key: 'recruitment', label: 'Recruitment', icon: <FiBriefcase className="w-4 h-4" /> },
+   587→  { key: 'performance', label: 'Performance', icon: <FiTrendingUp className="w-4 h-4" /> },
+   588→  { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
+   589→  { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
+   590→  { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
+   591→];
+   592→
+   593→/* ──────────────────────────────────────────────
+   594→   Main Component
+   595→   ────────────────────────────────────────────── */
+   596→export default function SettingsPage() {
+   597→  return (
+   598→    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+   599→      <SettingsContent />
+   600→    </Suspense>
+   601→  );
+   602→}
+   603→
+   604→function SettingsContent() {
+   605→  const searchParams = useSearchParams();
+   606→  const router = useRouter();
+   607→  const { user } = useAuthStore();
+   608→  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
+   609→
+   610→  // ALL hooks must be called before any conditional returns (Rules of Hooks)
+   611→
+   612→  // Read tab from URL query parameter
+   613→  const tabFromUrl = searchParams.get('tab') as TabKey | null;
+   614→  const navItems = allNavItems;
+   615→  const allowedTabKeys = navItems.map((n) => n.key);
+   616→  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
+   617→  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl) && allowedTabKeys.includes(tabFromUrl)) ? tabFromUrl : 'general';
+   618→
+   619→  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
+   620→  const [saving, setSaving] = useState(false);
+   621→
+   622→  // Sync activeTab with URL search params when they change
+   623→  useEffect(() => {
+   624→    const tabFromUrlUpdate = searchParams.get('tab') as TabKey | null;
+   625→    const newTab = (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate) && allowedTabKeys.includes(tabFromUrlUpdate)) ? tabFromUrlUpdate : 'general';
+   626→    setActiveTab(newTab);
+   627→  }, [searchParams, allowedTabKeys]);
+   628→
+   629→  // Redirect non-admins to My Profile page
+   630→  useEffect(() => {
+   631→    if (!isAdmin) {
+   632→      router.replace('/my-profile');
+   633→    }
+   634→  }, [isAdmin, router]);
+   635→
+   636→  const [tenant, setTenant] = useState<TenantInfo | null>(null);
+   637→  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+   638→
+   639→  /* General settings state */
+   640→  const [editingSection, setEditingSection] = useState<string | null>(null);
+   641→  const [generalForm, setGeneralForm] = useState({
+   642→    companyName: '',
+   643→    timezone: 'UTC',
+   644→    dateFormat: 'MM/DD/YYYY',
+   645→    currency: 'INR',
+   646→  });
+   647→
+   648→  /* Module settings from localStorage */
+   649→  const [settings, setSettings] = useState<Record<string, string | number | boolean>>({});
+   650→  const [editDrafts, setEditDrafts] = useState<Record<string, Record<string, string | number | boolean>>>({});
+   651→
+   652→  /* Notification preferences */
+   653→  const [notifPrefs, setNotifPrefs] = useState<NotifPref>(() => {
+   654→    if (typeof window === 'undefined') return { email: true, leave: true, payroll: true, recruitment: true, workflow: true, system: true };
+   655→    const stored = localStorage.getItem('nexus_notif_prefs');
+   656→    if (stored) {
+   657→      try { return JSON.parse(stored) as NotifPref; } catch { /* ignore */ }
+   658→    }
+   659→    return { email: true, leave: true, payroll: true, recruitment: true, workflow: true, system: true };
+   660→  });
+   661→
+   662→  /* Load settings from localStorage on mount */
+   663→  useEffect(() => {
+   664→    const stored = loadSettings();
+   665→    setSettings(stored);
+   666→  }, []);
+   667→
+   668→  /* Fetch tenant info */
+   669→  const fetchTenant = useCallback(async () => {
+   670→    try {
+   671→      const res = await fetch('/api/tenants?limit=1', { headers: getAuthHeaders() });
+   672→      if (res.ok) {
+   673→        const data = await res.json();
+   674→        const t = data.tenants?.[0] || null;
+   675→        setTenant(t);
+   676→        if (t) {
+   677→          setGeneralForm({
+   678→            companyName: t.name || '',
+   679→            timezone: t.timezone || 'UTC',
+   680→            dateFormat: 'MM/DD/YYYY',
+   681→            currency: t.currency || 'INR',
+   682→          });
+   683→        }
+   684→      }
+   685→    } catch {
+   686→      /* ignore - tenant API might not be available */
+   687→    }
+   688→  }, []);
+   689→
+   690→  useEffect(() => { queueMicrotask(() => fetchTenant()); }, [fetchTenant]);
+   691→
+   692→  /* Get default value for a field */
+   693→  const getDefaultValue = useCallback((key: string): string | number | boolean => {
+   694→    const allSections = [...payrollSections, ...leaveSections, ...attendanceSections, ...employeeSections, ...recruitmentSections, ...performanceSections];
+   695→    for (const section of allSections) {
+   696→      const field = section.fields.find((f) => f.key === key);
+   697→      if (field) return field.defaultValue;
+   698→    }
+   699→    return '';
+   700→  }, []);
+   701→
+   702→  /* Get current setting value (with default fallback) */
+   703→  const getSetting = useCallback((key: string): string | number | boolean => {
+   704→    if (key in settings) return settings[key];
+   705→    return getDefaultValue(key);
+   706→  }, [settings, getDefaultValue]);
+   707→
+   708→  /* Start editing a section */
+   709→  const handleStartEdit = useCallback((sectionKey: string) => {
+   710→    // Build a draft from current settings
+   711→    const allSections = [...payrollSections, ...leaveSections, ...attendanceSections, ...employeeSections, ...recruitmentSections, ...performanceSections];
+   712→    const section = allSections.find((s) => s.title === sectionKey);
+   713→    if (!section) return;
+   714→    const draft: Record<string, string | number | boolean> = {};
+   715→    for (const field of section.fields) {
+   716→      draft[field.key] = getSetting(field.key);
+   717→    }
+   718→    setEditDrafts((prev) => ({ ...prev, [sectionKey]: draft }));
+   719→    setEditingSection(sectionKey);
+   720→  }, [getSetting]);
+   721→
+   722→  /* Update a draft field */
+   723→  const handleDraftChange = useCallback((sectionKey: string, key: string, value: string | number | boolean) => {
+   724→    setEditDrafts((prev) => ({
+   725→      ...prev,
+   726→      [sectionKey]: { ...(prev[sectionKey] || {}), [key]: value },
+   727→    }));
+   728→  }, []);
+   729→
+   730→  /* Cancel editing */
+   731→  const handleCancelEdit = useCallback(() => {
+   732→    setEditingSection(null);
+   733→    setEditDrafts((prev) => {
+   734→      const next = { ...prev };
+   735→      if (editingSection) delete next[editingSection];
+   736→      return next;
+   737→    });
+   738→  }, [editingSection]);
+   739→
+   740→  /* Save section settings */
+   741→  const handleSaveSection = useCallback((sectionKey: string) => {
+   742→    const draft = editDrafts[sectionKey];
+   743→    if (!draft) return;
+   744→    const newSettings = { ...settings, ...draft };
+   745→    setSettings(newSettings);
+   746→    saveSettings(newSettings);
+   747→    setEditingSection(null);
+   748→    setEditDrafts((prev) => {
+   749→      const next = { ...prev };
+   750→      delete next[sectionKey];
+   751→      return next;
+   752→    });
+   753→    toast.success('Settings saved successfully');
+   754→  }, [editDrafts, settings]);
+   755→
+   756→  /* Save general settings */
+   757→  const handleSaveGeneral = async () => {
+   758→    try {
+   759→      setSaving(true);
+   760→      if (tenant?.id) {
+   761→        const res = await fetch(`/api/tenants/${tenant.id}`, {
+   762→          method: 'PATCH',
+   763→          headers: getAuthHeaders(),
+   764→          body: JSON.stringify({
+   765→            name: generalForm.companyName,
+   766→            timezone: generalForm.timezone,
+   767→            currency: generalForm.currency,
+   768→          }),
+   769→        });
+   770→        if (!res.ok) {
+   771→          const d = await res.json();
+   772→          throw new Error(d.error || 'Failed');
+   773→        }
+   774→      }
+   775→      toast.success('Settings saved successfully');
+   776→      setEditingSection(null);
+   777→      fetchTenant();
+   778→    } catch (err: unknown) {
+   779→      toast.error(err instanceof Error ? err.message : 'Failed to save settings');
+   780→    } finally {
+   781→      setSaving(false);
+   782→    }
+   783→  };
+   784→
+   785→  /* Save notification preferences */
+   786→  const handleSaveNotifPrefs = () => {
+   787→    try {
+   788→      localStorage.setItem('nexus_notif_prefs', JSON.stringify(notifPrefs));
+   789→      toast.success('Notification preferences saved');
+   790→    } catch {
+   791→      toast.error('Failed to save preferences');
+   792→    }
+   793→  };
+   794→
+   795→  /* No longer needed — navItems are filtered by role, so employees never reach admin tabs */
+   796→
+   797→  // Early return for non-admins (after all hooks are called to satisfy Rules of Hooks)
+   798→  if (!isAdmin) {
+   799→    return (
+   800→      <div className="flex items-center justify-center py-20">
+   801→        <div className="text-center">
+   802→          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+   803→          <p className="text-sm text-nexus-text-muted">Redirecting to My Profile...</p>
+   804→        </div>
+   805→      </div>
+   806→    );
+   807→  }
+   808→
+   809→  /* Build section cards for module settings tabs */
+   810→  const renderModuleSections = (sections: SettingSection[]) => (
+   811→    <div className="space-y-4">
+   812→      {sections.map((section) => {
+   813→        const isEditing = editingSection === section.title;
+   814→        const draft = isEditing ? editDrafts[section.title] || {} : {};
+   815→        const currentSettings: Record<string, string | number | boolean> = {};
+   816→        for (const field of section.fields) {
+   817→          currentSettings[field.key] = isEditing ? (draft[field.key] ?? getSetting(field.key)) : getSetting(field.key);
+   818→        }
+   819→        return (
+   820→          <SettingsSectionCard
+   821→            key={section.title}
+   822→            section={section}
+   823→            settings={currentSettings}
+   824→            editing={isEditing}
+   825→            onToggleEdit={() => {
+   826→              if (isEditing) {
+   827→                handleCancelEdit();
+   828→              } else {
+   829→                handleStartEdit(section.title);
+   830→              }
+   831→            }}
+   832→            onChange={(key, value) => handleDraftChange(section.title, key, value)}
+   833→            onSave={() => handleSaveSection(section.title)}
+   834→            onReset={handleCancelEdit}
+   835→            saving={saving}
+   836→          />
+   837→        );
+   838→      })}
+   839→    </div>
+   840→  );
+   841→
+   842→  return (
+   843→    <div className="space-y-6">
+   844→      {/* Header */}
+   845→      <div className="flex items-center justify-between">
+   846→        <div>
+   847→          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+   848→            <FiSettings className="w-6 h-6 text-slate-500" />
+   849→            Settings
+   850→          </h1>
+   851→          <p className="text-nexus-text-secondary mt-1">Manage system configuration and preferences</p>
+   852→        </div>
+   853→        {/* Mobile tab selector */}
+   854→        <button
+   855→          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+   856→          className="md:hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+   857→        >
+   858→          <FiMenu className="w-4 h-4" />
+   859→          {navItems.find((n) => n.key === activeTab)?.label}
+   860→        </button>
+   861→      </div>
+   862→
+   863→      {/* Module Tips & Workflow — only shown for admins */}
+   864→      {isAdmin && (
+   865→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   866→        <ModuleTips
+   867→          moduleKey="settings"
+   868→          title="Settings Tips"
+   869→          tips={[
+   870→            { title: 'Configure Modules First', description: 'Set up payroll, leave, and attendance rules before onboarding employees to ensure smooth operations.' },
+   871→            { title: 'Role-Based Access', description: 'Use the Roles & Permissions tab to control who can view and modify different settings sections.' },
+   872→            { title: 'Test Changes', description: 'After updating settings, verify the changes by checking the relevant module to ensure they take effect.' },
+   873→            { title: 'Backup Settings', description: 'Settings are stored locally — consider documenting critical configurations for recovery purposes.' },
+   874→            { title: 'Review Periodically', description: 'Revisit settings quarterly to align policies with evolving organizational needs and compliance requirements.' },
+   875→          ]}
+   876→          userRole={user?.role}
+   877→        />
+   878→        <ModuleWorkflow
+   879→          moduleKey="settings"
+   880→          title="How to Configure System Settings"
+   881→          subtitle="Follow this workflow to properly set up your HRMS"
+   882→          accentColor="emerald"
+   883→          steps={[
+   884→            { step: 1, title: 'Review General Settings', description: 'Set company name, timezone, date format, and currency preferences.' },
+   885→            { step: 2, title: 'Configure Payroll Rules', description: 'Define pay frequency, overtime calculation, and tax regime defaults.' },
+   886→            { step: 3, title: 'Set Leave Policies', description: 'Configure leave year, carry forward rules, and application policies.' },
+   887→            { step: 4, title: 'Define Attendance Rules', description: 'Set work hours, late thresholds, weekend rules, and geofencing options.' },
+   888→            { step: 5, title: 'Setup Employee Codes', description: 'Configure employee code prefixes, auto-generation, and probation defaults.' },
+   889→            { step: 6, title: 'Configure Notifications', description: 'Enable or disable email and module-specific notification preferences.' },
+   890→            { step: 7, title: 'Assign Roles & Permissions', description: 'Define role-based access levels for different user types in the system.' },
+   891→            { step: 8, title: 'Test Configuration', description: 'Verify all settings are working correctly by testing in relevant modules.' },
+   892→          ]}
+   893→          userRole={user?.role}
+   894→        />
+   895→      </div>
+   896→      )}
+   897→
+   898→      {/* Mobile Dropdown Navigation */}
+   899→      {mobileSidebarOpen && (
+   900→        <div className="md:hidden nexus-card animate-slide-in-down">
+   901→          <div className="p-2 space-y-0.5">
+   902→            {navItems.map((item) => (
+   903→              <button
+   904→                key={item.key}
+   905→                onClick={() => { setActiveTab(item.key); setMobileSidebarOpen(false); }}
+   906→                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+   907→                  activeTab === item.key
+   908→                    ? 'bg-blue-50 text-blue-600'
+   909→                    : 'text-nexus-text-secondary hover:bg-slate-50'
+   910→                }`}
+   911→              >
+   912→                {item.icon}
+   913→                {item.label}
+   914→              </button>
+   915→            ))}
+   916→          </div>
+   917→        </div>
+   918→      )}
+   919→
+   920→      {/* Main Layout: Sidebar + Content — sidebar hidden for employees (only 1 tab) */}
+   921→      <div className="flex flex-col md:flex-row gap-6">
+   922→        {/* Left Sidebar Navigation (desktop) — only for admins who have multiple tabs */}
+   923→        {isAdmin && navItems.length > 1 && (
+   924→        <nav className="hidden md:block w-56 shrink-0">
+   925→          <div className="nexus-card p-2 sticky top-24">
+   926→            <div className="space-y-0.5">
+   927→              {navItems.map((item) => (
+   928→                <button
+   929→                  key={item.key}
+   930→                  onClick={() => setActiveTab(item.key)}
+   931→                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+   932→                    activeTab === item.key
+   933→                      ? 'bg-blue-50 text-blue-600'
+   934→                      : 'text-nexus-text-secondary hover:bg-slate-50 hover:text-nexus-text-primary'
+   935→                  }`}
+   936→                >
+   937→                  <span className={activeTab === item.key ? 'text-blue-500' : 'text-nexus-text-muted'}>{item.icon}</span>
+   938→                  {item.label}
+   939→                  {activeTab === item.key && (
+   940→                    <FiCheck className="w-3.5 h-3.5 ml-auto text-blue-500" />
+   941→                  )}
+   942→                </button>
+   943→              ))}
+   944→            </div>
+   945→          </div>
+   946→        </nav>
+   947→        )}
+   948→
+   949→        {/* Right Content Area */}
+   950→        <div className="flex-1 min-w-0">
+   951→          {/* General Tab */}
+   952→          {activeTab === 'general' && (
+   953→            <div className="space-y-4">
+   954→              <div className="nexus-card">
+   955→                <div className="p-6">
+   956→                  <div className="flex items-center justify-between mb-6">
+   957→                    <div className="flex items-center gap-3">
+   958→                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+   959→                        <FiGlobe className="w-5 h-5" />
+   960→                      </div>
+   961→                      <div>
+   962→                        <h2 className="text-lg font-semibold text-nexus-text-primary">General Settings</h2>
+   963→                        <p className="text-xs text-nexus-text-muted">Configure basic application settings</p>
+   964→                      </div>
+   965→                    </div>
+   966→                    {editingSection !== 'general' ? (
+   967→                      <button onClick={() => setEditingSection('general')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+   968→                        <FiEdit2 className="w-4 h-4" />
+   969→                        Edit
+   970→                      </button>
+   971→                    ) : (
+   972→                      <button onClick={() => setEditingSection(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+   973→                        <FiX className="w-5 h-5" />
+   974→                      </button>
+   975→                    )}
+   976→                  </div>
+   977→
+   978→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+   979→                    <div>
+   980→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+   981→                        <span className="flex items-center gap-1"><FiDatabase className="w-3 h-3" /> Company Name</span>
+   982→                      </label>
+   983→                      {editingSection === 'general' ? (
+   984→                        <input type="text" value={generalForm.companyName} onChange={e => setGeneralForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+   985→                      ) : (
+   986→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.companyName || '—'}</p>
+   987→                      )}
+   988→                    </div>
+   989→                    <div>
+   990→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+   991→                        <span className="flex items-center gap-1"><FiClock className="w-3 h-3" /> Timezone</span>
+   992→                      </label>
+   993→                      {editingSection === 'general' ? (
+   994→                        <select value={generalForm.timezone} onChange={e => setGeneralForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+   995→                          <option value="UTC">UTC</option>
+   996→                          <option value="America/New_York">Eastern Time (ET)</option>
+   997→                          <option value="America/Chicago">Central Time (CT)</option>
+   998→                          <option value="America/Denver">Mountain Time (MT)</option>
+   999→                          <option value="America/Los_Angeles">Pacific Time (PT)</option>
+  1000→                          <option value="Asia/Kolkata">India (IST)</option>
+  1001→                          <option value="Europe/London">London (GMT)</option>
+  1002→                          <option value="Asia/Tokyo">Tokyo (JST)</option>
+  1003→                        </select>
+  1004→                      ) : (
+  1005→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.timezone}</p>
+  1006→                      )}
+  1007→                    </div>
+  1008→                    <div>
+  1009→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+  1010→                        <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Date Format</span>
+  1011→                      </label>
+  1012→                      {editingSection === 'general' ? (
+  1013→                        <select value={generalForm.dateFormat} onChange={e => setGeneralForm(p => ({ ...p, dateFormat: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+  1014→                          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+  1015→                          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+  1016→                          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+  1017→                        </select>
+  1018→                      ) : (
+  1019→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.dateFormat}</p>
+  1020→                      )}
+  1021→                    </div>
+  1022→                    <div>
+  1023→                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+  1024→                        <span className="flex items-center gap-1"><FiDollarSign className="w-3 h-3" /> Currency</span>
+  1025→                      </label>
+  1026→                      {editingSection === 'general' ? (
+  1027→                        <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+  1028→                          <option value="INR">INR (₹) — Indian Rupee</option>
+  1029→                          <option value="USD">USD ($) — US Dollar</option>
+  1030→                          <option value="EUR">EUR (€) — Euro</option>
+  1031→                          <option value="GBP">GBP (£) — British Pound</option>
+  1032→                          <option value="SGD">SGD (S$) — Singapore Dollar</option>
+  1033→                          <option value="AED">AED (د.إ) — UAE Dirham</option>
+  1034→                          <option value="AUD">AUD (A$) — Australian Dollar</option>
+  1035→                          <option value="CAD">CAD (C$) — Canadian Dollar</option>
+  1036→                          <option value="JPY">JPY (¥) — Japanese Yen</option>
+  1037→                          <option value="CNY">CNY (¥) — Chinese Yuan</option>
+  1038→                        </select>
+  1039→                      ) : (
+  1040→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.currency}</p>
+  1041→                      )}
+  1042→                    </div>
+  1043→                  </div>
+  1044→
+  1045→                  {editingSection === 'general' && (
+  1046→                    <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+  1047→                      <button onClick={() => setEditingSection(null)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50">Cancel</button>
+  1048→                      <button onClick={handleSaveGeneral} disabled={saving} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors">
+  1049→                        <FiSave className="w-4 h-4" />
+  1050→                        {saving ? 'Saving...' : 'Save Changes'}
+  1051→                      </button>
+  1052→                    </div>
+  1053→                  )}
+  1054→                </div>
+  1055→              </div>
+  1056→            </div>
+  1057→          )}
+  1058→
+  1059→          {/* Payroll Tab */}
+  1060→          {activeTab === 'payroll' && (
+  1061→            <div className="space-y-2">
+  1062→              <div className="mb-4">
+  1063→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1064→                  <FiDollarSign className="w-5 h-5 text-emerald-500" />
+  1065→                  Payroll Settings
+  1066→                </h2>
+  1067→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure payroll processing, tax, and calculation rules</p>
+  1068→              </div>
+  1069→              {renderModuleSections(payrollSections)}
+  1070→            </div>
+  1071→          )}
+  1072→
+  1073→          {/* Leave Tab */}
+  1074→          {activeTab === 'leave' && (
+  1075→            <div className="space-y-2">
+  1076→              <div className="mb-4">
+  1077→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1078→                  <FiCalendar className="w-5 h-5 text-blue-500" />
+  1079→                  Leave Settings
+  1080→                </h2>
+  1081→                <p className="text-xs text-nexus-text-muted mt-0.5">Manage leave policies, carry forward rules, and special leaves</p>
+  1082→              </div>
+  1083→              {renderModuleSections(leaveSections)}
+  1084→            </div>
+  1085→          )}
+  1086→
+  1087→          {/* Attendance Tab */}
+  1088→          {activeTab === 'attendance' && (
+  1089→            <div className="space-y-2">
+  1090→              <div className="mb-4">
+  1091→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1092→                  <FiClock className="w-5 h-5 text-orange-500" />
+  1093→                  Attendance Settings
+  1094→                </h2>
+  1095→                <p className="text-xs text-nexus-text-muted mt-0.5">Define work hours, attendance thresholds, and geofencing rules</p>
+  1096→              </div>
+  1097→              {renderModuleSections(attendanceSections)}
+  1098→            </div>
+  1099→          )}
+  1100→
+  1101→          {/* Employee Tab */}
+  1102→          {activeTab === 'employee' && (
+  1103→            <div className="space-y-2">
+  1104→              <div className="mb-4">
+  1105→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1106→                  <FiUsers className="w-5 h-5 text-indigo-500" />
+  1107→                  Employee Settings
+  1108→                </h2>
+  1109→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
+  1110→              </div>
+  1111→              {renderModuleSections(employeeSections)}
+  1112→            </div>
+  1113→          )}
+  1114→
+  1115→          {/* Recruitment Tab */}
+  1116→          {activeTab === 'recruitment' && (
+  1117→            <div className="space-y-2">
+  1118→              <div className="mb-4">
+  1119→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1120→                  <FiBriefcase className="w-5 h-5 text-amber-500" />
+  1121→                  Recruitment Settings
+  1122→                </h2>
+  1123→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure hiring pipeline, offer letters, and application defaults</p>
+  1124→              </div>
+  1125→              {renderModuleSections(recruitmentSections)}
+  1126→            </div>
+  1127→          )}
+  1128→
+  1129→          {/* Performance Tab */}
+  1130→          {activeTab === 'performance' && (
+  1131→            <div className="space-y-2">
+  1132→              <div className="mb-4">
+  1133→                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+  1134→                  <FiTrendingUp className="w-5 h-5 text-violet-500" />
+  1135→                  Performance Settings
+  1136→                </h2>
+  1137→                <p className="text-xs text-nexus-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
+  1138→              </div>
+  1139→              {renderModuleSections(performanceSections)}
+  1140→            </div>
+  1141→          )}
+  1142→
+  1143→          {/* Company Tab */}
+  1144→          {activeTab === 'company' && (
+  1145→            <div className="space-y-4">
+  1146→              <div className="nexus-card">
+  1147→                <div className="p-6">
+  1148→                  <div className="flex items-center gap-3 mb-6">
+  1149→                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+  1150→                      <FiDatabase className="w-5 h-5" />
+  1151→                    </div>
+  1152→                    <div>
+  1153→                      <h2 className="text-lg font-semibold text-nexus-text-primary">Company Information</h2>
+  1154→                      <p className="text-xs text-nexus-text-muted">Current tenant configuration</p>
+  1155→                    </div>
+  1156→                  </div>
+  1157→
+  1158→                  {tenant ? (
+  1159→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+  1160→                      <div>
+  1161→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company Name</label>
+  1162→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('3 boxes') ? '3 Boxes Corp' : n; })()}</p>
+  1163→                      </div>
+  1164→                      <div>
+  1165→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slug</label>
+  1166→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{tenant.slug}</p>
+  1167→                      </div>
+  1168→                      <div>
+  1169→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Domain</label>
+  1170→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{tenant.domain || '—'}</p>
+  1171→                      </div>
+  1172→                      <div>
+  1173→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Plan</label>
+  1174→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{tenant.plan}</p>
+  1175→                      </div>
+  1176→                      <div>
+  1177→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+  1178→                        <span className={`nexus-badge ${tenant.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-warning'}`}>{tenant.status}</span>
+  1179→                      </div>
+  1180→                      <div>
+  1181→                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+  1182→                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{tenant.country || '—'}</p>
+  1183→                      </div>
+  1184→                    </div>
+  1185→                  ) : (
+  1186→                    <div className="text-center py-8">
+  1187→                      <FiDatabase className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+  1188→                      <p className="text-nexus-text-secondary font-medium">No tenant information available</p>
+  1189→                      <p className="text-sm text-nexus-text-muted mt-1">Tenant data will appear once configured</p>
+  1190→                    </div>
+  1191→                  )}
+  1192→                </div>
+  1193→              </div>
+  1194→            </div>
+  1195→          )}
+  1196→
+  1197→          {/* Roles & Permissions Tab */}
+  1198→          {activeTab === 'roles' && (
+  1199→            <div className="space-y-4">
+  1200→              <div className="nexus-card">
+  1201→                <div className="p-6">
+  1202→                  <div className="flex items-center gap-3 mb-6">
+  1203→                    <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500">
+  1204→                      <FiShield className="w-5 h-5" />
+  1205→                    </div>
+  1206→                    <div>
+  1207→                      <h2 className="text-lg font-semibold text-nexus-text-primary">Roles & Permissions</h2>
+  1208→                      <p className="text-xs text-nexus-text-muted">View role definitions and access levels</p>
+  1209→                    </div>
+  1210→                  </div>
+  1211→
+  1212→                  <div className="space-y-4">
+  1213→                    {rolesData.map(role => (
+  1214→                      <div key={role.key} className="p-4 rounded-lg border border-nexus-border/50 hover:border-nexus-border transition-colors">
+  1215→                        <div className="flex items-center justify-between mb-2">
+  1216→                          <div className="flex items-center gap-3">
+  1217→                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
+  1218→                              role.key === 'super_admin' ? 'bg-red-500' :
+  1219→                              role.key === 'tenant_admin' ? 'bg-orange-500' :
+  1220→                              role.key === 'hr_admin' ? 'bg-blue-500' :
+  1221→                              role.key === 'manager' ? 'bg-emerald-500' :
+  1222→                              'bg-slate-500'
+  1223→                            }`}>
+  1224→                              {role.name.split(' ').map(w => w[0]).join('')}
+  1225→                            </div>
+  1226→                            <div>
+  1227→                              <p className="text-sm font-semibold text-nexus-text-primary">{role.name}</p>
+  1228→                              <p className="text-xs text-nexus-text-muted">{role.description}</p>
+  1229→                            </div>
+  1230→                          </div>
+  1231→                          <span className={`nexus-badge ${role.key === user?.role ? 'nexus-badge-success' : 'bg-slate-50 text-slate-500'}`}>
+  1232→                            {role.key === user?.role ? 'Your Role' : role.key}
+  1233→                          </span>
+  1234→                        </div>
+  1235→                        <div className="flex flex-wrap gap-1.5 mt-3">
+  1236→                          {role.permissions.map(perm => (
+  1237→                            <span key={perm} className="text-[10px] px-2 py-1 rounded-md bg-slate-50 text-nexus-text-secondary font-medium border border-nexus-border/50">
+  1238→                              {perm}
+  1239→                            </span>
+  1240→                          ))}
+  1241→                        </div>
+  1242→                      </div>
+  1243→                    ))}
+  1244→                  </div>
+  1245→
+  1246→                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 mt-4">
+  1247→                    <p className="text-xs text-amber-700 font-medium">Role management is currently view-only</p>
+  1248→                    <p className="text-xs text-amber-600 mt-0.5">Custom role creation and permission editing will be available in a future update.</p>
+  1249→                  </div>
+  1250→                </div>
+  1251→              </div>
+  1252→            </div>
+  1253→          )}
+  1254→
+  1255→          {/* Notifications Tab */}
+  1256→          {activeTab === 'notifications' && (
+  1257→            <div className="space-y-4">
+  1258→              <div className="nexus-card">
+  1259→                <div className="p-6">
+  1260→                  <div className="flex items-center gap-3 mb-6">
+  1261→                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+  1262→                      <FiBell className="w-5 h-5" />
+  1263→                    </div>
+  1264→                    <div>
+  1265→                      <h2 className="text-lg font-semibold text-nexus-text-primary">Notification Preferences</h2>
+  1266→                      <p className="text-xs text-nexus-text-muted">Choose what notifications you receive</p>
+  1267→                    </div>
+  1268→                  </div>
+  1269→
+  1270→                  <div className="space-y-3">
+  1271→                    {[
+  1272→                      { key: 'email' as const, label: 'Email Notifications', desc: 'Receive notifications via email' },
+  1273→                      { key: 'leave' as const, label: 'Leave Updates', desc: 'Leave request approvals and rejections' },
+  1274→                      { key: 'payroll' as const, label: 'Payroll Alerts', desc: 'Payroll processing and payment notifications' },
+  1275→                      { key: 'recruitment' as const, label: 'Recruitment Updates', desc: 'New applications and interview schedules' },
+  1276→                      { key: 'workflow' as const, label: 'Workflow Notifications', desc: 'Approval requests and workflow updates' },
+  1277→                      { key: 'system' as const, label: 'System Alerts', desc: 'System maintenance and announcements' },
+  1278→                    ].map(pref => (
+  1279→                      <div key={pref.key} className="flex items-center justify-between p-4 rounded-lg border border-nexus-border/50 hover:border-nexus-border transition-colors">
+  1280→                        <div>
+  1281→                          <p className="text-sm font-medium text-nexus-text-primary">{pref.label}</p>
+  1282→                          <p className="text-xs text-nexus-text-muted">{pref.desc}</p>
+  1283→                        </div>
+  1284→                        <ToggleSwitch
+  1285→                          enabled={notifPrefs[pref.key]}
+  1286→                          onToggle={() => setNotifPrefs(p => ({ ...p, [pref.key]: !p[pref.key] }))}
+  1287→                        />
+  1288→                      </div>
+  1289→                    ))}
+  1290→                  </div>
+  1291→
+  1292→                  <div className="flex items-center justify-end mt-6 pt-4 border-t border-nexus-border">
+  1293→                    <button onClick={handleSaveNotifPrefs} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors flex items-center gap-2">
+  1294→                      <FiSave className="w-4 h-4" />
+  1295→                      Save Preferences
+  1296→                    </button>
+  1297→                  </div>
+  1298→                </div>
+  1299→              </div>
+  1300→            </div>
+  1301→          )}
+  1302→        </div>
+  1303→      </div>
+  1304→    </div>
+  1305→  );
+  1306→}
+  1307→
