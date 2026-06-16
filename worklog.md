@@ -314,3 +314,44 @@ Stage Summary:
 - API routes follow existing patterns (corsHeaders, verifyToken, db from @/lib/db)
 - All new files pass ESLint with zero errors/warnings
 - Celebration animation using canvas confetti on setup completion
+
+---
+Task ID: multi-tenant-quotas
+Agent: main (super-z)
+Task: Implement multi-tenancy quotas + employee strength barriers as requested by user.
+
+User's exact ask:
+  - Move company creation INTO tenant admin module so it's clear which tenant
+    a company is being inducted under (already in tenant-admin/companies; the
+    UI now makes the parent tenant explicit).
+  - Add currency + country configuration in the tenant-admin company module
+    (now proper dropdowns).
+  - Super admin questionnaire: how many companies is the tenant admin allowed
+    to create? (added maxCompaniesAllowed field on Tenant).
+  - Super admin group company: employee strength barrier either per-company or
+    group-total. Locks the tenant admin from creating more companies or
+    loading more employees beyond the limit.
+
+Work Log:
+- Updated Prisma schema: Tenant.maxCompaniesAllowed, CompanyGroup.{employeeLimitMode,maxEmployees,maxCompanies,notes}.
+- Regenerated Prisma client.
+- Extended /api/db-push with ALTER TABLE statements for all new columns.
+- Removed branding guards from authStore, /api/tenants, /api/tenants/[id], /api/tenant-admin.
+- Neutralised /api/fix-tenant (no longer destroys extra tenants — multi-tenant mode is enabled).
+- Updated /api/tenants POST/PATCH to accept maxCompaniesAllowed.
+- Created /api/company-groups (GET/POST) + /api/company-groups/[id] (PATCH/DELETE).
+- Updated /api/companies POST to enforce tenant.maxCompaniesAllowed + group.maxCompanies.
+- Updated /api/employees POST to enforce group employee-strength barrier in both per-company and group-total modes.
+- Updated /api/me/context to expose tenant info + tenantQuota + group limit info.
+- Extended companyContextStore with tenant, tenantQuota, selectedTenant, selectedCompanyGroup selectors.
+- Reworked CompanySwitcher: shows parent tenant name on each company item for super admin, shows quota banner for tenant admin, shows employee-strength badges per group.
+- Reworked tenant-admin/companies page: parent tenant name in hero + modal, quota banner with usage/remaining, country/currency/timezone dropdowns, inherited barrier display.
+- Reworked super-admin page: questionnaire field for maxCompaniesAllowed in tenant form, new 'Group Companies' tab with create/edit/delete UI for group companies + employee strength barriers.
+- Built, verified (npx next build succeeded with no errors), committed (28e4f8d), pushed to GitHub main.
+
+Stage Summary:
+- Multi-tenancy model: Tenant → CompanyGroup → Company → Employees.
+- Super admin creates tenants (with maxCompaniesAllowed) + group companies (with employeeLimitMode + maxEmployees + maxCompanies).
+- Tenant admin can only create companies up to the tenant quota, and only inside an explicit group company. Employees are blocked from being added beyond the group's employee-strength barrier.
+- All changes pushed; Vercel will auto-deploy. The new DB columns will be created on first call to /api/db-push after deploy.
+
