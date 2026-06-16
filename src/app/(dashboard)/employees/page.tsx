@@ -146,6 +146,48 @@ const initialForm = {
   salaryCurrency: 'INR',
   emergencyContactName: '',
   emergencyContactPhone: '',
+  // Statutory Details
+  pfNumber: '',
+  pfUAN: '',
+  pfNomineeName: '',
+  pfNomineeRelation: '',
+  pfNomineePercentage: '',
+  esiNumber: '',
+  esiDispensary: '',
+  esiNomineeName: '',
+  esiNomineeRelation: '',
+  professionalTaxNumber: '',
+  lwfNumber: '',
+  // Overseas Details
+  hasForeignCitizenship: '',
+  foreignCitizenshipCountry: '',
+  foreignPassportNumber: '',
+  foreignPassportExpiry: '',
+  hasForeignSojourn: '',
+  foreignSojournCountry: '',
+  foreignSojournPurpose: '',
+  foreignSojournDuration: '',
+  hasVisa: '',
+  visaType: '',
+  visaCountry: '',
+  visaExpiry: '',
+  hasIntlDrivingLicense: '',
+  intlDrivingLicenseCountry: '',
+  intlDrivingLicenseExpiry: '',
+  // Previous Experience
+  previousEmployer1: '',
+  previousDesignation1: '',
+  previousDuration1: '',
+  previousReason1: '',
+  previousEmployer2: '',
+  previousDesignation2: '',
+  previousDuration2: '',
+  previousReason2: '',
+  previousEmployer3: '',
+  previousDesignation3: '',
+  previousDuration3: '',
+  previousReason3: '',
+  totalExperience: '',
   // Health History Questionnaire
   bloodGroup: '',
   hasChronicIllness: '',
@@ -209,9 +251,11 @@ export default function EmployeesPage() {
     { key: 'address', label: 'Address', icon: '📍' },
     { key: 'employment', label: 'Employment', icon: '💼' },
     { key: 'bank', label: 'Bank & Finance', icon: '🏦' },
-    { key: 'salary', label: 'Salary', icon: '💰' },
+    { key: 'statutory', label: 'Statutory', icon: '📋' },
     { key: 'emergency', label: 'Emergency', icon: '🚨' },
     { key: 'health', label: 'Health', icon: '❤️' },
+    { key: 'overseas', label: 'Overseas', icon: '🌍' },
+    { key: 'experience', label: 'Experience', icon: '📄' },
     { key: 'policies', label: 'Policies', icon: '🛡️' },
   ] as const;
 
@@ -680,28 +724,101 @@ export default function EmployeesPage() {
                 </div>
               )}
 
-              {/* Salary Information */}
-              {formTab === 'salary' && (
+              {/* Statutory Details */}
+              {formTab === 'statutory' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary</label>
-                      <input type="number" step="0.01" value={form.salary} onChange={e => updateForm('salary', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  {/* PF Details */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Provident Fund (PF)</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">PF Number</label>
+                        <input type="text" value={form.pfNumber} onChange={e => updateForm('pfNumber', e.target.value)} placeholder="e.g., PF/MH/12345/678" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">UAN Number</label>
+                        <input type="text" value={form.pfUAN} onChange={e => updateForm('pfUAN', e.target.value)} placeholder="12-digit UAN" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
-                      <select value={form.salaryCurrency} onChange={e => updateForm('salaryCurrency', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                        <option value="INR">INR — Indian Rupee</option>
-                        <option value="USD">USD — US Dollar</option>
-                        <option value="EUR">EUR — Euro</option>
-                        <option value="GBP">GBP — British Pound</option>
-                        <option value="SGD">SGD — Singapore Dollar</option>
-                        <option value="AED">AED — UAE Dirham</option>
-                        <option value="AUD">AUD — Australian Dollar</option>
-                        <option value="CAD">CAD — Canadian Dollar</option>
-                        <option value="JPY">JPY — Japanese Yen</option>
-                        <option value="CNY">CNY — Chinese Yuan</option>
-                      </select>
+                  </div>
+                  {/* PF Nomination */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">PF Nomination Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nominee Name</label>
+                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nominee Relationship</label>
+                        <select value={form.pfNomineeRelation} onChange={e => updateForm('pfNomineeRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                          <option value="">Select</option>
+                          <option value="spouse">Spouse</option>
+                          <option value="father">Father</option>
+                          <option value="mother">Mother</option>
+                          <option value="son">Son</option>
+                          <option value="daughter">Daughter</option>
+                          <option value="brother">Brother</option>
+                          <option value="sister">Sister</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nomination Percentage</label>
+                        <input type="number" min="0" max="100" value={form.pfNomineePercentage} onChange={e => updateForm('pfNomineePercentage', e.target.value)} placeholder="e.g., 100" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* ESI Details */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Employee State Insurance (ESI)</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">ESI Number</label>
+                        <input type="text" value={form.esiNumber} onChange={e => updateForm('esiNumber', e.target.value)} placeholder="e.g., 31-00-123456-000-0001" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">ESI Dispensary</label>
+                        <input type="text" value={form.esiDispensary} onChange={e => updateForm('esiDispensary', e.target.value)} placeholder="Assigned dispensary name" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* ESI Nomination */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">ESI Nomination Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nominee Name</label>
+                        <input type="text" value={form.esiNomineeName} onChange={e => updateForm('esiNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Nominee Relationship</label>
+                        <select value={form.esiNomineeRelation} onChange={e => updateForm('esiNomineeRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                          <option value="">Select</option>
+                          <option value="spouse">Spouse</option>
+                          <option value="father">Father</option>
+                          <option value="mother">Mother</option>
+                          <option value="son">Son</option>
+                          <option value="daughter">Daughter</option>
+                          <option value="brother">Brother</option>
+                          <option value="sister">Sister</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Other Statutory */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Other Statutory</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Professional Tax Number</label>
+                        <input type="text" value={form.professionalTaxNumber} onChange={e => updateForm('professionalTaxNumber', e.target.value)} placeholder="PT registration number" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">LWF Number</label>
+                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value)} placeholder="Labour Welfare Fund number" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
@@ -729,7 +846,7 @@ export default function EmployeesPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
-                    <button type="button" onClick={() => setFormTab('salary')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                    <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
                     <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
@@ -856,6 +973,242 @@ export default function EmployeesPage() {
                     <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
+                    <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Overseas <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Overseas Details */}
+              {formTab === 'overseas' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-nexus-text-muted">Capture foreign citizenship, travel, visa and international driving license information. All fields are optional.</p>
+                  {/* Foreign Citizenship */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Foreign Citizenship</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Holds Foreign Citizenship?</label>
+                        <select value={form.hasForeignCitizenship} onChange={e => updateForm('hasForeignCitizenship', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                          <option value="">Select</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </div>
+                      {form.hasForeignCitizenship === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Citizenship Country</label>
+                          <input type="text" value={form.foreignCitizenshipCountry} onChange={e => updateForm('foreignCitizenshipCountry', e.target.value)} placeholder="e.g., United States" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                      {form.hasForeignCitizenship === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Foreign Passport Number</label>
+                          <input type="text" value={form.foreignPassportNumber} onChange={e => updateForm('foreignPassportNumber', e.target.value)} placeholder="Passport number" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                      {form.hasForeignCitizenship === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Passport Expiry Date</label>
+                          <input type="date" value={form.foreignPassportExpiry} onChange={e => updateForm('foreignPassportExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Foreign Sojourns */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Foreign Sojourns</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Has Foreign Sojourn History?</label>
+                        <select value={form.hasForeignSojourn} onChange={e => updateForm('hasForeignSojourn', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                          <option value="">Select</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </div>
+                      {form.hasForeignSojourn === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country of Sojourn</label>
+                          <input type="text" value={form.foreignSojournCountry} onChange={e => updateForm('foreignSojournCountry', e.target.value)} placeholder="e.g., Germany" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                      {form.hasForeignSojourn === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purpose of Sojourn</label>
+                          <input type="text" value={form.foreignSojournPurpose} onChange={e => updateForm('foreignSojournPurpose', e.target.value)} placeholder="e.g., Employment, Education" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                      {form.hasForeignSojourn === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Duration</label>
+                          <input type="text" value={form.foreignSojournDuration} onChange={e => updateForm('foreignSojournDuration', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Visa Details */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Visa Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Visa Available?</label>
+                        <select value={form.hasVisa} onChange={e => updateForm('hasVisa', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                          <option value="">Select</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </div>
+                      {form.hasVisa === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Visa Type</label>
+                          <select value={form.visaType} onChange={e => updateForm('visaType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                            <option value="">Select</option>
+                            <option value="tourist">Tourist</option>
+                            <option value="business">Business</option>
+                            <option value="work">Work / Employment</option>
+                            <option value="student">Student</option>
+                            <option value="transit">Transit</option>
+                            <option value="diplomatic">Diplomatic</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                      )}
+                      {form.hasVisa === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Visa Country</label>
+                          <input type="text" value={form.visaCountry} onChange={e => updateForm('visaCountry', e.target.value)} placeholder="e.g., United States" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                      {form.hasVisa === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Visa Expiry Date</label>
+                          <input type="date" value={form.visaExpiry} onChange={e => updateForm('visaExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* International Driving License */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">International Driving License</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Has International Driving License?</label>
+                        <select value={form.hasIntlDrivingLicense} onChange={e => updateForm('hasIntlDrivingLicense', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                          <option value="">Select</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </div>
+                      {form.hasIntlDrivingLicense === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Issuing Country</label>
+                          <input type="text" value={form.intlDrivingLicenseCountry} onChange={e => updateForm('intlDrivingLicenseCountry', e.target.value)} placeholder="e.g., India" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                      {form.hasIntlDrivingLicense === 'yes' && (
+                        <div>
+                          <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Expiry Date</label>
+                          <input type="date" value={form.intlDrivingLicenseExpiry} onChange={e => updateForm('intlDrivingLicenseExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Experience <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Previous Experience */}
+              {formTab === 'experience' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-nexus-text-muted">Enter previous employment history. Up to 3 previous employers can be added.</p>
+                  {/* Experience 1 */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Previous Employer 1</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employer Name</label>
+                        <input type="text" value={form.previousEmployer1} onChange={e => updateForm('previousEmployer1', e.target.value)} placeholder="Company name" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation</label>
+                        <input type="text" value={form.previousDesignation1} onChange={e => updateForm('previousDesignation1', e.target.value)} placeholder="Job title" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Duration</label>
+                        <input type="text" value={form.previousDuration1} onChange={e => updateForm('previousDuration1', e.target.value)} placeholder="e.g., Jan 2020 - Dec 2022" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason for Leaving</label>
+                        <input type="text" value={form.previousReason1} onChange={e => updateForm('previousReason1', e.target.value)} placeholder="e.g., Better opportunity, Relocation" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Experience 2 */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Previous Employer 2</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employer Name</label>
+                        <input type="text" value={form.previousEmployer2} onChange={e => updateForm('previousEmployer2', e.target.value)} placeholder="Company name" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation</label>
+                        <input type="text" value={form.previousDesignation2} onChange={e => updateForm('previousDesignation2', e.target.value)} placeholder="Job title" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Duration</label>
+                        <input type="text" value={form.previousDuration2} onChange={e => updateForm('previousDuration2', e.target.value)} placeholder="e.g., Jun 2017 - Dec 2019" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason for Leaving</label>
+                        <input type="text" value={form.previousReason2} onChange={e => updateForm('previousReason2', e.target.value)} placeholder="e.g., Career growth, Company closure" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Experience 3 */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider mb-3">Previous Employer 3</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employer Name</label>
+                        <input type="text" value={form.previousEmployer3} onChange={e => updateForm('previousEmployer3', e.target.value)} placeholder="Company name" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation</label>
+                        <input type="text" value={form.previousDesignation3} onChange={e => updateForm('previousDesignation3', e.target.value)} placeholder="Job title" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Duration</label>
+                        <input type="text" value={form.previousDuration3} onChange={e => updateForm('previousDuration3', e.target.value)} placeholder="e.g., Mar 2014 - May 2017" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason for Leaving</label>
+                        <input type="text" value={form.previousReason3} onChange={e => updateForm('previousReason3', e.target.value)} placeholder="e.g., Relocation, Higher studies" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Total Experience */}
+                  <div className="pt-3 border-t border-nexus-border/50">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Total Work Experience</label>
+                        <input type="text" value={form.totalExperience} onChange={e => updateForm('totalExperience', e.target.value)} placeholder="e.g., 8 years 6 months" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
                     <button type="button" onClick={() => setFormTab('policies')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
                       Next: Policies <FiChevronRight className="w-4 h-4" />
                     </button>
@@ -900,7 +1253,7 @@ export default function EmployeesPage() {
 
                   {/* Form Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-nexus-border mt-4">
-                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
                     <div className="flex items-center gap-3">
