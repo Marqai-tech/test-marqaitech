@@ -20,12 +20,14 @@ import {
   FiMenu,
   FiBriefcase,
   FiTrendingUp,
+  FiUpload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import BulkImportTab from '@/components/BulkImportTab';
 
 /* ──────────────────────────────────────────────
    Types
@@ -569,7 +571,7 @@ function SettingsSectionCard({
 /* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications';
+type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications' | 'import';
 
 interface NavItem {
   key: TabKey;
@@ -588,6 +590,7 @@ const allNavItems: NavItem[] = [
   { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
+  { key: 'import', label: 'Bulk Import', icon: <FiUpload className="w-4 h-4" /> },
 ];
 
 /* ──────────────────────────────────────────────
@@ -612,7 +615,7 @@ function SettingsContent() {
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
   const navItems = allNavItems;
-  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications'];
+  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications', 'import'];
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'general';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
@@ -1253,6 +1256,20 @@ function SettingsContent() {
           )}
 
           {/* Notifications Tab */}
+          {/* Bulk Import Tab */}
+          {activeTab === 'import' && (
+            <div className="space-y-2">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                  <FiUpload className="w-5 h-5 text-blue-500" />
+                  Bulk Import
+                </h2>
+                <p className="text-xs text-nexus-text-muted mt-0.5">Upload Excel sheets to import master data for initial setup</p>
+              </div>
+              <BulkImportTab module="employees" />
+            </div>
+          )}
+
           {activeTab === 'notifications' && (
             <div className="space-y-4">
               <div className="nexus-card">

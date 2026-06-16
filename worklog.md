@@ -125,3 +125,192 @@ Stage Summary:
 - Existing reactive guards (fix-tenant, auth/login, auth/me, authStore) remain as backup
 - Code pushed to GitHub, Vercel will auto-deploy
 - After deployment, the login page will call /api/fix-tenant which will fix the database
+
+---
+Task ID: 2
+Agent: Bulk Import Agent
+Task: Create bulk import API routes for uploading Excel data for various master modules
+
+Work Log:
+- Read existing Prisma schema to understand model fields: Employee, Department, Designation, Branch, LeaveType, SalaryStructure
+- Read existing auth pattern (verifyToken, getTokenFromHeaders from @/lib/auth) and DB pattern (db from @/lib/db)
+- Studied existing API route patterns (corsHeaders, OPTIONS handler, try/catch wrapping)
+- Created `/src/app/api/import/bulk/route.ts` — POST endpoint for bulk importing Excel data
+  - Accepts multipart/form-data with `file` (.xlsx/.xls) and `module` string
+  - Supports 6 modules: employees, departments, designations, branches, leave-types, salary-structures
+  - Parses Excel using `xlsx` library, validates required fields per module
+  - Processes each row individually (one failure doesn't stop others)
+  - Handles lookups: department by name, designation by title, company by name
+  - Returns summary: `{ success, failed, errors: [{row, message}], total, module }`
+  - Auth via JWT token (Authorization: Bearer header), extracts tenantId and userId
+  - Resolves companyId from user's employee record or tenant's first company
+- Created `/src/app/api/import/template/route.ts` — GET endpoint for downloading import templates
+  - Query param: `module=employees` (etc.)
+  - Generates Excel workbook with "Template" sheet (headers + example row) and "Instructions" sheet
+  - Instructions include column name, key, required status, type, description, and example
+  - Returns downloadable .xlsx with proper Content-Type and Content-Disposition headers
+- Fixed ESLint errors: renamed `module` variable to `importModule`/`templateModule` (Next.js no-assign-module-variable rule), removed unused parameters
+- Both files pass ESLint with zero errors/warnings
+
+Files Created:
+- `src/app/api/import/bulk/route.ts`
+- `src/app/api/import/template/route.ts`
+
+Stage Summary:
+- Bulk import API handles all 6 modules with per-row validation and error reporting
+- Template generation API produces ready-to-fill Excel files with instructions
+- Auth pattern consistent with rest of app (verifyToken + getTokenFromHeaders)
+- All code passes ESLint
+
+---
+Task ID: 3
+Agent: Bulk Import Tab Agent
+Task: Add a "Bulk Import" tab to the Settings page and create a BulkImportTab component
+
+Work Log:
+- Read worklog.md to understand previous work (Task 1: branding/employee fixes, Task 2: bulk import API routes)
+- Read existing settings page.tsx (1307 lines) to understand tab structure: TabKey type, NavItem interface, allNavItems array, validTabs array, tab content rendering
+- Created `/src/components/BulkImportTab.tsx` — full 'use client' component with:
+  - Module selector: 6 modules (employees, departments, designations, branches, leave-types, salary-structures) displayed as a grid of clickable cards with icons and descriptions
+  - File upload area: drag & drop zone accepting .xlsx/.xls files, with visual feedback for dragging/success states
+  - File validation: checks extension (.xlsx/.xls only), shows file name and size after selection, remove button to clear
+  - Download Template button: GETs `/api/import/template?module=<module>`, triggers browser download, shows loading spinner
+  - Upload & Import button: POSTs FormData (file + module) to `/api/import/bulk`, disabled until file selected, shows loading spinner
+  - Import results display: stats cards (total/succeeded/failed), scrollable error list with row numbers and messages, success message when all pass
+  - Auth: uses `getAuthHeaders()` pattern with localStorage `tb_token`
+  - Toast notifications: success/error/warning via react-hot-toast
+  - Icons: FiUpload, FiDownload, FiFileText, FiCheckCircle, FiXCircle, FiAlertCircle, FiUsers, FiBriefcase, FiUserCheck, FiGlobe, FiCalendar, FiDollarSign, FiX
+  - Styling: nexus-card, nexus-badge, slate colors, blue-500 accent, consistent with Settings page
+- Fixed ESLint error: moved `validateAndSetFile` function definition before `handleDrop` useCallback to resolve "Cannot access variable before it is declared" error
+- Modified `/src/app/(dashboard)/settings/page.tsx`:
+  1. Added `FiUpload` to react-icons/fi imports
+  2. Added `BulkImportTab` import from `@/components/BulkImportTab`
+  3. Added `'import'` to `TabKey` type union
+  4. Added `{ key: 'import', label: 'Bulk Import', icon: <FiUpload /> }` nav item to `allNavItems`
+  5. Added `'import'` to `validTabs` array
+  6. Added Bulk Import tab content section before Notifications tab, with heading and `<BulkImportTab module="employees" />`
+- Verified: no new TypeScript errors (tsc --noEmit clean for our files), no new ESLint errors in BulkImportTab.tsx or settings/page.tsx
+
+Files Created:
+- `src/components/BulkImportTab.tsx`
+
+Files Modified:
+- `src/app/(dashboard)/settings/page.tsx`
+
+Stage Summary:
+- BulkImportTab component provides full module selection, file upload, template download, and import functionality
+- Settings page now has an 11th tab "Bulk Import" that renders the BulkImportTab component
+- All existing tabs remain unaffected
+- Code passes TypeScript and ESLint checks
+
+---
+Task ID: 5-6
+Agent: Onboarding Agent
+Task: Create first-time user onboarding experience with greeting card animation and step-by-step walkthrough
+
+Work Log:
+- Read worklog.md to understand previous work (Tasks 1-3: branding fixes, bulk import API, bulk import tab)
+- Read existing dashboard layout.tsx (332 lines) to understand structure: mobile/desktop layouts, auth check, sidebar, header, notification popup
+- Read authStore.ts to understand user info shape (name, email, role) and auth state management
+- Created `/src/components/WelcomeGreeting.tsx` — 'use client' component with:
+  - Envelope/greeting card opening animation using CSS 3D transforms (perspective, rotateX, transform-origin)
+  - Front flap: gradient background (indigo/violet/purple), envelope seal with FiMail icon, pulse animation, decorative sparkle dots, "Welcome to 3 Boxes HRMS" title with user's name
+  - Card inside: white background, 3 Boxes logo, welcome message, 3 feature highlight cards (Easy Leave, Payroll, Benefits), "Let's Get Started" button
+  - Confetti particle animation: 50 particles with deterministic seeded pseudo-random generation (avoids Math.random in render for React purity)
+  - CSS keyframe animations: confettiFall, confettiSpin, envelopePulse, fadeInUp, floatUp
+  - Auto-opens after 1.5s, or on click
+  - Detection: checks localStorage `nexus_welcomed`, sets flag on dismiss
+  - `onComplete` callback prop triggers the onboarding walkthrough
+  - Full-screen overlay with semi-transparent dark backdrop + backdrop-blur
+  - Card dimensions: min(500px, 90vw) × min(600px, 85vh)
+- Created `/src/components/OnboardingWalkthrough.tsx` — 'use client' component with:
+  - 8 employee steps: Welcome, Dashboard, My Profile, Leave Management, Attendance, Payslips, Documents, Help & Support
+  - 8 admin steps: Welcome Admin, Setup Wizard, Employee Management, Settings, Leave & Attendance Policies, Payroll Configuration, Recruitment, Reports & Analytics
+  - Role detection: shows admin steps for tenant_admin/hr_admin/super_admin roles
+  - Each step has: icon with gradient background, title, description, feature checklist with FiCheckCircle, optional "Go to [page]" link button
+  - Progress dots: clickable, elongated active state with indigo color
+  - Navigation: Previous, Next, Skip Tour, and Get Started (final step) buttons
+  - Smooth slide animations between steps (slideInLeft/slideInRight CSS keyframes)
+  - Modal card design: dark gradient header (slate-800/900) with decorative circles, white content area
+  - Full-screen overlay with backdrop blur, click-outside-to-skip
+  - Detection: checks `nexus_welcomed` and `nexus_onboarding_completed` in localStorage
+  - Sets `nexus_onboarding_completed` flag on completion/skip
+- Modified `/src/app/(dashboard)/layout.tsx`:
+  - Added imports for WelcomeGreeting and OnboardingWalkthrough
+  - Added `showOnboarding` state variable
+  - Added both components to mobile layout (after `<div className="min-h-screen bg-nexus-background flex flex-col">`)
+  - Added both components to desktop layout (after `<div className="min-h-screen bg-nexus-background">`)
+  - WelcomeGreeting's `onComplete` callback sets `showOnboarding` to true
+  - OnboardingWalkthrough is conditionally rendered based on `showOnboarding` state
+- Fixed ESLint issues:
+  - Replaced Math.random() calls in render with deterministic seeded pseudo-random generator
+  - Moved setShow(true) from synchronous effect body to setTimeout to avoid cascading render warning
+  - Removed unused useRef import and hasCompleted ref pattern
+  - Pre-existing warnings in layout.tsx (FiHome, FiClock, FiDollarSign, FiCalendar unused) not related to this task
+- All new files pass ESLint with 0 errors
+
+Files Created:
+- `src/components/WelcomeGreeting.tsx`
+- `src/components/OnboardingWalkthrough.tsx`
+
+Files Modified:
+- `src/app/(dashboard)/layout.tsx`
+
+Stage Summary:
+- WelcomeGreeting shows a greeting card with envelope-opening 3D CSS animation, confetti particles, and auto-opens after 1.5s
+- OnboardingWalkthrough shows 8 role-specific steps (employee vs admin) with feature checklists, navigation links, and smooth transitions
+- Both components are integrated into the dashboard layout and appear on first login
+- Components manage their own visibility via localStorage flags (nexus_welcomed, nexus_onboarding_completed)
+- WelcomeGreeting triggers OnboardingWalkthrough via onComplete callback
+- All code passes ESLint with zero errors
+
+---
+Task ID: 4
+Agent: Setup Wizard Agent
+Task: Create Company Setup Wizard page with 8-step guided wizard for admins
+
+Work Log:
+- Read worklog.md and existing project structure (Prisma schema, authStore, API patterns, UI components)
+- Studied existing patterns: departments/designations/branches API routes, auth helpers, DB client, layout, settings page
+- Created `/src/app/api/setup-wizard/status/route.ts`:
+  - GET: Returns whether the current tenant has completed setup (checks domain field for `setup=completed` flag and organizational data)
+  - POST: Marks setup as completed by appending `setup=completed` to tenant's domain field (requires admin role)
+  - Uses existing auth pattern (verifyToken, getTokenFromHeaders)
+- Created `/src/app/api/invitations/route.ts`:
+  - POST: Accepts `{ emails, tenantId, role }` and creates User records with temp password (`Welcome@123`), `status: 'invited'`
+  - Returns per-email results with success/failure status and summary counts
+  - Checks for duplicate emails, generates name from email prefix
+  - Admin-only endpoint (super_admin, tenant_admin, hr_admin)
+- Created `/src/app/api/leave-types/route.ts`:
+  - GET: Lists all active leave types with demo data fallback
+  - POST: Creates a new leave type with name, code, defaultDays, isPaid, carryForward, maxCarryForward
+  - Follows same pattern as departments/designations routes
+- Created `/src/app/(dashboard)/setup-wizard/page.tsx` — comprehensive 8-step wizard:
+  - Step 1 (Welcome): Company name display, logo placeholder, overview of setup process
+  - Step 2 (Company Details): Form for legal name, registration no, tax ID, country, state, city, address, timezone, currency
+  - Step 3 (Organization Structure): Tabbed interface for departments (name/code), designations (title/dept/grade/level), branches (name/code/city/state/country/isHeadOffice)
+  - Step 4 (Employee Import): Download template button, drag-and-drop Excel upload area, links to bulk import
+  - Step 5 (Leave Policies): Configurable leave types with pre-populated Indian defaults (CL, SL, EL, ML, PL), isPaid/carryForward toggles
+  - Step 6 (Attendance Rules): Work hours, late/early thresholds, half-day threshold, weekend toggles, overtime start
+  - Step 7 (Payroll Settings): Pay frequency, pay day, tax regime, overtime rate, proration method
+  - Step 8 (Invite & Complete): Email input (comma/line separated), send invitations button, complete setup
+  - Stepper/progress bar at top with step icons and completion indicators
+  - Back/Next navigation with save-on-next pattern
+  - localStorage persistence for resuming later
+  - Celebration confetti canvas animation on completion
+  - Admin-only access with redirect for non-admins
+  - Uses Fi* icons from react-icons/fi throughout
+  - All API integrations: PATCH tenants, POST departments/designations/branches, POST leave-types, POST invitations, POST setup-wizard/status
+
+Files Created:
+- `src/app/api/setup-wizard/status/route.ts`
+- `src/app/api/invitations/route.ts`
+- `src/app/api/leave-types/route.ts`
+- `src/app/(dashboard)/setup-wizard/page.tsx`
+
+Stage Summary:
+- Setup wizard provides a complete guided flow for company admins
+- All 8 steps functional with form state, localStorage persistence, and API integration
+- API routes follow existing patterns (corsHeaders, verifyToken, db from @/lib/db)
+- All new files pass ESLint with zero errors/warnings
+- Celebration animation using canvas confetti on setup completion
