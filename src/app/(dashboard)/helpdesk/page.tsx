@@ -108,7 +108,22 @@ export default function HelpdeskPage() {
       if (res.ok) {
         const data = await res.json();
         const ticketList = Array.isArray(data) ? data : (data.tickets || []);
-        setTickets(ticketList);
+        // Sanitize tickets to prevent render errors
+        const safeTickets = ticketList.map((t: Record<string, unknown>) => ({
+          id: t.id || '',
+          ticketId: t.ticketId || '',
+          subject: t.subject || 'No Subject',
+          description: t.description || '',
+          priority: t.priority || 'medium',
+          status: t.status || 'open',
+          requesterName: t.requesterName || 'Unknown',
+          requesterType: t.requesterType || 'employee',
+          category: t.category || null,
+          assignedAgentName: t.assignedAgentName || null,
+          createdAt: t.createdAt || new Date().toISOString(),
+          comments: Array.isArray(t.comments) ? t.comments : [],
+        }));
+        setTickets(safeTickets);
       } else {
         const errData = await res.json().catch(() => ({}));
         console.error('Tickets API error:', res.status, errData);
@@ -129,7 +144,23 @@ export default function HelpdeskPage() {
       const res = await fetch(`/api/tickets/${id}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setViewingTicket(data.ticket || data);
+        const ticket = data.ticket || data;
+        // Sanitize to prevent render errors
+        setViewingTicket({
+          ...ticket,
+          id: ticket.id || '',
+          ticketId: ticket.ticketId || '',
+          subject: ticket.subject || 'No Subject',
+          description: ticket.description || '',
+          priority: ticket.priority || 'medium',
+          status: ticket.status || 'open',
+          requesterName: ticket.requesterName || 'Unknown',
+          requesterType: ticket.requesterType || 'employee',
+          category: ticket.category || null,
+          assignedAgentName: ticket.assignedAgentName || null,
+          createdAt: ticket.createdAt || new Date().toISOString(),
+          comments: Array.isArray(ticket.comments) ? ticket.comments : [],
+        });
       }
     } catch { toast.error('Failed to load ticket details'); }
   }, []);

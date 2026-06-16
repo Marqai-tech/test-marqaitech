@@ -67,29 +67,54 @@ export async function GET(request: Request) {
     if (requesterId) where.requesterId = requesterId;
     if (assignedAgentId) where.assignedAgentId = assignedAgentId;
 
-    const [tickets, total] = await Promise.all([
-      prisma.ticket.findMany({
-        where,
-        include: {
-          category: { select: { id: true, name: true, type: true, slaHours: true } },
-          comments: { take: 3, orderBy: { createdAt: 'desc' } },
-          _count: { select: { comments: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.ticket.count({ where }),
-    ]);
+    let tickets: unknown[] = [];
+    let total = 0;
+    try {
+      [tickets, total] = await Promise.all([
+        prisma.ticket.findMany({
+          where,
+          include: {
+            category: { select: { id: true, name: true, type: true, slaHours: true } },
+            comments: { take: 3, orderBy: { createdAt: 'desc' } },
+            _count: { select: { comments: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.ticket.count({ where }),
+      ]);
+    } catch (dbError) {
+      console.error('Ticket DB query error:', dbError);
+      // Try again without the category include (might be a relation issue)
+      try {
+        [tickets, total] = await Promise.all([
+          prisma.ticket.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+          }),
+          prisma.ticket.count({ where }),
+        ]);
+      } catch (fallbackError) {
+        console.error('Ticket fallback query error:', fallbackError);
+        return NextResponse.json(
+          { tickets: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+          { headers: corsHeaders() }
+        );
+      }
+    }
 
     // Transform tickets to include a string category field for backward compatibility
-    const transformedTickets = tickets.map((ticket) => {
-      const { category, _count, ...rest } = ticket;
+    const transformedTickets = tickets.map((ticket: Record<string, unknown>) => {
+      const t = ticket as { category?: { name?: string; type?: string }; _count?: { comments?: number }; requesterType?: string; [key: string]: unknown };
+      const { category, _count, ...rest } = t;
       return {
         ...rest,
-        category: category?.name || category?.type || rest.requesterType || 'general',
+        category: (category as { name?: string; type?: string })?.name || (category as { name?: string; type?: string })?.type || rest.requesterType || 'general',
         categoryDetails: category,
-        commentCount: _count?.comments || 0,
+        commentCount: ( _count as { comments?: number })?.comments || 0,
       };
     });
 

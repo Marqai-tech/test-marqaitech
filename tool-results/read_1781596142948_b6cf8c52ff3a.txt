@@ -1,0 +1,499 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useState, useCallback } from 'react';
+     4→import {
+     5→  FiPlus, FiX, FiMessageSquare, FiUser, FiClock,
+     6→  FiCheck, FiAlertCircle, FiArrowRight, FiSend,
+     7→  FiEye, FiEdit2, FiTrash2,
+     8→} from 'react-icons/fi';
+     9→import toast from 'react-hot-toast';
+    10→import { useAuthStore } from '@/store/authStore';
+    11→
+    12→function getAuthHeaders() {
+    13→  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+    14→  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    15→}
+    16→
+    17→// Category can be a string (e.g. "hr") or an object from the API ({ id, name, type, slaHours })
+    18→interface TicketCategory {
+    19→  id?: string;
+    20→  name?: string;
+    21→  type?: string;
+    22→  slaHours?: number;
+    23→}
+    24→
+    25→interface Ticket {
+    26→  id: string;
+    27→  ticketId: string;
+    28→  subject: string;
+    29→  description: string;
+    30→  priority: string;
+    31→  status: string;
+    32→  requesterName: string;
+    33→  requesterType: string;
+    34→  category: string | TicketCategory | null;
+    35→  assignedAgentName: string | null;
+    36→  createdAt: string;
+    37→  comments: TicketComment[];
+    38→}
+    39→
+    40→interface TicketComment { id: string; authorName: string; content: string; isInternal: boolean; createdAt: string; }
+    41→
+    42→// Helper: extract a display string from the category field (which can be string or object)
+    43→function getCategoryLabel(cat: string | TicketCategory | null | undefined): string {
+    44→  if (!cat) return '';
+    45→  if (typeof cat === 'string') return cat;
+    46→  if (typeof cat === 'object' && cat !== null) {
+    47→    return cat.name || cat.type || '';
+    48→  }
+    49→  return '';
+    50→}
+    51→
+    52→const priorityConfig: Record<string, { bg: string; text: string }> = {
+    53→  low: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    54→  medium: { bg: 'bg-amber-100', text: 'text-amber-700' },
+    55→  high: { bg: 'bg-orange-100', text: 'text-orange-700' },
+    56→  critical: { bg: 'bg-red-100', text: 'text-red-700' },
+    57→};
+    58→
+    59→const statusConfig: Record<string, { bg: string; text: string }> = {
+    60→  open: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    61→  in_progress: { bg: 'bg-amber-100', text: 'text-amber-700' },
+    62→  resolved: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    63→  closed: { bg: 'bg-slate-100', text: 'text-slate-600' },
+    64→};
+    65→
+    66→const helpdeskTips = [
+    67→  { title: 'Categorize Tickets', description: 'Use ticket categories to organize and prioritize support requests efficiently' },
+    68→  { title: 'Track SLAs', description: 'Monitor service level agreements to ensure timely resolution of support tickets' },
+    69→  { title: 'Set Priority Levels', description: 'Assign appropriate priority levels to ensure critical issues are addressed first' },
+    70→  { title: 'Use Knowledge Base', description: 'Reference the knowledge base for common solutions before escalating tickets' },
+    71→  { title: 'Escalation Path', description: 'Follow the escalation path for unresolved tickets to get timely management attention' },
+    72→];
+    73→
+    74→const helpdeskWorkflowSteps = [
+    75→  { step: 1, title: 'Submit Ticket', description: 'Employee submits a support request with details', route: '/helpdesk' },
+    76→  { step: 2, title: 'Categorize & Prioritize', description: 'Assign category and priority level to the ticket' },
+    77→  { step: 3, title: 'Assign Agent', description: 'Route the ticket to the appropriate support agent' },
+    78→  { step: 4, title: 'Investigate & Diagnose', description: 'Agent investigates the issue and identifies root cause' },
+    79→  { step: 5, title: 'Implement Solution', description: 'Apply the fix or provide the resolution' },
+    80→  { step: 6, title: 'Communicate Resolution', description: 'Inform the requester about the solution applied' },
+    81→  { step: 7, title: 'Close Ticket', description: 'Mark the ticket as resolved and close it' },
+    82→  { step: 8, title: 'Collect Feedback', description: 'Gather feedback from the requester on the support experience' },
+    83→];
+    84→
+    85→const initialForm = { subject: '', description: '', category: 'hr', priority: 'medium', requesterType: 'employee' };
+    86→
+    87→export default function HelpdeskPage() {
+    88→  const { user } = useAuthStore();
+    89→  const [tickets, setTickets] = useState<Ticket[]>([]);
+    90→  const [loading, setLoading] = useState(true);
+    91→  const [error, setError] = useState<string | null>(null);
+    92→  const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
+    93→  const [showForm, setShowForm] = useState(false);
+    94→  const [editingId, setEditingId] = useState<string | null>(null);
+    95→  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    96→  const [deleting, setDeleting] = useState(false);
+    97→  const [viewingId, setViewingId] = useState<string | null>(null);
+    98→  const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
+    99→  const [comment, setComment] = useState('');
+   100→  const [submitting, setSubmitting] = useState(false);
+   101→  const [form, setForm] = useState(initialForm);
+   102→
+   103→  const fetchTickets = useCallback(async () => {
+   104→    try {
+   105→      setLoading(true);
+   106→      setError(null);
+   107→      const res = await fetch('/api/tickets', { headers: getAuthHeaders() });
+   108→      if (res.ok) {
+   109→        const data = await res.json();
+   110→        const ticketList = Array.isArray(data) ? data : (data.tickets || []);
+   111→        setTickets(ticketList);
+   112→      } else {
+   113→        const errData = await res.json().catch(() => ({}));
+   114→        console.error('Tickets API error:', res.status, errData);
+   115→        setError('Failed to load tickets. Please try again.');
+   116→      }
+   117→    } catch (err) {
+   118→      console.error('Fetch tickets error:', err);
+   119→      setError('Network error. Please check your connection and try again.');
+   120→    } finally {
+   121→      setLoading(false);
+   122→    }
+   123→  }, []);
+   124→
+   125→  useEffect(() => { fetchTickets(); }, [fetchTickets]);
+   126→
+   127→  const fetchViewingTicket = useCallback(async (id: string) => {
+   128→    try {
+   129→      const res = await fetch(`/api/tickets/${id}`, { headers: getAuthHeaders() });
+   130→      if (res.ok) {
+   131→        const data = await res.json();
+   132→        setViewingTicket(data.ticket || data);
+   133→      }
+   134→    } catch { toast.error('Failed to load ticket details'); }
+   135→  }, []);
+   136→
+   137→  const handleView = useCallback(async (id: string) => {
+   138→    setViewingTicket(null);
+   139→    setViewingId(id);
+   140→    setShowForm(false);
+   141→    await fetchViewingTicket(id);
+   142→    setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+   143→  }, [fetchViewingTicket]);
+   144→
+   145→  const handleAddNew = () => {
+   146→    setForm(initialForm);
+   147→    setEditingId(null);
+   148→    setShowForm(true);
+   149→    setViewingId(null);
+   150→    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+   151→  };
+   152→
+   153→  const handleEdit = (ticket: Ticket) => {
+   154→    setForm({
+   155→      subject: ticket.subject || '',
+   156→      description: ticket.description || '',
+   157→      category: getCategoryLabel(ticket.category) || 'hr',
+   158→      priority: ticket.priority || 'medium',
+   159→      requesterType: ticket.requesterType || 'employee',
+   160→    });
+   161→    setEditingId(ticket.id);
+   162→    setShowForm(true);
+   163→    setViewingId(null);
+   164→    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+   165→  };
+   166→
+   167→  const handleCancelForm = () => {
+   168→    setShowForm(false);
+   169→    setEditingId(null);
+   170→    setForm(initialForm);
+   171→  };
+   172→
+   173→  const handleSubmit = async () => {
+   174→    if (!form.subject || !form.description) { toast.error('Subject and description are required'); return; }
+   175→    setSubmitting(true);
+   176→    try {
+   177→      if (editingId) {
+   178→        const res = await fetch(`/api/tickets/${editingId}`, {
+   179→          method: 'PUT',
+   180→          headers: getAuthHeaders(),
+   181→          body: JSON.stringify({ subject: form.subject, description: form.description, priority: form.priority }),
+   182→        });
+   183→        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to update'); }
+   184→        toast.success('Ticket updated successfully');
+   185→      } else {
+   186→        const res = await fetch('/api/tickets', {
+   187→          method: 'POST',
+   188→          headers: getAuthHeaders(),
+   189→          body: JSON.stringify({
+   190→            subject: form.subject,
+   191→            description: form.description,
+   192→            priority: form.priority,
+   193→            requesterType: form.requesterType,
+   194→            requesterId: user?.id,
+   195→            requesterName: user?.name,
+   196→          }),
+   197→        });
+   198→        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to create'); }
+   199→        toast.success('Ticket created successfully');
+   200→      }
+   201→      handleCancelForm();
+   202→      fetchTickets();
+   203→    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed'); }
+   204→    finally { setSubmitting(false); }
+   205→  };
+   206→
+   207→  const handleDelete = async (id: string) => {
+   208→    try {
+   209→      setDeleting(true);
+   210→      const res = await fetch(`/api/tickets/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+   211→      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+   212→      toast.success('Ticket deleted successfully');
+   213→      setDeleteConfirmId(null);
+   214→      if (viewingId === id) setViewingId(null);
+   215→      fetchTickets();
+   216→    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed to delete'); }
+   217→    finally { setDeleting(false); }
+   218→  };
+   219→
+   220→  const handleAddComment = async () => {
+   221→    if (!comment.trim() || !viewingId) return;
+   222→    try {
+   223→      const res = await fetch(`/api/tickets/${viewingId}/comments`, {
+   224→        method: 'POST', headers: getAuthHeaders(),
+   225→        body: JSON.stringify({ authorId: user?.id, authorName: user?.name, content: comment }),
+   226→      });
+   227→      if (!res.ok) throw new Error('Failed');
+   228→      setComment('');
+   229→      fetchViewingTicket(viewingId);
+   230→    } catch { toast.error('Failed to add comment'); }
+   231→  };
+   232→
+   233→  const handleTicketAction = async (action: string) => {
+   234→    if (!viewingId) return;
+   235→    try {
+   236→      const res = await fetch(`/api/tickets/${viewingId}`, {
+   237→        method: 'PATCH', headers: getAuthHeaders(),
+   238→        body: JSON.stringify({ status: action }),
+   239→      });
+   240→      if (!res.ok) throw new Error('Failed');
+   241→      toast.success(`Ticket ${action.replace('_', ' ')}`);
+   242→      fetchTickets();
+   243→      fetchViewingTicket(viewingId);
+   244→    } catch { toast.error('Action failed'); }
+   245→  };
+   246→
+   247→  // Safely compare requester: use requesterId if available, fall back to name match
+   248→  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+   249→  const myTickets = tickets.filter((t) => {
+   250→    const ticketAny = t as Record<string, unknown>;
+   251→    if (ticketAny.requesterId && user?.id) return ticketAny.requesterId === user.id;
+   252→    return t.requesterName === user?.name;
+   253→  });
+   254→  const displayTickets = (activeTab === 'my' && !isAdmin) ? myTickets : tickets;
+   255→
+   256→  // Safely get status display text
+   257→  const getStatusText = (status: string | null | undefined): string => {
+   258→    if (!status) return 'unknown';
+   259→    return String(status).replace('_', ' ');
+   260→  };
+   261→
+   262→  return (
+   263→    <div className="space-y-6">
+   264→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   265→        <div>
+   266→          <h1 className="text-2xl font-bold text-nexus-text-primary">Helpdesk</h1>
+   267→          <p className="text-nexus-text-secondary mt-1">Manage support tickets and requests</p>
+   268→        </div>
+   269→        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+   270→          <FiPlus className="w-4 h-4" /> Create Ticket
+   271→        </button>
+   272→      </div>
+   273→
+   274→      {/* Error State */}
+   275→      {error && (
+   276→        <div className="nexus-card p-6 text-center border-l-4 border-l-red-400">
+   277→          <FiAlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+   278→          <p className="text-nexus-text-secondary mb-3">{error}</p>
+   279→          <button onClick={fetchTickets} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">
+   280→            Retry
+   281→          </button>
+   282→        </div>
+   283→      )}
+   284→
+   285→      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+   286→        {(['my', 'all'] as const).map((tab) => (
+   287→          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-nexus-text-primary' : 'text-nexus-text-muted hover:text-nexus-text-primary'}`}>
+   288→            {tab === 'my' ? 'My Tickets' : 'All Tickets'}
+   289→          </button>
+   290→        ))}
+   291→      </div>
+   292→
+   293→      {/* View Panel */}
+   294→      {viewingId && viewingTicket && (
+   295→        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+   296→          <div className="p-6">
+   297→            <div className="flex items-center justify-between mb-6">
+   298→              <div>
+   299→                <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingTicket.subject}</h2>
+   300→                <div className="flex items-center gap-2 mt-1">
+   301→                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[viewingTicket.priority]?.bg || 'bg-slate-100'} ${priorityConfig[viewingTicket.priority]?.text || 'text-slate-600'}`}>{viewingTicket.priority || 'medium'}</span>
+   302→                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[viewingTicket.status]?.bg || 'bg-slate-100'} ${statusConfig[viewingTicket.status]?.text || 'text-slate-600'}`}>{getStatusText(viewingTicket.status)}</span>
+   303→                </div>
+   304→              </div>
+   305→              <div className="flex items-center gap-2">
+   306→                <button onClick={() => handleEdit(viewingTicket)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+   307→                <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+   308→              </div>
+   309→            </div>
+   310→
+   311→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+   312→              <div>
+   313→                <span className="text-xs font-medium text-nexus-text-secondary">Ticket ID</span>
+   314→                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 font-mono">{viewingTicket.ticketId?.slice(0, 8) || '—'}</p>
+   315→              </div>
+   316→              <div>
+   317→                <span className="text-xs font-medium text-nexus-text-secondary">Requester</span>
+   318→                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiUser className="w-3.5 h-3.5" />{viewingTicket.requesterName || 'Unknown'}</p>
+   319→              </div>
+   320→              <div>
+   321→                <span className="text-xs font-medium text-nexus-text-secondary">Requester Type</span>
+   322→                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{viewingTicket.requesterType || 'employee'}</p>
+   323→              </div>
+   324→              <div>
+   325→                <span className="text-xs font-medium text-nexus-text-secondary">Assigned Agent</span>
+   326→                <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingTicket.assignedAgentName || 'Unassigned'}</p>
+   327→              </div>
+   328→              <div>
+   329→                <span className="text-xs font-medium text-nexus-text-secondary">Category</span>
+   330→                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{getCategoryLabel(viewingTicket.category) || '—'}</p>
+   331→              </div>
+   332→              <div>
+   333→                <span className="text-xs font-medium text-nexus-text-secondary">Created</span>
+   334→                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiClock className="w-3.5 h-3.5" />{viewingTicket.createdAt ? new Date(viewingTicket.createdAt).toLocaleString() : '—'}</p>
+   335→              </div>
+   336→            </div>
+   337→
+   338→            <div className="mb-6">
+   339→              <span className="text-xs font-medium text-nexus-text-secondary">Description</span>
+   340→              <p className="text-sm text-nexus-text-primary mt-0.5 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap">{viewingTicket.description || 'No description'}</p>
+   341→            </div>
+   342→
+   343→            {/* Status Actions */}
+   344→            <div className="flex gap-2 flex-wrap mb-6">
+   345→              {viewingTicket.status === 'open' && (
+   346→                <button onClick={() => handleTicketAction('in_progress')} className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 flex items-center gap-1 transition-colors"><FiArrowRight className="w-3.5 h-3.5" /> In Progress</button>
+   347→              )}
+   348→              {viewingTicket.status === 'in_progress' && (
+   349→                <button onClick={() => handleTicketAction('resolved')} className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 flex items-center gap-1 transition-colors"><FiCheck className="w-3.5 h-3.5" /> Resolve</button>
+   350→              )}
+   351→              {viewingTicket.status === 'resolved' && (
+   352→                <button onClick={() => handleTicketAction('closed')} className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 flex items-center gap-1 transition-colors"><FiCheck className="w-3.5 h-3.5" /> Close</button>
+   353→              )}
+   354→            </div>
+   355→
+   356→            {/* Comments */}
+   357→            <div className="border-t border-nexus-border pt-4">
+   358→              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiMessageSquare className="w-4 h-4" /> Comments ({viewingTicket.comments?.length || 0})</h3>
+   359→              <div className="space-y-3 max-h-60 overflow-y-auto mb-3">
+   360→                {(viewingTicket.comments || []).map((c) => (
+   361→                  <div key={c.id} className={`p-3 rounded-lg ${c.isInternal ? 'bg-amber-50 border border-amber-100' : 'bg-slate-50'}`}>
+   362→                    <div className="flex items-center justify-between mb-1">
+   363→                      <span className="text-xs font-medium text-nexus-text-primary">{c.authorName || 'Anonymous'}{c.isInternal && ' (Internal)'}</span>
+   364→                      <span className="text-xs text-nexus-text-muted">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
+   365→                    </div>
+   366→                    <p className="text-sm text-nexus-text-secondary">{c.content}</p>
+   367→                  </div>
+   368→                ))}
+   369→              </div>
+   370→              <div className="flex gap-2">
+   371→                <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2.5 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+   372→                <button onClick={handleAddComment} className="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm transition-colors"><FiSend className="w-4 h-4" /></button>
+   373→              </div>
+   374→            </div>
+   375→          </div>
+   376→        </div>
+   377→      )}
+   378→
+   379→      {/* Inline Form */}
+   380→      {showForm && (
+   381→        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+   382→          <div className="p-6">
+   383→            <div className="flex items-center justify-between mb-6">
+   384→              <h2 className="text-lg font-semibold text-nexus-text-primary">
+   385→                {editingId ? 'Edit Ticket' : 'Create Ticket'}
+   386→              </h2>
+   387→              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+   388→            </div>
+   389→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   390→              <div className="sm:col-span-2">
+   391→                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Subject *</label>
+   392→                <input type="text" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Ticket subject" />
+   393→              </div>
+   394→              <div className="sm:col-span-2">
+   395→                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description *</label>
+   396→                <textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Describe the issue..." />
+   397→              </div>
+   398→              <div>
+   399→                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label>
+   400→                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+   401→                  <option value="hr">HR</option>
+   402→                  <option value="it">IT</option>
+   403→                  <option value="payroll">Payroll</option>
+   404→                  <option value="admin">Admin</option>
+   405→                  <option value="general">General</option>
+   406→                </select>
+   407→              </div>
+   408→              <div>
+   409→                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Priority</label>
+   410→                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+   411→                  <option value="low">Low</option>
+   412→                  <option value="medium">Medium</option>
+   413→                  <option value="high">High</option>
+   414→                  <option value="critical">Critical</option>
+   415→                </select>
+   416→              </div>
+   417→              <div>
+   418→                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Requester Type</label>
+   419→                <select value={form.requesterType} onChange={(e) => setForm({ ...form, requesterType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+   420→                  <option value="employee">Employee</option>
+   421→                  <option value="client">Client</option>
+   422→                  <option value="vendor">Vendor</option>
+   423→                </select>
+   424→              </div>
+   425→            </div>
+   426→            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+   427→              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+   428→              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
+   429→            </div>
+   430→          </div>
+   431→        </div>
+   432→      )}
+   433→
+   434→      {/* Tickets Table */}
+   435→      {loading ? (
+   436→        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="nexus-card p-5 animate-pulse"><div className="h-4 w-3/4 bg-slate-200 rounded mb-2" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
+   437→      ) : displayTickets.length === 0 ? (
+   438→        <div className="nexus-card p-12 text-center">
+   439→          <FiAlertCircle className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+   440→          <p className="text-nexus-text-secondary">
+   441→            {activeTab === 'my' ? 'You haven\'t created any tickets yet' : 'No tickets found'}
+   442→          </p>
+   443→          <button onClick={handleAddNew} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+   444→            <FiPlus className="w-4 h-4" /> Create Your First Ticket
+   445→          </button>
+   446→        </div>
+   447→      ) : (
+   448→        <div className="nexus-card overflow-hidden">
+   449→          <div className="overflow-x-auto">
+   450→            <table className="w-full">
+   451→              <thead className="bg-slate-50/50 border-b border-nexus-border">
+   452→                <tr>
+   453→                  {['ID', 'Subject', 'Category', 'Priority', 'Status', 'Assigned Agent', 'Created', 'Actions'].map((h) => (
+   454→                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider ${h === 'Actions' ? 'text-right' : ''}`}>{h}</th>
+   455→                  ))}
+   456→                </tr>
+   457→              </thead>
+   458→              <tbody className="divide-y divide-nexus-border/50">
+   459→                {displayTickets.map((t) => (
+   460→                  <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+   461→                    {deleteConfirmId === t.id ? (
+   462→                      <td colSpan={8} className="px-4 py-3 bg-red-50">
+   463→                        <div className="flex items-center justify-between">
+   464→                          <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this ticket?</span>
+   465→                          <div className="flex items-center gap-2">
+   466→                            <button onClick={() => handleDelete(t.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
+   467→                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+   468→                          </div>
+   469→                        </div>
+   470→                      </td>
+   471→                    ) : (
+   472→                      <>
+   473→                        <td className="px-4 py-3 text-sm font-mono text-nexus-text-secondary">{t.ticketId?.slice(0, 8) || '—'}</td>
+   474→                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary max-w-[200px] truncate">{t.subject}</td>
+   475→                        <td className="px-4 py-3 text-sm text-nexus-text-secondary capitalize">{getCategoryLabel(t.category) || t.requesterType || '—'}</td>
+   476→                        <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[t.priority]?.bg || 'bg-slate-100'} ${priorityConfig[t.priority]?.text || 'text-slate-600'}`}>{t.priority || 'medium'}</span></td>
+   477→                        <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[t.status]?.bg || 'bg-slate-100'} ${statusConfig[t.status]?.text || 'text-slate-600'}`}>{getStatusText(t.status)}</span></td>
+   478→                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.assignedAgentName || 'Unassigned'}</td>
+   479→                        <td className="px-4 py-3 text-sm text-nexus-text-muted">{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—'}</td>
+   480→                        <td className="px-4 py-3">
+   481→                          <div className="flex items-center justify-end gap-1">
+   482→                            <button onClick={() => handleView(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+   483→                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+   484→                            <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+   485→                          </div>
+   486→                        </td>
+   487→                      </>
+   488→                    )}
+   489→                  </tr>
+   490→                ))}
+   491→              </tbody>
+   492→            </table>
+   493→          </div>
+   494→        </div>
+   495→      )}
+   496→    </div>
+   497→  );
+   498→}
+   499→
