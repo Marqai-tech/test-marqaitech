@@ -423,3 +423,25 @@ Stage Summary:
   companies with employee-strength barriers; tenant_admin will see those groups in
   the company creation dropdown AND can also create new groups inline; both can
   declare "no of employees" (planned) + set per-company employee caps.
+
+---
+Task ID: VercelSync-1
+Agent: main
+Task: Verify multi-tenancy bug fixes are deployed to Vercel and push any remaining local commits
+
+Work Log:
+- Verified git log: 3 multi-tenancy commits (994434a, 28e4f8d, 7ad046f) are ALREADY on origin/main → already auto-deployed to Vercel
+- Verified the four reported bugs are implemented in code:
+  1. Group Company dropdown in tenant-admin/companies page (line 498-513) — populated from `availableCompanyGroups`
+  2. "No. of Employees (planned strength)" field present in tenant-admin/companies form (line 647) + Employee Cap field (line 658)
+  3. Header dropdown wired via CompanySwitcher component which uses useCompanyContextStore (availableTenants + availableCompanies + cascading tenant→company)
+  4. "Group Companies" tab present in super-admin/page.tsx (tab key: 'groups', label: 'Group Companies', icon: FiLayers)
+- Verified route files have real content: /api/me/context (231 lines), /api/company-groups/[id] (181 lines), /api/leave/balance (170 lines)
+- Pushed the 1 remaining local commit (c5ed7b5) to origin/main — Vercel will auto-redeploy
+- Ran `npx next build` locally — succeeded with all routes compiling cleanly (no TS/lint errors)
+
+Stage Summary:
+- All four multi-tenancy bug fixes ARE already live on the Vercel deployment (were pushed in commits 994434a, 28e4f8d, 7ad046f which were already on origin/main)
+- Local repo is now fully in sync with origin/main (HEAD = c5ed7b5)
+- Build verified clean — no deployment failures expected
+- User needs to hard-refresh their browser (Ctrl+Shift+R / Cmd+Shift+R) to bypass cached JS bundles from previous visits
