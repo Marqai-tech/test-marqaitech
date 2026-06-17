@@ -329,6 +329,9 @@ export async function POST() {
       `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "maxEmployees" INTEGER`,
       `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "maxCompanies" INTEGER`,
       `ALTER TABLE "CompanyGroup" ADD COLUMN IF NOT EXISTS "notes" TEXT`,
+      // Company: per-company employee strength barrier + planned strength (informational)
+      `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "maxEmployees" INTEGER`,
+      `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "plannedEmployeeCount" INTEGER`,
     ];
 
     let altersExecuted = 0;

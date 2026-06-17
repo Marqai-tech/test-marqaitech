@@ -218,7 +218,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const t = s.availableTenants.find((x) => x.id === s.selectedTenantId);
           return t ? `${t.name} (all companies)` : 'All companies';
         }
-        return s.ownCompany?.name || 'My company';
+        return s.ownCompany?.name || 'Not yet assigned';
       },
 
       canSwitch: () => {

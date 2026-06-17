@@ -72,6 +72,8 @@ export async function GET(request: Request) {
             name: true,
             code: true,
             status: true,
+            maxEmployees: true,
+            plannedEmployeeCount: true,
             _count: { select: { employees: true } },
           },
           orderBy: { name: 'asc' },

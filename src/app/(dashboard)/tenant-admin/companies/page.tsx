@@ -59,6 +59,8 @@ interface CompanyRow {
   currency?: string | null;
   email?: string | null;
   phone?: string | null;
+  maxEmployees?: number | null;
+  plannedEmployeeCount?: number | null;
   companyGroup: {
     id: string;
     name: string;
@@ -95,6 +97,8 @@ const EMPTY_FORM = {
   phone: '',
   email: '',
   website: '',
+  plannedEmployeeCount: 0,
+  maxEmployees: 0,
 };
 
 export default function TenantCompaniesPage() {
@@ -165,6 +169,11 @@ export default function TenantCompaniesPage() {
       toast.error('Company name is required');
       return;
     }
+    // Require EITHER an existing group selection OR a new group name
+    if (!form.companyGroupId && !form.companyGroupName.trim()) {
+      toast.error('Please select an existing group company OR enter a name for a new group company');
+      return;
+    }
     // If a group is selected, make sure it has room for another company
     if (selectedGroupForForm?.maxCompanies !== null && selectedGroupForForm?.maxCompanies !== undefined && selectedGroupForForm.maxCompanies > 0) {
       const usedInGroup = companies.filter((c) => c.companyGroup?.id === selectedGroupForForm.id).length;
@@ -180,7 +189,12 @@ export default function TenantCompaniesPage() {
       const res = await fetch('/api/companies', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          // Only send numeric values when they're > 0; backend treats null/0 as "unlimited"
+          plannedEmployeeCount: Number(form.plannedEmployeeCount) > 0 ? Number(form.plannedEmployeeCount) : null,
+          maxEmployees: Number(form.maxEmployees) > 0 ? Number(form.maxEmployees) : null,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -384,7 +398,17 @@ export default function TenantCompaniesPage() {
                         {[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}
                       </td>
                       <td className="px-5 py-3 text-sm text-slate-700">{c.currency || '—'}</td>
-                      <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.employees || 0}</td>
+                      <td className="px-5 py-3 text-center">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-sm font-semibold text-slate-700">{c._count?.employees || 0}</span>
+                          {(c.plannedEmployeeCount !== null && c.plannedEmployeeCount !== undefined && c.plannedEmployeeCount > 0) && (
+                            <span className="text-[10px] text-slate-500">plan: {c.plannedEmployeeCount}</span>
+                          )}
+                          {(c.maxEmployees !== null && c.maxEmployees !== undefined && c.maxEmployees > 0) && (
+                            <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">cap: {c.maxEmployees}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.branches || 0}</td>
                       <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c._count?.departments || 0}</td>
                       <td className="px-5 py-3">
@@ -471,14 +495,13 @@ export default function TenantCompaniesPage() {
               </div>
 
               {/* Group company selector — explicit, no more silent auto-create */}
-              <Field label="Group Company *">
+              <Field label="Group Company">
                 <select
                   value={form.companyGroupId}
-                  onChange={(e) => setForm({ ...form, companyGroupId: e.target.value })}
-                  required
+                  onChange={(e) => setForm({ ...form, companyGroupId: e.target.value, companyGroupName: '' })}
                   className="form-input bg-white"
                 >
-                  <option value="">— Select a group company —</option>
+                  <option value="">— Select an existing group —</option>
                   {availableCompanyGroups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}
@@ -488,17 +511,28 @@ export default function TenantCompaniesPage() {
                   ))}
                 </select>
               </Field>
-              {form.companyGroupId === '' && (
-                <Field label="…or create a new group company (will be inducted under the same tenant)">
+
+              {/* Inline "create a new group" — shown either when no groups exist at all OR
+                  when the user explicitly chooses to create a new one */}
+              {(availableCompanyGroups.length === 0 || form.companyGroupId === '') && (
+                <Field
+                  label={
+                    availableCompanyGroups.length === 0
+                      ? 'No group companies exist yet — create one below (will be inducted under your tenant)'
+                      : '…or create a new group company (will be inducted under the same tenant)'
+                  }
+                >
                   <input
                     value={form.companyGroupName}
-                    onChange={(e) => setForm({ ...form, companyGroupName: e.target.value })}
+                    onChange={(e) => setForm({ ...form, companyGroupName: e.target.value, companyGroupId: '' })}
                     placeholder="New group company name (e.g., Acme Group)"
                     className="form-input"
                   />
                   <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
                     <FiInfo className="w-3 h-3" />
-                    Note: new group companies created here inherit <b>no</b> employee-strength cap. Ask the super admin to set caps via the super-admin module.
+                    {availableCompanyGroups.length === 0
+                      ? <>You must create at least one group company before you can induct companies. The API will create this group automatically when you submit the form.</>
+                      : <>Note: new group companies created here inherit <b>no</b> employee-strength cap. Ask the super admin to set caps via the super-admin module.</>}
                   </p>
                 </Field>
               )}
@@ -597,6 +631,42 @@ export default function TenantCompaniesPage() {
                 <Field label="Email">
                   <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="form-input" />
                 </Field>
+              </div>
+
+              {/* ─── Employee Strength (No of Employees) ─── */}
+              <div className="px-4 py-4 rounded-xl bg-gradient-to-br from-amber-50/60 to-orange-50/40 border border-amber-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <FiUsers className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <p className="text-sm font-bold text-amber-900">Employee Strength Configuration</p>
+                </div>
+                <p className="text-[11px] text-amber-800/80">
+                  Declare the planned headcount for this company and optionally set a hard cap. The cap blocks
+                  employee creation beyond the limit. If a parent group cap also applies, the tighter limit wins.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="No. of Employees (planned strength)">
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.plannedEmployeeCount}
+                      onChange={(e) => setForm({ ...form, plannedEmployeeCount: parseInt(e.target.value) || 0 })}
+                      placeholder="0 = not declared"
+                      className="form-input"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Informational target — does not block creation.</p>
+                  </Field>
+                  <Field label="Employee Cap (hard limit, 0 = unlimited)">
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.maxEmployees}
+                      onChange={(e) => setForm({ ...form, maxEmployees: parseInt(e.target.value) || 0 })}
+                      placeholder="0 = unlimited"
+                      className="form-input"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Blocks employee creation beyond this number.</p>
+                  </Field>
+                </div>
               </div>
 
               <Field label="Address">

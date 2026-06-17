@@ -85,7 +85,7 @@ export default function CompanySwitcher() {
 
   // ---------- non-admin view: static badge showing tenant + company ----------
   if (!allowSwitch) {
-    const label = ownCompany?.name || 'My Company';
+    const label = ownCompany?.name || 'Not yet assigned';
     const tenantName = tenant?.name;
     return (
       <div

@@ -39,7 +39,15 @@ interface CompanyGroupRow {
   notes?: string | null;
   createdAt: string;
   _count?: { companies: number; employees: number };
-  companies?: { id: string; name: string; code: string | null; status: string; _count: { employees: number } }[];
+  companies?: {
+    id: string;
+    name: string;
+    code: string | null;
+    status: string;
+    maxEmployees?: number | null;
+    plannedEmployeeCount?: number | null;
+    _count: { employees: number };
+  }[];
 }
 
 interface SubscriptionPlan {
@@ -230,7 +238,7 @@ export default function SuperAdminPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (activeTab === 'tenants') queueMicrotask(() => fetchTenants());
+    if (activeTab === 'tenants' || activeTab === 'groups') queueMicrotask(() => fetchTenants());
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -522,6 +530,7 @@ export default function SuperAdminPage() {
   const tabs = [
     { key: 'dashboard' as const, label: 'Dashboard', icon: <FiActivity className="w-4 h-4" /> },
     { key: 'tenants' as const, label: 'Tenants', icon: <FiServer className="w-4 h-4" /> },
+    { key: 'groups' as const, label: 'Group Companies', icon: <FiLayers className="w-4 h-4" /> },
     { key: 'plans' as const, label: 'Subscription Plans', icon: <FiCreditCard className="w-4 h-4" /> },
     { key: 'audit' as const, label: 'Audit Logs', icon: <FiFileText className="w-4 h-4" /> },
   ];
@@ -544,8 +553,20 @@ export default function SuperAdminPage() {
         </div>
         <div className="flex gap-2">
           {activeTab === 'tenants' && !showTenantForm && (
-            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
               <FiPlus className="w-4 h-4" /> Add Tenant
+            </button>
+          )}
+          {activeTab === 'groups' && !showGroupForm && (
+            <button
+              onClick={() => {
+                setShowGroupForm(true);
+                setEditingGroupId(null);
+                setGroupForm({ tenantId: tenants[0]?.id || '', name: '', employeeLimitMode: 'group_total', maxEmployees: 0, maxCompanies: 0, notes: '' });
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white hover:bg-violet-600 shadow-sm shadow-violet-500/25 rounded-lg font-medium text-sm transition-colors"
+            >
+              <FiPlus className="w-4 h-4" /> New Group Company
             </button>
           )}
           {activeTab === 'plans' && !showPlanForm && (
@@ -1134,15 +1155,31 @@ export default function SuperAdminPage() {
                   {/* Companies under this group */}
                   {g.companies && g.companies.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
-                      {g.companies.map((c) => (
-                        <div key={c.id} className="flex items-center gap-3 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
-                          <FiServer className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="font-medium text-nexus-text-primary">{c.name}</span>
-                          {c.code && <span className="nexus-badge nexus-badge-info text-[10px]">{c.code}</span>}
-                          <span className="ml-auto">{c._count?.employees || 0} emp</span>
-                          <span className={`nexus-badge text-[10px] ${c.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-info'}`}>{c.status}</span>
-                        </div>
-                      ))}
+                      {g.companies.map((c) => {
+                        const empCount = c._count?.employees || 0;
+                        const cap = c.maxEmployees;
+                        const plan = c.plannedEmployeeCount;
+                        const atCap = cap !== null && cap !== undefined && cap > 0 && empCount >= cap;
+                        return (
+                          <div key={c.id} className="flex items-center gap-3 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
+                            <FiServer className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-medium text-nexus-text-primary">{c.name}</span>
+                            {c.code && <span className="nexus-badge nexus-badge-info text-[10px]">{c.code}</span>}
+                            <span className="ml-auto flex items-center gap-1.5">
+                              <span className={atCap ? 'text-red-600 font-semibold' : ''}>{empCount} emp</span>
+                              {plan !== null && plan !== undefined && plan > 0 && (
+                                <span className="text-[10px] text-slate-500">/ plan {plan}</span>
+                              )}
+                              {cap !== null && cap !== undefined && cap > 0 && (
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${atCap ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  cap {cap}
+                                </span>
+                              )}
+                            </span>
+                            <span className={`nexus-badge text-[10px] ${c.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-info'}`}>{c.status}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

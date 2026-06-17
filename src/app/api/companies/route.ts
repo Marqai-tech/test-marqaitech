@@ -84,10 +84,17 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { name: 'asc' },
     });
+    // Explicitly surface the per-company employee cap + planned strength so the UI
+    // can render "no of employees" columns without needing a separate fetch.
+    const enriched = companies.map((c) => ({
+      ...c,
+      maxEmployees: c.maxEmployees ?? null,
+      plannedEmployeeCount: c.plannedEmployeeCount ?? null,
+    }));
 
     return NextResponse.json(
       {
-        companies,
+        companies: enriched,
         // Also expose the caller's tenant-level quota so the UI can render
         // "X of Y companies used" without an extra round-trip.
         tenantQuota: effectiveTenantId
@@ -135,11 +142,17 @@ export async function POST(req: NextRequest) {
       registrationNo, taxId, country, currency, timezone,
       address, city, state, zipCode, phone, email, website, status,
       tenantId: bodyTenantId,
+      maxEmployees: bodyMaxEmployees,
+      plannedEmployeeCount: bodyPlannedEmployeeCount,
     } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
     }
+
+    // Coerce per-company employee cap + planned strength
+    const maxEmployees = typeof bodyMaxEmployees === 'number' && bodyMaxEmployees > 0 ? bodyMaxEmployees : null;
+    const plannedEmployeeCount = typeof bodyPlannedEmployeeCount === 'number' && bodyPlannedEmployeeCount >= 0 ? bodyPlannedEmployeeCount : null;
 
     // Resolve target tenant
     const targetTenantId = role === 'super_admin' ? (bodyTenantId || callerTenantId) : callerTenantId;
@@ -244,6 +257,8 @@ export async function POST(req: NextRequest) {
         email,
         website,
         status: status || 'active',
+        maxEmployees,
+        plannedEmployeeCount,
       },
       include: {
         companyGroup: {

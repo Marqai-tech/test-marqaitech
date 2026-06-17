@@ -87,6 +87,16 @@ model Company {
   logo           String?
   status         String @default("active")
 
+  // ─── Per-company employee strength barrier (set by tenant_admin) ───
+  // Optional hard cap on how many employees THIS specific company can hold.
+  // null = unlimited (subject to the parent group's maxEmployees if mode=per_company).
+  // When both group-level and company-level caps are set, the tighter one applies.
+  maxEmployees           Int?
+
+  // Declared / planned employee strength at company creation time (informational).
+  // Used by tenant_admin as a soft target — does NOT block employee creation.
+  plannedEmployeeCount   Int?
+
   branches        Branch[]
   departments     Department[]
   clients         Client[]

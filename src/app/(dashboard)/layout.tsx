@@ -74,6 +74,10 @@ export default function DashboardLayout({
       fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {
         // Silently fail — this is a non-critical background fix
       });
+      // Also push schema changes (adds new columns like Company.maxEmployees)
+      fetch('/api/db-push', { method: 'POST' }).catch(() => {
+        // Silently fail — schema push is best-effort
+      });
     }
   }, [isAuthenticated]);
 
