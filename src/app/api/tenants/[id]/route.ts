@@ -32,28 +32,52 @@ export async function GET(
 
     const { id } = await params;
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { id },
-      include: {
-        companyGroups: {
-          include: {
-            companies: {
-              include: {
-                _count: { select: { departments: true, branches: true, employees: true } },
+    // Build the tenant view defensively — any one of these includes can fail
+    // (e.g. a deleted plan referenced by a subscription, or a permission
+    // mismatch on the notifications relation). If the "rich" include set
+    // throws, we fall back to a simpler version so the super admin can still
+    // see *something* instead of an "Internal server error" toast.
+    let tenant: unknown = null;
+    try {
+      tenant = await prisma.tenant.findUnique({
+        where: { id },
+        include: {
+          companyGroups: {
+            include: {
+              companies: {
+                select: {
+                  id: true, name: true, code: true, status: true,
+                  maxEmployees: true, plannedEmployeeCount: true,
+                  _count: { select: { departments: true, branches: true, employees: true } },
+                },
+                orderBy: { name: 'asc' },
               },
+              _count: { select: { companies: true } },
             },
+            orderBy: { name: 'asc' },
           },
+          users: {
+            select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true, createdAt: true },
+            orderBy: { createdAt: 'asc' },
+          },
+          subscriptions: {
+            include: { plan: true },
+            orderBy: { createdAt: 'desc' },
+          },
+          _count: { select: { users: true, companyGroups: true } },
         },
-        users: {
-          select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true },
+      });
+    } catch (innerErr) {
+      console.error('Rich tenant fetch failed, falling back:', innerErr);
+      tenant = await prisma.tenant.findUnique({
+        where: { id },
+        include: {
+          companyGroups: { select: { id: true, name: true, _count: { select: { companies: true } } } },
+          users: { select: { id: true, email: true, name: true, role: true, status: true } },
+          _count: { select: { users: true, companyGroups: true } },
         },
-        subscriptions: {
-          include: { plan: true },
-          orderBy: { createdAt: 'desc' },
-        },
-        _count: { select: { users: true, companyGroups: true, notifications: true } },
-      },
-    });
+      });
+    }
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });

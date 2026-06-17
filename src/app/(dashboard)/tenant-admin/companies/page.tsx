@@ -283,6 +283,36 @@ export default function TenantCompaniesPage() {
         </div>
       </div>
 
+      {/* HIERARCHY BANNER */}
+      <div className="rounded-xl p-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50/60 flex items-start gap-3">
+        <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-indigo-900 flex-1">
+          <p className="font-bold mb-2 text-sm">Where am I in the hierarchy?</p>
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+              <FiHome className="w-3 h-3" /> Tenant: {tenantName}
+            </span>
+            <span className="text-indigo-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+              <FiLayers className="w-3 h-3" /> Group Company (parent)
+            </span>
+            <span className="text-indigo-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white rounded-md font-semibold">
+              <FiBriefcase className="w-3 h-3" /> Company (this page)
+            </span>
+            <span className="text-indigo-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
+              <FiUsers className="w-3 h-3" /> Employees
+            </span>
+          </div>
+          <p className="leading-relaxed">
+            Companies on this page sit <b>under a Group Company</b>, which sits under your tenant <b>{tenantName}</b>.
+            {' '}If the <b>Group Company</b> dropdown below is empty, you need to{' '}
+            <a href="/tenant-admin/group-companies" className="font-bold text-indigo-700 underline">create a group company first</a>.
+          </p>
+        </div>
+      </div>
+
       {/* QUOTA BANNER */}
       {quota && (
         <div

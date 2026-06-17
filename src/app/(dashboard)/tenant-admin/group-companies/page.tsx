@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   FiPlus, FiLayers, FiEdit2, FiTrash2, FiX, FiRefreshCw,
-  FiShield, FiUsers, FiHome, FiInfo,
+  FiShield, FiUsers, FiHome, FiInfo, FiBriefcase,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -204,6 +204,37 @@ export default function TenantGroupCompaniesPage() {
       </div>
 
       {/* INFO BANNER */}
+      <div className="rounded-xl p-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50/60 flex items-start gap-3">
+        <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-indigo-900 flex-1">
+          <p className="font-bold mb-2 text-sm">Multi-tenancy Hierarchy</p>
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+              <FiHome className="w-3 h-3" /> Tenant
+            </span>
+            <span className="text-indigo-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+              <FiLayers className="w-3 h-3" /> Group Company
+            </span>
+            <span className="text-indigo-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
+              <FiBriefcase className="w-3 h-3" /> Company
+            </span>
+            <span className="text-indigo-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
+              <FiUsers className="w-3 h-3" /> Employees
+            </span>
+          </div>
+          <p className="leading-relaxed">
+            Your tenant <b>{tenantName}</b> (parent) has a companies cap set by the super admin.
+            {' '}Under it, you create <b>Group Companies</b> (this page) — these are clusters that hold one or more <b>Companies</b>.
+            {' '}Each group can have an employee-strength barrier (per-company or group-total). After creating a group here,
+            {' '}use the <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page to induct individual companies under each group.
+          </p>
+        </div>
+      </div>
+
+      {/* EMPLOYEE STRENGTH BARRIER BANNER */}
       <div className="rounded-xl p-4 border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50/60 flex items-start gap-3">
         <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-amber-900">

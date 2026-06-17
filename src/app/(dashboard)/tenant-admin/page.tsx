@@ -21,6 +21,7 @@ import {
   FiInfo,
   FiGlobe,
   FiChevronRight,
+  FiBriefcase,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -527,6 +528,37 @@ export default function TenantAdminPage() {
       {activeTab === 'groups' && (
         <div className="space-y-4">
           {/* Educational banner */}
+          <div className="nexus-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
+            <div className="flex items-start gap-3">
+              <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-indigo-900 flex-1">
+                <p className="font-bold mb-2 text-sm">Multi-tenancy Hierarchy</p>
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+                    <FiHome className="w-3 h-3" /> Tenant
+                  </span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+                    <FiLayers className="w-3 h-3" /> Group Company
+                  </span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
+                    <FiBriefcase className="w-3 h-3" /> Company
+                  </span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
+                    <FiUsers className="w-3 h-3" /> Employees
+                  </span>
+                </div>
+                <p className="leading-relaxed">
+                  You are managing tenant <b>{tenantName}</b>. Under it, create <b>Group Companies</b> (this tab),
+                  {' '}then induct <b>Companies</b> under each group via the <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
+                  {' '}Each group can have an employee-strength barrier; each company can have its own employee cap.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
             <div className="flex items-start gap-3">
               <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />

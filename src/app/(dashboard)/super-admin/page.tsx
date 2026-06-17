@@ -7,7 +7,7 @@ import {
   FiGlobe, FiSettings, FiDollarSign, FiLayers, FiHome,
   FiActivity, FiClock, FiFileText,
   FiChevronLeft, FiChevronRight as FiChevronRightIcon,
-  FiCheck, FiCalendar,
+  FiCheck, FiCalendar, FiDatabase, FiChevronDown, FiInfo,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -189,6 +189,13 @@ export default function SuperAdminPage() {
   const [auditStartDate, setAuditStartDate] = useState('');
   const [auditEndDate, setAuditEndDate] = useState('');
   const [auditSearch, setAuditSearch] = useState('');
+
+  // Sample data seeding state
+  const [seedingSample, setSeedingSample] = useState(false);
+  const [showSampleResult, setShowSampleResult] = useState<null | {
+    tenants: { name: string; slug: string; adminEmail: string; groups: number; companies: number }[];
+    adminPassword: string;
+  }>(null);
 
   const formRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -610,6 +617,37 @@ export default function SuperAdminPage() {
     finally { setDeletingPlan(false); }
   };
 
+  // ─── Load Sample Data Handler ─────────────────────────────
+  // Calls /api/super-admin/seed-sample-data to bootstrap 3 demo tenants
+  // (Acme Global, TechStart Solutions, GlobalHR Services) each with their
+  // own group companies, companies, and a tenant_admin user. Idempotent —
+  // safe to run multiple times.
+  const handleLoadSampleData = async () => {
+    if (!confirm('This will create (or update) 3 sample tenants with group companies, companies, and tenant_admin users. Continue?')) return;
+    setSeedingSample(true);
+    try {
+      const res = await fetch('/api/super-admin/seed-sample-data', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to seed sample data');
+      toast.success(data.message || 'Sample data loaded');
+      setShowSampleResult({
+        tenants: data.tenants || [],
+        adminPassword: data.adminPassword || 'Tenant@123',
+      });
+      // Refresh dashboard + tenants + context store so the new data shows up everywhere
+      fetchDashboard();
+      fetchTenants();
+      hydrateContext(true);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to seed sample data');
+    } finally {
+      setSeedingSample(false);
+    }
+  };
+
   // ─── Access Guard ───────────────────────────────────────
   if (user?.role !== 'super_admin') {
     return (
@@ -640,6 +678,78 @@ export default function SuperAdminPage() {
   // ═════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
+      {/* Sample Data Result Modal */}
+      {showSampleResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-green-50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FiDatabase className="w-4 h-4 text-emerald-600" />
+                  Sample Data Loaded
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {showSampleResult.tenants.length} tenants created/updated. Use the credentials below to log in as a tenant admin.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSampleResult(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
+                <FiShield className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <div className="flex-1 text-xs text-emerald-900">
+                  <p className="font-semibold mb-0.5">All tenant admin accounts share the same password</p>
+                  <p>Password: <code className="px-1.5 py-0.5 bg-white rounded font-mono font-bold">{showSampleResult.adminPassword}</code></p>
+                </div>
+              </div>
+              {showSampleResult.tenants.map((t) => (
+                <div key={t.slug} className="border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        {t.name[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{t.name}</p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {t.adminEmail} · {t.groups} group{t.groups === 1 ? '' : 's'} · {t.companies} companies
+                        </p>
+                      </div>
+                    </div>
+                    <span className="nexus-badge nexus-badge-success text-[10px] flex-shrink-0">{t.slug}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 flex items-start gap-3">
+                <FiInfo className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-900">
+                  <p className="font-semibold mb-1">Next steps to verify</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    <li>Open the <b>Tenants</b> tab above — you'll see all 3 sample tenants.</li>
+                    <li>Click the <FiEye className="w-3 h-3 inline -mt-0.5" /> view button on any tenant to see its group companies + companies.</li>
+                    <li>Open the <b>Group Companies</b> tab to see all groups across all tenants (or filter by one tenant).</li>
+                    <li>Log out, then sign in as <code className="font-mono">admin@acme-global.com</code> with the password above to see the tenant admin view.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+              <button
+                onClick={() => setShowSampleResult(null)}
+                className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-900"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -670,6 +780,17 @@ export default function SuperAdminPage() {
           {activeTab === 'tenants' && !showTenantForm && (
             <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
               <FiPlus className="w-4 h-4" /> Add Tenant
+            </button>
+          )}
+          {activeTab === 'dashboard' && (
+            <button
+              onClick={handleLoadSampleData}
+              disabled={seedingSample}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              title="Bootstrap 3 sample tenants with group companies, companies, and tenant_admin users"
+            >
+              <FiDatabase className="w-4 h-4" />
+              {seedingSample ? 'Loading...' : 'Load Sample Data'}
             </button>
           )}
           {activeTab === 'groups' && !showGroupForm && (
@@ -1070,6 +1191,39 @@ export default function SuperAdminPage() {
       {/* ═══ TAB 2.5: GROUP COMPANIES (super admin sets employee strength barriers) ═══ */}
       {activeTab === 'groups' && (
         <div className="space-y-4">
+          {/* Data model hierarchy banner — explains the Tenant → Group Company → Company relationship */}
+          <div className="nexus-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
+            <div className="flex items-start gap-3">
+              <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-indigo-900 flex-1">
+                <p className="font-bold mb-2 text-sm">Multi-tenancy Hierarchy</p>
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+                    <FiServer className="w-3 h-3" /> Tenant
+                  </span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+                    <FiLayers className="w-3 h-3" /> Group Company
+                  </span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
+                    <FiHome className="w-3 h-3" /> Company
+                  </span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
+                    <FiUsers className="w-3 h-3" /> Employees
+                  </span>
+                </div>
+                <p className="leading-relaxed">
+                  <b>Tenant</b> (parent) has a <b>companies cap</b> (max companies allowed under all its groups).
+                  {' '}<b>Group Company</b> sits under a Tenant and has an <b>employee-strength barrier</b> (per-company or group-total).
+                  {' '}<b>Company</b> sits under a Group Company and has its own per-company <b>employee cap</b>.
+                  {' '}Tenant admins can only see and manage their own tenant&apos;s groups and companies.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Educational banner */}
           <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
             <div className="flex items-start gap-3">

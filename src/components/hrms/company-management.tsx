@@ -728,7 +728,24 @@ export default function CompanyManagement() {
       {/* ── BRANCHES TAB ── */}
       {activeTab === 'branches' && (
         loading.branches ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
-          <TableWrapper title="Branches" icon={<FiMapPin className="w-4 h-4 text-violet-500" />} count={branches.length}>
+          <>
+            {companies.length === 0 && (
+              <div className="nexus-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
+                <div className="p-4 flex items-start gap-3">
+                  <FiInfo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900 mb-0.5">No companies inducted yet</p>
+                    <p className="text-xs text-slate-600">
+                      The <b>Company</b> dropdown on the create-branch form is empty because there are no companies
+                      in your tenant yet. Please ask your <b>Tenant Admin</b> to induct at least one company under a
+                      {' '}<b>Group Company</b> first (via <b>Tenant Admin → Group Companies</b> and
+                      {' '}<b>Tenant Admin → Companies</b>).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <TableWrapper title="Branches" icon={<FiMapPin className="w-4 h-4 text-violet-500" />} count={branches.length}>
             <thead><tr><TH>Branch</TH><TH>Company</TH><TH>Location</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fBranches.length === 0 ? (
@@ -753,13 +770,31 @@ export default function CompanyManagement() {
               })}
             </tbody>
           </TableWrapper>
+          </>
         )
       )}
 
       {/* ── DEPARTMENTS TAB ── */}
       {activeTab === 'departments' && (
         loading.departments ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
-          <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-violet-500" />} count={departments.length}>
+          <>
+            {companies.length === 0 && (
+              <div className="nexus-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
+                <div className="p-4 flex items-start gap-3">
+                  <FiInfo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900 mb-0.5">No companies inducted yet</p>
+                    <p className="text-xs text-slate-600">
+                      The <b>Company</b> dropdown on the create-department form is empty because there are no companies
+                      in your tenant yet. Please ask your <b>Tenant Admin</b> to induct at least one company under a
+                      {' '}<b>Group Company</b> first (via <b>Tenant Admin → Group Companies</b> and
+                      {' '}<b>Tenant Admin → Companies</b>).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-violet-500" />} count={departments.length}>
             <thead><tr><TH>Department</TH><TH>Company</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fDepartments.length === 0 ? (
@@ -785,6 +820,7 @@ export default function CompanyManagement() {
               })}
             </tbody>
           </TableWrapper>
+          </>
         )
       )}
 

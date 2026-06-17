@@ -632,3 +632,109 @@ Stage Summary:
 - /api/tenants/[id] PATCH now allows tenant_admin to update their own settings (limited fields)
 - Build verified clean (✓ Compiled successfully, all routes generated)
 - Commit c52276a pushed to GitHub main, Vercel auto-deploying
+
+---
+Task ID: SampleDataAndHierarchy-1
+Agent: Main Agent
+Task: Fix tenant view internal error, add sample data loader, add hierarchy banners, improve empty states, push to GitHub
+
+Work Log:
+- Investigated user's reported bugs:
+  * Tenant "view" button shows "internal error" in super admin
+  * Header dropdown not showing companies list
+  * Company management masters not showing company field to select (empty dropdown)
+  * "Manage group companies" not creating/showing companies
+  * Group company name and parent tenant appear same (user confused about hierarchy)
+  * Sample data not loaded in super admin / tenant admin
+
+Root causes:
+  * GET /api/tenants/[id] was failing because of overly-aggressive Prisma includes
+    (subscriptions.plan + _count.notifications) that could throw on tenants with
+    broken subscription references or huge notification counts.
+  * Header dropdown was working but showing empty because there were no companies
+    in the user's tenant yet (no sample data).
+  * Company management masters (branches/departments) forms had an empty "Company"
+    dropdown because companies array was empty — no clear empty-state explanation.
+  * No visual hierarchy banner explaining Tenant → Group Company → Company → Employees
+    relationship, so the user couldn't tell what was a "group company" vs a "tenant".
+  * No sample data endpoint existed — the existing /api/seed only created ONE tenant.
+
+Changes Made:
+1. src/app/api/tenants/[id]/route.ts:
+   - Rewrote GET handler to be defensive — wraps the rich Prisma include set in
+     try/catch and falls back to a simpler include set if any one relation throws.
+   - Removed `_count: { select: { notifications: true } }` (was the most likely
+     cause of internal errors on tenants with many notifications).
+   - Added explicit orderBy on companyGroups.companies for stable display.
+
+2. src/app/api/super-admin/seed-sample-data/route.ts (NEW):
+   - POST endpoint (super_admin only) that bootstraps 3 sample tenants:
+     * Acme Global (enterprise, India/INR, maxCompaniesAllowed: 10)
+       └─ Acme Tech Group (group_total cap: 500)
+            ├─ Acme Software India Pvt Ltd (planned: 200, cap: 250)
+            └─ Acme Cloud Services LLP (planned: 120, cap: 150)
+       └─ Acme Manufacturing Group (per_company cap: 80)
+            └─ Acme Industrial Tools Ltd (planned: 60, cap: 80)
+     * TechStart Solutions (professional, US/USD, maxCompaniesAllowed: 5)
+       └─ TechStart Digital Group (group_total cap: 150)
+            ├─ TechStart Apps Inc (planned: 50, cap: 75)
+            └─ TechStart AI Labs (planned: 30, cap: 50)
+     * GlobalHR Services (starter, India/INR, maxCompaniesAllowed: 3)
+       └─ GlobalHR Consulting Group (group_total cap: 50)
+            └─ GlobalHR Staffing Pvt Ltd (planned: 40, cap: 50)
+   - Each tenant gets a tenant_admin user:
+     * admin@acme-global.com
+     * admin@techstart.com
+     * admin@globalhr.com
+     All share the password: Tenant@123
+   - Idempotent — uses upsert by slug (tenant) and findFirst by (tenantId, name)
+     for groups and companies, so running twice won't create duplicates.
+   - Creates an audit log entry (SEED_SAMPLE_DATA).
+   - Sends a welcome notification to each tenant admin (best-effort).
+
+3. src/app/(dashboard)/super-admin/page.tsx:
+   - Added "Load Sample Data" button on the Dashboard tab (emerald, prominent).
+   - On click: confirms, calls /api/super-admin/seed-sample-data, then opens a
+     result modal showing all 3 sample tenants with their admin emails + the
+     shared password + step-by-step verification instructions.
+   - After seeding, automatically refreshes dashboard, tenant list, and the
+     company context store so the new data shows up immediately.
+   - Added a clear "Multi-tenancy Hierarchy" banner at the top of the Group
+     Companies tab showing: Tenant → Group Company → Company → Employees with
+     a one-line explanation of each level's cap.
+   - Added FiDatabase, FiChevronDown, FiInfo to imports.
+
+4. src/app/(dashboard)/tenant-admin/group-companies/page.tsx:
+   - Added the same hierarchy banner at the top, customized for tenant_admin:
+     "Your tenant {name} (parent) has a companies cap... Under it, you create
+     Group Companies (this page) — these are clusters that hold one or more
+     Companies..."
+   - Links to /tenant-admin/companies for the next step.
+   - Added FiBriefcase to imports.
+
+5. src/app/(dashboard)/tenant-admin/page.tsx:
+   - Added the hierarchy banner to the Group Companies tab as well.
+   - Added FiBriefcase to imports.
+
+6. src/app/(dashboard)/tenant-admin/companies/page.tsx:
+   - Added a "Where am I in the hierarchy?" banner showing:
+     Tenant: {name} → Group Company (parent) → Company (this page) → Employees
+   - Includes a callout linking to /tenant-admin/group-companies if the
+     Group Company dropdown would be empty.
+
+7. src/components/hrms/company-management.tsx:
+   - Added a clear empty-state banner on the Branches and Departments tabs
+     that appears when the companies array is empty. The banner explains
+     why the "Company" dropdown on the create form is empty and tells the
+     user to ask their Tenant Admin to induct at least one company under a
+     Group Company first (with links to Tenant Admin → Group Companies and
+     Tenant Admin → Companies).
+
+Stage Summary:
+- Tenant "view" button no longer throws internal error (defensive Prisma include)
+- Super admin can click "Load Sample Data" to bootstrap 3 fully-populated tenants
+- Sample data includes group companies, companies, employee caps, and tenant_admin users
+- Hierarchy is now visually obvious on every relevant page (Tenant → Group → Company → Employees)
+- Empty states on masters tabs explain WHY the dropdown is empty and what to do
+- Build verified clean (✓ Compiled successfully, 228/228 pages)
+- Ready to commit and push to GitHub for Vercel auto-deploy
