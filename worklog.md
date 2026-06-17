@@ -445,3 +445,31 @@ Stage Summary:
 - Local repo is now fully in sync with origin/main (HEAD = c5ed7b5)
 - Build verified clean — no deployment failures expected
 - User needs to hard-refresh their browser (Ctrl+Shift+R / Cmd+Shift+R) to bypass cached JS bundles from previous visits
+
+---
+Task ID: JobPortal-1
+Agent: main
+Task: Fix super-admin/companies bugs + build public Job Portal page accessible from login & tenant websites
+
+Work Log:
+- Bug #1 (duplicate Companies tab in super admin left menu): Removed 'super_admin' from the roles array on the Companies sidebar item — only tenant_admin sees it now. Super admin manages group companies exclusively via the "Group Companies" tab inside /super-admin.
+- Bug #2 (header dropdown not showing group companies): Updated CompanySwitcher empty-state to list available company groups (with their 0-companies count) even when no companies have been inducted yet, so admins can SEE the group companies they created.
+- Bug #3 (created companies not showing in view list): Fixed /api/company-groups GET — previously scoped super_admin's view to callerTenantId, hiding groups they created for OTHER tenants. Now super_admin sees ALL groups across all tenants (optional ?tenantId filter still works).
+- Built public Job Portal (no auth):
+  * GET /api/public/jobs — lists all OPEN job postings, filterable by tenantSlug/companyId/search/type/location
+  * POST /api/public/apply — accepts candidate application with resume (base64 data URL, 5 MB cap), validates job is open, idempotent by email
+  * /careers — public landing page with hero, search bar, job grid, companies filter, "Why Join Us" section, footer (modelled after jobi-nextjs.vercel.app/home-6)
+  * /careers/[tenantSlug] — per-tenant scoped variant for tenant-website embedding
+- Added "Looking for a job? Browse Openings" callout banner on /login page → links to /careers
+- Added .form-input utility class to globals.css
+- Excluded /careers from middleware matcher to guarantee public access
+- Build verified clean (npx next build succeeded with all new routes compiled)
+- Pushed commit 59f2752 to origin/main — Vercel auto-deploying
+
+Stage Summary:
+- Three super-admin/companies bugs resolved
+- Public Job Portal live at /careers and /careers/[tenantSlug]
+- Candidates (registered or not) can browse jobs, upload resume, and apply — no account needed
+- Tenant websites can embed/link to /careers/[tenantSlug] for their own career page
+- Applications land in the existing JobApplication table and notify tenant_admin/hr_admin/recruiter users
+- File: commit 59f2752 pushed to GitHub main, Vercel deployment in progress
