@@ -207,15 +207,32 @@ export default function CompanySwitcher() {
 
             {/* Grouped company list */}
             {filteredGroups.length === 0 ? (
-              <div className="px-4 py-8 text-center text-slate-400">
+              <div className="px-4 py-6 text-center text-slate-400">
                 <FiInfo className="w-8 h-8 mx-auto mb-2" />
                 <p className="text-sm">
                   {availableCompanies.length === 0
                     ? isSuperAdmin
-                      ? 'Select a tenant to load companies'
-                      : 'No companies found in your group'
+                      ? (availableCompanyGroups.length === 0
+                          ? 'No group companies created for this tenant yet'
+                          : `${availableCompanyGroups.length} group compan${availableCompanyGroups.length === 1 ? 'y' : 'ies'} exist but no companies inducted yet`)
+                      : (availableCompanyGroups.length === 0
+                          ? 'No group companies exist in your tenant yet'
+                          : `${availableCompanyGroups.length} group compan${availableCompanyGroups.length === 1 ? 'y' : 'ies'} exist but no companies inducted yet`)
                     : 'No matches for your search'}
                 </p>
+                {(availableCompanyGroups.length > 0 && availableCompanies.length === 0) && (
+                  <div className="mt-3 px-3 text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Group companies</p>
+                    {availableCompanyGroups.map((g) => (
+                      <div key={g.id} className="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded mb-1">
+                        <span className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
+                          <FiLayers className="w-3 h-3 text-violet-500" /> {g.name}
+                        </span>
+                        <span className="text-[10px] text-slate-500">0 companies</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               filteredGroups.map(([gid, g]) => {

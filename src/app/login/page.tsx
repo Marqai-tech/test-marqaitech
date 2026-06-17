@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight,
   FiChevronDown, FiChevronUp, FiSmartphone, FiDownload,
   FiMonitor, FiX, FiCheck, FiWifi,
   FiRefreshCw, FiShield, FiZap, FiGlobe,
   FiUsers, FiSettings, FiCpu, FiStar,
-  FiPlay, FiArrowLeft
+  FiPlay, FiArrowLeft, FiBriefcase,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -415,6 +416,27 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+
+            {/* Job Portal / Career Link */}
+            <Link
+              href="/careers"
+              className="group block w-full mt-4 px-4 py-3 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 to-violet-50/60 hover:from-indigo-50 hover:to-violet-50 hover:border-indigo-200 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white flex-shrink-0">
+                  <FiBriefcase className="w-4 h-4" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                    Looking for a job? Browse Openings
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                    Candidates (registered or not) can view roles &amp; apply with resume — no account needed
+                  </p>
+                </div>
+                <FiArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </Link>
 
             {/* Divider */}
             <div className="relative my-6">

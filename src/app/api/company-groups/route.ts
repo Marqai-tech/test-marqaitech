@@ -50,16 +50,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestedTenantId = searchParams.get('tenantId');
 
-    let effectiveTenantId: string | null = null;
-    if (role === 'super_admin') {
-      effectiveTenantId = requestedTenantId || callerTenantId || null;
-    } else {
-      effectiveTenantId = callerTenantId;
-    }
-
+    // Super admins can see group companies across ALL tenants (so groups they
+    // create for any tenant show up in their view list). Tenant admins are
+    // scoped to their own tenant only. The optional `tenantId` query param
+    // lets a super admin filter to a single tenant if they want to.
     const where: Record<string, unknown> = {};
-    if (effectiveTenantId) {
-      where.tenantId = effectiveTenantId;
+    if (role === 'super_admin') {
+      if (requestedTenantId) {
+        where.tenantId = requestedTenantId;
+      }
+      // No filter = return groups across ALL tenants
+    } else {
+      // tenant_admin / others: scoped to their own tenant
+      if (callerTenantId) {
+        where.tenantId = callerTenantId;
+      } else {
+        // No tenant on the caller — return nothing rather than leaking all tenants
+        where.tenantId = '__none__';
+      }
     }
 
     const groups = await prisma.companyGroup.findMany({

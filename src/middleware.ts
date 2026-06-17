@@ -9,5 +9,7 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|login|_next/static|_next/image|favicon.ico).*)'],
+  // Skip middleware (and thus any future auth/branding logic) on:
+  //   api routes, login, public careers portal, static assets
+  matcher: ['/((?!api|login|careers|_next/static|_next/image|favicon.ico).*)'],
 }

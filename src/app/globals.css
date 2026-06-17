@@ -201,6 +201,25 @@
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
 
+/* Public-facing form input (used by /careers and other public pages) */
+.form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(15 23 42); /* slate-900 */
+  background: white;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.form-input::placeholder { color: rgb(148 163 184); /* slate-400 */ }
+.form-input:focus {
+  border-color: rgb(99 102 241); /* indigo-500 */
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
 .nexus-card-hover {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
