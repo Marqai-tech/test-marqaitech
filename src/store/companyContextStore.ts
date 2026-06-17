@@ -77,12 +77,13 @@ interface CompanyContextState {
   refreshCompaniesFor: (tenantId: string) => Promise<void>;
   setSelectedTenant: (tenantId: string) => Promise<void>;
   setSelectedCompany: (companyId: string | null) => void;
+  setRole: (role: string) => void;
   reset: () => void;
 
   // Selectors
   effectiveCompanyId: () => string | null;
-  effectiveCompanyLabel: () => string;
-  canSwitch: () => boolean;
+  effectiveCompanyLabel: (userRole?: string) => string;
+  canSwitch: (userRole?: string) => boolean;
   selectedTenant: () => TenantOption | null;
   selectedCompanyGroup: () => CompanyGroupOption | null;
 }
@@ -184,6 +185,14 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         set({ selectedCompanyId: companyId });
       },
 
+      setRole: (role: string) => {
+        // Sync role from authStore.user.role — this ensures the context store
+        // knows the correct role even before /api/me/context finishes hydrating,
+        // which prevents the "Not yet assigned" flash in the CompanySwitcher.
+        const r = (role || 'employee').toLowerCase();
+        set((s) => (s.role === r ? s : { ...s, role: r }));
+      },
+
       reset: () => {
         set({
           hydrated: false,
@@ -199,30 +208,37 @@ export const useCompanyContextStore = create<CompanyContextState>()(
 
       effectiveCompanyId: () => {
         const s = get();
-        if (s.role === 'super_admin' || s.role === 'tenant_admin') {
+        const r = s.role;
+        if (r === 'super_admin' || r === 'tenant_admin') {
           // Admin can choose to view "all companies" (null) or a specific one
           return s.selectedCompanyId;
         }
         return s.ownCompanyId;
       },
 
-      effectiveCompanyLabel: () => {
+      effectiveCompanyLabel: (userRole?: string) => {
         const s = get();
-        if (s.role === 'super_admin' || s.role === 'tenant_admin') {
+        // Prefer the explicitly passed userRole (from authStore.user.role) —
+        // this is set immediately after login, whereas s.role is only set
+        // after /api/me/context hydrates. Without this, the CompanySwitcher
+        // would briefly show "Not yet assigned" for tenant_admin right after
+        // page reload.
+        const r = (userRole || s.role || 'employee').toLowerCase();
+        if (r === 'super_admin' || r === 'tenant_admin') {
           if (s.selectedCompanyId) {
             const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
             return c?.name || 'Unknown company';
           }
           // No specific selection: show group/tenant-level label
-          if (s.role === 'tenant_admin') return 'All companies (group)';
+          if (r === 'tenant_admin') return 'All companies (group)';
           const t = s.availableTenants.find((x) => x.id === s.selectedTenantId);
           return t ? `${t.name} (all companies)` : 'All companies';
         }
         return s.ownCompany?.name || 'Not yet assigned';
       },
 
-      canSwitch: () => {
-        const r = get().role;
+      canSwitch: (userRole?: string) => {
+        const r = (userRole || get().role || 'employee').toLowerCase();
         return r === 'super_admin' || r === 'tenant_admin';
       },
 
@@ -242,10 +258,19 @@ export const useCompanyContextStore = create<CompanyContextState>()(
     {
       name: 'tb_company_ctx',
       storage: createJSONStorage(() => localStorage),
-      // Only persist the user's selection — re-hydrate lists from the API each session
+      // Persist the user's selection AND role — role is needed so the
+      // CompanySwitcher can render the correct label/button immediately on
+      // page load, before /api/me/context has hydrated. Without persisting
+      // role, tenant_admin would briefly see "Not yet assigned" on every
+      // page navigation.
       partialize: (s) => ({
         selectedTenantId: s.selectedTenantId,
         selectedCompanyId: s.selectedCompanyId,
+        role: s.role,
+        tenantId: s.tenantId,
+        ownCompanyId: s.ownCompanyId,
+        ownCompany: s.ownCompany,
+        tenant: s.tenant,
       }),
     }
   )

@@ -538,7 +538,12 @@ export default function CompanyManagement() {
           </h1>
           <p className="text-nexus-text-secondary mt-1">Manage companies, branches, departments, and organizational structure</p>
         </div>
-        {isAdmin && activeTab !== 'grades' && (
+        {/* The "Add Company" button is intentionally hidden on the 'companies' tab.
+            Companies are created in the Super Admin or Tenant Admin modules
+            (which enforce proper group-company + tenant-quota rules). This tab
+            only lists the existing companies for reference and to manage their
+            branches / departments / etc. */}
+        {isAdmin && activeTab !== 'grades' && activeTab !== 'companies' && (
           <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
             <FiPlus className="w-4 h-4" />
             {addBtnLabel()}
@@ -647,6 +652,22 @@ export default function CompanyManagement() {
           <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div>
         ) : (
           <>
+            {/* Info banner — explains where companies are created */}
+            <div className="nexus-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
+              <div className="p-4 flex items-start gap-3">
+                <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-700">
+                  <p className="font-semibold text-slate-900 mb-0.5">Companies are managed by admins</p>
+                  <p className="text-xs text-slate-600">
+                    New companies can only be created from the <b>Super Admin</b> or <b>Tenant Admin</b> modules,
+                    where the proper group-company parent and tenant-level company quota are enforced. Use this
+                    tab to view existing companies and manage their branches, departments, and other
+                    organizational structure.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="nexus-card nexus-card-hover p-5">

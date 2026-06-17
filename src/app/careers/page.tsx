@@ -107,12 +107,146 @@ export default function CareersPage() {
   const [form, setForm] = useState<ApplyFormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
+  /* ── Role-based scoping state ──
+   * The job portal is public, but if a logged-in user opens it we honor
+   * their role:
+   *   - super_admin  → see ALL jobs across every tenant
+   *   - tenant_admin → see ONLY their own tenant's jobs
+   *   - other roles  → see ONLY their own tenant's jobs (same as tenant_admin)
+   *   - not logged in → see ALL jobs (default public behavior)
+   *
+   * The URL path /careers/[tenantSlug] always wins — it forces the filter
+   * to that tenant regardless of who's viewing. This lets each tenant
+   * company embed `/careers/<their-slug>` on their own website.
+   */
+  const [scopeInfo, setScopeInfo] = useState<{
+    checked: boolean;
+    userRole: string | null;
+    userTenantSlug: string | null;
+    userTenantName: string | null;
+    effectiveTenantSlug: string | null; // what we actually filter by
+  }>({
+    checked: false,
+    userRole: null,
+    userTenantSlug: null,
+    userTenantName: null,
+    effectiveTenantSlug: null,
+  });
+
+  // Determine the effective tenant slug to filter by:
+  //   1. If the URL has /careers/[tenantSlug], use that (highest priority — tenant embeds)
+  //   2. If a logged-in user is tenant_admin / non-super-admin, use their tenant slug
+  //   3. If a logged-in user is super_admin, no filter (see all jobs)
+  //   4. If not logged in, no filter (see all jobs)
+  //   5. If on a tenant subdomain (detected via x-tenant-slug header from middleware),
+  //      use that — this lets tenants embed the careers portal on their own subdomain
+  useEffect(() => {
+    let cancelled = false;
+    async function detectScope() {
+      // Case 1: URL path wins
+      if (tenantSlug) {
+        setScopeInfo({
+          checked: true,
+          userRole: null,
+          userTenantSlug: null,
+          userTenantName: null,
+          effectiveTenantSlug: tenantSlug,
+        });
+        return;
+      }
+
+      // Case 5: Try hostname-based detection via the middleware-set header.
+      // We do a fetch to a no-op endpoint and read the response header to
+      // learn what subdomain the middleware detected. (We can't read
+      // request headers directly from a client component.)
+      let subdomainTenantSlug: string | null = null;
+      try {
+        // A lightweight probe — same origin, just to read response headers.
+        const probe = await fetch('/api/public/jobs?limit=1', { method: 'GET' });
+        // The middleware sets x-tenant-slug on every response too — but browsers
+        // strip most custom headers. As a fallback, we expose tenant slug via a
+        // custom response header that is in the CORS safe-list.
+        subdomainTenantSlug = probe.headers.get('x-tenant-slug') || null;
+      } catch {
+        subdomainTenantSlug = null;
+      }
+
+      // Case 2-4: Check if user is logged in
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+      if (!token) {
+        setScopeInfo({
+          checked: true,
+          userRole: null,
+          userTenantSlug: null,
+          userTenantName: null,
+          effectiveTenantSlug: subdomainTenantSlug,
+        });
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          // Token invalid — treat as not logged in (still honor subdomain)
+          setScopeInfo({
+            checked: true,
+            userRole: null,
+            userTenantSlug: null,
+            userTenantName: null,
+            effectiveTenantSlug: subdomainTenantSlug,
+          });
+          return;
+        }
+        const user = await res.json();
+        const role = (user.role || '').toLowerCase();
+        const tSlug = user.tenant?.slug || null;
+        const tName = user.tenant?.name || null;
+        // super_admin: no filter (all jobs). Everyone else: filter to own tenant.
+        // Subdomain detection is overridden by an authenticated user's own tenant
+        // (so a logged-in tenant_admin visiting another tenant's subdomain still
+        // sees only their own tenant's jobs).
+        let effective: string | null;
+        if (role === 'super_admin') {
+          effective = null;
+        } else if (tSlug) {
+          effective = tSlug;
+        } else {
+          effective = subdomainTenantSlug;
+        }
+        if (!cancelled) {
+          setScopeInfo({
+            checked: true,
+            userRole: role,
+            userTenantSlug: tSlug,
+            userTenantName: tName,
+            effectiveTenantSlug: effective,
+          });
+        }
+      } catch {
+        setScopeInfo({
+          checked: true,
+          userRole: null,
+          userTenantSlug: null,
+          userTenantName: null,
+          effectiveTenantSlug: subdomainTenantSlug,
+        });
+      }
+    }
+    detectScope();
+    return () => { cancelled = true; };
+  }, [tenantSlug]);
+
   /* ── Fetch jobs ── */
   const fetchJobs = useCallback(async () => {
+    // Wait until scope detection has completed so we know whether to filter by tenant
+    if (!scopeInfo.checked) return;
     setLoading(true);
     try {
       const p = new URLSearchParams();
-      if (tenantSlug) p.set('tenantSlug', tenantSlug);
+      // Apply the effective tenant slug (from URL or logged-in user's tenant)
+      if (scopeInfo.effectiveTenantSlug) p.set('tenantSlug', scopeInfo.effectiveTenantSlug);
       if (search) p.set('search', search);
       if (typeFilter) p.set('type', typeFilter);
       if (locationFilter) p.set('location', locationFilter);
@@ -126,7 +260,7 @@ export default function CareersPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenantSlug, search, typeFilter, locationFilter]);
+  }, [scopeInfo.checked, scopeInfo.effectiveTenantSlug, search, typeFilter, locationFilter]);
 
   useEffect(() => {
     const t = setTimeout(() => fetchJobs(), 250); // debounce
@@ -287,10 +421,32 @@ export default function CareersPage() {
               </span>
             </h1>
             <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto mb-8">
-              {tenantSlug
-                ? `Browse open roles at this company, upload your resume, and apply in seconds. No account required — your application goes straight to the hiring team.`
+              {scopeInfo.effectiveTenantSlug
+                ? `Browse open roles at ${scopeInfo.userTenantName || 'this company'}, upload your resume, and apply in seconds. No account required — your application goes straight to the hiring team.`
                 : `Browse open roles across all our group companies, upload your resume once, and apply in seconds. No account required — your application goes straight to the hiring team.`}
             </p>
+
+            {/* Scope badge — shows whether the viewer is seeing all jobs or just one tenant's jobs */}
+            {scopeInfo.checked && (
+              <div className="mb-6">
+                {scopeInfo.effectiveTenantSlug ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 text-violet-700 text-[11px] font-semibold ring-1 ring-violet-200">
+                    <FiLayers className="w-3 h-3" />
+                    {scopeInfo.userRole
+                      ? `Scoped to your tenant: ${scopeInfo.userTenantName || scopeInfo.effectiveTenantSlug}`
+                      : `Scoped to tenant: ${scopeInfo.effectiveTenantSlug}`}
+                  </span>
+                ) : scopeInfo.userRole === 'super_admin' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold ring-1 ring-emerald-200">
+                    <FiUsers className="w-3 h-3" /> Super Admin view — showing ALL tenants' openings
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 text-slate-600 text-[11px] font-semibold ring-1 ring-slate-200">
+                    <FiGrid className="w-3 h-3" /> Showing openings across all companies
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Search bar */}
             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 ring-1 ring-slate-200 p-2 max-w-2xl mx-auto flex flex-col sm:flex-row gap-2">

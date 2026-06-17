@@ -5,6 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
+  // Expose the x-tenant-slug header so the client (careers page) can read it
+  // and know which tenant was detected from the hostname. Without this, the
+  // browser hides custom response headers from JS.
+  'Access-Control-Expose-Headers': 'x-tenant-slug, x-tenant-domain',
 };
 
 export async function OPTIONS() {
@@ -32,7 +36,15 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    const tenantSlug = url.searchParams.get('tenantSlug');
+    // The tenantSlug can come from:
+    //   1. Explicit ?tenantSlug=xxx query param (highest priority — used by /careers/[tenantSlug])
+    //   2. x-tenant-slug header (set by middleware based on the request hostname —
+    //      lets tenants embed the careers portal on their own subdomain without
+    //      needing to know the slug)
+    const tenantSlug =
+      url.searchParams.get('tenantSlug') ||
+      req.headers.get('x-tenant-slug') ||
+      null;
     const companyId = url.searchParams.get('companyId');
     const search = url.searchParams.get('search');
     const type = url.searchParams.get('type');
@@ -152,14 +164,30 @@ export async function GET(req: NextRequest) {
       {
         jobs: publicJobs,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        // Echo back the tenant slug that was applied (if any) so the client
+        // can confirm whether the request was tenant-scoped.
+        appliedTenantSlug: tenantSlug,
       },
-      { headers: corsHeaders }
+      {
+        headers: {
+          ...corsHeaders,
+          // Echo the detected tenant slug back to the client. The careers page
+          // uses this to auto-filter listings when served from a tenant subdomain.
+          'x-tenant-slug': tenantSlug || '',
+        },
+      }
     );
   } catch (error) {
     console.error('GET /api/public/jobs error:', error);
     return NextResponse.json(
       { jobs: [], pagination: { page: 1, limit: 24, total: 0, totalPages: 0 }, error: 'Failed to load jobs' },
-      { status: 500, headers: corsHeaders }
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'x-tenant-slug': (url.searchParams.get('tenantSlug') || req.headers.get('x-tenant-slug') || ''),
+        },
+      }
     );
   }
 }

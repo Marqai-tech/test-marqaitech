@@ -7,9 +7,11 @@ import {
   FiGlobe, FiSettings, FiDollarSign, FiLayers, FiHome,
   FiActivity, FiClock, FiFileText,
   FiChevronLeft, FiChevronRight as FiChevronRightIcon,
+  FiCheck, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -97,6 +99,7 @@ const planTypeLabel: Record<string, string> = {
 // ─── Main Component ───────────────────────────────────────
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
+  const { hydrate: hydrateContext } = useCompanyContextStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'groups' | 'plans' | 'audit'>('dashboard');
 
   // Dashboard state
@@ -156,6 +159,20 @@ export default function SuperAdminPage() {
     mobileAppEnabled: false, apiAccessEnabled: false, whiteLabelEnabled: false,
     supportLevel: 'email', status: 'active',
   });
+
+  // ─── Apply Plan (subscription) state ───
+  // Lets the super admin pick a plan + a tenant (a.k.a. "group company parent")
+  // and create a Subscription record linking them.
+  const [showApplyPlan, setShowApplyPlan] = useState<string | null>(null); // planId when open
+  const [applyForm, setApplyForm] = useState({
+    tenantId: '',
+    billingCycle: 'monthly' as 'monthly' | 'annual',
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: '',
+    amount: 0,
+    autoRenew: true,
+  });
+  const [applyingPlan, setApplyingPlan] = useState(false);
 
   // Audit state
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -270,14 +287,28 @@ export default function SuperAdminPage() {
   const handleViewTenant = async (id: string) => {
     try {
       const res = await fetch(`/api/tenants/${id}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setViewingTenant(data.tenant || data);
-        setViewingTenantId(id);
-        setShowTenantForm(false);
-        setEditingTenantId(null);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || `Failed to load tenant (HTTP ${res.status})`);
+        return;
       }
-    } catch { toast.error('Failed to load tenant details'); }
+      const data = await res.json();
+      // API returns { tenant: {...} }. Fall back to data for safety.
+      const tenant = data.tenant || data;
+      if (!tenant || !tenant.id) {
+        toast.error('Tenant details not found in response');
+        return;
+      }
+      setViewingTenant(tenant);
+      setViewingTenantId(id);
+      setShowTenantForm(false);
+      setEditingTenantId(null);
+      // Scroll into view on next tick so the panel is visible to the user
+      setTimeout(() => viewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    } catch (err) {
+      console.error('handleViewTenant error:', err);
+      toast.error('Failed to load tenant details');
+    }
   };
 
   const handleEditTenant = (tenant: Tenant) => {
@@ -416,7 +447,10 @@ export default function SuperAdminPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success(editingGroupId ? 'Group company updated' : 'Group company created');
       handleCancelGroupForm();
+      // Re-fetch the groups list (this page's view) AND refresh the company
+      // context store so the header CompanySwitcher reflects the new group.
       fetchGroups();
+      hydrateContext(true);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Operation failed'); }
     finally { setSubmittingGroup(false); }
   };
@@ -428,7 +462,59 @@ export default function SuperAdminPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Group company deleted');
       fetchGroups();
+      hydrateContext(true);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
+  };
+
+  // ─── Apply Plan (subscription) Handler ───────────────────
+  // Creates a Subscription record linking a plan to a tenant. The tenant
+  // dropdown shows all tenants — i.e. the "group company parent" names that
+  // the subscription plan can be applied to.
+  const openApplyPlan = (plan: SubscriptionPlan) => {
+    setShowApplyPlan(plan.id);
+    const today = new Date();
+    const end = new Date(today);
+    end.setFullYear(end.getFullYear() + 1);
+    setApplyForm({
+      tenantId: tenants[0]?.id || '',
+      billingCycle: 'monthly',
+      startDate: today.toISOString().slice(0, 10),
+      endDate: end.toISOString().slice(0, 10),
+      amount: plan.monthlyPrice,
+      autoRenew: true,
+    });
+  };
+
+  const handleSubmitApplyPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!applyForm.tenantId) { toast.error('Please select a tenant (group company parent)'); return; }
+    if (!applyForm.startDate || !applyForm.endDate) { toast.error('Start and end dates are required'); return; }
+    if (!showApplyPlan) return;
+    setApplyingPlan(true);
+    try {
+      const res = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          planId: showApplyPlan,
+          tenantId: applyForm.tenantId,
+          billingCycle: applyForm.billingCycle,
+          startDate: applyForm.startDate,
+          endDate: applyForm.endDate,
+          amount: Number(applyForm.amount) || 0,
+          autoRenew: applyForm.autoRenew,
+        }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      const tenantName = tenants.find((t) => t.id === applyForm.tenantId)?.name || 'tenant';
+      toast.success(`Plan applied to "${tenantName}" successfully`);
+      setShowApplyPlan(null);
+      fetchPlans();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to apply plan');
+    } finally {
+      setApplyingPlan(false);
+    }
   };
 
   // ─── Plan Handlers ──────────────────────────────────────
@@ -1371,6 +1457,9 @@ export default function SuperAdminPage() {
                       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                         <span className="text-xs text-nexus-text-muted">{p._count?.subscriptions || 0} subscribers</span>
                         <div className="flex items-center gap-1">
+                          <button onClick={() => openApplyPlan(p)} className="px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 inline-flex items-center gap-1" title="Apply this plan to a tenant">
+                            <FiCheck className="w-3 h-3" /> Apply
+                          </button>
                           <button onClick={() => handleViewPlan(p.id)} className="p-1.5 text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleEditPlan(p)} className="p-1.5 text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => setDeletePlanConfirmId(p.id)} className="p-1.5 text-nexus-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
@@ -1483,6 +1572,143 @@ export default function SuperAdminPage() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ═══ APPLY PLAN MODAL ═══ */}
+      {/* Lets the super admin pick a tenant (group company parent) and apply
+          the selected subscription plan to it. The tenant dropdown is the
+          "group company parent name" selector the user asked for. */}
+      {showApplyPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-teal-50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FiCheck className="w-4 h-4 text-emerald-600" /> Apply Subscription Plan
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Plan: <b>{plans.find((p) => p.id === showApplyPlan)?.name || '—'}</b>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowApplyPlan(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitApplyPlan} className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Tenant (group company parent) dropdown */}
+              <div>
+                <label className={labelCls}>
+                  <FiHome className="w-3 h-3 inline mr-1" />
+                  Group Company Parent (Tenant) *
+                </label>
+                <select
+                  value={applyForm.tenantId}
+                  onChange={(e) => setApplyForm({ ...applyForm, tenantId: e.target.value })}
+                  required
+                  className={selectCls}
+                >
+                  <option value="">— Select a tenant —</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.slug}){t.domain ? ` · ${t.domain}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  The subscription will be applied to this tenant. All group companies and
+                  companies under this tenant will inherit the plan's feature flags and limits.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Billing Cycle</label>
+                  <select
+                    value={applyForm.billingCycle}
+                    onChange={(e) => {
+                      const cycle = e.target.value as 'monthly' | 'annual';
+                      const plan = plans.find((p) => p.id === showApplyPlan);
+                      const amount = cycle === 'annual' ? (plan?.annualPrice || 0) : (plan?.monthlyPrice || 0);
+                      setApplyForm({ ...applyForm, billingCycle: cycle, amount });
+                    }}
+                    className={selectCls}
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="annual">Annual</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Amount ({applyForm.billingCycle === 'annual' ? 'annual' : 'monthly'})</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={applyForm.amount}
+                    onChange={(e) => setApplyForm({ ...applyForm, amount: parseFloat(e.target.value) || 0 })}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    <FiCalendar className="w-3 h-3 inline mr-1" />
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={applyForm.startDate}
+                    onChange={(e) => setApplyForm({ ...applyForm, startDate: e.target.value })}
+                    required
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    <FiCalendar className="w-3 h-3 inline mr-1" />
+                    End Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={applyForm.endDate}
+                    onChange={(e) => setApplyForm({ ...applyForm, endDate: e.target.value })}
+                    required
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={applyForm.autoRenew}
+                  onChange={(e) => setApplyForm({ ...applyForm, autoRenew: e.target.checked })}
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                />
+                Auto-renew at end of billing period
+              </label>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowApplyPlan(null)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={applyingPlan}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 disabled:opacity-60"
+                >
+                  {applyingPlan ? 'Applying...' : (<><FiCheck className="w-4 h-4" /> Apply Plan</>)}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

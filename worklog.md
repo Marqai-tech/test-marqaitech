@@ -473,3 +473,90 @@ Stage Summary:
 - Tenant websites can embed/link to /careers/[tenantSlug] for their own career page
 - Applications land in the existing JobApplication table and notify tenant_admin/hr_admin/recruiter users
 - File: commit 59f2752 pushed to GitHub main, Vercel deployment in progress
+
+---
+Task ID: SuperAdminBugsAndJobPortal-1
+Agent: Main Agent
+Task: Fix 5 super admin / tenant admin bugs + add Group Companies tab to tenant admin + role-based job portal + subdomain-based tenant detection middleware
+
+Work Log:
+- Read worklog and analyzed current state of super-admin, tenant-admin, CompanySwitcher, companyContextStore, me/context API, careers page, public jobs API, login page, company-management component, Sidebar, and middleware
+- Identified root causes:
+  * "Not yet assigned" in header: companyContextStore.role wasn't persisted and wasn't synced with authStore.user.role — effectiveCompanyLabel fell through to the non-admin branch on every page reload
+  * Group company not visible after create: fetchGroups was called but the companyContextStore (used by header switcher) wasn't refreshed
+  * Tenant View button silently failing: handleViewTenant had no error handling on !res.ok path
+  * No way to apply a subscription plan to a tenant (no Apply Plan UI)
+  * Company Management had an "Add Company" button despite companies being created in super/tenant admin modules
+  * No Group Companies management UI for tenant admin
+  * Job portal (/careers) showed ALL jobs to everyone regardless of who was viewing
+  * No subdomain-based tenant detection for embeds
+
+Changes Made:
+1. src/store/companyContextStore.ts:
+   - Added `setRole(role)` action to sync role from authStore
+   - Made `effectiveCompanyLabel(userRole?)` and `canSwitch(userRole?)` accept optional userRole parameter — they prefer it over the store's `role` so the label is correct on first render after login
+   - Updated `partialize` to persist `role`, `tenantId`, `ownCompanyId`, `ownCompany`, `tenant` so they survive page reloads (prevents the "Not yet assigned" flash)
+
+2. src/components/CompanySwitcher.tsx:
+   - Added useEffect that calls `setRole(user.role)` whenever user.role changes
+   - Updated the button label call to `effectiveCompanyLabel(user?.role)` so the authStore's role is used immediately after login
+
+3. src/app/(dashboard)/super-admin/page.tsx:
+   - Added `useCompanyContextStore` import and `hydrate: hydrateContext` destructuring
+   - Added comprehensive error handling to `handleViewTenant`: now surfaces errors via toast, validates that the response has a tenant object, and scrolls the panel into view
+   - Updated `handleSubmitGroup` and `handleDeleteGroup` to call `hydrateContext(true)` after success so the header CompanySwitcher reflects the new/deleted group
+   - Added new "Apply Plan" feature:
+     * New state: `showApplyPlan`, `applyForm`, `applyingPlan`
+     * `openApplyPlan(plan)` opens the modal pre-filled with the plan's monthly price
+     * `handleSubmitApplyPlan` POSTs to /api/subscriptions creating a Subscription record linking plan + tenant
+     * Added "Apply" button (emerald) next to each plan card's action buttons
+     * Added full Apply Plan modal with: tenant (group company parent) dropdown, billing cycle, amount, start/end dates, auto-renew toggle
+
+4. src/components/hrms/company-management.tsx:
+   - Hidden the "Add Company" button when `activeTab === 'companies'` (companies are created in super/tenant admin modules)
+   - Added an info banner on the Companies tab explaining where companies are created
+
+5. src/app/(dashboard)/tenant-admin/group-companies/page.tsx (NEW FILE):
+   - Full tenant admin page for managing group companies under their own tenant
+   - Lists all groups with employee strength barriers, company caps, and companies under each group
+   - Create/Edit modal with: group name, limit mode (per_company/group_total), max employees, max companies, admin notes
+   - Tenant context is read-only (auto-assigned from JWT)
+   - Calls `hydrate(true)` after create/edit/delete to refresh header switcher
+
+6. src/components/Sidebar.tsx:
+   - Added new "Group Companies" menu item under Platform section for tenant_admin role (links to /tenant-admin/group-companies)
+
+7. src/app/careers/page.tsx:
+   - Added role-based scoping state (`scopeInfo`) with `checked`, `userRole`, `userTenantSlug`, `userTenantName`, `effectiveTenantSlug`
+   - Added useEffect that detects the effective tenant slug:
+     * URL /careers/[tenantSlug] wins (highest priority — for tenant website embeds)
+     * Subdomain detection via x-tenant-slug header from middleware
+     * Logged-in user: super_admin sees all jobs, tenant_admin/non-admin sees only their tenant's jobs
+     * Not logged in: respects subdomain or shows all jobs
+   - Updated fetchJobs to wait for scope detection and pass effectiveTenantSlug to the API
+   - Added a scope badge in the hero showing whether the viewer is seeing all jobs or just one tenant's jobs
+
+8. src/middleware.ts:
+   - Completely rewrote to detect tenant from hostname
+   - Extracts tenant slug from: ?tenant= query param (highest priority) OR first subdomain segment
+   - Skips well-known non-tenant subdomains (www, api, app, admin, mail, ftp)
+   - Sets `x-tenant-slug` and `x-tenant-domain` headers on every request
+   - Updated matcher to include careers and api routes so the headers are available there
+
+9. src/app/api/public/jobs/route.ts:
+   - Updated to read tenantSlug from query param OR x-tenant-slug header (set by middleware)
+   - Added `Access-Control-Expose-Headers: x-tenant-slug, x-tenant-domain` to CORS headers
+   - Echoes `x-tenant-slug` header in the response so the careers page can read it
+   - Added `appliedTenantSlug` to the JSON response so clients can confirm scoping
+
+Stage Summary:
+- Bug 1 (group visibility): Fixed by calling hydrateContext(true) after group CRUD operations
+- Bug 2 (tenant View): Fixed by adding comprehensive error handling + scrollIntoView
+- Bug 3 (subscription apply): NEW feature — Apply Plan modal with tenant dropdown
+- Bug 4 (header "not yet assigned"): Fixed by syncing role from authStore.user.role and persisting role in localStorage
+- Bug 5 (Add Company in company management): Fixed by hiding the button on the companies tab + adding info banner
+- Feature 1 (Group Companies tab for tenant admin): NEW page at /tenant-admin/group-companies
+- Feature 2 (role-based job portal): Careers page now auto-scopes based on logged-in user's role
+- Feature 3 (subdomain detection): Middleware now sets x-tenant-slug header; public jobs API honors it
+- Build verified clean (✓ Compiled successfully, 227/227 pages generated)
+- All TypeScript checks pass for modified files (only pre-existing currency.ts errors remain)

@@ -29,13 +29,25 @@ export default function CompanySwitcher() {
     role, ownCompany, ownCompanyId, tenant, tenantQuota,
     availableTenants, availableCompanies, availableCompanyGroups,
     selectedTenantId, selectedCompanyId,
-    setSelectedTenant, setSelectedCompany,
+    setSelectedTenant, setSelectedCompany, setRole,
     effectiveCompanyLabel, canSwitch,
   } = useCompanyContextStore();
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
+  // Keep the context store's `role` in sync with the authStore's `user.role`.
+  // This is critical: without it, when a tenant_admin logs in and lands on the
+  // dashboard, the context store's `role` is still 'employee' (default) until
+  // /api/me/context finishes hydrating. During that brief window the switcher
+  // button label resolves to "Not yet assigned" instead of "All companies (group)".
+  // Syncing here means the label is correct from the very first render.
+  useEffect(() => {
+    if (user?.role) {
+      setRole(user.role);
+    }
+  }, [user?.role, setRole]);
 
   useEffect(() => {
     if (!hydrated) hydrate();
@@ -52,6 +64,9 @@ export default function CompanySwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Use the authStore's user.role as the source of truth — it's set
+  // immediately after login, whereas the context store's `role` may lag
+  // behind by one render cycle. This prevents the "Not yet assigned" flash.
   const userRole = (user?.role || role || 'employee').toLowerCase();
   const isSuperAdmin = userRole === 'super_admin';
   const isTenantAdmin = userRole === 'tenant_admin';
@@ -110,7 +125,7 @@ export default function CompanySwitcher() {
         title="Switch company context"
       >
         <FiLayers className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-        <span className="truncate">{effectiveCompanyLabel()}</span>
+        <span className="truncate">{effectiveCompanyLabel(user?.role)}</span>
         <FiChevronDown className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
