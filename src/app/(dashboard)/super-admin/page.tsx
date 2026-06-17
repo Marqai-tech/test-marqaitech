@@ -967,24 +967,35 @@ export default function SuperAdminPage() {
                 <div className="mb-6">
                   <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiGlobe className="w-4 h-4" /> Company Groups</h4>
                   <div className="space-y-3">
-                    {viewingTenant.companyGroups.map((cg) => (
-                      <div key={cg.id} className="border border-nexus-border rounded-lg p-4">
-                        <p className="text-sm font-semibold text-nexus-text-primary mb-2">{cg.name}</p>
-                        {cg.companies.length > 0 ? (
-                          <div className="space-y-2">
-                            {cg.companies.map((comp) => (
-                              <div key={comp.id} className="flex items-center gap-4 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
-                                <span className="font-medium text-nexus-text-primary">{comp.name}</span>
-                                {comp.code && <span className="nexus-badge nexus-badge-info text-[10px]">{comp.code}</span>}
-                                <span>{comp._count.departments} depts</span>
-                                <span>{comp._count.branches} branches</span>
-                                <span>{comp._count.employees} employees</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : <p className="text-xs text-nexus-text-muted">No companies</p>}
-                      </div>
-                    ))}
+                    {viewingTenant.companyGroups.map((cg) => {
+                      // Defensive: `companies` may be missing in some fallback
+                      // API responses. Default to an empty array so we never
+                      // throw "Cannot read properties of undefined (reading 'length')".
+                      const companies = Array.isArray(cg.companies) ? cg.companies : [];
+                      return (
+                        <div key={cg.id} className="border border-nexus-border rounded-lg p-4">
+                          <p className="text-sm font-semibold text-nexus-text-primary mb-2">{cg.name}</p>
+                          {companies.length > 0 ? (
+                            <div className="space-y-2">
+                              {companies.map((comp) => {
+                                const depts = comp._count?.departments ?? 0;
+                                const branches = comp._count?.branches ?? 0;
+                                const employees = comp._count?.employees ?? 0;
+                                return (
+                                  <div key={comp.id} className="flex items-center gap-4 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
+                                    <span className="font-medium text-nexus-text-primary">{comp.name}</span>
+                                    {comp.code && <span className="nexus-badge nexus-badge-info text-[10px]">{comp.code}</span>}
+                                    <span>{depts} depts</span>
+                                    <span>{branches} branches</span>
+                                    <span>{employees} employees</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : <p className="text-xs text-nexus-text-muted">No companies inducted under this group yet</p>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

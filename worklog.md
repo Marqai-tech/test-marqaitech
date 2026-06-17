@@ -738,3 +738,34 @@ Stage Summary:
 - Empty states on masters tabs explain WHY the dropdown is empty and what to do
 - Build verified clean (✓ Compiled successfully, 228/228 pages)
 - Ready to commit and push to GitHub for Vercel auto-deploy
+
+---
+Task ID: 2
+Agent: main (super-z)
+Task: Fix super admin tenant view "Cannot read properties of undefined (reading 'length')" error, remove forced "3 Boxes Corp" branding override so tenant_admin sees real tenant name (e.g. "Acme Global"), auto-create matching-named group company per tenant (per user's clarified hierarchy: tenant name = group company name), and ensure header dropdown shows tenants/companies reliably.
+
+Work Log:
+- Investigated root cause of "Cannot read properties of undefined (reading 'length')": the fallback query in /api/tenants/[id]/route.ts only included _count.companies on each group (NOT a companies array), so the frontend code `cg.companies.length` threw.
+- Fixed /api/tenants/[id]/route.ts: fallback now ALSO includes a `companies` array on each group. Added a normalisation pass that guarantees `companyGroups[].companies` is always an array before returning to the frontend.
+- Hardened super-admin/page.tsx tenant view to defensively coerce `cg.companies` to an empty array and read `comp._count.departments` etc. via nullish coalescing — so even if the API returns an unexpected shape, the page renders instead of crashing.
+- Found the root cause of "tenant_admin shows 3 boxes corp instead of Acme Global": /api/auth/login/route.ts and /api/auth/me/route.ts had a branding-lockdown that FORCED every tenant name to "3 Boxes Corp" no matter what the DB stored. This was a previous fix from the single-tenant era that broke multi-tenancy.
+- Removed the branding-lockdown from both /api/auth/login/route.ts and /api/auth/me/route.ts. The real tenant name from the DB is now returned.
+- Also removed the same branding-lockdown guard at the end of /api/seed/route.ts that would force-rename every tenant to "3 Boxes Corp" on every seed call.
+- Implemented user's clarified hierarchy "the group company name and parent tenant are same": /api/tenants/route.ts POST now auto-creates a default Group Company sharing the tenant's name (idempotent — skips if a same-named group already exists under the tenant).
+- Updated /api/super-admin/seed-sample-data/route.ts: each sample tenant now has a default group company that shares the tenant's name (e.g. tenant "Acme Global" → group company "Acme Global"), plus an additional "Acme Manufacturing Group" sub-cluster to demonstrate multi-group tenancy.
+- Added an auto-fix in /api/super-admin/seed-sample-data/route.ts that flips any existing `pending_approval` tenants to `active` so they show up in the super admin header dropdown (legacy tenants created before the status-default fix).
+- Fixed /api/tenants/route.ts POST: changed default tenant status from `pending_approval` to `active` — when a super admin creates a tenant directly, it's active immediately. Previously, newly-created tenants were filtered out by /api/me/context (which only listed `status: 'active'` tenants), so the super admin's header dropdown never showed them.
+- Updated /api/me/context/route.ts: super admin now sees ALL tenants (not just `status: 'active'`), so suspended/pending tenants are also visible and manageable from the header.
+- Improved CompanySwitcher.tsx: added a `visibilitychange` listener that re-hydrates the context store when the user returns to the tab, so the dropdown always shows fresh data after creating groups/companies on another page.
+- Updated hierarchy banners on tenant-admin/page.tsx, tenant-admin/group-companies/page.tsx, and tenant-admin/companies/page.tsx to reflect the clarified rule "Tenant = Group Company (parent)" with an equals sign instead of an arrow, plus explicit guidance that the first group company can share the tenant name.
+- Verified TypeScript compilation: no errors in any changed file (only pre-existing errors in src/lib/currency.ts which I did not touch).
+
+Stage Summary:
+- Super admin tenant "view" button no longer throws — fallback query includes `companies` array, frontend defensively coerces.
+- Tenant admin now sees the real tenant name (e.g. "Acme Global") instead of "3 Boxes Corp".
+- Per user's clarified hierarchy: every new tenant auto-gets a matching-named group company (e.g. tenant "Acme Global" → group "Acme Global"). Sample data updated to match.
+- Newly-created tenants default to `active` status (was `pending_approval`), so they immediately appear in the super admin header dropdown.
+- Super admin header dropdown now lists ALL tenants (including non-active), making it easier to manage the full tenant roster.
+- CompanySwitcher auto-refreshes when the user returns to the tab, so it always shows the latest tenants/groups/companies.
+- Hierarchy banners updated across all tenant-admin pages to clearly state "Tenant = Group Company (parent)".
+- Ready to push to GitHub for Vercel auto-deploy.

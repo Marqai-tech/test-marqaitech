@@ -292,7 +292,7 @@ export default function TenantCompaniesPage() {
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
               <FiHome className="w-3 h-3" /> Tenant: {tenantName}
             </span>
-            <span className="text-indigo-400">→</span>
+            <span className="text-indigo-400">=</span>
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
               <FiLayers className="w-3 h-3" /> Group Company (parent)
             </span>
@@ -306,9 +306,11 @@ export default function TenantCompaniesPage() {
             </span>
           </div>
           <p className="leading-relaxed">
-            Companies on this page sit <b>under a Group Company</b>, which sits under your tenant <b>{tenantName}</b>.
+            <b>The group company name and parent tenant are the same.</b>
+            {' '}Companies on this page sit <b>under a Group Company</b>, which sits under your tenant <b>{tenantName}</b>.
             {' '}If the <b>Group Company</b> dropdown below is empty, you need to{' '}
-            <a href="/tenant-admin/group-companies" className="font-bold text-indigo-700 underline">create a group company first</a>.
+            <a href="/tenant-admin/group-companies" className="font-bold text-indigo-700 underline">create a group company first</a>{' '}
+            (you can name it <b>{tenantName}</b> to match the tenant).
           </p>
         </div>
       </div>

@@ -37,6 +37,11 @@ export async function GET(
     // mismatch on the notifications relation). If the "rich" include set
     // throws, we fall back to a simpler version so the super admin can still
     // see *something* instead of an "Internal server error" toast.
+    //
+    // IMPORTANT: The frontend super-admin/page.tsx reads `cg.companies` (an
+    // array) on each group, so even the fallback MUST include a `companies`
+    // array — otherwise `cg.companies.length` throws "Cannot read properties
+    // of undefined (reading 'length')".
     let tenant: unknown = null;
     try {
       tenant = await prisma.tenant.findUnique({
@@ -69,11 +74,24 @@ export async function GET(
       });
     } catch (innerErr) {
       console.error('Rich tenant fetch failed, falling back:', innerErr);
+      // Simpler fallback — but STILL include the `companies` array on each
+      // group, otherwise the frontend will crash on `cg.companies.length`.
       tenant = await prisma.tenant.findUnique({
         where: { id },
         include: {
-          companyGroups: { select: { id: true, name: true, _count: { select: { companies: true } } } },
-          users: { select: { id: true, email: true, name: true, role: true, status: true } },
+          companyGroups: {
+            include: {
+              companies: {
+                select: {
+                  id: true, name: true, code: true, status: true,
+                  _count: { select: { employees: true } },
+                },
+                orderBy: { name: 'asc' },
+              },
+              _count: { select: { companies: true } },
+            },
+          },
+          users: { select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true } },
           _count: { select: { users: true, companyGroups: true } },
         },
       });
@@ -83,7 +101,45 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    return NextResponse.json({ tenant }, { headers: corsHeaders() });
+    // Normalise: ensure `companyGroups[].companies` is always an array (the
+    // frontend assumes it is). Defensive — if for any reason a future schema
+    // change drops the include, we still want the page to render.
+    const normalised = tenant as {
+      id: string;
+      name: string;
+      slug: string;
+      domain?: string | null;
+      plan?: string;
+      status?: string;
+      country?: string | null;
+      currency?: string;
+      timezone?: string;
+      maxCompaniesAllowed?: number;
+      createdAt?: string | Date;
+      companyGroups?: Array<{
+        id: string;
+        name: string;
+        companies?: Array<{
+          id: string;
+          name: string;
+          code?: string | null;
+          status?: string;
+          _count?: { departments?: number; branches?: number; employees?: number };
+        }>;
+        _count?: { companies?: number };
+      }>;
+      users?: Array<{ id: string; name: string; email: string; role: string; status: string; lastLogin?: string | null }>;
+      subscriptions?: Array<{ id: string; status: string; startDate: string | Date; endDate: string | Date; amount: number; plan?: { name: string } }>;
+      _count?: { users?: number; companyGroups?: number };
+    };
+    if (normalised.companyGroups) {
+      normalised.companyGroups = normalised.companyGroups.map((g) => ({
+        ...g,
+        companies: Array.isArray(g.companies) ? g.companies : [],
+      }));
+    }
+
+    return NextResponse.json({ tenant: normalised }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get tenant error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

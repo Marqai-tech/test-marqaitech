@@ -1478,22 +1478,11 @@ export async function GET() {
       // RBAC seeding failure is non-fatal - main seed still succeeds
     }
 
-    // BRANDING GUARD: Final safety check - force ALL tenants to have correct "3 Boxes" branding
-    // This prevents eh2r, nexus, or any other wrong name from persisting in the database
-    try {
-      const allTenants = await prisma.tenant.findMany();
-      for (const t of allTenants) {
-        if (!t.name.toLowerCase().includes('3 boxes')) {
-          await prisma.tenant.update({
-            where: { id: t.id },
-            data: { name: '3 Boxes Corp', slug: '3boxes-corp', domain: '3boxeshrms.com' },
-          });
-          console.log('[Seed] Fixed tenant name from', t.name, 'to 3 Boxes Corp');
-        }
-      }
-    } catch (e) {
-      console.error('[Seed] Branding guard error:', e);
-    }
+    // NOTE: The previous branding-lockdown guard that force-renamed EVERY
+    // tenant to "3 Boxes Corp" has been removed. The app now supports true
+    // multi-tenancy — each tenant keeps its own name (e.g. "Acme Global",
+    // "TechStart Solutions", "3 Boxes Corp", etc.). The old guard would
+    // destroy that setup every time /api/seed was called.
 
     return NextResponse.json(
       {

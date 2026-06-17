@@ -101,9 +101,12 @@ export async function GET(request: Request) {
     }[] = [];
 
     if (role === 'super_admin') {
-      // Super admin: list all tenants
+      // Super admin: list ALL tenants (not just 'active' ones) so the super
+      // admin can see and manage suspended/pending tenants too. Previously
+      // filtering by status='active' meant newly-created tenants (which used
+      // to default to 'pending_approval') were invisible in the header
+      // dropdown.
       availableTenants = await prisma.tenant.findMany({
-        where: { status: 'active' },
         select: { id: true, name: true, slug: true, plan: true, status: true, maxCompaniesAllowed: true },
         orderBy: { name: 'asc' },
       });

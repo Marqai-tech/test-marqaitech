@@ -131,7 +131,13 @@ export async function POST(request: Request) {
         currency: currency || 'USD',
         timezone: timezone || 'UTC',
         logo,
-        status: 'pending_approval',
+        // When a super admin creates a tenant directly, it's active immediately
+        // (no approval step needed — the super admin IS the approver).
+        // Previously this was 'pending_approval', which caused newly-created
+        // tenants to be filtered out by /api/me/context (which only lists
+        // active tenants) — meaning the super admin's header dropdown would
+        // never show the tenant they just created.
+        status: 'active',
         // Quota: how many companies the tenant_admin can create (0 = unlimited)
         maxCompaniesAllowed: typeof maxCompaniesAllowed === 'number' && maxCompaniesAllowed >= 0 ? maxCompaniesAllowed : 0,
         users: {
@@ -149,12 +155,41 @@ export async function POST(request: Request) {
       },
     });
 
+    // ─── Per user's clarified hierarchy: "the group company name and parent
+    // tenant are same". So whenever a Tenant is created, we auto-create a
+    // single Group Company under it that shares the tenant's name. This is
+    // the default cluster the tenant_admin will induct their companies into.
+    // (Idempotent — if a group with the same name already exists under this
+    // tenant, we skip the create.)
+    try {
+      const existingGroup = await prisma.companyGroup.findFirst({
+        where: { tenantId: tenant.id, name },
+      });
+      if (!existingGroup) {
+        await prisma.companyGroup.create({
+          data: {
+            name, // SAME name as the tenant — this is intentional
+            tenantId: tenant.id,
+            employeeLimitMode: 'group_total',
+            maxEmployees: null, // no cap by default — tenant_admin can set one
+            maxCompanies: null,
+            notes: `Default group company auto-created for tenant "${name}". Shares the tenant name per the parent/child identity rule.`,
+          },
+        });
+      }
+    } catch (groupErr) {
+      // Don't fail the tenant creation if the group auto-create fails —
+      // log it and continue. The tenant_admin can still create groups
+      // manually via the Group Companies page.
+      console.error('[Tenants/Create] Auto-group-create failed (non-fatal):', groupErr);
+    }
+
     await prisma.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_TENANT',
         module: 'tenants',
-        details: `Created tenant ${name} (${slug}) with admin ${adminEmail}`,
+        details: `Created tenant ${name} (${slug}) with admin ${adminEmail}. Auto-created a matching group company "${name}".`,
       },
     });
 

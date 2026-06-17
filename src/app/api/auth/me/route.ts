@@ -77,26 +77,10 @@ export async function GET(request: Request) {
       // Continue without employee data — user can still be authenticated
     }
 
-    // Always ensure tenant name is "3 Boxes Corp" — never return EH2R, Nexus, or any wrong branding
-    let tenantName = user.tenant.name;
-    let tenantSlug = user.tenant.slug;
-    const nameLower = (tenantName || '').toLowerCase();
-    if (!nameLower.includes('3 boxes')) {
-      try {
-        const fixed = await prisma.tenant.update({
-          where: { id: user.tenant.id },
-          data: { name: '3 Boxes Corp', slug: '3boxes-corp', domain: '3boxeshrms.com' },
-        });
-        tenantName = fixed.name;
-        tenantSlug = fixed.slug;
-        console.log('[Auth/Me] Auto-fixed tenant name from', user.tenant.name, 'to', fixed.name);
-      } catch (e) {
-        console.error('[Auth/Me] Failed to auto-fix tenant name:', e);
-        // Force the correct name even if DB update fails
-        tenantName = '3 Boxes Corp';
-        tenantSlug = '3boxes-corp';
-      }
-    }
+    // Multi-tenant mode: return the actual tenant name from the database.
+    // The previous branding-lockdown (forcing every tenant to "3 Boxes Corp")
+    // has been removed so each tenant keeps its own name (e.g. "Acme Global",
+    // "TechStart Solutions", "GlobalHR Services", "3 Boxes Corp", etc.).
 
     return NextResponse.json(
       {
@@ -108,8 +92,8 @@ export async function GET(request: Request) {
         status: user.status,
         tenant: {
           id: user.tenant.id,
-          name: tenantName,
-          slug: tenantSlug,
+          name: user.tenant.name,
+          slug: user.tenant.slug,
           plan: user.tenant.plan,
           currency: user.tenant.currency,
           timezone: user.tenant.timezone,

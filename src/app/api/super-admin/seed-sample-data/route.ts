@@ -25,22 +25,28 @@ export async function OPTIONS() {
  *     └── Group Company  ──►  has employee-strength barrier
  *           └── Company  ──►  has its own employee cap
  *
+ * Per the user's clarified hierarchy: "the group company name and parent
+ * tenant are same". So for EACH sample tenant we ALSO create a default group
+ * company that shares the tenant's name (e.g. tenant "Acme Global" gets a
+ * group company named "Acme Global"). Companies are then inducted under
+ * either the default same-name group OR additional named groups.
+ *
  * Sample layout created (idempotent — running twice won't duplicate):
  *
  *   1) Acme Global  (slug: acme-global, plan: enterprise, maxCompaniesAllowed: 10)
- *        ├─ Acme Tech Group         (group_total cap: 500)
+ *        ├─ Acme Global                 (default group — shares tenant name)
  *        │    ├─ Acme Software India Pvt Ltd      (planned: 200, cap: 250)
  *        │    └─ Acme Cloud Services LLP          (planned: 120, cap: 150)
- *        └─ Acme Manufacturing Group (per_company cap: 80)
+ *        └─ Acme Manufacturing Group   (per_company cap: 80)
  *             └─ Acme Industrial Tools Ltd        (planned: 60, cap: 80)
  *
  *   2) TechStart Solutions  (slug: techstart, plan: professional, maxCompaniesAllowed: 5)
- *        ├─ TechStart Digital Group
+ *        ├─ TechStart Solutions         (default group — shares tenant name)
  *        │    ├─ TechStart Apps Inc                (planned: 50, cap: 75)
  *        │    └─ TechStart AI Labs                 (planned: 30, cap: 50)
  *
  *   3) GlobalHR Services  (slug: globalhr, plan: starter, maxCompaniesAllowed: 3)
- *        └─ GlobalHR Consulting Group
+ *        └─ GlobalHR Services          (default group — shares tenant name)
  *             └─ GlobalHR Staffing Pvt Ltd         (planned: 40, cap: 50)
  *
  * Each tenant gets a `tenant_admin` user. Login credentials are returned in
@@ -69,6 +75,26 @@ export async function POST(request: Request) {
     // A stable password for all sample tenant_admin accounts.
     const SAMPLE_PASSWORD = 'Tenant@123';
     const pwHash = await hashPassword(SAMPLE_PASSWORD);
+
+    // ─── Auto-fix: any existing tenants that were created before the fix
+    // (which set them to 'pending_approval' by default) should be flipped to
+    // 'active' so they appear in the super admin's header dropdown. This is
+    // idempotent and only touches tenants that are stuck in pending_approval.
+    try {
+      const pendingTenants = await prisma.tenant.findMany({
+        where: { status: 'pending_approval' },
+        select: { id: true, name: true },
+      });
+      if (pendingTenants.length > 0) {
+        await prisma.tenant.updateMany({
+          where: { status: 'pending_approval' },
+          data: { status: 'active' },
+        });
+        console.log('[SeedSampleData] Auto-activated', pendingTenants.length, 'pending tenants:', pendingTenants.map(t => t.name).join(', '));
+      }
+    } catch (e) {
+      console.error('[SeedSampleData] Auto-activate pending tenants failed (non-fatal):', e);
+    }
 
     // ── Sample data definition ─────────────────────────────────
     type SampleCompany = {
@@ -117,11 +143,13 @@ export async function POST(request: Request) {
         adminEmail: 'admin@acme-global.com',
         groups: [
           {
-            name: 'Acme Tech Group',
+            // This group shares the tenant name (per the user's clarified
+            // hierarchy: "the group company name and parent tenant are same").
+            name: 'Acme Global',
             employeeLimitMode: 'group_total',
             maxEmployees: 500,
             maxCompanies: 5,
-            notes: 'Software + Cloud cluster — capped at 500 employees total across all companies in this group.',
+            notes: 'Default group company for Acme Global — shares the tenant name. Software + Cloud cluster capped at 500 employees total.',
             companies: [
               {
                 name: 'Acme Software India Pvt Ltd',
@@ -179,11 +207,12 @@ export async function POST(request: Request) {
         adminEmail: 'admin@techstart.com',
         groups: [
           {
-            name: 'TechStart Digital Group',
+            // Default group — shares the tenant name.
+            name: 'TechStart Solutions',
             employeeLimitMode: 'group_total',
             maxEmployees: 150,
             maxCompanies: 4,
-            notes: 'Digital products + AI labs — 150 employees total across the group.',
+            notes: 'Default group company for TechStart Solutions — shares the tenant name. Digital products + AI labs capped at 150 employees total.',
             companies: [
               {
                 name: 'TechStart Apps Inc',
@@ -222,11 +251,12 @@ export async function POST(request: Request) {
         adminEmail: 'admin@globalhr.com',
         groups: [
           {
-            name: 'GlobalHR Consulting Group',
+            // Default group — shares the tenant name.
+            name: 'GlobalHR Services',
             employeeLimitMode: 'group_total',
             maxEmployees: 50,
             maxCompanies: 2,
-            notes: 'Consulting + staffing — capped at 50 employees total.',
+            notes: 'Default group company for GlobalHR Services — shares the tenant name. Consulting + staffing capped at 50 employees total.',
             companies: [
               {
                 name: 'GlobalHR Staffing Pvt Ltd',

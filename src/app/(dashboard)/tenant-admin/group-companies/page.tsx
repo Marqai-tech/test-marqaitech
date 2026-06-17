@@ -212,9 +212,9 @@ export default function TenantGroupCompaniesPage() {
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
               <FiHome className="w-3 h-3" /> Tenant
             </span>
-            <span className="text-indigo-400">→</span>
+            <span className="text-indigo-400">=</span>
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
-              <FiLayers className="w-3 h-3" /> Group Company
+              <FiLayers className="w-3 h-3" /> Group Company (parent)
             </span>
             <span className="text-indigo-400">→</span>
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
@@ -226,10 +226,11 @@ export default function TenantGroupCompaniesPage() {
             </span>
           </div>
           <p className="leading-relaxed">
-            Your tenant <b>{tenantName}</b> (parent) has a companies cap set by the super admin.
-            {' '}Under it, you create <b>Group Companies</b> (this page) — these are clusters that hold one or more <b>Companies</b>.
-            {' '}Each group can have an employee-strength barrier (per-company or group-total). After creating a group here,
-            {' '}use the <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page to induct individual companies under each group.
+            <b>The group company name and parent tenant are the same.</b>
+            {' '}Your tenant <b>{tenantName}</b> has a companies cap set by the super admin.
+            {' '}Create a group company here (you can name it <b>{tenantName}</b> to match the tenant, or use a different name for a sub-cluster) — then induct <b>Companies</b> under each group via the{' '}
+            <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
+            {' '}Each group can have an employee-strength barrier (per-company or group-total).
           </p>
         </div>
       </div>
@@ -267,7 +268,9 @@ export default function TenantGroupCompaniesPage() {
           <FiLayers className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600 font-medium">No group companies created yet</p>
           <p className="text-xs text-slate-500 mt-1 mb-4">
-            Create a group company to set employee-strength barriers before inducting companies.
+            Per the multi-tenancy hierarchy, your tenant <b>{tenantName}</b> is the parent.
+            Create a group company (it can share the tenant name) and then induct individual
+            companies under it via the <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
           </p>
           <button
             onClick={openCreate}

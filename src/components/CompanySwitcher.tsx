@@ -53,6 +53,19 @@ export default function CompanySwitcher() {
     if (!hydrated) hydrate();
   }, [hydrated, hydrate]);
 
+  // Re-hydrate whenever the user navigates back to the page (e.g., after
+  // creating a group or company on another tab). Without this, the dropdown
+  // would keep showing stale data until the user does a full page reload.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible' && hydrated) {
+        hydrate(true);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [hydrated, hydrate]);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {

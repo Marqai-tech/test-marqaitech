@@ -537,9 +537,9 @@ export default function TenantAdminPage() {
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
                     <FiHome className="w-3 h-3" /> Tenant
                   </span>
-                  <span className="text-indigo-400">→</span>
+                  <span className="text-indigo-400">=</span>
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
-                    <FiLayers className="w-3 h-3" /> Group Company
+                    <FiLayers className="w-3 h-3" /> Group Company (parent)
                   </span>
                   <span className="text-indigo-400">→</span>
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
@@ -551,9 +551,12 @@ export default function TenantAdminPage() {
                   </span>
                 </div>
                 <p className="leading-relaxed">
-                  You are managing tenant <b>{tenantName}</b>. Under it, create <b>Group Companies</b> (this tab),
-                  {' '}then induct <b>Companies</b> under each group via the <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
-                  {' '}Each group can have an employee-strength barrier; each company can have its own employee cap.
+                  <b>The group company name and parent tenant are the same.</b>
+                  {' '}You are managing tenant <b>{tenantName}</b>, which has a companies cap set by the super admin.
+                  {' '}Under it, create <b>Group Companies</b> (this tab) — the first one can share the tenant name <b>{tenantName}</b>.
+                  {' '}Then induct <b>Companies</b> under each group via the{' '}
+                  <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
+                  {' '}Each company can have its own employee cap.
                 </p>
               </div>
             </div>
