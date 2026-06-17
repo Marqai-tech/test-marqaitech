@@ -82,11 +82,21 @@ export async function PATCH(
     }
 
     const userRole = decoded.role as string;
-    if (userRole !== 'super_admin') {
-      return NextResponse.json({ error: 'Only super admins can update tenants' }, { status: 403, headers: corsHeaders() });
+    const callerTenantId = decoded.tenantId as string;
+    const { id } = await params;
+
+    // Authorization:
+    //  - super_admin can update ANY tenant (full field set)
+    //  - tenant_admin can update ONLY their own tenant, and only a limited
+    //    field set (name, domain, country, currency, timezone, logo).
+    //    They CANNOT change plan, status, or maxCompaniesAllowed.
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+      return NextResponse.json({ error: 'Only super admins or tenant admins can update tenants' }, { status: 403, headers: corsHeaders() });
+    }
+    if (userRole === 'tenant_admin' && callerTenantId !== id) {
+      return NextResponse.json({ error: 'Tenant admins can only update their own tenant' }, { status: 403, headers: corsHeaders() });
     }
 
-    const { id } = await params;
     const body = await request.json();
     let { status, name, domain, plan, country, currency, timezone, logo, maxCompaniesAllowed } = body;
 
@@ -96,26 +106,31 @@ export async function PATCH(
     }
 
     const updateData: Record<string, unknown> = {};
+    // For tenant_admin: only allow a limited subset of fields.
     if (name !== undefined) updateData.name = name;
     if (domain !== undefined) updateData.domain = domain;
-    if (plan !== undefined) updateData.plan = plan;
     if (country !== undefined) updateData.country = country;
     if (currency !== undefined) updateData.currency = currency;
     if (timezone !== undefined) updateData.timezone = timezone;
     if (logo !== undefined) updateData.logo = logo;
-    if (maxCompaniesAllowed !== undefined) {
-      const v = typeof maxCompaniesAllowed === 'number' && maxCompaniesAllowed >= 0 ? maxCompaniesAllowed : 0;
-      updateData.maxCompaniesAllowed = v;
-    }
-    if (status !== undefined) {
-      const validStatuses = ['active', 'suspended', 'pending_approval', 'inactive'];
-      if (!validStatuses.includes(status)) {
-        return NextResponse.json(
-          { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
-          { status: 400, headers: corsHeaders() }
-        );
+
+    // Super-admin-only fields: plan, status, maxCompaniesAllowed
+    if (userRole === 'super_admin') {
+      if (plan !== undefined) updateData.plan = plan;
+      if (maxCompaniesAllowed !== undefined) {
+        const v = typeof maxCompaniesAllowed === 'number' && maxCompaniesAllowed >= 0 ? maxCompaniesAllowed : 0;
+        updateData.maxCompaniesAllowed = v;
       }
-      updateData.status = status;
+      if (status !== undefined) {
+        const validStatuses = ['active', 'suspended', 'pending_approval', 'inactive'];
+        if (!validStatuses.includes(status)) {
+          return NextResponse.json(
+            { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+            { status: 400, headers: corsHeaders() }
+          );
+        }
+        updateData.status = status;
+      }
     }
 
     const tenant = await prisma.tenant.update({

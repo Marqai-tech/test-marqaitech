@@ -130,6 +130,10 @@ export default function SuperAdminPage() {
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [submittingGroup, setSubmittingGroup] = useState(false);
+  // Tenant filter for the Group Companies tab — lets the super admin scope the
+  // groups list to a single tenant (so they can clearly see each tenant's
+  // settings). Empty string = show groups across ALL tenants.
+  const [groupTenantFilter, setGroupTenantFilter] = useState<string>('');
   const [groupForm, setGroupForm] = useState({
     tenantId: '',
     name: '',
@@ -264,7 +268,7 @@ export default function SuperAdminPage() {
 
   useEffect(() => {
     if (activeTab === 'groups') queueMicrotask(() => fetchGroups());
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, groupTenantFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeTab === 'audit') queueMicrotask(() => fetchAuditLogs());
@@ -393,7 +397,12 @@ export default function SuperAdminPage() {
   const fetchGroups = useCallback(async () => {
     try {
       setGroupsLoading(true);
-      const res = await fetch('/api/company-groups', { headers: getAuthHeaders() });
+      // Pass ?tenantId= filter when the super admin has selected a specific tenant.
+      // Without the filter, the API returns groups across ALL tenants.
+      const url = groupTenantFilter
+        ? `/api/company-groups?tenantId=${encodeURIComponent(groupTenantFilter)}`
+        : '/api/company-groups';
+      const res = await fetch(url, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setGroups(data.groups || []);
@@ -406,7 +415,7 @@ export default function SuperAdminPage() {
     } finally {
       setGroupsLoading(false);
     }
-  }, []);
+  }, [groupTenantFilter]);
 
   const handleCancelGroupForm = () => {
     setShowGroupForm(false);
@@ -637,7 +646,27 @@ export default function SuperAdminPage() {
           <h1 className="text-2xl font-bold text-nexus-text-primary">Super Admin Dashboard</h1>
           <p className="text-nexus-text-secondary mt-1">Platform management &amp; tenant administration</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          {/* Quick tenant switcher — visible on every tab so super admin can
+              quickly switch the "active tenant" they're inspecting. */}
+          {tenants.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] font-semibold text-nexus-text-muted uppercase tracking-wider">Viewing tenant:</label>
+              <select
+                value={groupTenantFilter}
+                onChange={(e) => setGroupTenantFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-nexus-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer max-w-[220px]"
+                title="Filter Group Companies tab by tenant"
+              >
+                <option value="">All tenants ({tenants.length})</option>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {activeTab === 'tenants' && !showTenantForm && (
             <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
               <FiPlus className="w-4 h-4" /> Add Tenant
@@ -648,7 +677,7 @@ export default function SuperAdminPage() {
               onClick={() => {
                 setShowGroupForm(true);
                 setEditingGroupId(null);
-                setGroupForm({ tenantId: tenants[0]?.id || '', name: '', employeeLimitMode: 'group_total', maxEmployees: 0, maxCompanies: 0, notes: '' });
+                setGroupForm({ tenantId: groupTenantFilter || tenants[0]?.id || '', name: '', employeeLimitMode: 'group_total', maxEmployees: 0, maxCompanies: 0, notes: '' });
               }}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white hover:bg-violet-600 shadow-sm shadow-violet-500/25 rounded-lg font-medium text-sm transition-colors"
             >
@@ -1172,10 +1201,39 @@ export default function SuperAdminPage() {
             </div>
           )}
 
-          {/* Search + refresh */}
-          <div className="flex items-center gap-3">
-            <button onClick={() => fetchGroups()} className="p-2.5 border border-nexus-border rounded-lg hover:bg-slate-50"><FiRefreshCw className="w-4 h-4 text-nexus-text-muted" /></button>
-            <p className="text-xs text-nexus-text-muted">{groups.length} group companies across all tenants</p>
+          {/* Tenant filter + Search + refresh */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-1 max-w-md">
+                <FiHome className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted pointer-events-none" />
+                <select
+                  value={groupTenantFilter}
+                  onChange={(e) => {
+                    setGroupTenantFilter(e.target.value);
+                    // fetchGroups will be triggered by the useEffect on activeTab change above,
+                    // but since we're already on the tab, we need to trigger it manually.
+                    // The useCallback dependency on groupTenantFilter will refresh on next render.
+                  }}
+                  className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-nexus-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
+                >
+                  <option value="">All tenants ({tenants.length})</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.slug})
+                    </option>
+                  ))}
+                </select>
+                <FiChevronRightIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 rotate-90 pointer-events-none" />
+              </div>
+              <button onClick={() => fetchGroups()} className="p-2.5 border border-nexus-border rounded-lg hover:bg-slate-50" title="Refresh">
+                <FiRefreshCw className="w-4 h-4 text-nexus-text-muted" />
+              </button>
+            </div>
+            <p className="text-xs text-nexus-text-muted">
+              {groupTenantFilter
+                ? `Showing groups for: ${tenants.find(t => t.id === groupTenantFilter)?.name || 'selected tenant'}`
+                : `${groups.length} group companies across all tenants`}
+            </p>
           </div>
 
           {/* Groups list */}

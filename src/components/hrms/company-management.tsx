@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   FiLayers, FiMapPin, FiBriefcase, FiCalendar, FiClock, FiPlus, FiSearch,
   FiEye, FiEdit2, FiTrash2, FiX, FiAward, FiMoon, FiSun, FiFileText,
-  FiAlertTriangle, FiHome, FiSettings, FiUsers, FiCheckCircle,
+  FiAlertTriangle, FiHome, FiSettings, FiUsers, FiCheckCircle, FiInfo,
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'

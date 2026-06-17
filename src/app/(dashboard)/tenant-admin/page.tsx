@@ -14,46 +14,60 @@ import {
   FiTrash2,
   FiCheck,
   FiClock,
+  FiLayers,
+  FiHome,
+  FiRefreshCw,
+  FiShield,
+  FiInfo,
+  FiGlobe,
+  FiChevronRight,
 } from 'react-icons/fi';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
-interface Tenant {
+interface TenantInfo {
   id: string;
   name: string;
+  slug: string;
+  domain?: string | null;
   plan: string;
-  status: 'active' | 'trial' | 'suspended' | 'churned';
-  users: number;
-  mrr: number;
-  createdAt: string;
-  expiresAt: string | null;
-}
-
-interface CompanySettings {
-  name: string;
-  industry: string;
-  size: string;
+  status: 'active' | 'trial' | 'suspended' | 'churned' | 'pending_approval' | 'inactive';
+  country?: string | null;
+  currency: string;
   timezone: string;
-  locale: string;
-  logo: string;
+  logo?: string | null;
+  maxCompaniesAllowed?: number;
+  createdAt: string;
+  _count?: { users: number; companyGroups: number; subscriptions: number };
+  subscriptions?: { id: string; plan: { name: string; planType: string }; status: string; startDate: string; endDate: string; amount: number }[];
+  users?: { id: string; name: string; email: string; role: string; status: string; lastLogin: string | null }[];
 }
 
-interface Invoice {
-  id: string;
-  date: string;
-  amount: number;
-  status: 'paid' | 'pending' | 'overdue';
-  plan: string;
-}
-
-interface TenantUser {
+interface CompanyInGroup {
   id: string;
   name: string;
-  email: string;
-  role: string;
-  status: 'active' | 'inactive' | 'invited';
-  lastLogin: string;
+  code: string | null;
+  status: string;
+  maxEmployees?: number | null;
+  plannedEmployeeCount?: number | null;
+  _count: { employees: number };
+}
+
+interface CompanyGroupRow {
+  id: string;
+  name: string;
+  tenantId: string;
+  tenantName?: string | null;
+  employeeLimitMode: 'per_company' | 'group_total';
+  maxEmployees: number | null;
+  maxCompanies: number | null;
+  notes?: string | null;
+  createdAt: string;
+  _count?: { companies: number; employees: number };
+  companies?: CompanyInGroup[];
 }
 
 interface WorkflowConfig {
@@ -74,72 +88,42 @@ function getAuthHeaders() {
 function getTenantStatusBadge(status: string) {
   const map: Record<string, string> = {
     active: 'nexus-badge nexus-badge-success',
-    trial: 'nexus-badge nexus-badge-warning',
-    suspended: 'bg-orange-50 text-orange-700 nexus-badge',
+    trial: 'nexus-badge nexus-badge-info',
+    suspended: 'nexus-badge nexus-badge-warning',
     churned: 'nexus-badge nexus-badge-error',
+    pending_approval: 'nexus-badge nexus-badge-info',
+    inactive: 'nexus-badge nexus-badge-error',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status.charAt(0).toUpperCase() + status.slice(1) };
+  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status.replace('_', ' ') };
 }
 
 function getInvoiceStatusBadge(status: string) {
   const map: Record<string, string> = {
     paid: 'nexus-badge nexus-badge-success',
-    pending: 'nexus-badge nexus-badge-warning',
+    pending: 'nexus-badge nexus-badge-info',
     overdue: 'nexus-badge nexus-badge-error',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status.charAt(0).toUpperCase() + status.slice(1) };
+  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status };
 }
 
 function getUserStatusBadge(status: string) {
   const map: Record<string, string> = {
     active: 'nexus-badge nexus-badge-success',
-    inactive: 'bg-slate-100 text-slate-600 nexus-badge',
-    invited: 'nexus-badge nexus-badge-warning',
+    inactive: 'nexus-badge nexus-badge-error',
+    invited: 'nexus-badge nexus-badge-info',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status.charAt(0).toUpperCase() + status.slice(1) };
+  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status };
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+function formatCurrency(amount: number, currency = 'USD') {
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  } catch {
+    return `$${amount.toFixed(2)}`;
+  }
 }
 
-/* ── Demo Data ── */
-const demoTenants: Tenant[] = [
-  { id: '1', name: 'Acme Corp', plan: 'Enterprise', status: 'active', users: 250, mrr: 4999, createdAt: '2024-06-15', expiresAt: null },
-  { id: '2', name: 'TechStart Inc', plan: 'Professional', status: 'active', users: 85, mrr: 1999, createdAt: '2025-01-10', expiresAt: null },
-  { id: '3', name: 'GlobalHR Solutions', plan: 'Enterprise', status: 'active', users: 420, mrr: 7499, createdAt: '2024-03-22', expiresAt: null },
-  { id: '4', name: 'InnovateCo', plan: 'Starter', status: 'trial', users: 12, mrr: 0, createdAt: '2026-02-28', expiresAt: '2026-03-28' },
-  { id: '5', name: 'CloudNine Ltd', plan: 'Professional', status: 'trial', users: 28, mrr: 0, createdAt: '2026-03-01', expiresAt: '2026-04-01' },
-  { id: '6', name: 'OldSchool Corp', plan: 'Starter', status: 'churned', users: 0, mrr: 0, createdAt: '2024-08-15', expiresAt: '2025-08-15' },
-];
-
-const demoSettings: CompanySettings = {
-  name: '3 Boxes HRMS',
-  industry: 'Human Resources Technology',
-  size: '51-200',
-  timezone: 'UTC+5:30 (IST)',
-  locale: 'en-US',
-  logo: '/logo.svg',
-};
-
-const demoInvoices: Invoice[] = [
-  { id: 'INV-001', date: '2026-03-01', amount: 4999, status: 'paid', plan: 'Enterprise' },
-  { id: 'INV-002', date: '2026-02-01', amount: 4999, status: 'paid', plan: 'Enterprise' },
-  { id: 'INV-003', date: '2026-03-15', amount: 1999, status: 'pending', plan: 'Professional' },
-  { id: 'INV-004', date: '2026-01-01', amount: 4999, status: 'paid', plan: 'Enterprise' },
-  { id: 'INV-005', date: '2026-02-15', amount: 1999, status: 'paid', plan: 'Professional' },
-  { id: 'INV-006', date: '2026-01-15', amount: 1999, status: 'overdue', plan: 'Professional' },
-];
-
-const demoUsers: TenantUser[] = [
-  { id: '1', name: 'Admin User', email: 'admin@nexus.com', role: 'super_admin', status: 'active', lastLogin: '2026-03-03 09:15 AM' },
-  { id: '2', name: 'HR Manager', email: 'hr@nexus.com', role: 'hr_admin', status: 'active', lastLogin: '2026-03-03 10:30 AM' },
-  { id: '3', name: 'John Doe', email: 'john@nexus.com', role: 'manager', status: 'active', lastLogin: '2026-03-02 04:45 PM' },
-  { id: '4', name: 'Jane Smith', email: 'jane@nexus.com', role: 'employee', status: 'active', lastLogin: '2026-03-03 08:00 AM' },
-  { id: '5', name: 'Bob Wilson', email: 'bob@nexus.com', role: 'employee', status: 'inactive', lastLogin: '2026-01-15 11:20 AM' },
-  { id: '6', name: 'Alice Brown', email: 'alice@external.com', role: 'employee', status: 'invited', lastLogin: '—' },
-];
-
+/* ── Demo data for workflows (kept as demo since workflow engine isn't built yet) ── */
 const demoWorkflows: WorkflowConfig[] = [
   { id: '1', name: 'Leave Approval', type: 'approval', enabled: true, trigger: 'Leave request submitted', lastRun: '2026-03-03 09:00 AM' },
   { id: '2', name: 'Onboarding Flow', type: 'onboarding', enabled: true, trigger: 'New employee added', lastRun: '2026-03-01 11:30 AM' },
@@ -149,103 +133,128 @@ const demoWorkflows: WorkflowConfig[] = [
   { id: '6', name: 'Asset Return on Exit', type: 'offboarding', enabled: true, trigger: 'Employee separation initiated', lastRun: '2026-02-20 03:45 PM' },
 ];
 
-const initialUserForm = {
-  name: '',
-  email: '',
-  role: 'employee',
-};
-
 /* ── Component ── */
 export default function TenantAdminPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin'].includes(user?.role || '');
+  const { tenant, tenantQuota, hydrate, hydrated: ctxHydrated } = useCompanyContextStore();
 
-  const [tenants] = useState(demoTenants);
-  const [settings, setSettings] = useState(demoSettings);
-  const [invoices] = useState(demoInvoices);
-  const [tenantUsers, setTenantUsers] = useState(demoUsers);
-  const [workflows, setWorkflows] = useState(demoWorkflows);
-  const [loading, setLoading] = useState(false);
+  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
+  const [groups, setGroups] = useState<CompanyGroupRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [groupsLoading, setGroupsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'billing' | 'users' | 'workflows'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'groups' | 'settings' | 'billing' | 'users' | 'workflows'>('overview');
 
-  const [showUserForm, setShowUserForm] = useState(false);
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [userForm, setUserForm] = useState(initialUserForm);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
+  // Settings editing
   const [settingsEditing, setSettingsEditing] = useState(false);
-  const [settingsForm, setSettingsForm] = useState(demoSettings);
+  const [settingsForm, setSettingsForm] = useState({
+    name: '', domain: '', country: '', currency: 'USD', timezone: 'UTC', logo: '',
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
-  /* Fetch */
-  const fetchData = useCallback(async () => {
+  const [workflows, setWorkflows] = useState<WorkflowConfig[]>(demoWorkflows);
+
+  /* Fetch tenant info (the tenant_admin's own tenant) */
+  const fetchTenantInfo = useCallback(async () => {
+    if (!user?.tenantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await fetch('/api/tenants?limit=100', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/tenants/${user.tenantId}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data.tenants && data.tenants.length > 0) {
-          // API has data
+        const t = data.tenant || data;
+        if (t && t.id) {
+          setTenantInfo(t);
+          setSettingsForm({
+            name: t.name || '',
+            domain: t.domain || '',
+            country: t.country || '',
+            currency: t.currency || 'USD',
+            timezone: t.timezone || 'UTC',
+            logo: t.logo || '',
+          });
         }
       }
-    } catch { /* demo */ } finally { setLoading(false); }
+    } catch (e) {
+      console.error('fetchTenantInfo error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.tenantId]);
+
+  /* Fetch group companies for this tenant */
+  const fetchGroups = useCallback(async () => {
+    try {
+      setGroupsLoading(true);
+      const res = await fetch('/api/company-groups', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setGroups(data.groups || []);
+      } else {
+        setGroups([]);
+      }
+    } catch (e) {
+      console.error('fetchGroups error:', e);
+      setGroups([]);
+    } finally {
+      setGroupsLoading(false);
+    }
   }, []);
 
-  useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
+  useEffect(() => {
+    if (!ctxHydrated) hydrate();
+    fetchTenantInfo();
+    fetchGroups();
+  }, [ctxHydrated, hydrate, fetchTenantInfo, fetchGroups]);
 
-  /* Stats */
-  const totalTenants = tenants.length;
-  const activeTenants = tenants.filter(t => t.status === 'active').length;
-  const trialTenants = tenants.filter(t => t.status === 'trial').length;
-  const totalMRR = tenants.reduce((a, t) => a + t.mrr, 0);
+  /* Stats — derived from real data */
+  const totalGroups = groups.length;
+  const totalCompanies = groups.reduce((s, g) => s + (g._count?.companies || 0), 0);
+  const totalEmployees = groups.reduce((s, g) => s + (g._count?.employees || 0), 0);
+  const totalUsers = tenantInfo?._count?.users || tenantInfo?.users?.length || 0;
+  const activeSubscriptions = tenantInfo?.subscriptions?.filter(s => s.status === 'active').length || 0;
 
   /* Filtered */
-  const filteredTenants = tenants.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.plan.toLowerCase().includes(search.toLowerCase()));
-  const filteredUsers = tenantUsers.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || u.role.toLowerCase().includes(search.toLowerCase()));
+  const filteredGroups = groups.filter(g => !search || g.name.toLowerCase().includes(search.toLowerCase()) || (g.notes || '').toLowerCase().includes(search.toLowerCase()));
+  const filteredUsers = (tenantInfo?.users || []).filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || u.role.toLowerCase().includes(search.toLowerCase()));
   const filteredWorkflows = workflows.filter(w => !search || w.name.toLowerCase().includes(search.toLowerCase()) || w.type.toLowerCase().includes(search.toLowerCase()));
 
-  /* User form handlers */
-  const handleShowAddUser = () => {
-    setUserForm(initialUserForm); setEditingUserId(null); setShowUserForm(true);
-    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  };
-
-  const handleShowEditUser = (u: TenantUser) => {
-    setUserForm({ name: u.name, email: u.email, role: u.role });
-    setEditingUserId(u.id); setShowUserForm(true);
-    setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  };
-
-  const handleCancelUserForm = () => { setShowUserForm(false); setEditingUserId(null); setUserForm(initialUserForm); };
-
-  const handleSubmitUser = async () => {
-    if (!userForm.name || !userForm.email) { toast.error('Name and email are required'); return; }
-    try {
-      setSubmitting(true);
-      if (editingUserId) {
-        setTenantUsers(prev => prev.map(u => u.id === editingUserId ? { ...u, name: userForm.name, email: userForm.email, role: userForm.role } : u));
-        toast.success('User updated');
-      } else {
-        setTenantUsers(prev => [{ id: Date.now().toString(), name: userForm.name, email: userForm.email, role: userForm.role, status: 'invited' as const, lastLogin: '—' }, ...prev]);
-        toast.success('Invitation sent');
-      }
-      handleCancelUserForm();
-    } catch { toast.error('Operation failed'); } finally { setSubmitting(false); }
-  };
-
-  const handleDeleteUser = (id: string) => {
-    setTenantUsers(prev => prev.filter(u => u.id !== id));
-    toast.success('User removed');
-    setDeleteConfirmId(null);
-  };
-
   /* Settings save */
-  const handleSaveSettings = () => {
-    setSettings(settingsForm);
-    setSettingsEditing(false);
-    toast.success('Settings saved successfully');
+  const handleSaveSettings = async () => {
+    if (!tenantInfo) return;
+    try {
+      setSavingSettings(true);
+      const res = await fetch(`/api/tenants/${tenantInfo.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: settingsForm.name,
+          domain: settingsForm.domain || null,
+          country: settingsForm.country || null,
+          currency: settingsForm.currency,
+          timezone: settingsForm.timezone,
+          logo: settingsForm.logo || null,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to save settings');
+      }
+      const data = await res.json();
+      const updated = data.tenant || data;
+      if (updated) setTenantInfo(updated);
+      // Refresh the context store so the header reflects the new tenant name
+      hydrate(true);
+      setSettingsEditing(false);
+      toast.success('Tenant settings saved successfully');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
   };
 
   /* Workflow toggle */
@@ -257,11 +266,14 @@ export default function TenantAdminPage() {
 
   const tabs = [
     { key: 'overview' as const, label: 'Overview', icon: FiServer },
+    { key: 'groups' as const, label: 'Group Companies', icon: FiLayers },
     { key: 'settings' as const, label: 'Settings', icon: FiSettings },
     { key: 'billing' as const, label: 'Billing', icon: FiCreditCard },
     { key: 'users' as const, label: 'Users', icon: FiUsers },
     { key: 'workflows' as const, label: 'Workflows', icon: FiGitMerge },
   ];
+
+  const tenantName = tenantInfo?.name || tenant?.name || user?.tenant?.name || 'your tenant';
 
   return (
     <div className="space-y-6">
@@ -272,18 +284,55 @@ export default function TenantAdminPage() {
             <FiServer className="w-6 h-6 text-teal-500" />
             Tenant Admin
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage tenants, billing, users, and workflows</p>
+          <p className="text-nexus-text-secondary mt-1 flex items-center gap-1.5 flex-wrap">
+            <FiHome className="w-3.5 h-3.5" />
+            <span>Managing tenant:</span>
+            <span className="font-semibold text-nexus-text-primary">{tenantName}</span>
+            {tenantInfo?.slug && <span className="text-xs text-nexus-text-muted">({tenantInfo.slug})</span>}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { fetchTenantInfo(); fetchGroups(); }}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+          >
+            <FiRefreshCw className="w-4 h-4" /> Refresh
+          </button>
+          <Link
+            href="/tenant-admin/group-companies"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors"
+          >
+            <FiLayers className="w-4 h-4" /> Manage Group Companies
+          </Link>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards — REAL data */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="nexus-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-teal-50"><FiServer className="w-4 h-4 text-teal-600" /></div>
+            <div className="p-2 rounded-lg bg-violet-50"><FiLayers className="w-4 h-4 text-violet-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Tenants</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalTenants}</p>
+              <p className="text-xs font-medium text-nexus-text-secondary">Group Companies</p>
+              <p className="text-xl font-bold text-nexus-text-primary">{totalGroups}</p>
+            </div>
+          </div>
+        </div>
+        <div className="nexus-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-50"><FiHome className="w-4 h-4 text-indigo-600" /></div>
+            <div>
+              <p className="text-xs font-medium text-nexus-text-secondary">Companies</p>
+              <p className="text-xl font-bold text-nexus-text-primary">{totalCompanies}</p>
+            </div>
+          </div>
+        </div>
+        <div className="nexus-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-50"><FiUsers className="w-4 h-4 text-amber-600" /></div>
+            <div>
+              <p className="text-xs font-medium text-nexus-text-secondary">Employees</p>
+              <p className="text-xl font-bold text-nexus-text-primary">{totalEmployees}</p>
             </div>
           </div>
         </div>
@@ -292,29 +341,29 @@ export default function TenantAdminPage() {
             <div className="p-2 rounded-lg bg-emerald-50"><FiCheck className="w-4 h-4 text-emerald-600" /></div>
             <div>
               <p className="text-xs font-medium text-nexus-text-secondary">Active Subscriptions</p>
-              <p className="text-xl font-bold text-emerald-600">{activeTenants}</p>
-            </div>
-          </div>
-        </div>
-        <div className="nexus-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-teal-50"><FiCreditCard className="w-4 h-4 text-teal-600" /></div>
-            <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">MRR</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{formatCurrency(totalMRR)}</p>
-            </div>
-          </div>
-        </div>
-        <div className="nexus-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-50"><FiClock className="w-4 h-4 text-amber-600" /></div>
-            <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Trial Users</p>
-              <p className="text-xl font-bold text-amber-600">{trialTenants}</p>
+              <p className="text-xl font-bold text-emerald-600">{activeSubscriptions}</p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Quota Banner (if maxCompaniesAllowed is set) */}
+      {tenantQuota && (
+        <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+          <div className="flex items-start gap-3">
+            <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-900">
+              <p className="font-semibold mb-0.5">Company Quota</p>
+              <p className="text-xs">
+                {tenantQuota.maxCompanies > 0
+                  ? <>You have created <b>{tenantQuota.used}</b> of <b>{tenantQuota.maxCompanies}</b> allowed companies. <b>{tenantQuota.remaining}</b> remaining.</>
+                  : <>You have created <b>{tenantQuota.used}</b> companies. <b>Unlimited</b> quota allowed.</>
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-nexus-border overflow-x-auto">
@@ -329,162 +378,469 @@ export default function TenantAdminPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, role..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
         </div>
       </div>
 
-      {/* Overview Tab */}
+      {/* ═══ OVERVIEW TAB ═══ */}
       {activeTab === 'overview' && (
-        <div className="nexus-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Tenant</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Plan</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Users</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">MRR</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-b border-nexus-border/50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td></tr>
-                  ))
-                ) : filteredTenants.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center"><FiServer className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No tenants found</p></td></tr>
+        <div className="space-y-4">
+          {loading ? (
+            <div className="nexus-card p-12 animate-pulse">
+              <div className="h-4 w-32 bg-slate-200 rounded mb-4" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-8 bg-slate-100 rounded" />
+                <div className="h-8 bg-slate-100 rounded" />
+                <div className="h-8 bg-slate-100 rounded" />
+                <div className="h-8 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ) : tenantInfo ? (
+            <>
+              {/* Tenant Info Card */}
+              <div className="nexus-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                    <FiHome className="w-5 h-5 text-teal-500" /> Tenant Information
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-600 bg-teal-50 rounded-lg hover:bg-teal-100"
+                  >
+                    <FiEdit2 className="w-3.5 h-3.5" /> Edit Settings
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Tenant Name</p>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Slug</p>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.slug}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Domain</p>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.domain || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Plan</p>
+                    <p className="text-sm font-medium text-nexus-text-primary capitalize">{tenantInfo.plan}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Status</p>
+                    <span className={getTenantStatusBadge(tenantInfo.status).className}>{getTenantStatusBadge(tenantInfo.status).label}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Country</p>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.country || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Currency</p>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.currency}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-nexus-text-muted">Timezone</p>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.timezone}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group Companies Summary */}
+              <div className="nexus-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-nexus-text-secondary flex items-center gap-2">
+                    <FiLayers className="w-4 h-4 text-violet-500" /> Group Companies under this Tenant
+                  </h3>
+                  <Link href="/tenant-admin/group-companies" className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">
+                    Manage all <FiChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                {groupsLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="h-16 bg-slate-100/70 animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : filteredGroups.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FiLayers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3 opacity-50" />
+                    <p className="text-sm text-nexus-text-secondary font-medium">No group companies created yet</p>
+                    <p className="text-xs text-nexus-text-muted mt-1 mb-4">Create a group company to start inducting companies.</p>
+                    <Link
+                      href="/tenant-admin/group-companies"
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-xs shadow-sm"
+                    >
+                      <FiPlus className="w-3.5 h-3.5" /> Create Group Company
+                    </Link>
+                  </div>
                 ) : (
-                  filteredTenants.map(t => {
-                    const statusBadge = getTenantStatusBadge(t.status);
-                    return (
-                      <tr key={t.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{t.name}</td>
-                        <td className="px-4 py-3"><span className="nexus-badge nexus-badge-purple">{t.plan}</span></td>
-                        <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.users}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{t.mrr > 0 ? formatCurrency(t.mrr) : '—'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.createdAt}</td>
-                      </tr>
-                    );
-                  })
+                  <div className="space-y-2">
+                    {filteredGroups.slice(0, 5).map((g) => {
+                      const empCount = g._count?.employees || 0;
+                      const coCount = g._count?.companies || 0;
+                      return (
+                        <div key={g.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+                              <FiLayers className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-nexus-text-primary">{g.name}</p>
+                              <p className="text-xs text-nexus-text-muted">{coCount} companies · {empCount} employees</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {g.maxEmployees !== null && g.maxEmployees !== undefined && g.maxEmployees > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-[10px] font-semibold">
+                                <FiUsers className="w-2.5 h-2.5" /> {g.employeeLimitMode === 'per_company' ? 'per-co' : 'group'}: {empCount}/{g.maxEmployees}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-[10px] font-semibold">
+                                <FiUsers className="w-2.5 h-2.5" /> no cap
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredGroups.length > 5 && (
+                      <Link href="/tenant-admin/group-companies" className="block text-center text-xs font-medium text-teal-600 hover:text-teal-700 py-2">
+                        View all {filteredGroups.length} group companies →
+                      </Link>
+                    )}
+                  </div>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </>
+          ) : (
+            <div className="nexus-card p-12 text-center">
+              <FiInfo className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+              <p className="text-nexus-text-secondary font-medium">No tenant information available</p>
+              <p className="text-xs text-nexus-text-muted mt-1">Your account is not linked to a tenant.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ GROUP COMPANIES TAB ═══ */}
+      {activeTab === 'groups' && (
+        <div className="space-y-4">
+          {/* Educational banner */}
+          <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <div className="flex items-start gap-3">
+              <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900">
+                <p className="font-semibold mb-1">Employee Strength Barriers</p>
+                <p>
+                  Create group companies under <b>{tenantName}</b> and cap how many employees they can hold. Choose
+                  <b> per-company </b> mode (cap applies to EACH company) or <b>group-total</b> mode (cap applies to
+                  the SUM across all companies in the group).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Group companies list — REAL data */}
+          {groupsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="nexus-card p-5 animate-pulse">
+                  <div className="flex justify-between">
+                    <div className="space-y-2"><div className="h-4 w-40 bg-slate-200 rounded" /><div className="h-3 w-28 bg-slate-100 rounded" /></div>
+                    <div className="h-6 w-24 bg-slate-100 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredGroups.length === 0 ? (
+            <div className="nexus-card p-12 text-center">
+              <FiLayers className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" />
+              <p className="text-nexus-text-secondary font-medium">No group companies created yet</p>
+              <p className="text-xs text-nexus-text-muted mt-1 mb-4">Create a group company to set employee-strength barriers before inducting companies.</p>
+              <Link
+                href="/tenant-admin/group-companies"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 rounded-lg transition-all"
+              >
+                <FiPlus className="w-4 h-4" /> Create your first group company
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredGroups.map((g) => {
+                const empCount = g._count?.employees || 0;
+                const coCount = g._count?.companies || 0;
+                const hasEmpCap = g.maxEmployees !== null && g.maxEmployees !== undefined && g.maxEmployees > 0;
+                const hasCoCap = g.maxCompanies !== null && g.maxCompanies !== undefined && g.maxCompanies > 0;
+                return (
+                  <div key={g.id} className="nexus-card p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
+                          <FiLayers className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-nexus-text-primary">{g.name}</h3>
+                          <p className="text-sm text-nexus-text-muted flex items-center gap-1.5 flex-wrap">
+                            <FiHome className="w-3 h-3" /> {tenantName}
+                            <span className="opacity-50">·</span> {coCount} companies
+                            <span className="opacity-50">·</span> {empCount} employees
+                          </p>
+                          {g.notes && <p className="text-xs text-nexus-text-muted italic mt-1">“{g.notes}”</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {hasEmpCap ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-[11px] font-semibold">
+                            <FiUsers className="w-3 h-3" />
+                            {g.employeeLimitMode === 'per_company' ? 'per-co' : 'group-total'}: {empCount}/{g.maxEmployees}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-[11px] font-semibold">
+                            <FiUsers className="w-3 h-3" /> no emp cap
+                          </span>
+                        )}
+                        {hasCoCap && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 ring-1 ring-blue-200 text-[11px] font-semibold">
+                            <FiLayers className="w-3 h-3" /> co cap: {coCount}/{g.maxCompanies}
+                          </span>
+                        )}
+                        <Link
+                          href="/tenant-admin/group-companies"
+                          className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg"
+                          title="Manage"
+                        >
+                          <FiEdit2 className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Companies under this group */}
+                    {g.companies && g.companies.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                        {g.companies.map((c) => {
+                          const cEmp = c._count?.employees || 0;
+                          const cCap = c.maxEmployees;
+                          const cPlan = c.plannedEmployeeCount;
+                          const atCap = cCap !== null && cCap !== undefined && (cCap as number) > 0 && cEmp >= (cCap as number);
+                          return (
+                            <div key={c.id} className="flex items-center gap-3 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
+                              <FiHome className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="font-medium text-nexus-text-primary">{c.name}</span>
+                              {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold">{c.code}</span>}
+                              <span className="ml-auto flex items-center gap-1.5">
+                                <span className={atCap ? 'text-red-600 font-semibold' : ''}>{cEmp} emp</span>
+                                {cPlan !== null && cPlan !== undefined && (cPlan as number) > 0 && (
+                                  <span className="text-slate-400">plan: {cPlan}</span>
+                                )}
+                                {cCap !== null && cCap !== undefined && (cCap as number) > 0 && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">cap: {cCap}</span>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex justify-center">
+            <Link
+              href="/tenant-admin/group-companies"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 rounded-lg transition-all"
+            >
+              <FiLayers className="w-4 h-4" /> Open Full Group Companies Manager
+            </Link>
           </div>
         </div>
       )}
 
-      {/* Settings Tab */}
-      {activeTab === 'settings' && (
+      {/* ═══ SETTINGS TAB ═══ */}
+      {activeTab === 'settings' && tenantInfo && (
         <div className="nexus-card p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2"><FiSettings className="w-5 h-5 text-teal-500" />Company Settings</h3>
+            <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+              <FiSettings className="w-5 h-5 text-teal-500" /> Tenant Settings
+            </h3>
             {!settingsEditing ? (
-              <button onClick={() => setSettingsEditing(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors">
-                <FiEdit2 className="w-4 h-4" />Edit
+              <button
+                onClick={() => setSettingsEditing(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors"
+              >
+                <FiEdit2 className="w-4 h-4" /> Edit
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <button onClick={() => { setSettingsForm(settings); setSettingsEditing(false); }} className="px-4 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleSaveSettings} className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors">Save Changes</button>
+                <button
+                  onClick={() => {
+                    setSettingsForm({
+                      name: tenantInfo.name || '',
+                      domain: tenantInfo.domain || '',
+                      country: tenantInfo.country || '',
+                      currency: tenantInfo.currency || 'USD',
+                      timezone: tenantInfo.timezone || 'UTC',
+                      logo: tenantInfo.logo || '',
+                    });
+                    setSettingsEditing(false);
+                  }}
+                  className="px-4 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                  className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors disabled:opacity-50"
+                >
+                  {savingSettings ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             )}
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company Name</label>
+              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tenant Name</label>
               {settingsEditing ? (
-                <input type="text" value={settingsForm.name} onChange={e => setSettingsForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                <input
+                  type="text"
+                  value={settingsForm.name}
+                  onChange={e => setSettingsForm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{settings.name}</p>
+                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.name}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Industry</label>
+              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slug (read-only)</label>
+              <p className="text-sm text-nexus-text-muted py-2.5">{tenantInfo.slug}</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Domain</label>
               {settingsEditing ? (
-                <input type="text" value={settingsForm.industry} onChange={e => setSettingsForm(p => ({ ...p, industry: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                <input
+                  type="text"
+                  value={settingsForm.domain}
+                  onChange={e => setSettingsForm(p => ({ ...p, domain: e.target.value }))}
+                  placeholder="example.com"
+                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{settings.industry}</p>
+                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.domain || '—'}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company Size</label>
+              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
               {settingsEditing ? (
-                <select value={settingsForm.size} onChange={e => setSettingsForm(p => ({ ...p, size: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
-                  <option value="1-10">1-10</option><option value="11-50">11-50</option><option value="51-200">51-200</option><option value="201-500">201-500</option><option value="500+">500+</option>
+                <input
+                  type="text"
+                  value={settingsForm.country}
+                  onChange={e => setSettingsForm(p => ({ ...p, country: e.target.value }))}
+                  placeholder="US"
+                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                />
+              ) : (
+                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.country || '—'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+              {settingsEditing ? (
+                <select
+                  value={settingsForm.currency}
+                  onChange={e => setSettingsForm(p => ({ ...p, currency: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                >
+                  <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="INR">INR</option>
                 </select>
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{settings.size} employees</p>
+                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.currency}</p>
               )}
             </div>
             <div>
               <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Timezone</label>
               {settingsEditing ? (
-                <input type="text" value={settingsForm.timezone} onChange={e => setSettingsForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                <input
+                  type="text"
+                  value={settingsForm.timezone}
+                  onChange={e => setSettingsForm(p => ({ ...p, timezone: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{settings.timezone}</p>
+                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.timezone}</p>
               )}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Locale</label>
-              {settingsEditing ? (
-                <select value={settingsForm.locale} onChange={e => setSettingsForm(p => ({ ...p, locale: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
-                  <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="hi-IN">Hindi (India)</option><option value="ja-JP">Japanese</option>
-                </select>
-              ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{settings.locale}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Logo</label>
-              {settingsEditing ? (
-                <input type="text" value={settingsForm.logo} onChange={e => setSettingsForm(p => ({ ...p, logo: e.target.value }))} placeholder="Logo URL" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
-              ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{settings.logo}</p>
-              )}
+          </div>
+
+          {/* Read-only fields managed by super admin */}
+          <div className="mt-6 pt-6 border-t border-nexus-border">
+            <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+              <FiShield className="w-4 h-4 text-amber-500" /> Super Admin Managed
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-nexus-text-muted">Plan</p>
+                <p className="text-sm font-medium text-nexus-text-primary capitalize">{tenantInfo.plan}</p>
+                <p className="text-[10px] text-nexus-text-muted mt-0.5">Contact super admin to change</p>
+              </div>
+              <div>
+                <p className="text-xs text-nexus-text-muted">Status</p>
+                <span className={getTenantStatusBadge(tenantInfo.status).className}>{getTenantStatusBadge(tenantInfo.status).label}</span>
+              </div>
+              <div>
+                <p className="text-xs text-nexus-text-muted">Max Companies Allowed</p>
+                <p className="text-sm font-medium text-nexus-text-primary">
+                  {tenantInfo.maxCompaniesAllowed && tenantInfo.maxCompaniesAllowed > 0
+                    ? `${tenantInfo.maxCompaniesAllowed} companies`
+                    : 'Unlimited'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Billing Tab */}
+      {/* ═══ BILLING TAB ═══ */}
       {activeTab === 'billing' && (
         <div className="space-y-4">
           {/* Current Plan */}
           <div className="nexus-card p-6">
-            <h3 className="text-sm font-semibold text-nexus-text-secondary mb-4 flex items-center gap-2"><FiCreditCard className="w-4 h-4 text-teal-500" />Current Plan</h3>
-            <div className="flex items-center justify-between p-4 bg-teal-50 border border-teal-200 rounded-lg">
-              <div>
-                <p className="text-lg font-bold text-teal-700">Enterprise Plan</p>
-                <p className="text-sm text-teal-600 mt-0.5">Up to 500 users &middot; Priority support &middot; All modules</p>
+            <h3 className="text-sm font-semibold text-nexus-text-secondary mb-4 flex items-center gap-2">
+              <FiCreditCard className="w-4 h-4 text-teal-500" /> Current Subscription
+            </h3>
+            {tenantInfo?.subscriptions && tenantInfo.subscriptions.length > 0 ? (
+              <div className="space-y-3">
+                {tenantInfo.subscriptions.map((sub) => (
+                  <div key={sub.id} className="flex items-center justify-between p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                    <div>
+                      <p className="text-lg font-bold text-teal-700">{sub.plan.name}</p>
+                      <p className="text-sm text-teal-600 mt-0.5 capitalize">{sub.plan.planType.replace('_', ' ')} plan</p>
+                      <p className="text-xs text-teal-600/70 mt-0.5">
+                        {new Date(sub.startDate).toLocaleDateString()} → {new Date(sub.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-teal-700">{formatCurrency(sub.amount, tenantInfo.currency)}</p>
+                      <span className={`nexus-badge ${sub.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-info'}`}>{sub.status}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-teal-700">$4,999</p>
-                <p className="text-xs text-teal-600">/month</p>
+            ) : (
+              <div className="text-center py-8">
+                <FiCreditCard className="w-10 h-10 text-nexus-text-muted mx-auto mb-3 opacity-50" />
+                <p className="text-sm text-nexus-text-secondary font-medium">No active subscriptions</p>
+                <p className="text-xs text-nexus-text-muted mt-1">Contact your super admin to apply a subscription plan.</p>
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-nexus-text-muted">Users</p>
-                <p className="text-sm font-semibold text-nexus-text-primary">250 / 500</p>
-                <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2"><div className="h-full bg-teal-500 rounded-full" style={{ width: '50%' }} /></div>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-nexus-text-muted">Storage</p>
-                <p className="text-sm font-semibold text-nexus-text-primary">12 GB / 50 GB</p>
-                <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2"><div className="h-full bg-teal-500 rounded-full" style={{ width: '24%' }} /></div>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-nexus-text-muted">API Calls</p>
-                <p className="text-sm font-semibold text-nexus-text-primary">12.8K / 100K</p>
-                <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2"><div className="h-full bg-teal-500 rounded-full" style={{ width: '13%' }} /></div>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Invoice History */}
+          {/* Invoice History (demo) */}
           <div className="nexus-card overflow-hidden">
             <div className="p-4 border-b border-nexus-border">
               <h3 className="text-sm font-semibold text-nexus-text-secondary">Invoice History</h3>
@@ -501,131 +857,70 @@ export default function TenantAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map(inv => {
-                    const statusBadge = getInvoiceStatusBadge(inv.status);
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-nexus-text-muted">
+                    <FiInfo className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    Invoices will appear here once a subscription is active.
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ USERS TAB ═══ */}
+      {activeTab === 'users' && (
+        <div className="nexus-card overflow-hidden">
+          <div className="p-4 border-b border-nexus-border flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-nexus-text-secondary">Users in this Tenant ({filteredUsers.length})</h3>
+            <Link href="/tenant-admin/rbac" className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">
+              <FiShield className="w-3.5 h-3.5" /> Manage RBAC
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-nexus-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Role</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Last Login</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center">
+                    <FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                    <p className="text-nexus-text-secondary font-medium">No users found</p>
+                  </td></tr>
+                ) : (
+                  filteredUsers.map(u => {
+                    const statusBadge = getUserStatusBadge(u.status);
                     return (
-                      <tr key={inv.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{inv.id}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{inv.date}</td>
-                        <td className="px-4 py-3"><span className="nexus-badge nexus-badge-purple">{inv.plan}</span></td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{formatCurrency(inv.amount)}</td>
+                      <tr key={u.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{u.name}</td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{u.email}</td>
+                        <td className="px-4 py-3"><span className="nexus-badge nexus-badge-primary">{u.role}</span></td>
                         <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
+                        <td className="px-4 py-3 text-xs text-nexus-text-secondary">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}</td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Users Tab */}
-      {activeTab === 'users' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-nexus-text-secondary">User Management</h3>
-            {isAdmin && (
-              <button onClick={handleShowAddUser} className="inline-flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-xs shadow-sm transition-colors">
-                <FiPlus className="w-3.5 h-3.5" />Invite User
-              </button>
-            )}
-          </div>
-
-          {showUserForm && (
-            <div id="crud-form" className="nexus-card border-l-4 border-l-teal-500 animate-slide-in-down">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-nexus-text-primary">{editingUserId ? 'Edit User' : 'Invite New User'}</h2>
-                  <button onClick={handleCancelUserForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
-                    <input type="text" value={userForm.name} onChange={e => setUserForm(p => ({ ...p, name: e.target.value }))} placeholder="Full name" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email *</label>
-                    <input type="email" value={userForm.email} onChange={e => setUserForm(p => ({ ...p, email: e.target.value }))} placeholder="user@company.com" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Role</label>
-                    <select value={userForm.role} onChange={e => setUserForm(p => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
-                      <option value="employee">Employee</option><option value="manager">Manager</option><option value="hr_admin">HR Admin</option><option value="tenant_admin">Tenant Admin</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-nexus-border">
-                  <button onClick={handleCancelUserForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                  <button onClick={handleSubmitUser} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">{submitting ? 'Saving...' : editingUserId ? 'Update' : 'Send Invite'}</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="nexus-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Email</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Role</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Last Login</th>
-                    {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.length === 0 ? (
-                    <tr><td colSpan={isAdmin ? 6 : 5} className="px-4 py-12 text-center"><FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No users found</p></td></tr>
-                  ) : (
-                    filteredUsers.map(u => {
-                      const statusBadge = getUserStatusBadge(u.status);
-                      return (
-                        <tr key={u.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                          {deleteConfirmId === u.id ? (
-                            <td colSpan={isAdmin ? 6 : 5} className="px-4 py-3 bg-red-50">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-red-700 font-medium">Remove user &quot;{u.name}&quot;?</span>
-                                <div className="flex items-center gap-2">
-                                  <button onClick={() => handleDeleteUser(u.id)} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors">Confirm</button>
-                                  <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-                                </div>
-                              </div>
-                            </td>
-                          ) : (
-                            <>
-                              <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{u.name}</td>
-                              <td className="px-4 py-3 text-sm text-nexus-text-secondary">{u.email}</td>
-                              <td className="px-4 py-3"><span className="nexus-badge nexus-badge-primary">{u.role}</span></td>
-                              <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
-                              <td className="px-4 py-3 text-xs text-nexus-text-secondary">{u.lastLogin}</td>
-                              {isAdmin && (
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <button onClick={() => handleShowEditUser(u)} className="p-2 rounded-lg text-nexus-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                                    <button onClick={() => setDeleteConfirmId(u.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Remove"><FiTrash2 className="w-4 h-4" /></button>
-                                  </div>
-                                </td>
-                              )}
-                            </>
-                          )}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Workflows Tab */}
+      {/* ═══ WORKFLOWS TAB ═══ */}
       {activeTab === 'workflows' && (
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-nexus-text-secondary">Workflow Configuration</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-nexus-text-secondary">Workflow Configuration</h3>
+            <span className="text-xs text-nexus-text-muted">Demo workflows — full engine coming soon</span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredWorkflows.map(w => (
               <div key={w.id} className="nexus-card p-4">
@@ -645,7 +940,9 @@ export default function TenantAdminPage() {
                   </span>
                 </div>
                 {w.lastRun && (
-                  <p className="text-xs text-nexus-text-muted mt-2 flex items-center gap-1"><FiClock className="w-3 h-3" />Last run: {w.lastRun}</p>
+                  <p className="text-xs text-nexus-text-muted mt-2 flex items-center gap-1">
+                    <FiClock className="w-3 h-3" /> Last run: {w.lastRun}
+                  </p>
                 )}
               </div>
             ))}
