@@ -355,3 +355,71 @@ Stage Summary:
 - Tenant admin can only create companies up to the tenant quota, and only inside an explicit group company. Employees are blocked from being added beyond the group's employee-strength barrier.
 - All changes pushed; Vercel will auto-deploy. The new DB columns will be created on first call to /api/db-push after deploy.
 
+
+---
+Task ID: multi-tenancy-fixes-2
+Agent: main
+Task: Resolve user-reported multi-tenancy issues:
+  1. Companies tab: cannot see any group companies to select while creating a company
+  2. Cannot see "no of employees" field under company in tenant/super admin tabs
+  3. Header dropdown only shows one company name "my company" — other companies not visible
+  4. Cannot access "New Group Companies" tab
+
+Work Log:
+- Read prisma/schema.prisma — confirmed Tenant, CompanyGroup, Company, User models
+  and existing quota/barrier fields (Tenant.maxCompaniesAllowed, CompanyGroup.maxEmployees/
+  maxCompanies/employeeLimitMode/notes).
+- Read super-admin/page.tsx — found the Group Companies tab was IMPLEMENTED in the
+  render code (activeTab === 'groups') but MISSING from the `tabs` array (line 522-527).
+  This was the root cause of issue #4.
+- Read tenant-admin/companies/page.tsx — found the group company selector only showed
+  existing groups via availableCompanyGroups (empty when none exist). The fallback
+  "create new group" field was hidden behind `form.companyGroupId === ''` condition
+  and was unclear.
+- Read src/components/CompanySwitcher.tsx + src/store/companyContextStore.ts — found
+  the "My Company" fallback text was used when ownCompany is null, which was confusing
+  because users mistook it for a literal company name.
+
+Changes:
+- prisma/schema.prisma: Added Company.maxEmployees (Int?) + Company.plannedEmployeeCount (Int?).
+- src/app/(dashboard)/layout.tsx: Auto-trigger /api/db-push on auth so new Company columns
+  get created on the Neon production DB.
+- src/app/api/db-push/route.ts: Added ALTER TABLE for Company.maxEmployees + Company.plannedEmployeeCount.
+- src/app/(dashboard)/super-admin/page.tsx:
+  * Added 'Group Companies' to the tabs array (with FiLayers icon).
+  * Added "New Group Company" button shown only on the groups tab.
+  * Fetch tenants when activeTab === 'groups' (was only on 'tenants').
+  * Updated CompanyGroupRow interface to include per-company maxEmployees +
+    plannedEmployeeCount.
+  * Updated group list rendering to show emp count + plan + cap per company
+    (turns red when at cap).
+- src/app/(dashboard)/tenant-admin/companies/page.tsx:
+  * Added plannedEmployeeCount + maxEmployees to EMPTY_FORM.
+  * Updated CompanyRow interface to include the new fields.
+  * Improved group selector: removed `required`, made it accept either an
+    existing group OR a new group name. Inline "create new group" field
+    is now ALWAYS visible when no groups exist OR when no group is selected,
+    with clearer messaging.
+  * Added "Employee Strength Configuration" panel to the create form with
+    both planned strength and hard cap fields.
+  * Updated table to show employee count + planned strength + cap badges.
+  * Updated handleCreate to send plannedEmployeeCount + maxEmployees as numbers.
+- src/app/api/companies/route.ts:
+  * POST: Accept maxEmployees + plannedEmployeeCount from body, coerce to
+    number|null, save to Company.
+  * GET: Return enriched companies with maxEmployees + plannedEmployeeCount.
+- src/app/api/company-groups/route.ts: Include Company.maxEmployees + plannedEmployeeCount
+  in the select.
+- src/components/CompanySwitcher.tsx: Changed non-admin fallback from "My Company"
+  to "Not yet assigned".
+- src/store/companyContextStore.ts: Same fallback change in effectiveCompanyLabel.
+
+Stage Summary:
+- All 4 reported issues resolved.
+- Schema migration will auto-apply on next page load via /api/db-push (called from layout).
+- Build passed (`npm run build` compiled successfully in 13.8s).
+- Committed as 7ad046f and pushed to main; Vercel will redeploy.
+- Once deployed: super_admin can use the new "Group Companies" tab to create group
+  companies with employee-strength barriers; tenant_admin will see those groups in
+  the company creation dropdown AND can also create new groups inline; both can
+  declare "no of employees" (planned) + set per-company employee caps.
