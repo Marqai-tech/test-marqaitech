@@ -560,3 +560,75 @@ Stage Summary:
 - Feature 3 (subdomain detection): Middleware now sets x-tenant-slug header; public jobs API honors it
 - Build verified clean (✓ Compiled successfully, 227/227 pages generated)
 - All TypeScript checks pass for modified files (only pre-existing currency.ts errors remain)
+
+---
+Task ID: TenantAdminRework-1
+Agent: Main Agent
+Task: Fix FiInfo error in company management, rework tenant-admin overview (real data + Group Companies tab), make header dropdown show tenants list, add tenant switcher to super admin
+
+Work Log:
+- Investigated reports:
+  * Company management module error: "Something went wrong - FiInfo is not defined"
+  * Tenant admin Overview tab shows demo tenants (Acme Corp, TechStart Inc, etc.) not linked to real tenant data
+  * Tenant admin Settings tab is a "mismatch" — should show Group Companies info
+  * Header dropdown shows companies but not the list of tenants created
+  * Super admin needs a tenant dropdown to switch and view each tenant's settings
+- Root causes:
+  * `FiInfo` was used in company-management.tsx line 658 but never imported from 'react-icons/fi'
+  * tenant-admin/page.tsx was hardcoded with `demoTenants` array (Acme Corp, TechStart Inc, GlobalHR Solutions, etc.) — completely fake data not connected to the real tenant
+  * CompanySwitcher showed tenants via a `<select>` dropdown (one-line) instead of a visible scrollable list — easy to miss the existing tenants
+  * Super admin's Group Companies tab did not have a tenant filter, so super admin couldn't easily isolate one tenant's groups
+  * /api/tenants/[id] PATCH was super_admin-only, so tenant_admin couldn't save their own settings
+
+Changes Made:
+1. src/components/hrms/company-management.tsx:
+   - Added `FiInfo` to the import list from 'react-icons/fi' (was used but never imported → caused the "Something went wrong" error)
+
+2. src/app/(dashboard)/tenant-admin/page.tsx — COMPLETE REWRITE:
+   - Removed all demo data (demoTenants, demoSettings, demoInvoices, demoUsers) — these showed fake companies (Acme Corp, TechStart Inc, etc.) that had no relation to the actual tenant_admin's tenant
+   - New Overview tab: fetches REAL tenant info via /api/tenants/[id] and shows:
+     * Tenant info card (name, slug, domain, plan, status, country, currency, timezone)
+     * Group Companies summary card listing real groups with stats (companies count, employees, cap)
+     * Edit Settings button that jumps to Settings tab
+   - New Group Companies tab: shows REAL group companies (from /api/company-groups) with their employee-strength barriers and nested companies; links to /tenant-admin/group-companies for full CRUD
+   - Settings tab: now editable by tenant_admin (name, domain, country, currency, timezone) — saves via PATCH /api/tenants/[id]; plan/status/maxCompaniesAllowed shown as "Super Admin Managed" read-only
+   - Billing tab: shows real subscription data from tenant.subscriptions
+   - Users tab: shows real tenant users (from tenant.users)
+   - Workflows tab: kept as demo (workflow engine not built yet)
+   - Stats cards: real group/company/employee/subscription counts
+   - Quota banner: shows tenantQuota info if maxCompaniesAllowed is set
+   - Uses useCompanyContextStore for tenant context
+
+3. src/components/CompanySwitcher.tsx:
+   - Replaced the `<select>` tenant picker with a scrollable Tenants LIST showing ALL created tenants
+   - Each tenant row shows: avatar initial, name, slug, status badge, cap info, selected checkmark
+   - Clicking a tenant scopes the company list to that tenant (uses setSelectedTenant which calls refreshCompaniesFor)
+   - Header now reads "Tenants (N)" so super admin can see how many tenants exist
+   - Tenant admin's footer link now goes to /tenant-admin (new overview) instead of /tenant-admin/companies
+   - Footer counts now show "N tenants · M companies" for super_admin
+
+4. src/app/(dashboard)/super-admin/page.tsx:
+   - Added new state: `groupTenantFilter` (string, '' = all tenants)
+   - Updated fetchGroups to pass ?tenantId= filter when set
+   - Updated useEffect to re-fetch groups when groupTenantFilter changes
+   - Added a tenant switcher dropdown in the page header (visible on ALL tabs, not just groups) so super admin can quickly switch the "active tenant" they're inspecting
+   - Added a tenant filter dropdown inside the Group Companies tab itself with a refresh button
+   - New Group Company button now pre-fills tenantId with the currently filtered tenant (if any)
+   - Status text below the filter shows which tenant is currently selected
+
+5. src/app/api/tenants/[id]/route.ts:
+   - Updated PATCH authorization:
+     * super_admin: full access (plan, status, maxCompaniesAllowed, name, domain, country, currency, timezone, logo)
+     * tenant_admin: can update ONLY their own tenant, limited fields (name, domain, country, currency, timezone, logo) — cannot change plan, status, or maxCompaniesAllowed
+   - Added callerTenantId check: tenant_admin can only PATCH their own tenant ID
+
+Stage Summary:
+- FiInfo error fixed → company management module loads again
+- Tenant admin Overview now shows REAL tenant info (not fake Acme Corp etc.) and links to group companies
+- Tenant admin Group Companies tab is now real (shows actual groups from API)
+- Tenant admin Settings is editable (saves to DB) — no longer a "mismatch"
+- Header dropdown now lists ALL tenants as a scrollable list (super admin can see and pick any tenant)
+- Super admin has a tenant switcher on every tab to filter group companies by tenant
+- /api/tenants/[id] PATCH now allows tenant_admin to update their own settings (limited fields)
+- Build verified clean (✓ Compiled successfully, all routes generated)
+- Commit c52276a pushed to GitHub main, Vercel auto-deploying
