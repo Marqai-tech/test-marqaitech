@@ -812,3 +812,44 @@ Stage Summary:
 - Header dropdown now clearly shows the tenant scope at the top for tenant_admin ('Your tenant: X · Y groups · Z companies'), eliminating the 'all companies' ambiguity.
 - Tenant admin Group Companies page is fully read-only with prominent 'contact your super admin' messaging and a direct CTA to the Companies page where they CAN act.
 - Build verified clean. Deploy pushed to Vercel.
+
+---
+Task ID: header-dropdown-tenants-fix
+Agent: main
+Task: Super admin login → header dropdown not showing the tenant/company list that exists in the Tenants section. Debug and fix.
+
+Work Log:
+- Read src/components/Header.tsx — confirmed it renders <CompanySwitcher />
+- Read src/components/CompanySwitcher.tsx — found dropdown list rendered from `availableTenants` in the companyContextStore
+- Read src/app/api/me/context/route.ts — confirmed super_admin branch returns prisma.tenant.findMany() correctly
+- Read src/store/companyContextStore.ts — identified the root cause: hydrate() set `hydrated: true` even on fetch failure, short-circuiting all subsequent calls. No manual refresh mechanism existed. Empty-state messaging was misleading ("No tenants created yet" even when DB had tenants).
+- Read src/app/api/auth/login/route.ts and src/lib/auth.ts — confirmed JWT role claim is 'super_admin' (lowercase) and verifyToken works correctly
+
+Fixes applied:
+1. src/store/companyContextStore.ts:
+   - Added `hydrating`, `lastFetchAt`, `lastError` state fields
+   - Added `refreshContext()` action that always force-refreshes (force=true)
+   - hydrate() now guards against concurrent calls (if state.hydrating, return)
+   - hydrate() records lastError and lastFetchAt instead of silently swallowing failures
+   - hydrate() validates persisted selectedTenantId/selectedCompanyId against fresh data — resets them if the underlying record was deleted (prevents stale pointers)
+2. src/components/CompanySwitcher.tsx:
+   - Added FiRefreshCw, FiAlertCircle imports
+   - Added useEffect that auto-refreshes when dropdown opens IF expected data is empty (super_admin: no tenants; tenant_admin: no companies AND no groups)
+   - Added manual Refresh button in dropdown header with spinner state
+   - Added error banner with "Retry now" button when lastError is set and no data
+   - Added loading banner during first hydrate (before any data has been seen)
+   - Empty-state for tenants list now offers "Click to load" CTA instead of misleading "No tenants created yet"
+
+Verified:
+- npx tsc --noEmit shows no errors in changed files (currency.ts has pre-existing JSX-in-.ts issue, unrelated)
+- npx eslint shows only pre-existing warnings (unused vars), no new errors
+- Committed (5a58645) and pushed to main → Vercel auto-deploy triggered
+
+Stage Summary:
+- Header dropdown for super admin will now:
+  a) Auto-load on first mount (existing behavior, now more reliable)
+  b) Auto-retry when opened if data is missing (NEW)
+  c) Expose a Refresh button for manual refresh (NEW)
+  d) Show clear error/loading states instead of misleading "No tenants created yet" (NEW)
+- The fix also benefits tenant_admin (same auto-retry + refresh for their company list)
+- Persisted selection IDs are now validated against fresh data, preventing "stuck on a deleted tenant/company" scenarios
