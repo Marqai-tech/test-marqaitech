@@ -15,6 +15,34 @@ export async function OPTIONS() {
 }
 
 /**
+ * Safe wrapper — runs a query and returns a default value on failure instead
+ * of throwing. The error is logged with a label so we can pinpoint which
+ * query is failing on Vercel from the server logs.
+ *
+ * This is critical for /api/me/context because the endpoint powers the header
+ * dropdown: if ANY single query throws, the entire 500 response makes the
+ * dropdown look "broken" even though 90% of the data is fine. With this
+ * wrapper, a failed query just yields an empty list/null and the dropdown
+ * still renders with whatever data we managed to fetch.
+ */
+async function safe<T>(
+  label: string,
+  fn: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[me/context] ${label} failed:`, msg);
+    if (err && typeof err === 'object' && 'stack' in err) {
+      console.error((err as { stack: string }).stack);
+    }
+    return fallback;
+  }
+}
+
+/**
  * GET /api/me/context
  *
  * Returns the caller's company-scoping context:
@@ -31,6 +59,10 @@ export async function OPTIONS() {
  * Query params:
  *  - tenantId: optional, for super_admin to scope companies to a specific tenant
  *              (defaults to the caller's tenant for tenant_admin)
+ *
+ * RESILIENCE: Each prisma query is wrapped in safe() so a single failure
+ * (e.g., a missing relation, a corrupted row) doesn't 500 the whole endpoint.
+ * The endpoint only 500s if the JWT verification itself fails.
  */
 export async function GET(request: Request) {
   try {
@@ -45,42 +77,59 @@ export async function GET(request: Request) {
 
     const userId = decoded.userId as string;
     const role = (decoded.role as string) || 'employee';
-    const callerTenantId = decoded.tenantId as string;
+    // callerTenantId may be undefined for super_admin tokens issued before
+    // tenantId was made mandatory — coerce to null to avoid Prisma errors.
+    const callerTenantId = (decoded.tenantId as string) || null;
 
     const { searchParams } = new URL(request.url);
     const requestedTenantId = searchParams.get('tenantId');
 
-    // Resolve the caller's own company from their Employee record (if any)
-    const employee = await prisma.employee.findFirst({
-      where: { userId },
-      select: {
-        id: true,
-        companyId: true,
-        branch: { select: { id: true, name: true, companyId: true, company: { select: { id: true, name: true, code: true } } } },
-      },
-    });
+    // Resolve the caller's own company from their Employee record (if any).
+    // Wrap in safe() — super_admin and tenant_admin typically have NO Employee
+    // record, and if the Employee table has a schema mismatch this would
+    // otherwise crash the whole endpoint.
+    const employee = await safe(
+      'employee.findFirst',
+      () => prisma.employee.findFirst({
+        where: { userId },
+        select: {
+          id: true,
+          companyId: true,
+          branch: { select: { id: true, name: true, companyId: true, company: { select: { id: true, name: true, code: true } } } },
+        },
+      }),
+      null,
+    );
 
     let ownCompanyId: string | null = employee?.companyId || employee?.branch?.companyId || null;
     let ownCompany: { id: string; name: string; code: string | null } | null = null;
 
     if (ownCompanyId) {
-      ownCompany = await prisma.company.findUnique({
-        where: { id: ownCompanyId },
-        select: { id: true, name: true, code: true },
-      });
+      ownCompany = await safe(
+        'company.findUnique(ownCompany)',
+        () => prisma.company.findUnique({
+          where: { id: ownCompanyId as string },
+          select: { id: true, name: true, code: true },
+        }),
+        null,
+      );
     } else {
       // Fall back: if the user has no Employee record but is a non-admin, try
       // to derive from the first employee in their tenant (best-effort for
       // demo accounts). Admins typically don't have an employee record.
-      if (!['super_admin', 'tenant_admin'].includes(role)) {
-        const fallback = await prisma.employee.findFirst({
-          where: { user: { tenantId: callerTenantId } },
-          select: {
-            id: true,
-            companyId: true,
-            branch: { select: { company: { select: { id: true, name: true, code: true } } } },
-          },
-        });
+      if (!['super_admin', 'tenant_admin'].includes(role) && callerTenantId) {
+        const fallback = await safe(
+          'employee.findFirst(fallback)',
+          () => prisma.employee.findFirst({
+            where: { user: { tenantId: callerTenantId } },
+            select: {
+              id: true,
+              companyId: true,
+              branch: { select: { company: { select: { id: true, name: true, code: true } } } },
+            },
+          }),
+          null,
+        );
         if (fallback) {
           ownCompanyId = fallback.companyId || fallback.branch?.company?.id || null;
           ownCompany = fallback.branch?.company || null;
@@ -89,109 +138,109 @@ export async function GET(request: Request) {
     }
 
     // Build the switcher lists based on role
-    let availableTenants: { id: string; name: string; slug: string; plan: string; status: string }[] = [];
-    let availableCompanyGroups: { id: string; name: string; tenantId: string }[] = [];
+    let availableTenants: { id: string; name: string; slug: string; plan: string; status: string; maxCompaniesAllowed?: number }[] = [];
+    let availableCompanyGroups: {
+      id: string; name: string; tenantId: string;
+      employeeLimitMode?: string; maxEmployees?: number | null; maxCompanies?: number | null; notes?: string | null;
+    }[] = [];
     let availableCompanies: {
-      id: string;
-      name: string;
-      code: string | null;
-      companyGroupId: string;
-      companyGroup: { id: string; name: string };
-      _count?: { branches: number };
+      id: string; name: string; code: string | null;
+      companyGroupId: string; companyGroup: { id: string; name: string };
+      _count?: { branches: number; employees?: number };
     }[] = [];
 
     if (role === 'super_admin') {
       // Super admin: list ALL tenants (not just 'active' ones) so the super
-      // admin can see and manage suspended/pending tenants too. Previously
-      // filtering by status='active' meant newly-created tenants (which used
-      // to default to 'pending_approval') were invisible in the header
-      // dropdown.
-      availableTenants = await prisma.tenant.findMany({
-        select: { id: true, name: true, slug: true, plan: true, status: true, maxCompaniesAllowed: true },
-        orderBy: { name: 'asc' },
-      });
+      // admin can see and manage suspended/pending tenants too.
+      availableTenants = await safe(
+        'tenant.findMany(all)',
+        () => prisma.tenant.findMany({
+          select: { id: true, name: true, slug: true, plan: true, status: true, maxCompaniesAllowed: true },
+          orderBy: { name: 'asc' },
+        }),
+        [],
+      );
 
       // Companies scoped to the requested tenant (or first tenant if none)
       const effectiveTenantId = requestedTenantId || callerTenantId || availableTenants[0]?.id;
       if (effectiveTenantId) {
-        availableCompanyGroups = await prisma.companyGroup.findMany({
-          where: { tenantId: effectiveTenantId },
-          select: {
-            id: true,
-            name: true,
-            tenantId: true,
-            employeeLimitMode: true,
-            maxEmployees: true,
-            maxCompanies: true,
-            notes: true,
-          },
-          orderBy: { name: 'asc' },
-        });
-        const groupIds = availableCompanyGroups.map((g) => g.id);
-        if (groupIds.length > 0) {
-          availableCompanies = await prisma.company.findMany({
-            where: { companyGroupId: { in: groupIds } },
+        availableCompanyGroups = await safe(
+          'companyGroup.findMany(super_admin)',
+          () => prisma.companyGroup.findMany({
+            where: { tenantId: effectiveTenantId },
             select: {
-              id: true,
-              name: true,
-              code: true,
-              companyGroupId: true,
-              companyGroup: { select: { id: true, name: true } },
-              _count: { select: { branches: true, employees: true } },
+              id: true, name: true, tenantId: true,
+              employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
             },
             orderBy: { name: 'asc' },
-          });
+          }),
+          [],
+        );
+        const groupIds = availableCompanyGroups.map((g) => g.id);
+        if (groupIds.length > 0) {
+          availableCompanies = await safe(
+            'company.findMany(super_admin)',
+            () => prisma.company.findMany({
+              where: { companyGroupId: { in: groupIds } },
+              select: {
+                id: true, name: true, code: true, companyGroupId: true,
+                companyGroup: { select: { id: true, name: true } },
+                _count: { select: { branches: true, employees: true } },
+              },
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          );
         }
       }
     } else if (role === 'tenant_admin') {
       // Tenant admin: scope to own tenant only
-      availableCompanyGroups = await prisma.companyGroup.findMany({
-        where: { tenantId: callerTenantId },
-        select: {
-          id: true,
-          name: true,
-          tenantId: true,
-          employeeLimitMode: true,
-          maxEmployees: true,
-          maxCompanies: true,
-          notes: true,
-        },
-        orderBy: { name: 'asc' },
-      });
-      const groupIds = availableCompanyGroups.map((g) => g.id);
-      if (groupIds.length > 0) {
-        availableCompanies = await prisma.company.findMany({
-          where: { companyGroupId: { in: groupIds } },
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            companyGroupId: true,
-            companyGroup: { select: { id: true, name: true } },
-            _count: { select: { branches: true, employees: true } },
-          },
-          orderBy: { name: 'asc' },
-        });
+      if (callerTenantId) {
+        availableCompanyGroups = await safe(
+          'companyGroup.findMany(tenant_admin)',
+          () => prisma.companyGroup.findMany({
+            where: { tenantId: callerTenantId },
+            select: {
+              id: true, name: true, tenantId: true,
+              employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
+            },
+            orderBy: { name: 'asc' },
+          }),
+          [],
+        );
+        const groupIds = availableCompanyGroups.map((g) => g.id);
+        if (groupIds.length > 0) {
+          availableCompanies = await safe(
+            'company.findMany(tenant_admin)',
+            () => prisma.company.findMany({
+              where: { companyGroupId: { in: groupIds } },
+              select: {
+                id: true, name: true, code: true, companyGroupId: true,
+                companyGroup: { select: { id: true, name: true } },
+                _count: { select: { branches: true, employees: true } },
+              },
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          );
+        }
       }
     }
     // For all other roles, availableCompanies stays empty (no switching allowed)
 
     // Resolve caller's tenant info (for header display + quota info)
     const callerTenant = callerTenantId
-      ? await prisma.tenant.findUnique({
-          where: { id: callerTenantId },
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            plan: true,
-            status: true,
-            maxCompaniesAllowed: true,
-            country: true,
-            currency: true,
-            timezone: true,
-          },
-        })
+      ? await safe(
+          'tenant.findUnique(caller)',
+          () => prisma.tenant.findUnique({
+            where: { id: callerTenantId },
+            select: {
+              id: true, name: true, slug: true, plan: true, status: true,
+              maxCompaniesAllowed: true, country: true, currency: true, timezone: true,
+            },
+          }),
+          null,
+        )
       : null;
 
     // Compute tenant-level company quota usage for tenant_admin
@@ -201,13 +250,21 @@ export async function GET(request: Request) {
       remaining: number | null;
     } | null = null;
     if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
-      const groupsForQuota = await prisma.companyGroup.findMany({
-        where: { tenantId: callerTenant.id },
-        select: { id: true },
-      });
+      const groupsForQuota = await safe(
+        'companyGroup.findMany(quota)',
+        () => prisma.companyGroup.findMany({
+          where: { tenantId: callerTenant.id },
+          select: { id: true },
+        }),
+        [],
+      );
       const groupIdsForQuota = groupsForQuota.map((g) => g.id);
       const usedCompanies = groupIdsForQuota.length
-        ? await prisma.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } })
+        ? await safe(
+            'company.count(quota)',
+            () => prisma.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
+            0,
+          )
         : 0;
       tenantQuota = {
         maxCompanies: callerTenant.maxCompaniesAllowed,
@@ -228,7 +285,17 @@ export async function GET(request: Request) {
       availableCompanies,
     }, { headers: corsHeaders() });
   } catch (error) {
-    console.error('GET /api/me/context error:', error);
-    return NextResponse.json({ error: 'Failed to fetch user context' }, { status: 500, headers: corsHeaders() });
+    // Log the FULL error so we can debug from Vercel logs.
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : '';
+    console.error('GET /api/me/context UNHANDLED error:', msg);
+    if (stack) console.error(stack);
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch user context',
+        detail: msg,
+      },
+      { status: 500, headers: corsHeaders() },
+    );
   }
 }
