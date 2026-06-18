@@ -180,7 +180,9 @@ export default function CompanySwitcher() {
                   <FiGrid className="w-3.5 h-3.5" /> Company Switcher
                 </p>
                 <p className="text-[11px] text-indigo-700/70 mt-0.5">
-                  {isSuperAdmin ? 'Switch across all tenants and companies' : 'Switch between companies in your group'}
+                  {isSuperAdmin
+                    ? 'Parent (tenant) → Group company → Company'
+                    : 'Pick a company in your group'}
                 </p>
               </div>
               <button
@@ -223,11 +225,11 @@ export default function CompanySwitcher() {
             </div>
           )}
 
-          {/* TENANT INFO BANNER (tenant_admin only) — clearly shows which tenant
-              the dropdown is scoped to. Previously the dropdown only listed
-              companies without context, which made it look like an unscoped
-              "all companies" view. Now it's obvious the list comes from the
-              caller's own tenant. */}
+          {/* TENANT INFO BANNER (tenant_admin only) — clearly shows which
+              parent company (= tenant) the dropdown is scoped to. The
+              hierarchy is: ONE parent company (= your tenant) → many group
+              companies → many companies. The tenant_admin can pick any
+              company under any group, but cannot switch parent companies. */}
           {isTenantAdmin && tenant && (
             <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-indigo-50/70 to-violet-50/40">
               <div className="flex items-center gap-2">
@@ -235,7 +237,7 @@ export default function CompanySwitcher() {
                   {tenant.name?.[0]?.toUpperCase() || 'T'}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Your tenant</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Parent company (tenant)</p>
                   <p className="text-xs font-bold text-slate-900 truncate">{tenant.name}</p>
                   <p className="text-[10px] text-slate-500 truncate">
                     {tenant.slug} · {availableCompanyGroups.length} group{availableCompanyGroups.length === 1 ? '' : 's'} · {availableCompanies.length} compan{availableCompanies.length === 1 ? 'y' : 'ies'}
@@ -245,31 +247,31 @@ export default function CompanySwitcher() {
             </div>
           )}
 
-          {/* TENANTS LIST (super_admin only) — visible at the top of the dropdown
-              so super admin can see ALL tenants they have created, not just the
-              currently selected one. Clicking a tenant scopes the company list
-              to that tenant. */}
+          {/* TENANTS LIST (super_admin only) — labeled "Parent companies" so
+              it's obvious these are the top of the hierarchy. Each tenant IS
+              a parent company (1:1 by name). Clicking one scopes the company
+              list to that tenant's groups/companies. */}
           {isSuperAdmin && (
             <div className="px-4 py-3 border-b border-slate-100">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <FiHome className="w-3 h-3" /> Tenants ({availableTenants.length})
+                  <FiHome className="w-3 h-3" /> Parent companies ({availableTenants.length})
                 </label>
                 <span className="text-[10px] text-slate-400">
-                  {selectedTenantId ? 'Click to switch' : 'Select a tenant'}
+                  {selectedTenantId ? 'Click to switch' : 'Select a parent'}
                 </span>
               </div>
               {availableTenants.length === 0 ? (
                 <div className="py-3">
                   {hydrating ? (
                     <p className="text-xs text-slate-400 italic flex items-center gap-1.5">
-                      <FiRefreshCw className="w-3 h-3 animate-spin" /> Loading tenants…
+                      <FiRefreshCw className="w-3 h-3 animate-spin" /> Loading parent companies…
                     </p>
                   ) : lastError ? (
                     <p className="text-xs text-red-500 italic">{lastError}</p>
                   ) : (
                     <>
-                      <p className="text-xs text-slate-400 italic">No tenants loaded yet.</p>
+                      <p className="text-xs text-slate-400 italic">No parent companies loaded yet.</p>
                       <button
                         onClick={() => refreshContext()}
                         className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 mt-1 flex items-center gap-1"
@@ -372,7 +374,7 @@ export default function CompanySwitcher() {
                 <FiLayers className="w-4 h-4 text-indigo-500" />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {isSuperAdmin ? 'All companies in tenant' : 'All companies (group)'}
+                    {isSuperAdmin ? 'All companies in parent' : 'All companies (group)'}
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {availableCompanies.length} companies · {availableCompanyGroups.length} groups
@@ -391,10 +393,10 @@ export default function CompanySwitcher() {
                   {availableCompanies.length === 0
                     ? isSuperAdmin
                       ? (availableCompanyGroups.length === 0
-                          ? 'No group companies created for this tenant yet'
+                          ? 'No group companies created under this parent yet'
                           : `${availableCompanyGroups.length} group compan${availableCompanyGroups.length === 1 ? 'y' : 'ies'} exist but no companies inducted yet`)
                       : (availableCompanyGroups.length === 0
-                          ? 'No group companies exist in your tenant yet'
+                          ? 'No group companies exist under your parent yet'
                           : `${availableCompanyGroups.length} group compan${availableCompanyGroups.length === 1 ? 'y' : 'ies'} exist but no companies inducted yet`)
                     : 'No matches for your search'}
                 </p>
@@ -450,9 +452,9 @@ export default function CompanySwitcher() {
                               <p className="text-[11px] text-slate-500">
                                 {c.code ? `${c.code} · ` : ''}
                                 {c._count?.branches || 0} branches · {empCount} emp
-                                {/* Super admin: show parent tenant name on each company */}
+                                {/* Super admin: show parent (tenant) name on each company */}
                                 {isSuperAdmin && scopedTenant && (
-                                  <span className="text-indigo-500"> · tenant: {scopedTenant.name}</span>
+                                  <span className="text-indigo-500"> · parent: {scopedTenant.name}</span>
                                 )}
                               </p>
                             </div>
@@ -471,8 +473,8 @@ export default function CompanySwitcher() {
           <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
             <span>
               {isSuperAdmin
-                ? `${availableTenants.length} tenants · ${availableCompanies.length} companies`
-                : `${availableCompanies.length} companies`}
+                ? `${availableTenants.length} parent${availableTenants.length === 1 ? '' : 's'} · ${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`
+                : `${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`}
             </span>
             {isSuperAdmin && (
               <a
@@ -480,7 +482,7 @@ export default function CompanySwitcher() {
                 className="text-indigo-600 hover:text-indigo-700 font-medium"
                 onClick={() => setOpen(false)}
               >
-                Manage tenants & groups →
+                Manage parents & groups →
               </a>
             )}
             {isTenantAdmin && (

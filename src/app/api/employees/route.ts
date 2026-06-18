@@ -118,6 +118,12 @@ export async function GET(request: Request) {
     const departmentId = searchParams.get('departmentId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    // Company scope — sent by the header CompanySwitcher for super_admin and
+    // tenant_admin. null/undefined means "all companies in scope".
+    const companyId = searchParams.get('companyId');
+    // Tenant scope — only meaningful for super_admin (tenant_admin is already
+    // scoped to their own tenantId in the JWT).
+    const tenantId = searchParams.get('tenantId');
 
     // Try to authenticate, but don't block if no auth (demo mode)
     let userRole = 'employee';
@@ -163,6 +169,23 @@ export async function GET(request: Request) {
           { email: { contains: search, mode: 'insensitive' } },
           { employeeId: { contains: search, mode: 'insensitive' } },
         ];
+      }
+
+      // ─── Company scope filter (from header CompanySwitcher) ───
+      // When a companyId is provided, filter employees by that exact company.
+      // This is the primary mechanism that makes the header dropdown actually
+      // do something — previously the param was sent by the home page but
+      // silently ignored here, so the dropdown appeared to be a no-op.
+      if (companyId) {
+        where.companyId = companyId;
+      }
+
+      // ─── Tenant scope filter (super_admin only) ───
+      // For super_admin with no companyId selected, allow narrowing to a
+      // specific tenant's companies. We resolve via the Company → CompanyGroup
+      // → tenant relation so the filter is consistent with the hierarchy.
+      if (!companyId && tenantId && userRole === 'super_admin') {
+        where.company = { companyGroup: { tenantId } };
       }
 
       if (isAuthed) {

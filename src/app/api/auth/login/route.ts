@@ -85,6 +85,21 @@ export async function POST(request: Request) {
     }
 
     try {
+      // ─── De-duplicate previous login notifications ───
+      // Before creating a fresh "Login Successful" notification, mark all
+      // previous unread notifications of type 'login' for this user as read.
+      // Without this, every login piled a new row on top of the previous
+      // ones, so the bell icon showed a wall of "Login Successful" entries
+      // even though only the most recent was actually new.
+      await prisma.notification.updateMany({
+        where: {
+          userId: user.id,
+          type: 'login',
+          isRead: false,
+        },
+        data: { isRead: true },
+      });
+
       await createNotification({
         tenantId: user.tenantId,
         userId: user.id,

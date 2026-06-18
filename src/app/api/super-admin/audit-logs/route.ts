@@ -39,12 +39,26 @@ export async function GET(request: Request) {
     const userId = searchParams.get('userId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    // Scope filters sent by the header CompanySwitcher (super_admin only).
+    // tenantId narrows to logs from users in that tenant; companyId narrows
+    // further to logs whose user is linked to an Employee in that company.
+    const tenantId = searchParams.get('tenantId');
+    const companyId = searchParams.get('companyId');
 
     const where: Record<string, unknown> = {};
 
     if (action) where.action = action;
     if (moduleFilter) where.module = moduleFilter;
     if (userId) where.userId = userId;
+
+    // ─── Scope filters (super_admin only) ───
+    // The AuditLog itself doesn't carry a companyId/tenantId, so we filter via
+    // the related User → Employee → Company → CompanyGroup → Tenant chain.
+    if (companyId) {
+      where.user = { employee: { companyId } };
+    } else if (tenantId) {
+      where.user = { tenantId };
+    }
 
     if (startDate || endDate) {
       const createdAtFilter: Record<string, Date> = {};

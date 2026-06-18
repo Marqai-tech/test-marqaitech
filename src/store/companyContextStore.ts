@@ -269,10 +269,14 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
             return c?.name || 'Unknown company';
           }
-          // No specific selection: show group/tenant-level label
-          if (r === 'tenant_admin') return 'All companies (group)';
+          // No specific selection: show group/parent-level label.
+          // For super_admin, mention the parent (tenant) name so it's clear
+          // which tenant the "all companies" scope refers to.
+          if (r === 'tenant_admin') {
+            return s.tenant?.name ? `${s.tenant.name} (all companies)` : 'All companies (group)';
+          }
           const t = s.availableTenants.find((x) => x.id === s.selectedTenantId);
-          return t ? `${t.name} (all companies)` : 'All companies';
+          return t ? `${t.name} (all companies)` : 'All parents';
         }
         return s.ownCompany?.name || 'Not yet assigned';
       },

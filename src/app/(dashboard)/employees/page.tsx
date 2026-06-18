@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -217,6 +218,13 @@ export default function EmployeesPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  // Company scope — read from the header CompanySwitcher via context store.
+  // effectiveCompanyId() returns the selected company for admins (or null for
+  // "all companies"), and the user's own company for non-admins. We pass it as
+  // a query param to /api/employees so the list respects the dropdown selection.
+  const { effectiveCompanyId, selectedTenantId } = useCompanyContextStore();
+  const scopeCompanyId = effectiveCompanyId();
+  const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
@@ -267,6 +275,9 @@ export default function EmployeesPage() {
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
       if (filterStatus) params.set('status', filterStatus);
+      // Scope by header dropdown selection (super_admin/tenant_admin)
+      if (scopeCompanyId) params.set('companyId', scopeCompanyId);
+      else if (scopeTenantId) params.set('tenantId', scopeTenantId);
 
       const res = await fetch(`/api/employees?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
@@ -282,7 +293,7 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept, filterStatus]);
+  }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId]);
 
   /* Fetch dropdown data */
   const fetchDropdowns = useCallback(async () => {
