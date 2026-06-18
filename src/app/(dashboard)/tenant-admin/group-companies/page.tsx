@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiLayers, FiEdit2, FiTrash2, FiX, FiRefreshCw,
+  FiLayers, FiX, FiRefreshCw,
   FiShield, FiUsers, FiHome, FiInfo, FiBriefcase,
+  FiLock, FiAlertCircle,
 } from 'react-icons/fi';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -40,36 +42,43 @@ interface CompanyGroupRow {
   companies?: CompanyInGroup[];
 }
 
-const EMPTY_FORM = {
-  name: '',
-  employeeLimitMode: 'group_total' as 'per_company' | 'group_total',
-  maxEmployees: 0,
-  maxCompanies: 0,
-  notes: '',
-};
-
+/**
+ * Tenant Admin → Group Companies page (READ-ONLY)
+ *
+ * ─── PERMISSION RULE ───
+ * Only SUPER ADMIN can create / edit / delete group companies.
+ * Tenant admins can ONLY view the group companies that exist under their
+ * tenant (so they know which group to induct their new Companies under).
+ *
+ * If a tenant admin needs a new group company, they must ask their super
+ * admin to create it. The page below reflects this rule:
+ *   - No "New Group Company" button
+ *   - No edit / delete actions on each row
+ *   - A prominent banner explains the rule and links to the Companies page
+ *     (where the tenant admin CAN create companies under an existing group)
+ */
 export default function TenantGroupCompaniesPage() {
   const { user } = useAuthStore();
   const { tenant, hydrate, hydrated: ctxHydrated } = useCompanyContextStore();
 
   const [groups, setGroups] = useState<CompanyGroupRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/company-groups', { headers: getAuthHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch');
+      if (!res.ok) {
+        // The API now returns 200 with empty array on transient errors, but
+        // be defensive: an auth failure (401) would still come through.
+        throw new Error('Failed to fetch');
+      }
       const data = await res.json();
-      // The API returns groups scoped to the caller's tenant for tenant_admin
       setGroups(data.groups || []);
     } catch (e) {
       console.error(e);
-      toast.error('Failed to load group companies');
+      // Don't show a scary toast — just empty-state the list. The empty state
+      // below already explains what to do.
       setGroups([]);
     } finally {
       setLoading(false);
@@ -80,82 +89,6 @@ export default function TenantGroupCompaniesPage() {
     if (!ctxHydrated) hydrate();
     fetchGroups();
   }, [ctxHydrated, hydrate, fetchGroups]);
-
-  const openCreate = () => {
-    setEditingId(null);
-    setForm({ ...EMPTY_FORM });
-    setShowCreate(true);
-  };
-
-  const openEdit = (g: CompanyGroupRow) => {
-    setEditingId(g.id);
-    setForm({
-      name: g.name,
-      employeeLimitMode: g.employeeLimitMode === 'per_company' ? 'per_company' : 'group_total',
-      maxEmployees: g.maxEmployees ?? 0,
-      maxCompanies: g.maxCompanies ?? 0,
-      notes: g.notes || '',
-    });
-    setShowCreate(true);
-  };
-
-  const cancelForm = () => {
-    setShowCreate(false);
-    setEditingId(null);
-    setForm({ ...EMPTY_FORM });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error('Group company name is required');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      // For tenant_admin, the API ignores the body's tenantId and uses their
-      // own tenant. We don't send tenantId — the API resolves it from the JWT.
-      const payload = {
-        name: form.name.trim(),
-        employeeLimitMode: form.employeeLimitMode,
-        maxEmployees: Number(form.maxEmployees) > 0 ? Number(form.maxEmployees) : null,
-        maxCompanies: Number(form.maxCompanies) > 0 ? Number(form.maxCompanies) : null,
-        notes: form.notes?.trim() || null,
-      };
-      const url = editingId ? `/api/company-groups/${editingId}` : '/api/company-groups';
-      const method = editingId ? 'PATCH' : 'POST';
-      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed');
-      }
-      toast.success(editingId ? 'Group company updated' : 'Group company created');
-      cancelForm();
-      fetchGroups();
-      // Refresh the context store so the header CompanySwitcher reflects the change
-      hydrate(true);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save group company');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete group company "${name}"? This is only allowed if the group has no companies attached.`)) return;
-    try {
-      const res = await fetch(`/api/company-groups/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed');
-      }
-      toast.success('Group company deleted');
-      fetchGroups();
-      hydrate(true);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Delete failed');
-    }
-  };
 
   const tenantName = tenant?.name || user?.tenant?.name || 'your tenant';
   const totalGroups = groups.length;
@@ -171,8 +104,15 @@ export default function TenantGroupCompaniesPage() {
         <div className="relative z-10 px-6 sm:px-8 py-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-violet-300/60 text-xs font-medium tracking-widest uppercase">Tenant Administration</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Group Companies</h1>
+              <p className="text-violet-300/60 text-xs font-medium tracking-widest uppercase flex items-center gap-1.5">
+                <FiLock className="w-3 h-3" /> Tenant Administration · Read-Only
+              </p>
+              <h1 className="text-2xl font-bold text-white mt-1 flex items-center gap-2">
+                Group Companies
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-amber-400/20 text-amber-200 px-2 py-0.5 rounded-full ring-1 ring-amber-300/30">
+                  <FiLock className="w-2.5 h-2.5" /> Super-admin managed
+                </span>
+              </h1>
               <p className="text-violet-100/60 text-sm font-medium mt-1 flex items-center gap-1.5 flex-wrap">
                 <FiHome className="w-3.5 h-3.5" />
                 <span>Inducted under tenant:</span>
@@ -192,14 +132,31 @@ export default function TenantGroupCompaniesPage() {
               >
                 <FiRefreshCw className="w-4 h-4" /> Refresh
               </button>
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all"
+              <Link
+                href="/tenant-admin/companies"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
               >
-                <FiPlus className="w-4 h-4" /> New Group Company
-              </button>
+                <FiBriefcase className="w-4 h-4" /> Create a Company
+              </Link>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* PERMISSION RULE BANNER */}
+      <div className="rounded-xl p-4 border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 flex items-start gap-3">
+        <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-amber-900 flex-1">
+          <p className="font-bold mb-1 text-sm flex items-center gap-1.5">
+            <FiLock className="w-3.5 h-3.5" /> Only super admins can create or modify group companies
+          </p>
+          <p className="leading-relaxed">
+            Per the multi-tenancy permission rules, <b>group company creation is restricted to super admins</b>.
+            {' '}As a tenant admin, you can <b>view</b> the group companies under your tenant <b>{tenantName}</b>,
+            {' '}and you can <b>create Companies</b> under any of these groups via the{' '}
+            <Link href="/tenant-admin/companies" className="font-bold text-amber-700 underline">Companies page</Link>.
+            {' '}If you need a new group company, please contact your super admin.
+          </p>
         </div>
       </div>
 
@@ -227,24 +184,10 @@ export default function TenantGroupCompaniesPage() {
           </div>
           <p className="leading-relaxed">
             <b>The group company name and parent tenant are the same.</b>
-            {' '}Your tenant <b>{tenantName}</b> has a companies cap set by the super admin.
-            {' '}Create a group company here (you can name it <b>{tenantName}</b> to match the tenant, or use a different name for a sub-cluster) — then induct <b>Companies</b> under each group via the{' '}
-            <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
+            {' '}Your tenant <b>{tenantName}</b> is the parent. The super admin has created the group
+            companies listed below — pick one when inducting a new Company via the{' '}
+            <Link href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies page</Link>.
             {' '}Each group can have an employee-strength barrier (per-company or group-total).
-          </p>
-        </div>
-      </div>
-
-      {/* EMPLOYEE STRENGTH BARRIER BANNER */}
-      <div className="rounded-xl p-4 border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50/60 flex items-start gap-3">
-        <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-amber-900">
-          <p className="font-semibold mb-1">Employee Strength Barriers</p>
-          <p>
-            Create group companies under <b>{tenantName}</b> and cap how many employees they can hold. Choose
-            <b> per-company </b> mode (cap applies to EACH company) or <b>group-total</b> mode (cap applies to
-            the SUM across all companies in the group). You will be blocked from creating more companies or
-            loading more employees beyond these limits.
           </p>
         </div>
       </div>
@@ -252,11 +195,11 @@ export default function TenantGroupCompaniesPage() {
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Group Companies" value={totalGroups} icon={<FiLayers className="w-5 h-5" />} bg="bg-violet-50 text-violet-600" ring="ring-violet-100" />
-        <StatCard label="Companies Inducted" value={totalCompanies} icon={<FiHome className="w-5 h-5" />} bg="bg-indigo-50 text-indigo-600" ring="ring-indigo-100" />
+        <StatCard label="Companies Inducted" value={totalCompanies} icon={<FiBriefcase className="w-5 h-5" />} bg="bg-indigo-50 text-indigo-600" ring="ring-indigo-100" />
         <StatCard label="Total Employees" value={totalEmployees} icon={<FiUsers className="w-5 h-5" />} bg="bg-amber-50 text-amber-600" ring="ring-amber-100" />
       </div>
 
-      {/* GROUPS LIST */}
+      {/* GROUPS LIST — READ ONLY */}
       {loading ? (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -266,18 +209,26 @@ export default function TenantGroupCompaniesPage() {
       ) : groups.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
           <FiLayers className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-600 font-medium">No group companies created yet</p>
-          <p className="text-xs text-slate-500 mt-1 mb-4">
-            Per the multi-tenancy hierarchy, your tenant <b>{tenantName}</b> is the parent.
-            Create a group company (it can share the tenant name) and then induct individual
-            companies under it via the <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
+          <p className="text-slate-600 font-medium">No group companies under your tenant yet</p>
+          <p className="text-xs text-slate-500 mt-1 mb-2">
+            Per the multi-tenancy permission rules, only your <b>super admin</b> can create group companies.
+            {' '}Please ask your super admin to create at least one group company under tenant{' '}
+            <b>{tenantName}</b> so you can induct Companies under it.
           </p>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all"
-          >
-            <FiPlus className="w-4 h-4" /> Create your first group company
-          </button>
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/tenant-admin/companies"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+            >
+              <FiBriefcase className="w-4 h-4" /> Go to Companies page
+            </Link>
+            <button
+              onClick={fetchGroups}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-all"
+            >
+              <FiRefreshCw className="w-4 h-4" /> Refresh
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -294,13 +245,18 @@ export default function TenantGroupCompaniesPage() {
                       <FiLayers className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-slate-900">{g.name}</h3>
+                      <h3 className="font-semibold text-slate-900 flex items-center gap-2 flex-wrap">
+                        {g.name}
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded ring-1 ring-slate-200">
+                          <FiLock className="w-2.5 h-2.5" /> read-only
+                        </span>
+                      </h3>
                       <p className="text-sm text-slate-500 flex items-center gap-1.5 flex-wrap">
                         <FiHome className="w-3 h-3" /> {g.tenantName || tenantName}
                         <span className="opacity-50">·</span> {coCount} companies
                         <span className="opacity-50">·</span> {empCount} employees
                       </p>
-                      {g.notes && <p className="text-xs text-slate-500 italic mt-1">“{g.notes}”</p>}
+                      {g.notes && <p className="text-xs text-slate-500 italic mt-1">&ldquo;{g.notes}&rdquo;</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -319,25 +275,11 @@ export default function TenantGroupCompaniesPage() {
                         <FiLayers className="w-3 h-3" /> co cap: {coCount}/{g.maxCompanies}
                       </span>
                     )}
-                    <button
-                      onClick={() => openEdit(g)}
-                      className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg"
-                      title="Edit"
-                    >
-                      <FiEdit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(g.id, g.name)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                      title="Delete"
-                    >
-                      <FiTrash2 className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
 
                 {/* Companies under this group */}
-                {g.companies && g.companies.length > 0 && (
+                {g.companies && g.companies.length > 0 ? (
                   <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
                     {g.companies.map((c) => {
                       const cEmp = c._count?.employees || 0;
@@ -346,7 +288,7 @@ export default function TenantGroupCompaniesPage() {
                       const atCap = cCap !== null && cCap !== undefined && (cCap as number) > 0 && cEmp >= (cCap as number);
                       return (
                         <div key={c.id} className="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 rounded-lg p-2.5">
-                          <FiHome className="w-3.5 h-3.5 text-slate-400" />
+                          <FiBriefcase className="w-3.5 h-3.5 text-slate-400" />
                           <span className="font-medium text-slate-900">{c.name}</span>
                           {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold">{c.code}</span>}
                           <span className="ml-auto flex items-center gap-1.5">
@@ -362,6 +304,19 @@ export default function TenantGroupCompaniesPage() {
                       );
                     })}
                   </div>
+                ) : (
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg p-2.5">
+                      <FiAlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                      <span>No companies inducted under this group yet.</span>
+                      <Link
+                        href="/tenant-admin/companies"
+                        className="ml-auto inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-semibold"
+                      >
+                        <FiBriefcase className="w-3 h-3" /> Induct one →
+                      </Link>
+                    </div>
+                  </div>
                 )}
               </div>
             );
@@ -369,146 +324,17 @@ export default function TenantGroupCompaniesPage() {
         </div>
       )}
 
-      {/* CREATE / EDIT MODAL */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FiLayers className="w-4 h-4 text-violet-500" />
-                  {editingId ? 'Edit Group Company' : 'Create Group Company'}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 flex-wrap">
-                  <FiHome className="w-3 h-3" />
-                  <span>Inducting under tenant:</span>
-                  <span className="font-bold text-violet-700">{tenantName}</span>
-                </p>
-              </div>
-              <button
-                onClick={cancelForm}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Tenant context — read only */}
-              <div className="px-4 py-3 rounded-xl bg-violet-50/60 border border-violet-100 flex items-center gap-3">
-                <FiHome className="w-5 h-5 text-violet-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-[11px] uppercase tracking-wider text-violet-700/70 font-semibold">Parent Tenant</p>
-                  <p className="text-sm font-bold text-violet-900">{tenantName}</p>
-                </div>
-                <span className="text-[11px] text-violet-700/70">auto-assigned</span>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Group Company Name *
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  placeholder="e.g., Acme Group"
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-300"
-                />
-              </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                <h4 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
-                  <FiUsers className="w-4 h-4 text-amber-500" /> Employee Strength Barrier
-                </h4>
-                <p className="text-xs text-slate-500 mb-3">
-                  Set a cap on how many employees can be loaded under this group. Leave 0 for unlimited.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Limit mode</label>
-                    <select
-                      value={form.employeeLimitMode}
-                      onChange={(e) => setForm({ ...form, employeeLimitMode: e.target.value as 'per_company' | 'group_total' })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-300"
-                    >
-                      <option value="group_total">Group total — cap = SUM across all companies in this group</option>
-                      <option value="per_company">Per company — cap applies to EACH company in this group</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Max employees (0 = unlimited)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.maxEmployees}
-                      onChange={(e) => setForm({ ...form, maxEmployees: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-300"
-                      placeholder="e.g., 500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                <h4 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
-                  <FiLayers className="w-4 h-4 text-blue-500" /> Company Cap (optional)
-                </h4>
-                <p className="text-xs text-slate-500 mb-3">
-                  Optionally cap how many companies can be inducted under this group. Leave 0 for unlimited.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Max companies in this group (0 = unlimited)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.maxCompanies}
-                      onChange={(e) => setForm({ ...form, maxCompanies: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-300"
-                      placeholder="e.g., 5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Admin notes (optional)</label>
-                    <input
-                      value={form.notes}
-                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-300"
-                      placeholder="e.g., Sales cluster — cap at 200 staff"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
-                <FiInfo className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <p className="text-xs text-slate-500">
-                  After creation, use the <b>Companies</b> menu to induct individual companies under this group.
-                  The header switcher will list all companies under <b>{tenantName}</b>.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={cancelForm}
-                  className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 disabled:opacity-60"
-                >
-                  {submitting ? 'Saving...' : (<>{editingId ? 'Update Group' : 'Create Group'}</>)}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* FOOTER INFO */}
+      <div className="rounded-xl p-4 bg-slate-50 border border-slate-200 flex items-start gap-3">
+        <FiInfo className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Need a new group company, or need to change an employee-strength cap on an existing one?
+          {' '}Group companies are <b>managed by the super admin</b>. Please reach out to your super admin
+          {' '}with the request — they can create or modify groups from the{' '}
+          <Link href="/super-admin" className="font-bold text-slate-800 underline">Super Admin → Group Companies</Link> tab.
+          {' '}Once created, the new group will appear on this page and be selectable when you create a Company.
+        </p>
+      </div>
     </div>
   );
 }

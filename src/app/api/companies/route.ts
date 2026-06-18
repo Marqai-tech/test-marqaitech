@@ -214,7 +214,22 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // Auto-create a group under the target tenant (back-compat)
+      // ─── PERMISSION RULE ───
+      // Only SUPER ADMIN can create new group companies. Tenant admins MUST
+      // select an existing group (created by the super admin) when inducting
+      // a company. This enforces the multi-tenancy hierarchy:
+      //   Super admin → creates Group Companies under a tenant
+      //   Tenant admin → creates Companies under an existing group
+      if (role !== 'super_admin') {
+        return NextResponse.json(
+          {
+            error: 'Please select an existing group company. Only super admins can create new group companies — if no group is available, please ask your super admin to create one under your tenant first.',
+            code: 'GROUP_COMPANY_REQUIRED',
+          },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      // Super admin: auto-create a group under the target tenant (back-compat)
       const groupName = (companyGroupName && String(companyGroupName).trim()) || `${name} Group`;
       groupRecord = await db.companyGroup.create({
         data: { name: groupName, tenantId: targetTenantId },

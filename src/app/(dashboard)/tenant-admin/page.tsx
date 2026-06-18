@@ -267,7 +267,7 @@ export default function TenantAdminPage() {
 
   const tabs = [
     { key: 'overview' as const, label: 'Overview', icon: FiServer },
-    { key: 'groups' as const, label: 'Group Companies', icon: FiLayers },
+    { key: 'groups' as const, label: 'Group Companies (read-only)', icon: FiLayers },
     { key: 'settings' as const, label: 'Settings', icon: FiSettings },
     { key: 'billing' as const, label: 'Billing', icon: FiCreditCard },
     { key: 'users' as const, label: 'Users', icon: FiUsers },
@@ -301,9 +301,10 @@ export default function TenantAdminPage() {
           </button>
           <Link
             href="/tenant-admin/group-companies"
-            className="inline-flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-violet-200 bg-violet-50 text-violet-700 rounded-lg hover:bg-violet-100 font-medium text-sm shadow-sm transition-colors"
+            title="View the group companies under your tenant (read-only — only super admin can create or modify)"
           >
-            <FiLayers className="w-4 h-4" /> Manage Group Companies
+            <FiLayers className="w-4 h-4" /> View Group Companies
           </Link>
         </div>
       </div>
@@ -454,7 +455,7 @@ export default function TenantAdminPage() {
                     <FiLayers className="w-4 h-4 text-violet-500" /> Group Companies under this Tenant
                   </h3>
                   <Link href="/tenant-admin/group-companies" className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">
-                    Manage all <FiChevronRight className="w-3 h-3" />
+                    View all <FiChevronRight className="w-3 h-3" />
                   </Link>
                 </div>
                 {groupsLoading ? (
@@ -466,13 +467,16 @@ export default function TenantAdminPage() {
                 ) : filteredGroups.length === 0 ? (
                   <div className="text-center py-8">
                     <FiLayers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-nexus-text-secondary font-medium">No group companies created yet</p>
-                    <p className="text-xs text-nexus-text-muted mt-1 mb-4">Create a group company to start inducting companies.</p>
+                    <p className="text-sm text-nexus-text-secondary font-medium">No group companies under your tenant yet</p>
+                    <p className="text-xs text-nexus-text-muted mt-1 mb-4">
+                      Only your <b>super admin</b> can create group companies. Please ask them to create at least one
+                      group under tenant <b>{tenantName}</b> so you can induct Companies under it.
+                    </p>
                     <Link
-                      href="/tenant-admin/group-companies"
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-xs shadow-sm"
+                      href="/tenant-admin/companies"
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 font-medium text-xs shadow-sm"
                     >
-                      <FiPlus className="w-3.5 h-3.5" /> Create Group Company
+                      <FiBriefcase className="w-3.5 h-3.5" /> Go to Companies page
                     </Link>
                   </div>
                 ) : (
@@ -553,10 +557,9 @@ export default function TenantAdminPage() {
                 <p className="leading-relaxed">
                   <b>The group company name and parent tenant are the same.</b>
                   {' '}You are managing tenant <b>{tenantName}</b>, which has a companies cap set by the super admin.
-                  {' '}Under it, create <b>Group Companies</b> (this tab) — the first one can share the tenant name <b>{tenantName}</b>.
-                  {' '}Then induct <b>Companies</b> under each group via the{' '}
+                  {' '}The group companies listed below are <b>created by your super admin</b> — as a tenant admin you
+                  {' '}can view them but cannot create or modify them. To induct <b>Companies</b> under any group, use the{' '}
                   <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
-                  {' '}Each company can have its own employee cap.
                 </p>
               </div>
             </div>
@@ -566,11 +569,13 @@ export default function TenantAdminPage() {
             <div className="flex items-start gap-3">
               <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900">
-                <p className="font-semibold mb-1">Employee Strength Barriers</p>
+                <p className="font-semibold mb-1">Read-only — super-admin managed</p>
                 <p>
-                  Create group companies under <b>{tenantName}</b> and cap how many employees they can hold. Choose
-                  <b> per-company </b> mode (cap applies to EACH company) or <b>group-total</b> mode (cap applies to
-                  the SUM across all companies in the group).
+                  Group companies under <b>{tenantName}</b> (and their employee-strength barriers) are
+                  {' '}<b>created and managed by your super admin</b>. If you need a new group or a cap change,
+                  {' '}please contact your super admin. You can <b>create Companies</b> under any existing group via
+                  {' '}the{' '}
+                  <a href="/tenant-admin/companies" className="font-bold text-amber-700 underline">Companies</a> page.
                 </p>
               </div>
             </div>
@@ -591,13 +596,16 @@ export default function TenantAdminPage() {
           ) : filteredGroups.length === 0 ? (
             <div className="nexus-card p-12 text-center">
               <FiLayers className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" />
-              <p className="text-nexus-text-secondary font-medium">No group companies created yet</p>
-              <p className="text-xs text-nexus-text-muted mt-1 mb-4">Create a group company to set employee-strength barriers before inducting companies.</p>
+              <p className="text-nexus-text-secondary font-medium">No group companies under your tenant yet</p>
+              <p className="text-xs text-nexus-text-muted mt-1 mb-4">
+                Only your <b>super admin</b> can create group companies. Please ask them to create at least one group
+                under tenant <b>{tenantName}</b> so you can induct Companies under it.
+              </p>
               <Link
-                href="/tenant-admin/group-companies"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 rounded-lg transition-all"
+                href="/tenant-admin/companies"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 rounded-lg transition-all"
               >
-                <FiPlus className="w-4 h-4" /> Create your first group company
+                <FiBriefcase className="w-4 h-4" /> Go to Companies page
               </Link>
             </div>
           ) : (
@@ -643,9 +651,9 @@ export default function TenantAdminPage() {
                         <Link
                           href="/tenant-admin/group-companies"
                           className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg"
-                          title="Manage"
+                          title="View details (read-only)"
                         >
-                          <FiEdit2 className="w-3.5 h-3.5" />
+                          <FiInfo className="w-3.5 h-3.5" />
                         </Link>
                       </div>
                     </div>
@@ -683,12 +691,18 @@ export default function TenantAdminPage() {
             </div>
           )}
 
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-2 flex-wrap">
             <Link
               href="/tenant-admin/group-companies"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 rounded-lg transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 border border-violet-200 bg-violet-50 text-violet-700 text-sm font-semibold rounded-lg hover:bg-violet-100 transition-all"
             >
-              <FiLayers className="w-4 h-4" /> Open Full Group Companies Manager
+              <FiLayers className="w-4 h-4" /> View Full Group Companies List
+            </Link>
+            <Link
+              href="/tenant-admin/companies"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 rounded-lg transition-all"
+            >
+              <FiBriefcase className="w-4 h-4" /> Create a Company
             </Link>
           </div>
         </div>

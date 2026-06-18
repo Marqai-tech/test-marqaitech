@@ -169,9 +169,15 @@ export default function TenantCompaniesPage() {
       toast.error('Company name is required');
       return;
     }
-    // Require EITHER an existing group selection OR a new group name
-    if (!form.companyGroupId && !form.companyGroupName.trim()) {
-      toast.error('Please select an existing group company OR enter a name for a new group company');
+    // Tenant admin MUST select an existing group company (only super admin can
+    // create group companies). If no group is selected, surface a clear error
+    // that tells them to ask their super admin to create one.
+    if (!form.companyGroupId) {
+      toast.error(
+        availableCompanyGroups.length === 0
+          ? 'No group companies exist under your tenant yet. Please ask your super admin to create one first.'
+          : 'Please select a group company. Only super admins can create new group companies.'
+      );
       return;
     }
     // If a group is selected, make sure it has room for another company
@@ -270,11 +276,23 @@ export default function TenantCompaniesPage() {
                     );
                     return;
                   }
+                  if (availableCompanyGroups.length === 0) {
+                    toast.error(
+                      'No group companies exist under your tenant yet. Only your super admin can create group companies — please ask them to create one first.'
+                    );
+                    return;
+                  }
                   setShowCreate(true);
                 }}
-                disabled={quotaReached}
+                disabled={quotaReached || availableCompanyGroups.length === 0}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                title={quotaReached ? 'Company quota reached' : 'Create new company'}
+                title={
+                  quotaReached
+                    ? 'Company quota reached'
+                    : availableCompanyGroups.length === 0
+                    ? 'No group companies available — ask your super admin to create one first'
+                    : 'Create new company'
+                }
               >
                 <FiPlus className="w-4 h-4" /> New Company
               </button>
@@ -308,9 +326,9 @@ export default function TenantCompaniesPage() {
           <p className="leading-relaxed">
             <b>The group company name and parent tenant are the same.</b>
             {' '}Companies on this page sit <b>under a Group Company</b>, which sits under your tenant <b>{tenantName}</b>.
-            {' '}If the <b>Group Company</b> dropdown below is empty, you need to{' '}
-            <a href="/tenant-admin/group-companies" className="font-bold text-indigo-700 underline">create a group company first</a>{' '}
-            (you can name it <b>{tenantName}</b> to match the tenant).
+            {' '}Group companies are <b>created by your super admin</b>. If the <b>Group Company</b> dropdown below is empty,
+            {' '}please <b>ask your super admin to create at least one group company</b> under tenant{' '}
+            <b>{tenantName}</b> first — you can then induct Companies under it from this page.
           </p>
         </div>
       </div>
@@ -526,48 +544,41 @@ export default function TenantCompaniesPage() {
                 </Field>
               </div>
 
-              {/* Group company selector — explicit, no more silent auto-create */}
-              <Field label="Group Company">
-                <select
-                  value={form.companyGroupId}
-                  onChange={(e) => setForm({ ...form, companyGroupId: e.target.value, companyGroupName: '' })}
-                  className="form-input bg-white"
-                >
-                  <option value="">— Select an existing group —</option>
-                  {availableCompanyGroups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                      {g.maxEmployees ? ` (emp cap: ${g.maxEmployees} ${g.employeeLimitMode === 'per_company' ? 'per-co' : 'group'})` : ''}
-                      {g.maxCompanies ? ` · co cap: ${g.maxCompanies}` : ''}
-                    </option>
-                  ))}
-                </select>
+              {/* Group company selector — tenant admin must pick an existing group
+                  (only super admin can create group companies). If no groups exist,
+                  show a "contact your super admin" message instead of an inline
+                  group-creation input. */}
+              <Field label="Group Company *">
+                {availableCompanyGroups.length === 0 ? (
+                  <div className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                    <FiAlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-900">
+                      <p className="font-bold mb-0.5">No group companies available</p>
+                      <p>
+                        Only your <b>super admin</b> can create group companies. Please ask them to create at
+                        least one group under tenant <b>{tenantName}</b> first — you will then be able to
+                        select it here and induct your company under it.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={form.companyGroupId}
+                    onChange={(e) => setForm({ ...form, companyGroupId: e.target.value })}
+                    className="form-input bg-white"
+                    required
+                  >
+                    <option value="">— Select an existing group —</option>
+                    {availableCompanyGroups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                        {g.maxEmployees ? ` (emp cap: ${g.maxEmployees} ${g.employeeLimitMode === 'per_company' ? 'per-co' : 'group'})` : ''}
+                        {g.maxCompanies ? ` · co cap: ${g.maxCompanies}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </Field>
-
-              {/* Inline "create a new group" — shown either when no groups exist at all OR
-                  when the user explicitly chooses to create a new one */}
-              {(availableCompanyGroups.length === 0 || form.companyGroupId === '') && (
-                <Field
-                  label={
-                    availableCompanyGroups.length === 0
-                      ? 'No group companies exist yet — create one below (will be inducted under your tenant)'
-                      : '…or create a new group company (will be inducted under the same tenant)'
-                  }
-                >
-                  <input
-                    value={form.companyGroupName}
-                    onChange={(e) => setForm({ ...form, companyGroupName: e.target.value, companyGroupId: '' })}
-                    placeholder="New group company name (e.g., Acme Group)"
-                    className="form-input"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                    <FiInfo className="w-3 h-3" />
-                    {availableCompanyGroups.length === 0
-                      ? <>You must create at least one group company before you can induct companies. The API will create this group automatically when you submit the form.</>
-                      : <>Note: new group companies created here inherit <b>no</b> employee-strength cap. Ask the super admin to set caps via the super-admin module.</>}
-                  </p>
-                </Field>
-              )}
 
               {/* Show the inherited employee-strength barrier of the selected group */}
               {selectedGroupForForm && (

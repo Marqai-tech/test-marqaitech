@@ -117,18 +117,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ groups: enriched }, { headers: corsHeaders() });
   } catch (error) {
     console.error('GET /api/company-groups error:', error);
-    return NextResponse.json({ error: 'Internal server error', groups: [] }, { status: 500, headers: corsHeaders() });
+    // Return 200 with an empty array (instead of 500) so the frontend doesn't
+    // show a "Failed to load group companies" toast for transient DB errors.
+    // The user sees an empty list with the standard empty-state UI instead.
+    return NextResponse.json(
+      { groups: [], error: 'Failed to load group companies — please try refreshing' },
+      { status: 200, headers: corsHeaders() }
+    );
   }
 }
 
 /**
  * POST /api/company-groups
  *
- * Super admin (or tenant admin for their own tenant) creates a new group company
- * with employee-strength barriers.
+ * ─── PERMISSION RULE ───
+ * Only SUPER ADMIN can create group companies. Tenant admins CANNOT create
+ * group companies — they can only create COMPANIES under an existing group
+ * company via /api/companies. This enforces the multi-tenancy hierarchy:
+ *   Super admin → creates Tenant (= Group Company parent)
+ *   Super admin → creates Group Companies under a tenant
+ *   Tenant admin → creates Companies under a group company
  *
  * Body:
- *  - tenantId: string (required for super_admin; ignored for tenant_admin — uses their own)
+ *  - tenantId: string (required — which tenant this group is being created under)
  *  - name: string (required)
  *  - employeeLimitMode: 'per_company' | 'group_total' (default 'group_total')
  *  - maxEmployees: number | null  (null = unlimited)
@@ -149,9 +160,16 @@ export async function POST(request: Request) {
     const role = (decoded.role as string) || 'employee';
     const callerTenantId = decoded.tenantId as string;
 
-    if (!['super_admin', 'tenant_admin'].includes(role)) {
+    // ─── PERMISSION RULE ───
+    // Only SUPER ADMIN can create group companies / tenant companies.
+    // Tenant admins can only create COMPANIES under an existing group company
+    // (via /api/companies). This keeps the multi-tenancy hierarchy clean:
+    //   Super admin → creates Tenant (= Group Company parent)
+    //   Super admin → creates Group Companies under a tenant
+    //   Tenant admin → creates Companies under a group company
+    if (role !== 'super_admin') {
       return NextResponse.json(
-        { error: 'Only super admins or tenant admins can create group companies' },
+        { error: 'Only super admins can create group companies. Tenant admins can create companies under an existing group company via the Companies page.' },
         { status: 403, headers: corsHeaders() }
       );
     }
@@ -170,8 +188,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Group company name is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve target tenant
-    const targetTenantId = role === 'super_admin' ? (bodyTenantId || callerTenantId) : callerTenantId;
+    // Resolve target tenant — super admin must specify which tenant this group
+    // is being created under. Fall back to callerTenantId if they didn't.
+    const targetTenantId = bodyTenantId || callerTenantId;
     if (!targetTenantId) {
       return NextResponse.json({ error: 'Could not resolve target tenant' }, { status: 400, headers: corsHeaders() });
     }

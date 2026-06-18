@@ -154,6 +154,28 @@ export default function CompanySwitcher() {
             </p>
           </div>
 
+          {/* TENANT INFO BANNER (tenant_admin only) — clearly shows which tenant
+              the dropdown is scoped to. Previously the dropdown only listed
+              companies without context, which made it look like an unscoped
+              "all companies" view. Now it's obvious the list comes from the
+              caller's own tenant. */}
+          {isTenantAdmin && tenant && (
+            <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-indigo-50/70 to-violet-50/40">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-md bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                  {tenant.name?.[0]?.toUpperCase() || 'T'}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Your tenant</p>
+                  <p className="text-xs font-bold text-slate-900 truncate">{tenant.name}</p>
+                  <p className="text-[10px] text-slate-500 truncate">
+                    {tenant.slug} · {availableCompanyGroups.length} group{availableCompanyGroups.length === 1 ? '' : 's'} · {availableCompanies.length} compan{availableCompanies.length === 1 ? 'y' : 'ies'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TENANTS LIST (super_admin only) — visible at the top of the dropdown
               so super admin can see ALL tenants they have created, not just the
               currently selected one. Clicking a tenant scopes the company list

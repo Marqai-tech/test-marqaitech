@@ -46,9 +46,13 @@ export async function PATCH(
     const role = (decoded.role as string) || 'employee';
     const callerTenantId = decoded.tenantId as string;
 
-    if (!['super_admin', 'tenant_admin'].includes(role)) {
+    // ─── PERMISSION RULE ───
+    // Only SUPER ADMIN can update group companies. Tenant admins can NOT
+    // modify group companies — they can only create companies under existing
+    // groups via /api/companies.
+    if (role !== 'super_admin') {
       return NextResponse.json(
-        { error: 'Only super admins or tenant admins can update group companies' },
+        { error: 'Only super admins can update group companies. If you need a change, please contact your super admin.' },
         { status: 403, headers: corsHeaders() }
       );
     }
@@ -59,10 +63,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Group company not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // Tenant admin can only touch their own tenant's groups
-    if (role === 'tenant_admin' && existing.tenantId !== callerTenantId) {
-      return NextResponse.json({ error: 'You can only update groups under your own tenant' }, { status: 403, headers: corsHeaders() });
-    }
+    // (callerTenantId kept for audit logging below — no longer used for authz
+    // since only super admin can reach this point.)
+    void callerTenantId;
 
     const body = await request.json();
     const { name, employeeLimitMode, maxEmployees, maxCompanies, notes } = body;
@@ -135,9 +138,11 @@ export async function DELETE(
     const role = (decoded.role as string) || 'employee';
     const callerTenantId = decoded.tenantId as string;
 
-    if (!['super_admin', 'tenant_admin'].includes(role)) {
+    // ─── PERMISSION RULE ───
+    // Only SUPER ADMIN can delete group companies.
+    if (role !== 'super_admin') {
       return NextResponse.json(
-        { error: 'Only super admins or tenant admins can delete group companies' },
+        { error: 'Only super admins can delete group companies. If you need a group removed, please contact your super admin.' },
         { status: 403, headers: corsHeaders() }
       );
     }
@@ -151,9 +156,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Group company not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    if (role === 'tenant_admin' && existing.tenantId !== callerTenantId) {
-      return NextResponse.json({ error: 'You can only delete groups under your own tenant' }, { status: 403, headers: corsHeaders() });
-    }
+    void callerTenantId;
 
     if (existing._count?.companies && existing._count.companies > 0) {
       return NextResponse.json(
