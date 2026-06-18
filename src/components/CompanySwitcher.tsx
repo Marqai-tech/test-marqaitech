@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   FiChevronDown, FiHome, FiGrid, FiCheck, FiSearch,
   FiBriefcase, FiLayers, FiInfo, FiUsers, FiShield,
+  FiRefreshCw, FiAlertCircle,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -21,16 +22,22 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
  * The component auto-hydrates from /api/me/context on first mount. The selection
  * is persisted via the companyContextStore, so navigating between pages keeps
  * the same context.
+ *
+ * ROBUSTNESS: If the initial /api/me/context call fails or returns an empty
+ * list (e.g., user just created their first tenant and the dropdown hasn't
+ * refreshed), the dropdown auto-retries when opened AND exposes a manual
+ * Refresh button so the user can always pull fresh data.
  */
 export default function CompanySwitcher() {
   const { user } = useAuthStore();
   const {
-    hydrated, hydrate,
+    hydrated, hydrate, refreshContext,
     role, ownCompany, ownCompanyId, tenant, tenantQuota,
     availableTenants, availableCompanies, availableCompanyGroups,
     selectedTenantId, selectedCompanyId,
     setSelectedTenant, setSelectedCompany, setRole,
     effectiveCompanyLabel, canSwitch,
+    hydrating, lastError,
   } = useCompanyContextStore();
 
   const [open, setOpen] = useState(false);
@@ -65,6 +72,27 @@ export default function CompanySwitcher() {
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, [hydrated, hydrate]);
+
+  // AUTO-RETRY WHEN OPENING DROPDOWN: If the user opens the dropdown and the
+  // expected data is missing (e.g., the initial fetch failed silently, or they
+  // just created their first tenant/group/company on another tab), we kick off
+  // a forced refresh. This fixes the "dropdown is empty but Tenants tab shows
+  // data" symptom — the most common cause is a stale `hydrated=true` flag from
+  // an earlier failed fetch.
+  useEffect(() => {
+    if (!open) return;
+    const userRole = (user?.role || role || 'employee').toLowerCase();
+    if (userRole === 'super_admin' && availableTenants.length === 0 && !hydrating) {
+      refreshContext();
+    } else if (userRole === 'tenant_admin' && availableCompanies.length === 0 && !hydrating) {
+      // Only auto-refresh if we also have no groups — otherwise the tenant
+      // legitimately has groups but no companies yet, and auto-refresh would
+      // cause an unnecessary flicker every time they open the dropdown.
+      if (availableCompanyGroups.length === 0) {
+        refreshContext();
+      }
+    }
+  }, [open, user?.role, role, availableTenants.length, availableCompanies.length, availableCompanyGroups.length, hydrating, refreshContext]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -146,13 +174,54 @@ export default function CompanySwitcher() {
         <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[460px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-violet-50 border-b border-slate-100">
-            <p className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
-              <FiGrid className="w-3.5 h-3.5" /> Company Switcher
-            </p>
-            <p className="text-[11px] text-indigo-700/70 mt-0.5">
-              {isSuperAdmin ? 'Switch across all tenants and companies' : 'Switch between companies in your group'}
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
+                  <FiGrid className="w-3.5 h-3.5" /> Company Switcher
+                </p>
+                <p className="text-[11px] text-indigo-700/70 mt-0.5">
+                  {isSuperAdmin ? 'Switch across all tenants and companies' : 'Switch between companies in your group'}
+                </p>
+              </div>
+              <button
+                onClick={() => refreshContext()}
+                disabled={hydrating}
+                title="Refresh tenant & company list"
+                className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/60 px-2 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                <FiRefreshCw className={`w-3 h-3 ${hydrating ? 'animate-spin' : ''}`} />
+                {hydrating ? 'Loading' : 'Refresh'}
+              </button>
+            </div>
           </div>
+
+          {/* ERROR BANNER — shown when /api/me/context failed and we have
+              no data. The user can click Retry to force-refresh. */}
+          {lastError && availableTenants.length === 0 && availableCompanies.length === 0 && (
+            <div className="px-4 py-3 border-b border-red-100 bg-red-50/80 flex items-start gap-2">
+              <FiAlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-red-700">{lastError}</p>
+                <button
+                  onClick={() => refreshContext()}
+                  disabled={hydrating}
+                  className="text-[10px] font-bold text-red-700 hover:text-red-900 underline mt-1 disabled:opacity-50"
+                >
+                  {hydrating ? 'Retrying…' : 'Retry now'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* LOADING BANNER — shown during the very first hydrate (before any
+              data has been seen). Subsequent refreshes show the spinner in the
+              header button instead, so the existing list stays visible. */}
+          {hydrating && availableTenants.length === 0 && availableCompanies.length === 0 && !lastError && (
+            <div className="px-4 py-6 flex items-center justify-center gap-2 text-slate-500">
+              <FiRefreshCw className="w-4 h-4 animate-spin" />
+              <span className="text-xs">Loading tenants & companies…</span>
+            </div>
+          )}
 
           {/* TENANT INFO BANNER (tenant_admin only) — clearly shows which tenant
               the dropdown is scoped to. Previously the dropdown only listed
@@ -191,7 +260,25 @@ export default function CompanySwitcher() {
                 </span>
               </div>
               {availableTenants.length === 0 ? (
-                <p className="text-xs text-slate-400 italic py-2">No tenants created yet</p>
+                <div className="py-3">
+                  {hydrating ? (
+                    <p className="text-xs text-slate-400 italic flex items-center gap-1.5">
+                      <FiRefreshCw className="w-3 h-3 animate-spin" /> Loading tenants…
+                    </p>
+                  ) : lastError ? (
+                    <p className="text-xs text-red-500 italic">{lastError}</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-slate-400 italic">No tenants loaded yet.</p>
+                      <button
+                        onClick={() => refreshContext()}
+                        className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 mt-1 flex items-center gap-1"
+                      >
+                        <FiRefreshCw className="w-2.5 h-2.5" /> Click to load
+                      </button>
+                    </>
+                  )}
+                </div>
               ) : (
                 <div className="max-h-[140px] overflow-y-auto space-y-1 pr-1">
                   {availableTenants.map((t) => {

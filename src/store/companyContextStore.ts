@@ -58,6 +58,9 @@ export interface TenantQuota {
 interface CompanyContextState {
   // Hydrated from /api/me/context
   hydrated: boolean;
+  hydrating: boolean;
+  lastFetchAt: number | null;
+  lastError: string | null;
   role: string;
   tenantId: string | null;
   tenant: TenantInfo | null;
@@ -74,6 +77,7 @@ interface CompanyContextState {
 
   // Actions
   hydrate: (force?: boolean) => Promise<void>;
+  refreshContext: () => Promise<void>;
   refreshCompaniesFor: (tenantId: string) => Promise<void>;
   setSelectedTenant: (tenantId: string) => Promise<void>;
   setSelectedCompany: (companyId: string | null) => void;
@@ -97,6 +101,9 @@ export const useCompanyContextStore = create<CompanyContextState>()(
   persist(
     (set, get) => ({
       hydrated: false,
+      hydrating: false,
+      lastFetchAt: null,
+      lastError: null,
       role: 'employee',
       tenantId: null,
       tenant: null,
@@ -111,11 +118,18 @@ export const useCompanyContextStore = create<CompanyContextState>()(
 
       hydrate: async (force?: boolean) => {
         const state = get();
+        if (state.hydrating) return; // already in-flight
         if (state.hydrated && !force) return;
+        set({ hydrating: true });
         try {
           const res = await fetch('/api/me/context', { headers: getAuthHeaders() });
           if (!res.ok) {
-            set({ hydrated: true });
+            // Don't mark hydrated=true on auth failure — let the user retry.
+            // The authStore will handle 401 by logging the user out.
+            const errMsg = res.status === 401
+              ? 'Session expired — please sign in again.'
+              : `Failed to load context (HTTP ${res.status})`;
+            set({ hydrating: false, hydrated: true, lastError: errMsg, lastFetchAt: Date.now() });
             return;
           }
           const data = await res.json();
@@ -124,12 +138,18 @@ export const useCompanyContextStore = create<CompanyContextState>()(
 
           // Default the selected tenant to the caller's tenant for tenant_admin,
           // or to the first available for super_admin (if a previous selection
-          // is not persisted).
+          // is not persisted or the persisted one no longer exists).
           const persistedSelectedTenant = state.selectedTenantId;
+          const stillExists = persistedSelectedTenant
+            ? (data.availableTenants || []).some((t: TenantOption) => t.id === persistedSelectedTenant)
+            : false;
           let selectedTenantId: string | null = null;
           if (canSwitch) {
             if (role === 'super_admin') {
-              selectedTenantId = persistedSelectedTenant || data.tenantId || data.availableTenants?.[0]?.id || null;
+              selectedTenantId = (stillExists ? persistedSelectedTenant : null)
+                || data.tenantId
+                || data.availableTenants?.[0]?.id
+                || null;
             } else {
               selectedTenantId = data.tenantId;
             }
@@ -138,10 +158,21 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           }
 
           // For non-admins, the effective company is always their own.
-          const selectedCompanyId = canSwitch ? state.selectedCompanyId : data.ownCompanyId;
+          // For admins, if the persisted selectedCompanyId is no longer in the
+          // fresh list (e.g., company was deleted), reset it to null ("all").
+          const persistedSelectedCompany = state.selectedCompanyId;
+          const companyStillExists = persistedSelectedCompany
+            ? (data.availableCompanies || []).some((c: CompanyOption) => c.id === persistedSelectedCompany)
+            : false;
+          const selectedCompanyId = canSwitch
+            ? (companyStillExists ? persistedSelectedCompany : null)
+            : data.ownCompanyId;
 
           set({
             hydrated: true,
+            hydrating: false,
+            lastFetchAt: Date.now(),
+            lastError: null,
             role,
             tenantId: data.tenantId,
             tenant: data.tenant || null,
@@ -156,8 +187,14 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           });
         } catch (e) {
           console.error('companyContext.hydrate error:', e);
-          set({ hydrated: true });
+          set({ hydrating: false, hydrated: true, lastError: 'Network error — click refresh to retry.', lastFetchAt: Date.now() });
         }
+      },
+
+      refreshContext: async () => {
+        // Always force a fresh fetch — used by the Refresh button in the
+        // CompanySwitcher dropdown and after mutations (create tenant, etc.).
+        await get().hydrate(true);
       },
 
       refreshCompaniesFor: async (tenantId: string) => {
@@ -196,6 +233,9 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       reset: () => {
         set({
           hydrated: false,
+          hydrating: false,
+          lastFetchAt: null,
+          lastError: null,
           tenant: null,
           tenantQuota: null,
           availableTenants: [],
