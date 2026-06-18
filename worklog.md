@@ -891,3 +891,44 @@ Stage Summary:
 - The endpoint will now ALWAYS return 200 (with whatever data it could fetch) instead of 500. Even if a single query fails (e.g., schema mismatch on one relation), the dropdown will render with the partial data we managed to fetch.
 - Pushed commit 0c9b41a to main → Vercel auto-deploy triggered.
 - Next: user should hard-refresh the live site (Ctrl+Shift+R) and try the dropdown again. If still empty after refresh, the per-query error labels in Vercel logs will tell us EXACTLY which query is failing so we can fix the root cause.
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix super admin → Group Companies list not visible, header dropdown not filtering page data, and /company page showing no companies under groups. User's exact words: "super admin - group companies - the list is not visible in the view. the header drop down is showing the aprent companies and the group companies list but iam nto able to select the companies under that grou pto view teh data under that group company. under comapnies management - companies view is not showing any companies under the group."
+
+Work Log:
+- Synced local main to origin/main (previous session's commits 0c9b41a, 5a58645, 7664a29, f7ae87a were already there)
+- Diagnosed the root cause for /company page showing no companies for super_admin:
+  - /api/companies GET for super_admin defaulted effectiveTenantId to callerTenantId
+  - But super_admin's callerTenantId is the seed/admin tenant, which has no real companies
+  - So the API returned an empty list, even when companies existed under other tenants
+- Diagnosed that /company page (company-management.tsx) never read the header dropdown selection — it just called /api/companies with no params, so picking a parent/company in the dropdown did nothing on this page
+- Fixed /api/companies GET endpoint:
+  - Super admin without tenantId query → return companies across ALL tenants (no filter)
+  - Super admin with tenantId query → scope to that tenant
+  - Any role with companyId query → return only that company (tenant ownership enforced for non-super-admin)
+  - Tenant admin / others → still scoped to callerTenantId (unchanged behavior)
+- Wired up company-management.tsx to useCompanyContextStore:
+  - Reads selectedTenantId, selectedCompanyId, availableTenants, availableCompanies
+  - Passes them as query params to /api/companies
+  - Re-fetches whenever the dropdown selection changes
+  - Shows an "Active scope" banner at the top of the companies tab
+  - Shows parent group company name + parent tenant name (super admin only) as badges on each company card
+  - Shows "Parent Group Company" and "Parent Tenant" fields in the view-detail panel
+  - Better empty-state messaging that adapts to whether a filter is active
+- Added scripts/test-companies-api.mjs as a manual eyeball test (not auto-run)
+- Verified: npx tsc --noEmit — no new errors (only pre-existing errors in src/lib/currency.ts)
+- Verified: npx next build — succeeded with no errors
+- Committed as ce963f5 and pushed to origin/main → Vercel auto-deploy triggered
+
+Stage Summary:
+- /company page now correctly shows companies for super_admin (was showing nothing before)
+- Header dropdown selection now actually filters the /company page (was being ignored before)
+- Each company card now displays its parent group company + parent tenant, making the Tenant → Group → Company hierarchy visible at a glance
+- Pushed commit ce963f5 to main → Vercel auto-deploy triggered
+- Next: user should hard-refresh the live site (Ctrl+Shift+R) and verify:
+  1. Super admin → /company page → should now see ALL companies across all tenants by default
+  2. Pick a parent company in the header dropdown → /company page should narrow to that parent's companies
+  3. Pick a specific company in the header dropdown → /company page should show only that company
+  4. Each company card should show the parent group + parent tenant name (for super admin)
