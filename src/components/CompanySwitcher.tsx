@@ -34,8 +34,8 @@ export default function CompanySwitcher() {
     hydrated, hydrate, refreshContext,
     role, ownCompany, ownCompanyId, tenant, tenantQuota,
     availableTenants, availableCompanies, availableCompanyGroups,
-    selectedTenantId, selectedCompanyId,
-    setSelectedTenant, setSelectedCompany, setRole,
+    selectedTenantId, selectedGroupId, selectedCompanyId,
+    setSelectedTenant, setSelectedGroup, setSelectedCompany, setRole,
     effectiveCompanyLabel, canSwitch,
     hydrating, lastError,
   } = useCompanyContextStore();
@@ -359,15 +359,17 @@ export default function CompanySwitcher() {
           </div>
 
           <div className="max-h-[280px] overflow-y-auto">
-            {/* "All companies" option */}
+            {/* "All companies" option — clears both group and company selection
+                so the user sees everything in the current tenant/parent scope. */}
             <button
               onClick={() => {
+                setSelectedGroup(null);
                 setSelectedCompany(null);
                 setOpen(false);
                 setSearch('');
               }}
               className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between border-b border-slate-100 ${
-                selectedCompanyId === null ? 'bg-indigo-50/40' : ''
+                selectedCompanyId === null && selectedGroupId === null ? 'bg-indigo-50/40' : ''
               }`}
             >
               <div className="flex items-center gap-2">
@@ -382,7 +384,7 @@ export default function CompanySwitcher() {
                   </p>
                 </div>
               </div>
-              {selectedCompanyId === null && <FiCheck className="w-4 h-4 text-indigo-600" />}
+              {selectedCompanyId === null && selectedGroupId === null && <FiCheck className="w-4 h-4 text-indigo-600" />}
             </button>
 
             {/* Grouped company list */}
@@ -400,17 +402,46 @@ export default function CompanySwitcher() {
                           : `${availableCompanyGroups.length} group compan${availableCompanyGroups.length === 1 ? 'y' : 'ies'} exist but no companies inducted yet`)
                     : 'No matches for your search'}
                 </p>
+                {/* When groups exist but no companies have been inducted yet,
+                    show the groups as CLICKABLE buttons so the user can still
+                    pick one to scope the page to "all companies in this group"
+                    (which will be empty, but at least the user can see what
+                    groups exist). Also show a CTA so the user knows where to
+                    go to create companies. */}
                 {(availableCompanyGroups.length > 0 && availableCompanies.length === 0) && (
                   <div className="mt-3 px-3 text-left">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Group companies</p>
-                    {availableCompanyGroups.map((g) => (
-                      <div key={g.id} className="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded mb-1">
-                        <span className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
-                          <FiLayers className="w-3 h-3 text-violet-500" /> {g.name}
-                        </span>
-                        <span className="text-[10px] text-slate-500">0 companies</span>
-                      </div>
-                    ))}
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Group companies (click to select)</p>
+                    {availableCompanyGroups.map((g) => {
+                      const isGSelected = selectedGroupId === g.id && selectedCompanyId === null;
+                      return (
+                        <button
+                          key={g.id}
+                          onClick={() => {
+                            setSelectedGroup(g.id);
+                            setOpen(false);
+                            setSearch('');
+                          }}
+                          className={`w-full flex items-center justify-between py-1.5 px-2 rounded mb-1 transition-colors ${
+                            isGSelected
+                              ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          <span className="text-xs font-medium flex items-center gap-1.5">
+                            <FiLayers className="w-3 h-3 text-violet-500" /> {g.name}
+                          </span>
+                          <span className="text-[10px] text-slate-500">0 companies</span>
+                        </button>
+                      );
+                    })}
+                    <a
+                      href={isSuperAdmin ? '/super-admin' : '/tenant-admin/companies'}
+                      onClick={() => setOpen(false)}
+                      className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
+                      <FiBriefcase className="w-3 h-3" />
+                      {isSuperAdmin ? 'Create companies in Super Admin →' : 'Induct a company →'}
+                    </a>
                   </div>
                 )}
               </div>
@@ -418,21 +449,47 @@ export default function CompanySwitcher() {
               filteredGroups.map(([gid, g]) => {
                 // Find the underlying CompanyGroupOption to show its employee barrier
                 const groupMeta = availableCompanyGroups.find((x) => x.id === gid);
+                const isGroupSelected = selectedGroupId === gid && selectedCompanyId === null;
                 return (
                   <div key={gid} className="border-b border-slate-100 last:border-b-0">
-                    <div className="px-4 py-1.5 bg-slate-50/60 flex items-center justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    {/* Group header — CLICKABLE. Clicking selects the group as
+                        the scope ("all companies in this group"), which lets
+                        the user view data aggregated across every company in
+                        the group without having to pick one. */}
+                    <button
+                      onClick={() => {
+                        setSelectedGroup(gid);
+                        setOpen(false);
+                        setSearch('');
+                      }}
+                      className={`w-full px-4 py-1.5 flex items-center justify-between transition-colors ${
+                        isGroupSelected
+                          ? 'bg-violet-50/80 hover:bg-violet-100/80'
+                          : 'bg-slate-50/60 hover:bg-slate-100/80'
+                      }`}
+                      title={`View all companies in the "${g.groupName}" group`}
+                    >
+                      <p className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        isGroupSelected ? 'text-violet-700' : 'text-slate-500'
+                      }`}>
                         <FiLayers className="w-3 h-3" /> {g.groupName}
-                      </p>
-                      {groupMeta && groupMeta.maxEmployees !== null && groupMeta.maxEmployees !== undefined && groupMeta.maxEmployees > 0 && (
-                        <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
-                          <FiUsers className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />
-                          {groupMeta.employeeLimitMode === 'per_company' ? 'per-co' : 'group'} cap: {groupMeta.maxEmployees}
+                        <span className="ml-1 normal-case font-medium text-[9px] text-slate-400">
+                          ({g.items.length} compan{g.items.length === 1 ? 'y' : 'ies'})
                         </span>
-                      )}
-                    </div>
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        {groupMeta && groupMeta.maxEmployees !== null && groupMeta.maxEmployees !== undefined && groupMeta.maxEmployees > 0 && (
+                          <span className="text-[9px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                            <FiUsers className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />
+                            {groupMeta.employeeLimitMode === 'per_company' ? 'per-co' : 'group'} cap: {groupMeta.maxEmployees}
+                          </span>
+                        )}
+                        {isGroupSelected && <FiCheck className="w-3.5 h-3.5 text-violet-600" />}
+                      </div>
+                    </button>
                     {g.items.map((c) => {
                       const empCount = c._count?.employees || 0;
+                      const isCompanySelected = selectedCompanyId === c.id;
                       return (
                         <button
                           key={c.id}
@@ -441,8 +498,8 @@ export default function CompanySwitcher() {
                             setOpen(false);
                             setSearch('');
                           }}
-                          className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between ${
-                            selectedCompanyId === c.id ? 'bg-indigo-50/40' : ''
+                          className={`w-full text-left pl-8 pr-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between ${
+                            isCompanySelected ? 'bg-indigo-50/40' : ''
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -459,7 +516,7 @@ export default function CompanySwitcher() {
                               </p>
                             </div>
                           </div>
-                          {selectedCompanyId === c.id && <FiCheck className="w-4 h-4 text-indigo-600 flex-shrink-0" />}
+                          {isCompanySelected && <FiCheck className="w-4 h-4 text-indigo-600 flex-shrink-0" />}
                         </button>
                       );
                     })}

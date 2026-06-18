@@ -72,7 +72,14 @@ interface CompanyContextState {
   availableCompanies: CompanyOption[];
 
   // User's current selection (admins only)
+  //   selectedTenantId  — super_admin: which parent (tenant) is in scope
+  //   selectedGroupId   — admin: which group company is in scope ("all companies in this group")
+  //   selectedCompanyId — admin: which specific company is in scope (most specific)
+  // The hierarchy of precedence is: selectedCompanyId > selectedGroupId > selectedTenantId.
+  // Selecting a more specific scope clears the broader ones (e.g., picking a company
+  // clears selectedGroupId because the company already implies a group).
   selectedTenantId: string | null;
+  selectedGroupId: string | null;
   selectedCompanyId: string | null;
 
   // Actions
@@ -80,12 +87,14 @@ interface CompanyContextState {
   refreshContext: () => Promise<void>;
   refreshCompaniesFor: (tenantId: string) => Promise<void>;
   setSelectedTenant: (tenantId: string) => Promise<void>;
+  setSelectedGroup: (groupId: string | null) => void;
   setSelectedCompany: (companyId: string | null) => void;
   setRole: (role: string) => void;
   reset: () => void;
 
   // Selectors
   effectiveCompanyId: () => string | null;
+  effectiveGroupId: () => string | null;
   effectiveCompanyLabel: (userRole?: string) => string;
   canSwitch: (userRole?: string) => boolean;
   selectedTenant: () => TenantOption | null;
@@ -114,6 +123,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       availableCompanyGroups: [],
       availableCompanies: [],
       selectedTenantId: null,
+      selectedGroupId: null,
       selectedCompanyId: null,
 
       hydrate: async (force?: boolean) => {
@@ -168,6 +178,22 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             ? (companyStillExists ? persistedSelectedCompany : null)
             : data.ownCompanyId;
 
+          // Validate the persisted selectedGroupId — if the group no longer exists
+          // (e.g., was deleted by super admin), reset it to null.
+          const persistedSelectedGroup = state.selectedGroupId;
+          const groupStillExists = persistedSelectedGroup
+            ? (data.availableCompanyGroups || []).some((g: CompanyGroupOption) => g.id === persistedSelectedGroup)
+            : false;
+          // If a specific company is selected, its group takes precedence over any
+          // persisted group selection — we derive the group from the company.
+          let selectedGroupId: string | null = null;
+          if (selectedCompanyId) {
+            const c = (data.availableCompanies || []).find((x: CompanyOption) => x.id === selectedCompanyId);
+            selectedGroupId = c?.companyGroupId || null;
+          } else if (groupStillExists) {
+            selectedGroupId = persistedSelectedGroup;
+          }
+
           set({
             hydrated: true,
             hydrating: false,
@@ -183,6 +209,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             availableCompanyGroups: data.availableCompanyGroups || [],
             availableCompanies: data.availableCompanies || [],
             selectedTenantId,
+            selectedGroupId,
             selectedCompanyId,
           });
         } catch (e) {
@@ -206,7 +233,8 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             availableCompanyGroups: data.availableCompanyGroups || [],
             availableCompanies: data.availableCompanies || [],
             selectedTenantId: tenantId,
-            selectedCompanyId: null, // reset on tenant change
+            selectedGroupId: null,    // reset on tenant change
+            selectedCompanyId: null,  // reset on tenant change
           });
         } catch (e) {
           console.error('companyContext.refreshCompaniesFor error:', e);
@@ -218,8 +246,25 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         await get().refreshCompaniesFor(tenantId);
       },
 
+      setSelectedGroup: (groupId: string | null) => {
+        // Selecting a group clears any specific company selection (the company
+        // would override the group). When clearing the group we also clear the
+        // company for consistency.
+        set({ selectedGroupId: groupId, selectedCompanyId: null });
+      },
+
       setSelectedCompany: (companyId: string | null) => {
-        set({ selectedCompanyId: companyId });
+        // Selecting a specific company automatically derives its group, so the
+        // group is always consistent with the picked company.
+        const s = get();
+        if (companyId) {
+          const c = s.availableCompanies.find((x) => x.id === companyId);
+          set({ selectedCompanyId: companyId, selectedGroupId: c?.companyGroupId || null });
+        } else {
+          // Clearing the company keeps the current group selection intact so
+          // the user can fall back to "all companies in this group".
+          set({ selectedCompanyId: null });
+        }
       },
 
       setRole: (role: string) => {
@@ -242,6 +287,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           availableCompanyGroups: [],
           availableCompanies: [],
           selectedTenantId: null,
+          selectedGroupId: null,
           selectedCompanyId: null,
         });
       },
@@ -256,6 +302,25 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         return s.ownCompanyId;
       },
 
+      effectiveGroupId: () => {
+        const s = get();
+        const r = s.role;
+        if (r === 'super_admin' || r === 'tenant_admin') {
+          // If a specific company is selected, its group is implied.
+          if (s.selectedCompanyId) {
+            const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
+            return c?.companyGroupId || s.selectedGroupId || null;
+          }
+          return s.selectedGroupId;
+        }
+        // Non-admins: derive from their own company.
+        if (s.ownCompanyId) {
+          const c = s.availableCompanies.find((x) => x.id === s.ownCompanyId);
+          return c?.companyGroupId || null;
+        }
+        return null;
+      },
+
       effectiveCompanyLabel: (userRole?: string) => {
         const s = get();
         // Prefer the explicitly passed userRole (from authStore.user.role) —
@@ -265,18 +330,22 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         // page reload.
         const r = (userRole || s.role || 'employee').toLowerCase();
         if (r === 'super_admin' || r === 'tenant_admin') {
+          // Most specific: a single company
           if (s.selectedCompanyId) {
             const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
             return c?.name || 'Unknown company';
           }
-          // No specific selection: show group/parent-level label.
-          // For super_admin, mention the parent (tenant) name so it's clear
-          // which tenant the "all companies" scope refers to.
+          // Next: a group company ("all companies in this group")
+          if (s.selectedGroupId) {
+            const g = s.availableCompanyGroups.find((x) => x.id === s.selectedGroupId);
+            if (g) return `${g.name} (group)`;
+          }
+          // Broadest: all companies in the tenant/parent
           if (r === 'tenant_admin') {
-            return s.tenant?.name ? `${s.tenant.name} (all companies)` : 'All companies (group)';
+            return s.tenant?.name ? `${s.tenant.name} (all)` : 'All companies (group)';
           }
           const t = s.availableTenants.find((x) => x.id === s.selectedTenantId);
-          return t ? `${t.name} (all companies)` : 'All parents';
+          return t ? `${t.name} (all)` : 'All parents';
         }
         return s.ownCompany?.name || 'Not yet assigned';
       },
@@ -309,6 +378,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       // page navigation.
       partialize: (s) => ({
         selectedTenantId: s.selectedTenantId,
+        selectedGroupId: s.selectedGroupId,
         selectedCompanyId: s.selectedCompanyId,
         role: s.role,
         tenantId: s.tenantId,

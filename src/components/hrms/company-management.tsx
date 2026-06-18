@@ -105,7 +105,7 @@ export default function CompanyManagement() {
   // scoped to that selection. selectedTenantId is also passed for super_admin
   // (who can switch across tenants). For tenant_admin, the API auto-scopes to
   // their own tenant via the JWT, so selectedTenantId is ignored.
-  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, availableCompanyGroups, hydrated, hydrate } = useCompanyContextStore()
+  const { selectedTenantId, selectedGroupId, selectedCompanyId, availableTenants, availableCompanies, availableCompanyGroups, hydrated, hydrate } = useCompanyContextStore()
   const userRole = (user?.role || 'employee').toLowerCase()
   const isSuperAdmin = userRole === 'super_admin'
   const isTenantAdmin = userRole === 'tenant_admin'
@@ -140,20 +140,27 @@ export default function CompanyManagement() {
   const fetchCompanies = useCallback(async () => {
     setLoading(l => ({ ...l, companies: true }))
     try {
-      // Build query string from header dropdown selection. For super_admin,
-      // selectedTenantId scopes to a specific parent company; selectedCompanyId
-      // narrows further to a single company. For tenant_admin, the API scopes
-      // via the JWT (selectedTenantId is ignored server-side).
+      // Build query string from header dropdown selection. Precedence:
+      //   selectedCompanyId  → most specific (single company)
+      //   selectedGroupId    → "all companies in this group"
+      //   selectedTenantId   → "all companies in this parent" (super_admin only)
+      // For tenant_admin, the API scopes via the JWT — selectedTenantId is
+      // ignored server-side.
       const params = new URLSearchParams()
-      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
-      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (selectedCompanyId) {
+        params.set('companyId', selectedCompanyId)
+      } else if (selectedGroupId) {
+        params.set('groupId', selectedGroupId)
+      } else if (isSuperAdmin && selectedTenantId) {
+        params.set('tenantId', selectedTenantId)
+      }
       const qs = params.toString()
       const url = qs ? `/api/companies?${qs}` : '/api/companies'
       const res = await apiFetch<{ companies: CompanyRecord[] }>(url)
       setCompanies(res.companies || [])
     } catch { toast.error('Failed to load companies') }
     finally { setLoading(l => ({ ...l, companies: false })) }
-  }, [isSuperAdmin, selectedTenantId, selectedCompanyId])
+  }, [isSuperAdmin, selectedTenantId, selectedGroupId, selectedCompanyId])
 
   const fetchBranches = useCallback(async () => {
     setLoading(l => ({ ...l, branches: true }))
@@ -226,11 +233,13 @@ export default function CompanyManagement() {
   // Re-fetch companies whenever the header dropdown selection changes. This
   // is the key wiring that makes the dropdown actually do something on this
   // page — without it, the dropdown would just change UI state but the data
-  // would stay the same.
+  // would stay the same. We include selectedGroupId so that picking a group
+  // company in the dropdown (which sets selectedGroupId, not selectedCompanyId)
+  // also triggers a re-fetch scoped to that group.
   useEffect(() => {
     fetchCompanies()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTenantId, selectedCompanyId])
+  }, [selectedTenantId, selectedGroupId, selectedCompanyId])
 
   // ============ CRUD Handlers ============
   const refreshMap: Record<string, () => void> = {
@@ -739,6 +748,11 @@ export default function CompanyManagement() {
                           <FiBriefcase className="w-3 h-3" />
                           {availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Selected company'}
                         </span>
+                      ) : selectedGroupId ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
+                          <FiLayers className="w-3 h-3" />
+                          All companies in group "{availableCompanyGroups.find((g) => g.id === selectedGroupId)?.name || 'selected'}"
+                        </span>
                       ) : isSuperAdmin && selectedTenantId ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
                           <FiHome className="w-3 h-3" />
@@ -793,9 +807,11 @@ export default function CompanyManagement() {
                   <p className="text-xs text-nexus-text-muted mt-1 max-w-sm mx-auto">
                     {selectedCompanyId
                       ? 'No company matches the header dropdown selection. Pick "All companies" in the dropdown to see the full list.'
-                      : isSuperAdmin && selectedTenantId
-                        ? 'No companies have been inducted under any group company for this parent yet. Open Super Admin → Group Companies to create groups and induct companies.'
-                        : 'No companies have been created in your tenant yet. Ask your super admin to create a group company first, then induct companies under it from the Tenant Admin module.'}
+                      : selectedGroupId
+                        ? `No companies have been inducted under the selected group "${availableCompanyGroups.find((g) => g.id === selectedGroupId)?.name || ''}" yet. Use the Tenant Admin → Companies page to induct one.`
+                        : isSuperAdmin && selectedTenantId
+                          ? 'No companies have been inducted under any group company for this parent yet. Open Super Admin → Group Companies to create groups and induct companies.'
+                          : 'No companies have been created in your tenant yet. Ask your super admin to create a group company first, then induct companies under it from the Tenant Admin module.'}
                   </p>
                 </div>
               ) : fCompanies.map(c => {

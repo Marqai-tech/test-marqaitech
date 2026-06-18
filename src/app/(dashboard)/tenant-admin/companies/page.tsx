@@ -103,7 +103,7 @@ const EMPTY_FORM = {
 
 export default function TenantCompaniesPage() {
   const { user } = useAuthStore();
-  const { hydrate, availableCompanyGroups, hydrated: ctxHydrated, tenant, tenantQuota } = useCompanyContextStore();
+  const { hydrate, availableCompanyGroups, hydrated: ctxHydrated, tenant, tenantQuota, selectedGroupId, selectedCompanyId } = useCompanyContextStore();
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -125,7 +125,19 @@ export default function TenantCompaniesPage() {
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/companies', { headers: getAuthHeaders() });
+      // Build the query string from the header dropdown selection.
+      // Precedence: selectedCompanyId > selectedGroupId > (tenant scope via JWT).
+      // For super_admin, the API would also accept tenantId but this page is
+      // for tenant_admin so we rely on the JWT for tenant scoping.
+      const params = new URLSearchParams();
+      if (selectedCompanyId) {
+        params.set('companyId', selectedCompanyId);
+      } else if (selectedGroupId) {
+        params.set('groupId', selectedGroupId);
+      }
+      const qs = params.toString();
+      const url = qs ? `/api/companies?${qs}` : '/api/companies';
+      const res = await fetch(url, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setCompanies(data.companies || []);
@@ -146,12 +158,18 @@ export default function TenantCompaniesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedGroupId, selectedCompanyId]);
 
   useEffect(() => {
     if (!ctxHydrated) hydrate();
     fetchCompanies();
   }, [ctxHydrated, hydrate, fetchCompanies]);
+
+  // Re-fetch whenever the header dropdown selection changes (company or group).
+  // This is what makes the dropdown actually filter the data on this page.
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
 
   const filtered = companies.filter((c) => {
     if (!search) return true;
@@ -276,21 +294,19 @@ export default function TenantCompaniesPage() {
                     );
                     return;
                   }
-                  if (availableCompanyGroups.length === 0) {
-                    toast.error(
-                      'No group companies exist under your tenant yet. Only your super admin can create group companies — please ask them to create one first.'
-                    );
-                    return;
-                  }
+                  // Note: we intentionally do NOT block the user from opening
+                  // the form when availableCompanyGroups is empty. The form
+                  // itself shows an inline "no group companies available"
+                  // message with guidance to contact the super admin. This is
+                  // better UX than a disabled button that leaves the user
+                  // wondering why nothing happens on click.
                   setShowCreate(true);
                 }}
-                disabled={quotaReached || availableCompanyGroups.length === 0}
+                disabled={quotaReached}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 title={
                   quotaReached
                     ? 'Company quota reached'
-                    : availableCompanyGroups.length === 0
-                    ? 'No group companies available — ask your super admin to create one first'
                     : 'Create new company'
                 }
               >

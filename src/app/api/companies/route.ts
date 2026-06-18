@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const requestedTenantId = searchParams.get('tenantId');
+    // Optional: narrow to a specific group company (sent by the header
+    // CompanySwitcher when an admin clicks a group header to view "all
+    // companies in this group"). This takes precedence over tenantId
+    // because the group already implies a tenant.
+    const requestedGroupId = searchParams.get('groupId');
     // Optional: narrow to a specific company (sent by the header CompanySwitcher)
     const requestedCompanyId = searchParams.get('companyId');
     const search = searchParams.get('search');
@@ -41,6 +46,8 @@ export async function GET(req: NextRequest) {
     // Scope by role
     //
     // ─── SUPER ADMIN ───
+    //   * If `groupId` is provided → scope to that group (the group's tenant
+    //     is implied, so we don't need to also filter by tenantId).
     //   * If `tenantId` is provided → scope companies to that tenant (used by
     //     the header dropdown when a super admin picks a parent company).
     //   * If `companyId` is provided → return only that single company.
@@ -51,6 +58,9 @@ export async function GET(req: NextRequest) {
     //
     // ─── TENANT ADMIN / OTHER ROLES ───
     //   * Always scope to callerTenantId (their own tenant only).
+    //     If they pass a groupId, it must belong to their own tenant —
+    //     we verify that by filtering through the companyGroup.tenantId
+    //     relation in the where clause.
     let effectiveTenantId: string | null = null;
     if (role === 'super_admin') {
       effectiveTenantId = requestedTenantId || null;
@@ -59,7 +69,16 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Record<string, unknown> = {};
-    if (effectiveTenantId) {
+    if (requestedGroupId) {
+      // Group filter takes precedence over tenant filter (a group already
+      // belongs to exactly one tenant). For tenant_admin / others, the
+      // companyGroup.tenantId check below ensures they can't peek at another
+      // tenant's group.
+      where.companyGroupId = requestedGroupId;
+      if (role !== 'super_admin' && callerTenantId) {
+        where.companyGroup = { tenantId: callerTenantId };
+      }
+    } else if (effectiveTenantId) {
       const companyGroups = await db.companyGroup.findMany({
         where: { tenantId: effectiveTenantId },
         select: { id: true },
@@ -67,7 +86,7 @@ export async function GET(req: NextRequest) {
       const groupIds = companyGroups.map((g) => g.id);
       where.companyGroupId = { in: groupIds };
     }
-    // Single-company filter takes precedence over the tenant scope — if the
+    // Single-company filter takes precedence over the tenant/group scope — if the
     // caller passes a companyId we just return that one company (provided the
     // caller is authorized: super_admin can see any; tenant_admin must own it).
     if (requestedCompanyId) {
