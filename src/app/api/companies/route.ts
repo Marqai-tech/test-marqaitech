@@ -34,18 +34,27 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const requestedTenantId = searchParams.get('tenantId');
+    // Optional: narrow to a specific company (sent by the header CompanySwitcher)
+    const requestedCompanyId = searchParams.get('companyId');
     const search = searchParams.get('search');
 
     // Scope by role
+    //
+    // ─── SUPER ADMIN ───
+    //   * If `tenantId` is provided → scope companies to that tenant (used by
+    //     the header dropdown when a super admin picks a parent company).
+    //   * If `companyId` is provided → return only that single company.
+    //   * Otherwise → return companies across ALL tenants, so the super admin
+    //     can actually see what's in the system. Previously this defaulted to
+    //     `callerTenantId`, which for super_admin is the seed/admin tenant
+    //     with no real companies — so the page showed nothing.
+    //
+    // ─── TENANT ADMIN / OTHER ROLES ───
+    //   * Always scope to callerTenantId (their own tenant only).
     let effectiveTenantId: string | null = null;
     if (role === 'super_admin') {
-      // Super admin can request any tenant, default to their own
-      effectiveTenantId = requestedTenantId || callerTenantId;
-    } else if (role === 'tenant_admin') {
-      // Tenant admin: only their own tenant
-      effectiveTenantId = callerTenantId;
+      effectiveTenantId = requestedTenantId || null;
     } else {
-      // Other roles: scope to their own tenant as well (for read access)
       effectiveTenantId = callerTenantId;
     }
 
@@ -57,6 +66,19 @@ export async function GET(req: NextRequest) {
       });
       const groupIds = companyGroups.map((g) => g.id);
       where.companyGroupId = { in: groupIds };
+    }
+    // Single-company filter takes precedence over the tenant scope — if the
+    // caller passes a companyId we just return that one company (provided the
+    // caller is authorized: super_admin can see any; tenant_admin must own it).
+    if (requestedCompanyId) {
+      if (role === 'super_admin') {
+        where.id = requestedCompanyId;
+      } else {
+        // For tenant_admin / others, ensure the company is in their tenant
+        // before returning it. We resolve via the companyGroup relation.
+        where.id = requestedCompanyId;
+        where.companyGroup = { tenantId: callerTenantId };
+      }
     }
     if (search) {
       where.OR = [

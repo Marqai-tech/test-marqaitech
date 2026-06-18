@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
+import { useCompanyContextStore } from '@/store/companyContextStore'
 import ModuleTips from '@/components/ModuleTips'
 import ModuleWorkflow from '@/components/ModuleWorkflow'
 
@@ -33,7 +34,34 @@ const companyWorkflowSteps = [
 ]
 
 /* ── Types ── */
-interface CompanyRecord { id: string; name: string; code?: string; city?: string; state?: string; country?: string; status: string; taxId?: string; phone?: string; email?: string; website?: string; address?: string; zipCode?: string; currency?: string; timezone?: string; _count?: { departments: number; branches: number } }
+interface CompanyRecord {
+  id: string;
+  name: string;
+  code?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  status: string;
+  taxId?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  zipCode?: string;
+  currency?: string;
+  timezone?: string;
+  _count?: { departments: number; branches: number };
+  // Parent group company + parent tenant — populated by /api/companies which
+  // includes the companyGroup.tenant relation. Used to show "under: <group> ·
+  // <tenant>" on each company card so the user always knows where a company
+  // sits in the Tenant → Group Company → Company hierarchy.
+  companyGroup?: {
+    id: string;
+    name: string;
+    tenantId: string;
+    tenant?: { id: string; name: string; slug: string } | null;
+  };
+}
 interface BranchRecord { id: string; name: string; code?: string; companyId: string; city?: string; state?: string; country?: string; address?: string; zipCode?: string; phone?: string; email?: string; status: string; company?: { id: string; name: string; code?: string }; _count?: { employees: number } }
 interface DepartmentRecord { id: string; name: string; code?: string; companyId: string; status: string; company?: { id: string; name: string }; branch?: { id: string; name: string } | null; _count?: { employees: number; designations: number } }
 interface DesignationRecord { id: string; title: string; departmentId: string; level: number; minSalary?: number | null; maxSalary?: number | null; status: string; department?: { id: string; name: string }; _count?: { employees: number } }
@@ -72,6 +100,17 @@ export default function CompanyManagement() {
   const { user } = useAuthStore()
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '')
 
+  // Company scope — read from the header CompanySwitcher via context store.
+  // When the admin selects a company in the dropdown, we re-fetch companies
+  // scoped to that selection. selectedTenantId is also passed for super_admin
+  // (who can switch across tenants). For tenant_admin, the API auto-scopes to
+  // their own tenant via the JWT, so selectedTenantId is ignored.
+  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, availableCompanyGroups, hydrated, hydrate } = useCompanyContextStore()
+  const userRole = (user?.role || 'employee').toLowerCase()
+  const isSuperAdmin = userRole === 'super_admin'
+  const isTenantAdmin = userRole === 'tenant_admin'
+  const canSwitch = isSuperAdmin || isTenantAdmin
+
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('companies')
 
@@ -101,11 +140,20 @@ export default function CompanyManagement() {
   const fetchCompanies = useCallback(async () => {
     setLoading(l => ({ ...l, companies: true }))
     try {
-      const res = await apiFetch<{ companies: CompanyRecord[] }>('/api/companies')
+      // Build query string from header dropdown selection. For super_admin,
+      // selectedTenantId scopes to a specific parent company; selectedCompanyId
+      // narrows further to a single company. For tenant_admin, the API scopes
+      // via the JWT (selectedTenantId is ignored server-side).
+      const params = new URLSearchParams()
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const qs = params.toString()
+      const url = qs ? `/api/companies?${qs}` : '/api/companies'
+      const res = await apiFetch<{ companies: CompanyRecord[] }>(url)
       setCompanies(res.companies || [])
     } catch { toast.error('Failed to load companies') }
     finally { setLoading(l => ({ ...l, companies: false })) }
-  }, [])
+  }, [isSuperAdmin, selectedTenantId, selectedCompanyId])
 
   const fetchBranches = useCallback(async () => {
     setLoading(l => ({ ...l, branches: true }))
@@ -163,10 +211,26 @@ export default function CompanyManagement() {
     finally { setLoading(l => ({ ...l, policies: false })) }
   }, [])
 
+  // Hydrate the company context store on mount so we have the selected
+  // tenant/company IDs ready for fetchCompanies. The fetch itself also depends
+  // on these values, so any time they change we re-fetch the company list.
+  useEffect(() => {
+    if (!hydrated) hydrate()
+  }, [hydrated, hydrate])
+
   useEffect(() => {
     fetchCompanies(); fetchBranches(); fetchDepartments(); fetchDesignations(); fetchShifts(); fetchHolidays(); fetchPolicies()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Re-fetch companies whenever the header dropdown selection changes. This
+  // is the key wiring that makes the dropdown actually do something on this
+  // page — without it, the dropdown would just change UI state but the data
+  // would stay the same.
+  useEffect(() => {
+    fetchCompanies()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTenantId, selectedCompanyId])
 
   // ============ CRUD Handlers ============
   const refreshMap: Record<string, () => void> = {
@@ -322,6 +386,8 @@ export default function CompanyManagement() {
             {type === 'companies' && (
               <>
                 {renderField('Name', d.name)}{renderField('Code', d.code)}{renderField('Status', d.status)}
+                {renderField('Parent Group Company', (d.companyGroup as Record<string, unknown>)?.name || '—')}
+                {isSuperAdmin && renderField('Parent Tenant', ((d.companyGroup as Record<string, unknown>)?.tenant as Record<string, unknown>)?.name || '—')}
                 {renderField('City', d.city)}{renderField('State', d.state)}{renderField('Country', d.country)}
                 {renderField('Currency', d.currency)}{renderField('Phone', d.phone)}{renderField('Email', d.email)}
                 {renderField('Website', d.website)}{renderField('Tax ID / GST', d.taxId)}{renderField('Address', d.address)}
@@ -656,7 +722,7 @@ export default function CompanyManagement() {
             <div className="nexus-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
               <div className="p-4 flex items-start gap-3">
                 <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-700">
+                <div className="text-sm text-slate-700 flex-1">
                   <p className="font-semibold text-slate-900 mb-0.5">Companies are managed by admins</p>
                   <p className="text-xs text-slate-600">
                     New companies can only be created from the <b>Super Admin</b> or <b>Tenant Admin</b> modules,
@@ -664,6 +730,35 @@ export default function CompanyManagement() {
                     tab to view existing companies and manage their branches, departments, and other
                     organizational structure.
                   </p>
+                  {/* Active scope banner — only show for admins who can switch context */}
+                  {canSwitch && (
+                    <div className="mt-3 flex items-center gap-2 flex-wrap text-[11px]">
+                      <span className="text-slate-500 font-semibold uppercase tracking-wider">Showing:</span>
+                      {selectedCompanyId ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
+                          <FiBriefcase className="w-3 h-3" />
+                          {availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Selected company'}
+                        </span>
+                      ) : isSuperAdmin && selectedTenantId ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
+                          <FiHome className="w-3 h-3" />
+                          All companies under {availableTenants.find((t) => t.id === selectedTenantId)?.name || 'selected parent'}
+                        </span>
+                      ) : isTenantAdmin ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
+                          <FiHome className="w-3 h-3" />
+                          All companies in your tenant
+                        </span>
+                      ) : isSuperAdmin ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-semibold">
+                          <FiHome className="w-3 h-3" />
+                          All companies across all parents (pick a parent in the header dropdown to narrow)
+                        </span>
+                      ) : null}
+                      <span className="text-slate-400">·</span>
+                      <span className="text-slate-500">{companies.length} shown</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -692,9 +787,21 @@ export default function CompanyManagement() {
             {/* Company Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {fCompanies.length === 0 ? (
-                <div className="col-span-full text-center py-12"><FiHome className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No companies found</p></div>
+                <div className="col-span-full text-center py-12">
+                  <FiHome className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                  <p className="text-nexus-text-secondary font-medium">No companies found</p>
+                  <p className="text-xs text-nexus-text-muted mt-1 max-w-sm mx-auto">
+                    {selectedCompanyId
+                      ? 'No company matches the header dropdown selection. Pick "All companies" in the dropdown to see the full list.'
+                      : isSuperAdmin && selectedTenantId
+                        ? 'No companies have been inducted under any group company for this parent yet. Open Super Admin → Group Companies to create groups and induct companies.'
+                        : 'No companies have been created in your tenant yet. Ask your super admin to create a group company first, then induct companies under it from the Tenant Admin module.'}
+                  </p>
+                </div>
               ) : fCompanies.map(c => {
                 const badge = getStatusBadge(c.status)
+                const groupName = c.companyGroup?.name
+                const tenantName = c.companyGroup?.tenant?.name
                 return (
                   <div key={c.id} className={`nexus-card nexus-card-hover transition-colors ${deleteConfirmId === c.id ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
                     <div className="p-5">
@@ -708,7 +815,27 @@ export default function CompanyManagement() {
                           </div>
                           <h3 className="text-nexus-text-primary font-semibold text-lg">{c.name}</h3>
                           <p className="text-nexus-text-muted text-sm mb-1">{c.code || '—'} · {c.city || '—'}, {c.state || ''}</p>
-                          <p className="text-nexus-text-muted text-xs mb-4">{c.taxId ? `GST: ${c.taxId}` : ''} {c.phone ? `· ${c.phone}` : ''}</p>
+                          <p className="text-nexus-text-muted text-xs mb-2">{c.taxId ? `GST: ${c.taxId}` : ''} {c.phone ? `· ${c.phone}` : ''}</p>
+                          {/* Parent group company + tenant badge — makes it obvious
+                              where this company sits in the Tenant → Group → Company
+                              hierarchy. For tenant_admin, the tenant name is the same
+                              as their own so we hide it to reduce noise. */}
+                          {(groupName || tenantName) && (
+                            <div className="flex items-center gap-1.5 flex-wrap mb-3 text-[10px]">
+                              {groupName && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-semibold" title="Parent group company">
+                                  <FiLayers className="w-2.5 h-2.5" />
+                                  {groupName}
+                                </span>
+                              )}
+                              {isSuperAdmin && tenantName && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold" title="Parent company (tenant)">
+                                  <FiHome className="w-2.5 h-2.5" />
+                                  {tenantName}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <div className="grid grid-cols-3 gap-2 text-center border-t border-nexus-border pt-3">
                             <div><p className="text-lg font-bold text-nexus-text-primary">{c._count?.branches || 0}</p><p className="text-xs text-nexus-text-muted">Branches</p></div>
                             <div><p className="text-lg font-bold text-nexus-text-primary">{c._count?.departments || 0}</p><p className="text-xs text-nexus-text-muted">Depts</p></div>
