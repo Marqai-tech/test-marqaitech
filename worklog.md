@@ -1078,3 +1078,30 @@ Stage Summary:
 - The prisma db push approach was unreliable on Vercel. Replaced with a raw SQL sync script that uses @neondatabase/serverless directly.
 - The script is idempotent (IF NOT EXISTS everywhere) and non-blocking (exits 0 on failure).
 - After Vercel finishes building commit e6ebf9f, login should work because the production DB will finally have the new columns the Prisma client expects.
+
+---
+Task ID: 4
+Agent: main (Super Z)
+Task: Fix "super admin console - load sample data is throwing error - Invalid `prisma.tenant.upsert()` invocation: The column `language` does not exist in the current database."
+
+Work Log:
+- Read /api/super-admin/seed-sample-data/route.ts — confirmed it uses prisma.tenant.upsert() with update/create objects that don't explicitly reference `language`.
+- Diagnosed: prisma.tenant.upsert() generates INSERT ... ON CONFLICT DO UPDATE that includes ALL columns the Prisma client knows about (including language, baseCurrency, etc. added by the SRS rework). Even though our build-time scripts/schema-sync.js was supposed to add those columns, it apparently failed silently on Vercel (likely because POSTGRES_PRISMA_URL isn't exposed to the build env).
+- Login worked because /api/auth/login uses explicit `select` that only queries existing columns. But upsert can't avoid referencing all columns.
+- Created src/lib/schema-sync.ts with two exports:
+  * ensureSchemaSynced() — runs ALTER TABLE ADD COLUMN IF NOT EXISTS for all SRS columns (Tenant.language, Tenant.baseCurrency, Tenant.dataRegion, Tenant.subscriptionSeats, Tenant.subscriptionStorage, Company.language) plus CREATE TABLE IF NOT EXISTS FeatureFlag. Idempotent. Cached in-process for 10 minutes. No-op on SQLite.
+  * withSchemaSync(fn) — runs fn(); if it fails with 'column does not exist', runs ensureSchemaSynced() and retries fn() once.
+- Wired ensureSchemaSynced() proactively at the top of:
+  * POST /api/super-admin/seed-sample-data
+  * POST /api/tenants
+  * PATCH /api/tenants/[id]
+  * PATCH /api/tenant-admin
+  * GET /api/super-admin/feature-flags
+- Also wrapped the actual prisma.tenant.upsert, prisma.tenant.update, prisma.company.create, prisma.company.update calls in withSchemaSync() as belt-and-suspenders.
+- Verified npx tsc --noEmit produces no new errors.
+- Committed as 2e878a0 and pushed to origin/main. Vercel auto-deploy triggered.
+
+Stage Summary:
+- Self-healing schema sync: the first request to any write route triggers ALTER TABLE ADD COLUMN IF NOT EXISTS, then the upsert/update succeeds on retry.
+- This works even if the build-time schema sync failed (e.g. env var not exposed to build).
+- After Vercel finishes building commit 2e878a0, 'Load sample data' will work on the first click.
