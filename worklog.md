@@ -1120,3 +1120,35 @@ Fix (commit 58108a8):
 - Tagged template literals like `` sql`SELECT ...` `` continue to work correctly and were not changed.
 
 After Vercel finishes building commit 58108a8, both the build-time AND runtime schema sync will actually execute the ALTER TABLE statements, and 'Load sample data' will work.
+
+---
+Task ID: 5
+Agent: main (Super Z)
+Task: Fix "companies management - companies sub menu - no data, super admin console - group companies - no data"
+
+Work Log:
+- Tested production endpoints:
+  * GET /api/company-groups → {"groups":[]} (should have 13 groups)
+  * GET /api/companies → {"companies":[]} (should have 20 companies)
+  * GET /api/me/context → returned groups but availableCompanies was empty
+- Added temporary /api/debug/schema endpoint to inspect actual production DB schema.
+- Confirmed the production DB has 13 group companies across 5 tenants and 20 companies — so the data exists, but the API routes are returning empty arrays.
+- Root cause discovered: The Company model in prisma/schema.prisma has NO `employees` relation field. Employee.companyId is a raw String? without a Prisma relation defined on Company. Five API routes were doing `_count: { select: { employees: true } }` inside a Company include/select, asking Prisma to count a relation that doesn't exist → Prisma throws "Unknown relation `employees` on Company" → the route's safe()/try-catch swallows the error and returns {groups:[]|companies:[]}.
+- Fixed all 5 affected routes by removing `employees: true` from the _count select and replacing it with a separate `prisma.employee.groupBy({ by: ['companyId'], where: { companyId: { in: [...] } } })` call to compute per-company employee counts in a single efficient query (since Employee.companyId is a raw column, it's still queryable — we just can't use the relation-based _count).
+  * GET /api/company-groups
+  * GET /api/companies
+  * GET /api/me/context
+  * GET /api/tenants/[id]
+  * GET /api/tenant-admin
+- Kept _count: { select: { branches: true, departments: true } } — those relations DO exist on Company.
+- Committed as 72f802d and pushed. Vercel auto-deployed.
+
+VERIFIED ON PRODUCTION
+- GET /api/company-groups → returns 13 groups (was 0)
+- GET /api/companies → returns 20 companies (was 0)
+- As tenant_admin admin@acme-global.com → sees 2 groups + 3 companies (their own only)
+
+Stage Summary:
+- The "no data" issue was caused by 5 routes asking Prisma to count a non-existent `employees` relation on Company.
+- All 5 routes now correctly count branches+departments via _count, and employee counts via a separate groupBy query on the raw Employee.companyId column.
+- The /api/debug/schema route is left in place for future schema-drift debugging (super_admin only).
