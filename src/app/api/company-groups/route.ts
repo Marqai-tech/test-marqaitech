@@ -15,6 +15,68 @@ export async function OPTIONS() {
 }
 
 /**
+ * Safe wrapper — same pattern as /api/me/context. A single failed prisma
+ * call shouldn't break the whole endpoint (the frontend uses this to render
+ * the Group Companies tab on both super-admin and tenant-admin pages).
+ */
+async function safe<T>(
+  label: string,
+  fn: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[company-groups] ${label} failed:`, msg);
+    return fallback;
+  }
+}
+
+/**
+ * Ensure every tenant returned by this endpoint has at least one default
+ * group company (named after the tenant itself, per the user's clarified
+ * hierarchy: "the group company name and parent tenant are same").
+ *
+ * This fixes the "shows empty" issue for tenants created before the
+ * auto-group-create feature was added in commit c319fe3.
+ *
+ * Idempotent: only creates a group if the tenant has zero groups.
+ */
+async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void> {
+  if (tenantIds.length === 0) return;
+  await safe('ensureDefaultGroupsForTenants', async () => {
+    // Fetch tenant names + existing group counts in one query each
+    const tenants = await prisma.tenant.findMany({
+      where: { id: { in: tenantIds } },
+      select: {
+        id: true,
+        name: true,
+        companyGroups: { select: { id: true }, take: 1 },
+      },
+    });
+    const tenantsNeedingGroup = tenants.filter((t) => t.companyGroups.length === 0);
+    if (tenantsNeedingGroup.length === 0) return;
+    await Promise.all(tenantsNeedingGroup.map((t) =>
+      prisma.companyGroup.create({
+        data: {
+          name: t.name,
+          tenantId: t.id,
+          employeeLimitMode: 'group_total',
+          maxEmployees: null,
+          maxCompanies: null,
+          notes: `Default group company auto-created for tenant "${t.name}". Shares the tenant name per the parent/child identity rule.`,
+        },
+      }).catch((e: unknown) => {
+        // Don't let one failure block the others
+        console.error(`[company-groups] Auto-create default group for tenant ${t.id} failed:`, e);
+      })
+    ));
+    console.log(`[company-groups] Auto-created default groups for ${tenantsNeedingGroup.length} tenant(s)`);
+  }, undefined as unknown as void);
+}
+
+/**
  * GET /api/company-groups
  *
  * List company groups (a.k.a. "group companies") with their employee-strength
@@ -70,26 +132,48 @@ export async function GET(request: Request) {
       }
     }
 
-    const groups = await prisma.companyGroup.findMany({
-      where,
-      include: {
-        tenant: { select: { id: true, name: true, slug: true } },
-        companies: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            status: true,
-            maxEmployees: true,
-            plannedEmployeeCount: true,
-            _count: { select: { employees: true } },
+    // ─── AUTO-HEAL: ensure the tenant(s) we're about to query have at least
+    // one default group. This fixes the "shows empty" issue for legacy
+    // tenants. We resolve the list of tenant IDs that will be queried, then
+    // ensure each has a default group before fetching.
+    if (role === 'super_admin' && !requestedTenantId) {
+      // Super admin viewing all tenants — ensure default groups for every tenant
+      const allTenantIds = await safe(
+        'tenant.findMany(ids)',
+        () => prisma.tenant.findMany({ select: { id: true } }),
+        [],
+      );
+      await ensureDefaultGroupsForTenants(allTenantIds.map((t) => t.id));
+    } else if (role === 'super_admin' && requestedTenantId) {
+      await ensureDefaultGroupsForTenants([requestedTenantId]);
+    } else if (callerTenantId) {
+      await ensureDefaultGroupsForTenants([callerTenantId]);
+    }
+
+    const groups = await safe(
+      'companyGroup.findMany',
+      () => prisma.companyGroup.findMany({
+        where,
+        include: {
+          tenant: { select: { id: true, name: true, slug: true } },
+          companies: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              status: true,
+              maxEmployees: true,
+              plannedEmployeeCount: true,
+              _count: { select: { employees: true } },
+            },
+            orderBy: { name: 'asc' },
           },
-          orderBy: { name: 'asc' },
+          _count: { select: { companies: true } },
         },
-        _count: { select: { companies: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      [],
+    );
 
     // Compute aggregate employee count per group (sum of employees across all companies)
     const enriched = groups.map((g) => {

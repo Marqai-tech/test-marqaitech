@@ -6,6 +6,7 @@ import {
   FiX, FiCheck, FiInfo, FiLayers, FiServer, FiAlertCircle,
   FiHome, FiShield, FiUsers, FiChevronDown,
 } from 'react-icons/fi';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -170,6 +171,36 @@ export default function TenantCompaniesPage() {
   useEffect(() => {
     fetchCompanies();
   }, [fetchCompanies]);
+
+  // ─── Access guard ───
+  // Super admins should manage companies from /super-admin (or via the header
+  // dropdown + /company page). This page is for tenant admins to induct
+  // companies under their own tenant's groups. For super admin, the API call
+  // would return companies across ALL tenants which is confusing here.
+  if (user && user.role === 'super_admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <FiBriefcase className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-nexus-text-primary">Super admins use the Super Admin page</h2>
+        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+          This Companies page is for tenant admins to induct companies under their
+          own tenant&rsquo;s group companies. Since your super admin account is
+          platform-level, please manage companies from the{' '}
+          <b>Super Admin → Tenants</b> tab (click the eye icon on a tenant to see
+          its groups + companies) or via the <b>Company Management</b> page in
+          the sidebar.
+        </p>
+        <Link
+          href="/super-admin"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 font-medium text-sm shadow-sm transition-colors mt-2"
+        >
+          <FiServer className="w-4 h-4" /> Go to Super Admin
+        </Link>
+      </div>
+    );
+  }
 
   const filtered = companies.filter((c) => {
     if (!search) return true;

@@ -211,6 +211,53 @@ export default function TenantAdminPage() {
     fetchGroups();
   }, [ctxHydrated, hydrate, fetchTenantInfo, fetchGroups]);
 
+  // ─── Access guard (placed AFTER all hooks so we don't violate React's
+  // rules-of-hooks. Super admins don't have a tenantId — this page is
+  // scoped to a single tenant, so for them it would show empty data.
+  // Redirect them to /super-admin with a helpful explainer instead.) ───
+  if (user && user.role === 'super_admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <FiShield className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-nexus-text-primary">Super admins use the Super Admin page</h2>
+        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+          The Tenant Admin page is scoped to a single tenant (the one the logged-in
+          tenant admin belongs to). Since your super admin account is platform-level
+          and not tied to any specific tenant, this page would show empty data.
+          Head over to the <b>Super Admin</b> page to manage all tenants, group
+          companies, and companies from one place.
+        </p>
+        <Link
+          href="/super-admin"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm transition-colors mt-2"
+        >
+          <FiServer className="w-4 h-4" /> Go to Super Admin
+        </Link>
+      </div>
+    );
+  }
+
+  // Also handle the case where the user IS a tenant_admin but their JWT
+  // doesn't have a tenantId (e.g. legacy data, or a misconfigured account).
+  // Show a clear "your account is not linked to a tenant" message.
+  if (user && user.role === 'tenant_admin' && !user.tenantId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+          <FiInfo className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-nexus-text-primary">Your account is not linked to a tenant</h2>
+        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+          You&rsquo;re signed in as a tenant admin, but your account isn&rsquo;t
+          associated with any tenant. Please ask your super admin to assign you to
+          a tenant, or sign out and sign back in with a different account.
+        </p>
+      </div>
+    );
+  }
+
   /* Stats — derived from real data */
   const totalGroups = groups.length;
   const totalCompanies = groups.reduce((s, g) => s + (g._count?.companies || 0), 0);

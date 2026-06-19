@@ -73,12 +73,16 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Home', href: '/home', icon: <FiGrid className="w-5 h-5" /> },
       { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, moduleKey: 'super_admin' },
-      { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, moduleKey: 'tenant_admin', isNew: true },
+      // Tenant Admin page is tenant-scoped (assumes the logged-in user has a
+      // tenantId). Super admins don't have a tenantId, so showing this link
+      // to them just leads to an empty page. Restrict to tenant_admin only —
+      // super admins use /super-admin for the same functionality.
+      { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       { label: 'View Group Companies', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
-      { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, moduleKey: 'rbac' },
-      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, moduleKey: 'rbac', isNew: true },
+      { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },
+      { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
     ],
   },
   {

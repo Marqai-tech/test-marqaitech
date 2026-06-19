@@ -15,6 +15,69 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+/**
+ * Safe wrapper — runs a query and returns a default value on failure instead
+ * of throwing. Same pattern as /api/me/context: a single failed include
+ * shouldn't 500 the whole tenant view, because the frontend uses this
+ * endpoint to render the "view tenant" panel.
+ */
+async function safe<T>(
+  label: string,
+  fn: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[tenants/[id]] ${label} failed:`, msg);
+    return fallback;
+  }
+}
+
+/**
+ * Ensure the tenant has at least one group company. Per the user's clarified
+ * hierarchy ("the group company name and parent tenant are same"), every
+ * tenant should have a default group whose name matches the tenant name.
+ *
+ * Older tenants created before the auto-group-create feature was added in
+ * commit c319fe3 have NO group companies — which is why the super admin's
+ * "view tenant" panel and the tenant admin's Overview/Group Companies tabs
+ * showed empty data. This function auto-creates the missing default group
+ * on every GET /api/tenants/[id] call so the UI always has at least one
+ * group to display.
+ *
+ * Idempotent: if a group with the tenant's name already exists, does nothing.
+ */
+async function ensureDefaultGroup(tenantId: string, tenantName: string): Promise<void> {
+  await safe('ensureDefaultGroup', async () => {
+    const existing = await prisma.companyGroup.findFirst({
+      where: { tenantId, name: { equals: tenantName, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (existing) return;
+    // Also check if the tenant has ANY group at all — if so, don't auto-create
+    // (the super admin may have intentionally deleted the default and created
+    // custom-named ones).
+    const anyGroup = await prisma.companyGroup.findFirst({
+      where: { tenantId },
+      select: { id: true },
+    });
+    if (anyGroup) return;
+    await prisma.companyGroup.create({
+      data: {
+        name: tenantName,
+        tenantId,
+        employeeLimitMode: 'group_total',
+        maxEmployees: null,
+        maxCompanies: null,
+        notes: `Default group company auto-created for tenant "${tenantName}". Shares the tenant name per the parent/child identity rule.`,
+      },
+    });
+    console.log(`[tenants/[id]] Auto-created default group "${tenantName}" for tenant ${tenantId}`);
+  }, undefined as unknown as void);
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -32,6 +95,22 @@ export async function GET(
 
     const { id } = await params;
 
+    // ─── Auto-heal: ensure the tenant has at least one default group company.
+    // This fixes the "shows empty" issue for tenants created before the
+    // auto-group-create feature was added. We do this BEFORE the rich fetch
+    // so the returned data includes the freshly-created default group.
+    const tenantBasic = await safe(
+      'tenant.findUnique(basic)',
+      () => prisma.tenant.findUnique({
+        where: { id },
+        select: { id: true, name: true },
+      }),
+      null,
+    );
+    if (tenantBasic) {
+      await ensureDefaultGroup(tenantBasic.id, tenantBasic.name);
+    }
+
     // Build the tenant view defensively — any one of these includes can fail
     // (e.g. a deleted plan referenced by a subscription, or a permission
     // mismatch on the notifications relation). If the "rich" include set
@@ -43,8 +122,9 @@ export async function GET(
     // array — otherwise `cg.companies.length` throws "Cannot read properties
     // of undefined (reading 'length')".
     let tenant: unknown = null;
-    try {
-      tenant = await prisma.tenant.findUnique({
+    tenant = await safe(
+      'tenant.findUnique(rich)',
+      () => prisma.tenant.findUnique({
         where: { id },
         include: {
           companyGroups: {
@@ -71,30 +151,36 @@ export async function GET(
           },
           _count: { select: { users: true, companyGroups: true } },
         },
-      });
-    } catch (innerErr) {
-      console.error('Rich tenant fetch failed, falling back:', innerErr);
-      // Simpler fallback — but STILL include the `companies` array on each
-      // group, otherwise the frontend will crash on `cg.companies.length`.
-      tenant = await prisma.tenant.findUnique({
-        where: { id },
-        include: {
-          companyGroups: {
-            include: {
-              companies: {
-                select: {
-                  id: true, name: true, code: true, status: true,
-                  _count: { select: { employees: true } },
+      }),
+      null,
+    );
+
+    if (!tenant) {
+      // Fallback: simpler include set, but STILL include companies array on
+      // each group (the frontend assumes it is).
+      tenant = await safe(
+        'tenant.findUnique(fallback)',
+        () => prisma.tenant.findUnique({
+          where: { id },
+          include: {
+            companyGroups: {
+              include: {
+                companies: {
+                  select: {
+                    id: true, name: true, code: true, status: true,
+                    _count: { select: { employees: true } },
+                  },
+                  orderBy: { name: 'asc' },
                 },
-                orderBy: { name: 'asc' },
+                _count: { select: { companies: true } },
               },
-              _count: { select: { companies: true } },
             },
+            users: { select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true } },
+            _count: { select: { users: true, companyGroups: true } },
           },
-          users: { select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true } },
-          _count: { select: { users: true, companyGroups: true } },
-        },
-      });
+        }),
+        null,
+      );
     }
 
     if (!tenant) {
@@ -137,7 +223,13 @@ export async function GET(
         ...g,
         companies: Array.isArray(g.companies) ? g.companies : [],
       }));
+    } else {
+      // Ensure companyGroups is at least an empty array, not undefined
+      normalised.companyGroups = [];
     }
+    if (!normalised.users) normalised.users = [];
+    if (!normalised.subscriptions) normalised.subscriptions = [];
+    if (!normalised._count) normalised._count = { users: 0, companyGroups: 0 };
 
     return NextResponse.json({ tenant: normalised }, { headers: corsHeaders() });
   } catch (error) {

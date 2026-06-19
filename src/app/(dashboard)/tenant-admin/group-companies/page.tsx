@@ -90,6 +90,35 @@ export default function TenantGroupCompaniesPage() {
     fetchGroups();
   }, [ctxHydrated, hydrate, fetchGroups]);
 
+  // ─── Access guard ───
+  // Super admins should use /super-admin (Group Companies tab) to manage
+  // group companies across all tenants. This page is tenant-scoped (read-only
+  // view for the tenant admin's own tenant), so for a super admin it would
+  // show empty/misleading data. Redirect them with a helpful explainer.
+  if (user && user.role === 'super_admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <FiLayers className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-nexus-text-primary">Super admins use the Super Admin page</h2>
+        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+          The Group Companies page here is a <b>read-only</b> view scoped to a single
+          tenant (the one the logged-in tenant admin belongs to). Since your super
+          admin account is platform-level, please manage group companies from the
+          <b> Super Admin → Group Companies</b> tab — that view lets you create, edit,
+          and delete groups across <b>all tenants</b>.
+        </p>
+        <Link
+          href="/super-admin"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm transition-colors mt-2"
+        >
+          <FiLayers className="w-4 h-4" /> Go to Super Admin → Group Companies
+        </Link>
+      </div>
+    );
+  }
+
   const tenantName = tenant?.name || user?.tenant?.name || 'your tenant';
   const totalGroups = groups.length;
   const totalCompanies = groups.reduce((s, g) => s + (g._count?.companies || 0), 0);

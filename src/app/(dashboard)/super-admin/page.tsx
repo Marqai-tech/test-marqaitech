@@ -70,7 +70,7 @@ interface AuditLog {
 
 interface DashboardData {
   totalTenants: number; activeTenants: number; suspendedTenants: number; inactiveTenants: number;
-  totalCompanies: number; totalEmployees: number; totalRevenue: number; platformHealth: number;
+  totalGroupCompanies?: number; totalCompanies: number; totalEmployees: number; totalRevenue: number; platformHealth: number;
   recentActivity: AuditLog[];
 }
 
@@ -825,6 +825,37 @@ export default function SuperAdminPage() {
       {/* ═══ TAB 1: DASHBOARD ═══ */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
+          {/* Empty-state CTA — when the platform has no tenants yet, show a
+              prominent banner telling the super admin to load sample data
+              (or create their first tenant). This fixes the "shows empty"
+              complaint: instead of just rendering zeroed KPI cards, we tell
+              the user exactly what to do next. */}
+          {dashboard && dashboard.totalTenants === 0 && (
+            <div className="nexus-card p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center flex-shrink-0">
+                  <FiDatabase className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-emerald-900">Welcome to your Super Admin dashboard</h3>
+                  <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+                    Your platform doesn&rsquo;t have any tenants yet. Click <b>Load Sample Data</b> above to
+                    bootstrap 3 demo tenants (Acme Global, TechStart Solutions, GlobalHR Services) — each
+                    with their own group companies, companies, and tenant_admin user. Or use the
+                    <b> Tenants</b> tab to create your first tenant manually.
+                  </p>
+                </div>
+                <button
+                  onClick={handleLoadSampleData}
+                  disabled={seedingSample}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-sm shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  <FiDatabase className="w-4 h-4" />
+                  {seedingSample ? 'Loading...' : 'Load Sample Data'}
+                </button>
+              </div>
+            </div>
+          )}
           {dashLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -856,10 +887,22 @@ export default function SuperAdminPage() {
                 <div className="nexus-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
+                      <p className="text-xs font-medium text-nexus-text-muted">Total Group Companies</p>
+                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.totalGroupCompanies ?? 0}</p>
+                      <p className="text-[10px] text-nexus-text-muted mt-2">Parent groups created under tenants</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50 text-violet-500"><FiLayers className="w-5 h-5" /></div>
+                  </div>
+                </div>
+
+                <div className="nexus-card p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
                       <p className="text-xs font-medium text-nexus-text-muted">Total Companies</p>
                       <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.totalCompanies}</p>
+                      <p className="text-[10px] text-nexus-text-muted mt-2">Inducted under group companies</p>
                     </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50 text-violet-500"><FiGlobe className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-500"><FiHome className="w-5 h-5" /></div>
                   </div>
                 </div>
 

@@ -39,8 +39,15 @@ export async function GET(request: Request) {
       prisma.tenant.count({ where: { status: 'inactive' } }),
     ]);
 
-    // Total companies
-    const totalCompanies = await prisma.companyGroup.count();
+    // Total group companies (a.k.a. parent groups under tenants)
+    const totalGroupCompanies = await prisma.companyGroup.count();
+
+    // Total companies (actual inducted companies — sits under group companies).
+    // BUG FIX: previously this stat called prisma.companyGroup.count() which
+    // returned the GROUP count, not the COMPANY count — so the dashboard
+    // showed a misleading "Total Companies" number that was actually the
+    // number of group companies.
+    const totalCompanies = await prisma.company.count();
 
     // Total employees across all tenants
     const totalEmployees = await prisma.employee.count({ where: { status: 'active' } });
@@ -68,6 +75,7 @@ export async function GET(request: Request) {
       activeTenants,
       suspendedTenants,
       inactiveTenants,
+      totalGroupCompanies,
       totalCompanies,
       totalEmployees,
       totalRevenue,
