@@ -27,6 +27,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import SrsBanner from '@/components/SrsBanner';
 
 /* ── Types ── */
 interface TenantInfo {
@@ -325,6 +326,9 @@ export default function TenantAdminPage() {
 
   return (
     <div className="space-y-6">
+      {/* SRS-aligned role banner — shows what this role can/can't do per spec */}
+      <SrsBanner role="tenant_admin" />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   FiChevronDown, FiHome, FiGrid, FiCheck, FiSearch,
   FiBriefcase, FiLayers, FiInfo, FiUsers, FiShield,
@@ -43,6 +43,36 @@ export default function CompanySwitcher() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
+  /**
+   * SRS REQ-SA-10 / REQ-SEC-06: log every context swap to the audit trail.
+   * Best-effort — never blocks the UI on a logging failure. We read the
+   * CURRENT selection from the store via getState() so the "from" context is
+   * always accurate, even inside stale closures.
+   */
+  const logSwap = useCallback((to: {
+    toTenantId?: string | null;
+    toTenantName?: string | null;
+    toCompanyId?: string | null;
+    toCompanyName?: string | null;
+  }) => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('tb_token');
+    if (!token) return;
+    const state = useCompanyContextStore.getState();
+    fetch('/api/audit/context-swap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        fromTenantId: state.selectedTenantId || null,
+        fromCompanyId: state.selectedCompanyId || null,
+        toTenantId: to.toTenantId ?? null,
+        toTenantName: to.toTenantName ?? null,
+        toCompanyId: to.toCompanyId ?? null,
+        toCompanyName: to.toCompanyName ?? null,
+      }),
+    }).catch(() => { /* best-effort */ });
+  }, []);
 
   // Keep the context store's `role` in sync with the authStore's `user.role`.
   // This is critical: without it, when a tenant_admin logs in and lands on the
@@ -289,6 +319,7 @@ export default function CompanySwitcher() {
                       <button
                         key={t.id}
                         onClick={() => {
+                          logSwap({ toTenantId: t.id, toTenantName: t.name });
                           setSelectedTenant(t.id);
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors border ${
@@ -363,6 +394,7 @@ export default function CompanySwitcher() {
                 so the user sees everything in the current tenant/parent scope. */}
             <button
               onClick={() => {
+                logSwap({ toTenantId: selectedTenantId, toTenantName: scopedTenant?.name, toCompanyId: null, toCompanyName: null });
                 setSelectedGroup(null);
                 setSelectedCompany(null);
                 setOpen(false);
@@ -417,6 +449,7 @@ export default function CompanySwitcher() {
                         <button
                           key={g.id}
                           onClick={() => {
+                            logSwap({ toTenantId: selectedTenantId, toTenantName: scopedTenant?.name, toCompanyId: null, toCompanyName: g.name });
                             setSelectedGroup(g.id);
                             setOpen(false);
                             setSearch('');
@@ -458,6 +491,7 @@ export default function CompanySwitcher() {
                         the group without having to pick one. */}
                     <button
                       onClick={() => {
+                        logSwap({ toTenantId: selectedTenantId, toTenantName: scopedTenant?.name, toCompanyId: null, toCompanyName: g.groupName });
                         setSelectedGroup(gid);
                         setOpen(false);
                         setSearch('');
@@ -494,6 +528,7 @@ export default function CompanySwitcher() {
                         <button
                           key={c.id}
                           onClick={() => {
+                            logSwap({ toTenantId: selectedTenantId, toTenantName: scopedTenant?.name, toCompanyId: c.id, toCompanyName: c.name });
                             setSelectedCompany(c.id);
                             setOpen(false);
                             setSearch('');

@@ -21,6 +21,27 @@ model Tenant {
   currency    String   @default("INR")
   timezone    String   @default("UTC")
 
+  // ─── SRS REQ-GL-01 / REQ-TA-09: Multi-lingual support ───
+  // Default UI language for this tenant. Cascades to sub-companies as default.
+  // Examples: 'en', 'es', 'fr', 'pt-BR', 'de'.
+  language    String   @default("en")
+
+  // ─── SRS REQ-GL-03 / REQ-GL-04: Multi-currency support ───
+  // The tenant's base currency for consolidated group reporting.
+  // Sub-companies operating in other currencies auto-convert to this.
+  baseCurrency String  @default("USD")
+
+  // ─── SRS REQ-GL-06: Multi-country data residency ───
+  // Server region where this tenant's data is stored (e.g. 'us-east-1', 'eu-west-1').
+  // Super admin sets this at tenant creation per GDPR/local compliance.
+  dataRegion  String?
+
+  // ─── SRS REQ-SA-02: Subscription plan limits ───
+  // Maximum user seats allowed under this tenant's plan. 0 = unlimited.
+  subscriptionSeats    Int @default(0)
+  // Maximum storage in MB allowed under this tenant's plan. 0 = unlimited.
+  subscriptionStorage  Int @default(0)
+
   // ─── Quota / Barrier fields (set by super_admin) ───
   // Maximum number of companies this tenant is allowed to create under all its groups.
   // 0 = unlimited. When tenant_admin tries to create a company beyond this count,
@@ -35,6 +56,45 @@ model Tenant {
   notifications Notification[]
   subscriptions Subscription[]
   roles         Role[]
+  featureFlags  FeatureFlag[]
+}
+
+// ============ SRS REQ-SA-05: FEATURE FLAGS ============
+//
+// Per-tenant feature toggles controlled by super_admin. Allows enabling /
+// disabling specific AI modules, beta features, or plan-gated functionality
+// without deploying code. Tenant inherits platform defaults; super_admin can
+// override per tenant.
+model FeatureFlag {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Stable machine key, e.g. 'ai_anomaly_detection', 'ai_smart_search',
+  // 'predictive_analytics', 'auto_translation', 'sso_saml'.
+  key       String
+
+  // Human-readable label shown in the super admin UI.
+  label     String
+
+  // Whether the feature is currently enabled for this tenant.
+  enabled   Boolean  @default(false)
+
+  // Optional config payload (JSON-stringified) for tunable params.
+  // e.g. '{"sensitivity":0.8}' for AI anomaly detection.
+  config    String?
+
+  // 'platform_default' flags are auto-seeded for every tenant and reflect the
+  // platform-wide default. 'override' flags are explicit per-tenant overrides.
+  source    String   @default("platform_default") // 'platform_default' | 'override'
+
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
 }
 
 model CompanyGroup {
@@ -77,6 +137,9 @@ model Company {
   country        String?
   currency       String @default("INR")
   timezone       String @default("UTC")
+  // SRS REQ-TA-02 / REQ-GL-01: Default UI language for this sub-company.
+  // Inherits from the parent tenant by default; tenant_admin can override per company.
+  language       String @default("en")
   address        String?
   city           String?
   state          String?

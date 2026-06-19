@@ -72,17 +72,42 @@ const navSections: NavSection[] = [
     label: 'Platform',
     items: [
       { label: 'Home', href: '/home', icon: <FiGrid className="w-5 h-5" /> },
-      { label: 'Super Admin', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, moduleKey: 'super_admin' },
-      // Tenant Admin page is tenant-scoped (assumes the logged-in user has a
-      // tenantId). Super admins don't have a tenantId, so showing this link
-      // to them just leads to an empty page. Restrict to tenant_admin only —
-      // super admins use /super-admin for the same functionality.
-      { label: 'Tenant Admin', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'View Group Companies', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin'], isNew: true },
+    ],
+  },
+  {
+    // SRS §3 — Super Admin (Platform Owner). Visible only to super_admin.
+    // All links here map to SRS REQ-SA-* requirements.
+    key: 'super-admin',
+    label: 'Super Admin (Platform)',
+    items: [
+      // REQ-SA-01..06: Tenant lifecycle, subscriptions, global dashboard
+      { label: 'Super Admin Console', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
+      // REQ-SA-05: Feature flags per parent company
+      { label: 'Feature Flags', href: '/super-admin/feature-flags', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // REQ-SEC-06 / REQ-SA-10: Audit logs (incl. context swaps)
+      { label: 'Audit Logs', href: '/super-admin/audit-logs', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // SRS §6 RBAC matrix
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },
+      // REQ-SA-11/12: AI platform management
+      { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+    ],
+  },
+  {
+    // SRS §4 — Tenant Admin (Parent Company Owner). Visible only to tenant_admin.
+    // All links here map to SRS REQ-TA-* requirements.
+    key: 'tenant-admin',
+    label: 'Tenant Admin (Group)',
+    items: [
+      // REQ-TA-04/05: Group dashboard + AI Group Health Score
+      { label: 'Tenant Admin Console', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // REQ-TA-01/02/03: Sub-company management
+      { label: 'Sub-Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // Group companies are READ-ONLY for tenant_admin (only super_admin can create/edit them).
+      { label: 'Group Companies (read-only)', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // SRS §6 RBAC matrix (group-level)
       { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // REQ-TA-04/05: Group-level AI insights
+      { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
     ],
   },
   {

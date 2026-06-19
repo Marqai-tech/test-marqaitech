@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import SrsBanner from '@/components/SrsBanner';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -812,6 +813,9 @@ export default function SuperAdminPage() {
           )}
         </div>
       </div>
+
+      {/* SRS-aligned role banner — shows what this role can/can't do per spec */}
+      <SrsBanner role="super_admin" />
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit overflow-x-auto">

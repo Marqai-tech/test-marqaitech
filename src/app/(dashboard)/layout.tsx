@@ -11,6 +11,7 @@ import NotificationPopup from '@/components/NotificationPopup';
 import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import {
   FiHome, FiUsers, FiBriefcase, FiClock, FiMenu,
   FiCpu, FiGrid, FiBell, FiUser, FiDollarSign,
@@ -89,6 +90,10 @@ export default function DashboardLayout({
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, fetchNotifications]);
+
+  // SRS REQ-SEC-08: Auto-logout admin roles after 15 minutes of inactivity.
+  // The hook self-deactivates for non-admin roles, so it's safe to always call.
+  useSessionTimeout({ role: user?.role, enabled: isAuthenticated });
 
   const handleSidebarToggle = useCallback(() => {
     if (isMobile) {
