@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npx prisma generate && npx prisma db push --skip-generate --accept-data-loss && npx next build"
+  "buildCommand": "npx prisma generate && node scripts/schema-sync.js && npx next build"
 }
