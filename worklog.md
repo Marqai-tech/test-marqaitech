@@ -966,3 +966,57 @@ Files changed:
 - src/app/(dashboard)/tenant-admin/companies/page.tsx
 - src/app/(dashboard)/tenant-admin/group-companies/page.tsx
 - src/components/Sidebar.tsx
+
+---
+Task ID: srs-rework
+Agent: main (super-z)
+Task: Check Super Admin & Tenant Admin settings against the user-provided SRS (Software Requirements Specification) and rework the system so it is cleanly defined per spec.
+
+Work Log:
+- Compared current implementation against SRS sections 1-8 (Hierarchy, Super Admin REQ-SA-01..12, Tenant Admin REQ-TA-01..10, Global REQ-GL-01..07, Security REQ-SEC-01..09, AI REQ-AI-01..04, RBAC matrix §6)
+- Identified gaps: missing schema fields (language, baseCurrency, dataRegion, subscriptionSeats, subscriptionStorage, FeatureFlag model), no session timeout (REQ-SEC-08), no audit log for context swaps (REQ-SA-10), no feature-flag UI (REQ-SA-05), no SRS-aligned section organization in Super Admin / Tenant Admin pages
+- Schema: added language, baseCurrency, dataRegion, subscriptionSeats, subscriptionStorage to Tenant; added language to Company; added new FeatureFlag model (tenantId, key, label, enabled, config, source, notes; unique on [tenantId, key])
+- Created src/lib/permissions.ts: central SRS-aligned RBAC matrix with SUPER_ADMIN_PERMISSIONS / TENANT_ADMIN_PERMISSIONS maps, RBAC_MATRIX, can()/canActOnTenant()/assertCan() helpers, SUPPORTED_LANGUAGES (8 languages incl. Hindi, Chinese, Japanese, Portuguese-BR per REQ-AI-04 use case), SUPPORTED_DATA_REGIONS (7 regions with GDPR notes for EU), PLATFORM_BASE_CURRENCY='USD' (REQ-GL-03)
+- Created POST /api/audit/context-swap: logs every context swap with from/to tenant+company IDs and human-readable labels; no-op if from==to; best-effort (never blocks the swap on a logging failure)
+- Wired CompanySwitcher.tsx to call logSwap() at all 5 selection sites: tenant pick, 'all companies' pick, group pick (no-companies branch), group pick (regular), company pick. Uses Zustand getState() to read the current 'from' selection accurately inside stale closures
+- Created src/hooks/useSessionTimeout: 15-min inactivity auto-logout for admin roles per REQ-SEC-08; tracks mousemove/mousedown/keydown/scroll/touchstart/click; calls /api/auth/logout; clears localStorage; shows on-screen banner; redirects to /login?reason=session_timeout. Self-deactivates for non-admin roles. Fixed React 19 lint purity error by lazily initializing lastActivityRef inside the effect
+- Wired useSessionTimeout into (dashboard)/layout.tsx via useSessionTimeout({ role: user?.role, enabled: isAuthenticated })
+- Sidebar rework: split the flat 'Platform' section into three clear sections — 'Platform' (Home only), 'Super Admin (Platform)' (visible to super_admin only), 'Tenant Admin (Group)' (visible to tenant_admin only). Each item has a comment mapping it to specific SRS requirement IDs. New entries: 'Feature Flags' (/super-admin/feature-flags), 'Audit Logs' (/super-admin/audit-logs). Renamed 'Companies' → 'Sub-Companies' for tenant_admin clarity per SRS terminology
+- Created src/components/SrsBanner.tsx: reusable role-aware banner showing the role's title, SRS section reference (e.g. 'SRS §3 · REQ-SA-01..12'), 6 quick-link cards with SRS IDs and descriptions, and a permission-rule footer stating what each role can/can't create
+- Injected <SrsBanner role="super_admin" /> at the top of /super-admin/page.tsx (after the header div)
+- Injected <SrsBanner role="tenant_admin" /> at the top of /tenant-admin/page.tsx (before the existing header)
+- Created GET/POST /api/super-admin/feature-flags: super-admin-only; GET auto-seeds 8 platform-default flags per tenant (ai_anomaly_detection, ai_smart_search, predictive_analytics, auto_translation, ghost_tenant_insights, sso_saml, mfa_required, concurrent_session_limit) and returns the full list; POST upserts a flag with source='override' and writes an audit-log entry (FEATURE_FLAG_UPDATE)
+- Created /super-admin/feature-flags/page.tsx: tenant picker (synced with companyContextStore), list of toggle switches for each flag, platform_default vs override badges, audit-log mention in footer
+- Created /super-admin/audit-logs/page.tsx: filter by action (CONTEXT_SWAP, CREATE_TENANT, UPDATE_TENANT, DELETE_TENANT, FEATURE_FLAG_UPDATE, LOGIN, LOGOUT) and module, full-text search on details/user, paginated table with user email+name, IP, user-agent, color-coded action badges
+- Fixed lint issues: removed unused FiDollarSign import in SrsBanner, refactored useSessionTimeout to avoid impure Date.now() in useRef initializer
+- Verified: bunx tsc --noEmit (clean, no new errors); bunx eslint on new files (only the React 19 set-state-in-effect rule which is pre-existing throughout the codebase); bun run build (succeeds, /super-admin/feature-flags and /super-admin/audit-logs both prerender as static)
+- Committed 03f980e and pushed to origin/main → Vercel auto-deploy triggered
+
+Stage Summary:
+- The Super Admin and Tenant Admin modules are now "cleanly defined" per the SRS:
+  * Schema supports multi-lingual (Tenant.language, Company.language), multi-currency (Tenant.baseCurrency, Company.currency), multi-country data residency (Tenant.dataRegion), subscription limits (Tenant.subscriptionSeats, subscriptionStorage), and per-tenant feature flags (FeatureFlag model)
+  * Sidebar cleanly separates the two admin roles into their own sections, each item traceable to a specific SRS requirement ID
+  * Both admin pages now show an SrsBanner at the top making it crystal-clear what the role can/can't do per spec, with quick-link cards to every related sub-page
+  * Two new functional pages: Feature Flags (REQ-SA-05) and Audit Logs (REQ-SEC-06 / REQ-SA-10)
+  * Context swaps are now audit-logged end-to-end (REQ-SA-10) via the new /api/audit/context-swap endpoint wired into CompanySwitcher
+  * Admin sessions auto-logout after 15 min of inactivity (REQ-SEC-08)
+  * Central permissions module (src/lib/permissions.ts) is the single source of truth for the SRS RBAC matrix, ready to be wired into API route guards incrementally
+- IMPORTANT for the user: the new schema fields require a `prisma db push` against the production Neon Postgres DB. Vercel's build only runs `prisma generate` (which generates the client), not `prisma db push`. The user needs to run `bun run db:push` from a machine with the production DATABASE_URL env var set, OR run it via Vercel's CLI / a manual migration. Without this, the Feature Flags page will return errors because the FeatureFlag table doesn't exist yet.
+- Pushed commit 03f980e to main → Vercel auto-deploy triggered.
+
+Files changed:
+- prisma/schema.prisma (added 6 fields + FeatureFlag model)
+- src/components/Sidebar.tsx (SRS-aligned section split)
+- src/components/CompanySwitcher.tsx (audit-log wiring at 5 selection sites)
+- src/app/(dashboard)/layout.tsx (useSessionTimeout hook)
+- src/app/(dashboard)/super-admin/page.tsx (SrsBanner injection)
+- src/app/(dashboard)/tenant-admin/page.tsx (SrsBanner injection)
+
+Files created:
+- src/lib/permissions.ts (central SRS RBAC matrix)
+- src/hooks/useSessionTimeout.ts (REQ-SEC-08)
+- src/components/SrsBanner.tsx (reusable role-aware banner)
+- src/app/api/audit/context-swap/route.ts (REQ-SA-10 / REQ-SEC-06)
+- src/app/api/super-admin/feature-flags/route.ts (REQ-SA-05)
+- src/app/(dashboard)/super-admin/feature-flags/page.tsx
+- src/app/(dashboard)/super-admin/audit-logs/page.tsx
