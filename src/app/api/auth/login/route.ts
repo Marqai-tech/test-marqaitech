@@ -27,9 +27,37 @@ export async function POST(request: Request) {
       );
     }
 
+    // ⚠️ Use explicit `select` (not `include: { tenant: true }`) so we only
+    // request columns we know exist on the User and Tenant tables. An
+    // `include: { tenant: true }` would SELECT every Tenant column, which
+    // breaks login entirely whenever schema.prisma gains new Tenant fields
+    // that haven't been migrated to the production DB yet (this exact bug
+    // caused a global login outage on 2026-06-19 after the SRS rework
+    // added language/baseCurrency/dataRegion/subscriptionSeats/
+    // subscriptionStorage columns). With `select`, missing columns on the
+    // DB side are simply not queried and login stays resilient.
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { tenant: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        status: true,
+        avatar: true,
+        tenantId: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            plan: true,
+            currency: true,
+            timezone: true,
+          },
+        },
+      },
     });
 
     if (!user) {

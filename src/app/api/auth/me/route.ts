@@ -32,11 +32,31 @@ export async function GET(request: Request) {
       );
     }
 
-    // Step 1: Fetch user with tenant only (avoids deep nested includes that fail on Neon)
+    // Step 1: Fetch user with explicit `select` (not `include: { tenant: true }`).
+    // Same defensive pattern as /api/auth/login: only request columns we know
+    // exist, so a schema drift (new columns in schema.prisma not yet pushed to
+    // the production DB) cannot break authentication.
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId as string },
-      include: {
-        tenant: true,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+        status: true,
+        lastLogin: true,
+        createdAt: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            plan: true,
+            currency: true,
+            timezone: true,
+          },
+        },
       },
     });
 
