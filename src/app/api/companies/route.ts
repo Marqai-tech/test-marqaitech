@@ -121,16 +121,47 @@ export async function GET(req: NextRequest) {
             tenant: { select: { id: true, name: true, slug: true, maxCompaniesAllowed: true } },
           },
         },
-        _count: { select: { departments: true, branches: true, employees: true } },
+        // NOTE: Company has no `employees` Prisma relation (Employee.companyId
+        // is a raw String? without a relation field). Count branches +
+        // departments here; per-company employee counts are added below via
+        // a separate prisma.employee.groupBy() call.
+        _count: { select: { departments: true, branches: true } },
       },
       orderBy: { name: 'asc' },
     });
-    // Explicitly surface the per-company employee cap + planned strength so the UI
-    // can render "no of employees" columns without needing a separate fetch.
+
+    // Augment each company with its employee count using a single groupBy
+    // query (much more efficient than N+1 separate counts).
+    let employeeCountByCompany: Record<string, number> = {};
+    if (companies.length > 0) {
+      const companyIds = companies.map((c) => c.id);
+      try {
+        const grouped = await db.employee.groupBy({
+          by: ['companyId'],
+          where: { companyId: { in: companyIds } },
+          _count: { _all: true },
+        });
+        for (const row of grouped) {
+          if (row.companyId) {
+            employeeCountByCompany[row.companyId] = row._count._all;
+          }
+        }
+      } catch {
+        // Non-fatal — employee counts default to 0
+      }
+    }
+
+    // Explicitly surface the per-company employee cap + planned strength + live
+    // employee count so the UI can render "no of employees" columns without
+    // needing a separate fetch.
     const enriched = companies.map((c) => ({
       ...c,
       maxEmployees: c.maxEmployees ?? null,
       plannedEmployeeCount: c.plannedEmployeeCount ?? null,
+      _count: {
+        ...(c._count || {}),
+        employees: employeeCountByCompany[c.id] || 0,
+      },
     }));
 
     return NextResponse.json(

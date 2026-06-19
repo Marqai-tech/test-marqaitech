@@ -164,7 +164,13 @@ export async function GET(request: Request) {
               status: true,
               maxEmployees: true,
               plannedEmployeeCount: true,
-              _count: { select: { employees: true } },
+              // NOTE: Company has no `employees` Prisma relation
+              // (Employee.companyId is a raw String? without a relation
+              // field on Company). Counting employees per-company would
+              // require a raw SQL join. We count branches+departments here
+              // instead; the group-level employee count is computed below
+              // from a separate prisma.employee.count() call.
+              _count: { select: { branches: true, departments: true } },
             },
             orderBy: { name: 'asc' },
           },
@@ -175,9 +181,43 @@ export async function GET(request: Request) {
       [],
     );
 
+    // Compute aggregate employee count per group by counting employees
+    // whose `companyId` matches one of the companies in this group.
+    // Employee.companyId is a raw String? (no Prisma relation), so we
+    // can't use _count — but we can use a separate findMany with a where
+    // filter on the raw companyId column.
+    const groupEmployeeCounts: Record<string, number> = {};
+    if (groups.length > 0) {
+      const allCompanyIds = groups.flatMap((g) => g.companies.map((c) => c.id));
+      if (allCompanyIds.length > 0) {
+        // Group employee counts by companyId using a single query
+        const employeeCounts = await safe(
+          'employee.groupBy(companyId)',
+          () => prisma.employee.groupBy({
+            by: ['companyId'],
+            where: { companyId: { in: allCompanyIds } },
+            _count: { _all: true },
+          }),
+          [],
+        );
+        for (const row of employeeCounts) {
+          if (row.companyId) {
+            groupEmployeeCounts[row.companyId] = row._count._all;
+          }
+        }
+      }
+    }
+
     // Compute aggregate employee count per group (sum of employees across all companies)
     const enriched = groups.map((g) => {
-      const employeesInGroup = g.companies.reduce((s, c) => s + (c._count?.employees || 0), 0);
+      const companiesWithCounts = g.companies.map((c) => ({
+        ...c,
+        _count: {
+          ...(c._count || {}),
+          employees: groupEmployeeCounts[c.id] || 0,
+        },
+      }));
+      const employeesInGroup = companiesWithCounts.reduce((s, c) => s + (c._count?.employees || 0), 0);
       return {
         id: g.id,
         name: g.name,
@@ -194,7 +234,7 @@ export async function GET(request: Request) {
           companies: g._count?.companies || 0,
           employees: employeesInGroup,
         },
-        companies: g.companies,
+        companies: companiesWithCounts,
       };
     });
 

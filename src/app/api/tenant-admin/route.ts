@@ -45,7 +45,8 @@ export async function GET(request: Request) {
           include: {
             companies: {
               include: {
-                _count: { select: { departments: true, branches: true, employees: true } },
+                // Company has no `employees` Prisma relation — count branches+departments only
+                _count: { select: { departments: true, branches: true } },
                 departments: { where: { status: 'active' } },
                 branches: { where: { status: 'active' } },
               },

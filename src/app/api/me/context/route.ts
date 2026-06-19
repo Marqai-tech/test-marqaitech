@@ -185,7 +185,8 @@ export async function GET(request: Request) {
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
                 companyGroup: { select: { id: true, name: true } },
-                _count: { select: { branches: true, employees: true } },
+                // Company has no `employees` Prisma relation — count branches only
+                _count: { select: { branches: true, departments: true } },
               },
               orderBy: { name: 'asc' },
             }),
@@ -217,7 +218,8 @@ export async function GET(request: Request) {
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
                 companyGroup: { select: { id: true, name: true } },
-                _count: { select: { branches: true, employees: true } },
+                // Company has no `employees` Prisma relation — count branches only
+                _count: { select: { branches: true, departments: true } },
               },
               orderBy: { name: 'asc' },
             }),
