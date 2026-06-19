@@ -74,7 +74,10 @@ async function main() {
 
   for (const stmt of statements) {
     try {
-      await sql(stmt);
+      // IMPORTANT: neon() returns a tagged-template function. Calling
+      // sql(stmt) with a string variable treats it as a PARAMETER value,
+      // not as raw SQL. Use sql.query(stmt, []) to execute raw DDL.
+      await sql.query(stmt, []);
       applied++;
     } catch (err) {
       const msg = err && err.message ? err.message : String(err);
@@ -91,16 +94,14 @@ async function main() {
   // Foreign key constraint — add separately because ALTER TABLE ADD CONSTRAINT
   // IF NOT EXISTS is only supported on Postgres 9.0+. Neon supports it.
   try {
-    await sql(`
-      ALTER TABLE "FeatureFlag"
-      DROP CONSTRAINT IF EXISTS "FeatureFlag_tenantId_fkey"
-    `);
-    await sql(`
-      ALTER TABLE "FeatureFlag"
-      ADD CONSTRAINT "FeatureFlag_tenantId_fkey"
-      FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id")
-      ON DELETE CASCADE ON UPDATE CASCADE
-    `);
+    await sql.query(`ALTER TABLE "FeatureFlag" DROP CONSTRAINT IF EXISTS "FeatureFlag_tenantId_fkey"`, []);
+    await sql.query(
+      `ALTER TABLE "FeatureFlag"
+       ADD CONSTRAINT "FeatureFlag_tenantId_fkey"
+       FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id")
+       ON DELETE CASCADE ON UPDATE CASCADE`,
+      []
+    );
     applied++;
   } catch (err) {
     console.warn(`[schema-sync] FK constraint failed (non-fatal): ${err && err.message ? err.message : err}`);
