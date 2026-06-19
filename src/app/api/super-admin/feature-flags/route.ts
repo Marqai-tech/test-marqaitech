@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -74,6 +75,9 @@ export async function GET(request: Request) {
     if (!tenantId) {
       return NextResponse.json({ error: 'tenantId query parameter is required' }, { status: 400, headers: corsHeaders() });
     }
+
+    // Ensure the FeatureFlag table exists (idempotent + cached).
+    await ensureSchemaSynced();
 
     try {
       await seedDefaults(tenantId);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { ensureSchemaSynced } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -308,6 +309,14 @@ export async function PATCH(
     const tenant = await prisma.tenant.update({
       where: { id },
       data: updateData,
+    }).catch(async (err) => {
+      // If the column is missing, run schema sync and retry once.
+      const msg = err && err.message ? err.message : String(err);
+      if (/column .* does not exist|does not exist in the current database/i.test(msg)) {
+        await ensureSchemaSynced();
+        return prisma.tenant.update({ where: { id }, data: updateData });
+      }
+      throw err;
     });
 
     // Notify tenant admin of status changes

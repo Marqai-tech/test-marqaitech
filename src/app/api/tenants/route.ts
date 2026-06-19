@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
+import { ensureSchemaSynced } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -92,6 +93,10 @@ export async function POST(request: Request) {
     if (userRole !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can create tenants' }, { status: 403, headers: corsHeaders() });
     }
+
+    // Ensure the production DB has the new SRS columns before we try to write
+    // to the Tenant table. Idempotent + cached for 10 minutes in-process.
+    await ensureSchemaSynced();
 
     const body = await request.json();
     const {

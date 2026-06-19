@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -71,6 +72,12 @@ export async function POST(request: Request) {
     if (userRole !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can seed sample data' }, { status: 403, headers: corsHeaders() });
     }
+
+    // Proactively sync the DB schema before any upsert. The build-time
+    // scripts/schema-sync.js should have already done this, but if the build
+    // env didn't have access to POSTGRES_PRISMA_URL the columns may still be
+    // missing. This call is idempotent and cached for 10 minutes in-process.
+    await ensureSchemaSynced();
 
     // A stable password for all sample tenant_admin accounts.
     const SAMPLE_PASSWORD = 'Tenant@123';
@@ -280,31 +287,37 @@ export async function POST(request: Request) {
     } = { tenants: [], adminPassword: SAMPLE_PASSWORD };
 
     for (const sample of SAMPLE) {
-      // Upsert tenant by slug
-      const tenant = await prisma.tenant.upsert({
-        where: { slug: sample.slug },
-        update: {
-          name: sample.name,
-          domain: sample.domain,
-          plan: sample.plan,
-          country: sample.country,
-          currency: sample.currency,
-          timezone: sample.timezone,
-          maxCompaniesAllowed: sample.maxCompaniesAllowed,
-          status: 'active',
-        },
-        create: {
-          name: sample.name,
-          slug: sample.slug,
-          domain: sample.domain,
-          plan: sample.plan,
-          country: sample.country,
-          currency: sample.currency,
-          timezone: sample.timezone,
-          maxCompaniesAllowed: sample.maxCompaniesAllowed,
-          status: 'active',
-        },
-      });
+      // Upsert tenant by slug.
+      // Wrapped in withSchemaSync so that if the production DB is missing
+      // the new SRS columns (language, baseCurrency, dataRegion,
+      // subscriptionSeats, subscriptionStorage) the route self-heals by
+      // running ALTER TABLE ADD COLUMN IF NOT EXISTS, then retries.
+      const tenant = await withSchemaSync(() =>
+        prisma.tenant.upsert({
+          where: { slug: sample.slug },
+          update: {
+            name: sample.name,
+            domain: sample.domain,
+            plan: sample.plan,
+            country: sample.country,
+            currency: sample.currency,
+            timezone: sample.timezone,
+            maxCompaniesAllowed: sample.maxCompaniesAllowed,
+            status: 'active',
+          },
+          create: {
+            name: sample.name,
+            slug: sample.slug,
+            domain: sample.domain,
+            plan: sample.plan,
+            country: sample.country,
+            currency: sample.currency,
+            timezone: sample.timezone,
+            maxCompaniesAllowed: sample.maxCompaniesAllowed,
+            status: 'active',
+          },
+        })
+      );
 
       // Upsert tenant_admin user by email
       const adminUser = await prisma.user.upsert({
@@ -360,35 +373,42 @@ export async function POST(request: Request) {
             where: { companyGroupId: group.id, name: sc.name },
           });
           if (existingCo) {
-            await prisma.company.update({
-              where: { id: existingCo.id },
-              data: {
-                code: sc.code,
-                city: sc.city,
-                state: sc.state,
-                country: sc.country,
-                currency: sc.currency,
-                plannedEmployeeCount: sc.plannedEmployeeCount,
-                maxEmployees: sc.maxEmployees,
-                status: 'active',
-              },
-            });
+            // Company update — wrapped because Company now has a `language`
+            // column that may not exist on the production DB yet.
+            await withSchemaSync(() =>
+              prisma.company.update({
+                where: { id: existingCo.id },
+                data: {
+                  code: sc.code,
+                  city: sc.city,
+                  state: sc.state,
+                  country: sc.country,
+                  currency: sc.currency,
+                  plannedEmployeeCount: sc.plannedEmployeeCount,
+                  maxEmployees: sc.maxEmployees,
+                  status: 'active',
+                },
+              })
+            );
           } else {
-            await prisma.company.create({
-              data: {
-                name: sc.name,
-                code: sc.code,
-                companyGroupId: group.id,
-                city: sc.city,
-                state: sc.state,
-                country: sc.country,
-                currency: sc.currency,
-                timezone: sample.timezone,
-                plannedEmployeeCount: sc.plannedEmployeeCount,
-                maxEmployees: sc.maxEmployees,
-                status: 'active',
-              },
-            });
+            // Company create — wrapped for the same reason.
+            await withSchemaSync(() =>
+              prisma.company.create({
+                data: {
+                  name: sc.name,
+                  code: sc.code,
+                  companyGroupId: group.id,
+                  city: sc.city,
+                  state: sc.state,
+                  country: sc.country,
+                  currency: sc.currency,
+                  timezone: sample.timezone,
+                  plannedEmployeeCount: sc.plannedEmployeeCount,
+                  maxEmployees: sc.maxEmployees,
+                  status: 'active',
+                },
+              })
+            );
             totalCompaniesForTenant += 1;
           }
         }
