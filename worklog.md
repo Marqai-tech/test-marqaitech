@@ -932,3 +932,37 @@ Stage Summary:
   2. Pick a parent company in the header dropdown → /company page should narrow to that parent's companies
   3. Pick a specific company in the header dropdown → /company page should show only that company
   4. Each company card should show the parent group + parent tenant name (for super admin)
+
+---
+Task ID: 2
+Agent: main (super-z)
+Task: Fix "in super admin login - tenant admin - overview & group companies data is not visible - shows empty"
+
+Work Log:
+- Investigated the super-admin tenant view, tenant-admin Overview tab, and tenant-admin Group Companies tab
+- Identified 3 independent root causes for the "shows empty" symptom:
+  1. /api/super-admin/dashboard was using prisma.companyGroup.count() for the totalCompanies field (counting groups instead of companies)
+  2. Tenants created before commit c319fe3 had ZERO group companies (auto-group-create was added in c319fe3) — so the super-admin tenant view panel hid the Company Groups section entirely
+  3. /tenant-admin/* pages had no access guard; super_admin could navigate there via the sidebar, but the pages assume user.tenantId exists (super_admin doesn't have one) → "No tenant information available"
+
+Stage Summary:
+- Fixed dashboard stat bug: /api/super-admin/dashboard now uses prisma.company.count() for totalCompanies, and exposes totalGroupCompanies as a separate field
+- Added "Load Sample Data" CTA banner on the super-admin dashboard when totalTenants === 0 (replaces zeroed KPI cards with actionable guidance)
+- Auto-heal: /api/tenants/[id] GET now ensures every tenant has at least one default group company (named after the tenant per the "group company name = parent tenant" rule). Idempotent.
+- Auto-heal: /api/company-groups GET does the same for every tenant that will appear in the result
+- Resilience: both APIs now wrap every prisma call in a safe() helper (same pattern as /api/me/context) — single failure no longer 500s the whole endpoint
+- Access guards: /tenant-admin, /tenant-admin/companies, /tenant-admin/group-companies now show a helpful redirect card to /super-admin when the logged-in user is super_admin (with a separate card for tenant_admin users with no tenantId)
+- Sidebar: "Tenant Admin", "Companies", "View Group Companies", "Company RBAC" links now restricted to roles: ['tenant_admin']; "RBAC Management" restricted to roles: ['super_admin']
+- All guards placed AFTER all useState/useCallback/useEffect hooks to preserve React's rules-of-hooks
+- Verified: npx tsc --noEmit (no new errors), npx next build (compiles cleanly)
+- Committed 9206c57 and pushed to main → Vercel auto-deploy triggered
+
+Files changed:
+- src/app/api/super-admin/dashboard/route.ts
+- src/app/api/tenants/[id]/route.ts
+- src/app/api/company-groups/route.ts
+- src/app/(dashboard)/super-admin/page.tsx
+- src/app/(dashboard)/tenant-admin/page.tsx
+- src/app/(dashboard)/tenant-admin/companies/page.tsx
+- src/app/(dashboard)/tenant-admin/group-companies/page.tsx
+- src/components/Sidebar.tsx
