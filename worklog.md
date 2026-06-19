@@ -1105,3 +1105,18 @@ Stage Summary:
 - Self-healing schema sync: the first request to any write route triggers ALTER TABLE ADD COLUMN IF NOT EXISTS, then the upsert/update succeeds on retry.
 - This works even if the build-time schema sync failed (e.g. env var not exposed to build).
 - After Vercel finishes building commit 2e878a0, 'Load sample data' will work on the first click.
+
+### Task ID 4 — Update: actual root cause found
+
+After the first attempt (commit 2e878a0) deployed, 'Load sample data' STILL failed with the same error. Investigated further and found the REAL root cause:
+
+- `@neondatabase/serverless`'s `neon()` returns a **tagged-template function**.
+- Calling `sql(stmt)` where `stmt` is a STRING VARIABLE does NOT execute the SQL — it treats the string as a parameter value and runs an empty query.
+- This is documented in `node_modules/@neondatabase/serverless/CONFIG.md`: "If you need to pass SQL in a variable, not as a template-string literal, use the `query()` property of the template function".
+- Result: every `ALTER TABLE` / `CREATE TABLE` statement in our schema sync was silently swallowed. The 'applied' counter ticked up, but no DDL ever ran. The production Neon DB never got the new columns.
+
+Fix (commit 58108a8):
+- Both `scripts/schema-sync.js` (build-time) and `src/lib/schema-sync.ts` (runtime) now use `sql.query(stmt, [])` instead of `sql(stmt)` for raw DDL strings.
+- Tagged template literals like `` sql`SELECT ...` `` continue to work correctly and were not changed.
+
+After Vercel finishes building commit 58108a8, both the build-time AND runtime schema sync will actually execute the ALTER TABLE statements, and 'Load sample data' will work.
