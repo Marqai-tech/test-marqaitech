@@ -171,6 +171,7 @@ model Company {
   payrollDefinitions PayrollDefinition[]
   bankPaymentFiles BankPaymentFile[]
   invoices        Invoice[]
+  okrs            OKR[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1379,6 +1380,7 @@ model Project {
   invoices      Invoice[]
   timesheets    Timesheet[]
   members       ProjectMember[]
+  okrs          OKR[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1901,8 +1903,19 @@ model OKR {
 
   // Owner: an Employee (individual OKR) — for company/group/project OKRs,
   // ownerId can store the company/project ID and category will distinguish.
-  ownerId     String
-  owner       Employee  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  // Made nullable for company-level OKRs (REQ-PER-01 cascade).
+  ownerId     String?
+  owner       Employee?  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  // Cascade ownership — for category='company' or 'sub_company', companyId is set.
+  // For category='project', projectId is set. For category='individual', ownerId is set.
+  companyId   String?
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Audit: who created this OKR
+  createdById String?
 
   quarter     String   @default("Q1 2026")
   year        Int      @default(2026)
@@ -1924,8 +1937,12 @@ model OKR {
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+  @@index([companyId])
+  @@index([projectId])
   @@index([parentOkrId])
   @@index([category])
+  @@index([quarter])
+  @@index([year])
 }
 
 model KeyResult {

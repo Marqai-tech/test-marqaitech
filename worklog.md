@@ -1256,3 +1256,47 @@ Stage Summary:
 - REQ-SEC-12 Lock + Super Admin Override: FULLY IMPLEMENTED — managers+ can lock; only super_admin can unlock; locked rows return HTTP 423 on edit/delete attempts
 - Invoiced state on Timesheet: FULLY IMPLEMENTED — invoice generation marks source rows; double-billing prevented; invoiced rows cannot be edited or deleted
 - Backward compatibility maintained: legacy project/task String columns kept (mapped via @map); existing UI code that referenced ts.project/ts.task now uses project.name/taskText fallback chain
+
+---
+Task ID: 9
+Agent: main (Super Z)
+Task: Implement Project-Level RBAC (REQ-SEC-11) — third of 5 prioritized SRS modules
+
+Work Log:
+- Added ProjectMember model to prisma/schema.prisma:
+  * Fields: projectId (FK→Project), employeeId (FK→Employee), userId?, role, permissions?, assignedBy?, assignedAt
+  * Roles: manager / finance / member / viewer
+  * @@unique([projectId, employeeId]) prevents duplicate memberships
+  * Added back-reference relations on Project (members[]) and Employee (projectMembers[])
+- Extended scripts/schema-sync.js + src/lib/schema-sync.ts with CREATE TABLE ProjectMember + 4 indexes (projectId, employeeId, role, unique projectId+employeeId) + 2 FK constraints (project, employee)
+- Added 'projectMember' to db.ts fallback proxy whitelist
+- Created src/lib/project-rbac.ts with two exports:
+  * resolveProjectAccess(decoded, projectId) — returns ProjectAccessResult with role + 6 capability flags (canView, canViewFinancials, canEdit, canManageMembers, canDelete, canLogTime)
+  * gateProjectFinancials(project, access) — strips budgetAmount, billingRate, costRate, actualHours, exchangeRate, totalAmount*, subtotal*, fxGainLoss from the project object + nested allocations.billingRate/internalCostRate + invoices financial fields
+- 5-tier role resolution:
+  1. super_admin / tenant_admin → 'manager' (full access, including delete for super_admin)
+  2. hr_admin (global) → 'finance' (sees financials + can edit fields, cannot manage members or delete)
+  3. finance (global) → 'finance' (sees financials, cannot edit fields)
+  4. projectManagerId / deliveryManagerId match → 'manager'
+  5. Explicit ProjectMember row exists → use its role
+  6. Active ProjectAllocation exists → 'member' (inferred — can log time + view, no financials)
+  7. Otherwise → null (access denied)
+- Rewrote /api/projects/[id] route.ts to apply RBAC:
+  * GET: 403 if !canView; gateProjectFinancials() applied for non-finance roles; response includes 'access' object so the UI can adapt (hide financial tabs, hide edit button, etc.)
+  * PUT: 403 if !canEdit; financial field edits (budgetAmount, billingRate, costRate, currency, billingType) require canViewFinancials
+  * PATCH: same RBAC as PUT
+  * DELETE: restricted to super_admin / tenant_admin only (project managers must escalate to admin)
+- Created /api/projects/[id]/members endpoints:
+  * GET — list members (requires canView); returns callerRole so UI knows what to show
+  * POST — add/update member (requires canManageMembers); uses upsert so re-adding an existing member just updates their role
+  * PATCH /[memberId] — change role or permissions (requires canManageMembers); validates role enum
+  * DELETE /[memberId] — remove member (requires canManageMembers)
+- Audit log entries for all member changes (ADD_PROJECT_MEMBER, UPDATE_PROJECT_MEMBER, REMOVE_PROJECT_MEMBER, UPDATE_PROJECT with role suffix)
+- Verified: npx prisma generate succeeds; npx next build succeeds with all new routes (/api/projects/[id]/members, /api/projects/[id]/members/[memberId]) in output
+
+Stage Summary:
+- REQ-SEC-11 Project-Level RBAC: FULLY IMPLEMENTED end-to-end
+- 4 distinct roles supported with capability flags per role
+- Inferred access for project managers (via Project.projectManagerId) and allocated employees (via ProjectAllocation) — no explicit ProjectMember row needed for these cases
+- Financial-field gating applies at the API level (defense-in-depth: even if UI shows the fields, the API strips them on GET and rejects edits on PUT/PATCH)
+- Super_admin override preserved at all levels

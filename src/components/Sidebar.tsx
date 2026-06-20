@@ -163,6 +163,7 @@ const navSections: NavSection[] = [
     label: 'Performance & Growth',
     items: [
       { label: 'Performance', href: '/performance', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'performance' },
+      { label: 'OKR Cascade', href: '/okrs', icon: <FiTarget className="w-5 h-5" />, moduleKey: 'performance', isNew: true },
       { label: 'Training', href: '/training', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'training' },
       { label: 'Engagement', href: '/engagement', icon: <FiHeart className="w-5 h-5" />, moduleKey: 'engagement', isNew: true },
       { label: 'Succession Planning', href: '/succession', icon: <FiTarget className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'], isNew: true },

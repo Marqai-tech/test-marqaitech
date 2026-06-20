@@ -388,6 +388,18 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "ProjectMember_projectId_idx" ON "ProjectMember"("projectId")`,
     `CREATE INDEX IF NOT EXISTS "ProjectMember_employeeId_idx" ON "ProjectMember"("employeeId")`,
     `CREATE INDEX IF NOT EXISTS "ProjectMember_role_idx" ON "ProjectMember"("role")`,
+
+    // ─── OKR cascade additions (REQ-PER-01, added 2026-06-21) ───
+    // Make ownerId nullable (it's already TEXT, but was NOT NULL — ALTER COLUMN DROP NOT NULL)
+    // Add companyId + projectId + createdById columns + cascade indexes
+    `ALTER TABLE "OKR" ALTER COLUMN "ownerId" DROP NOT NULL`,
+    `ALTER TABLE "OKR" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+    `ALTER TABLE "OKR" ADD COLUMN IF NOT EXISTS "projectId" TEXT`,
+    `ALTER TABLE "OKR" ADD COLUMN IF NOT EXISTS "createdById" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "OKR_companyId_idx" ON "OKR"("companyId")`,
+    `CREATE INDEX IF NOT EXISTS "OKR_projectId_idx" ON "OKR"("projectId")`,
+    `CREATE INDEX IF NOT EXISTS "OKR_quarter_idx" ON "OKR"("quarter")`,
+    `CREATE INDEX IF NOT EXISTS "OKR_year_idx" ON "OKR"("year")`,
   ];
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -448,6 +460,13 @@ async function main() {
 
     `ALTER TABLE "ProjectMember" DROP CONSTRAINT IF EXISTS "ProjectMember_employeeId_fkey"`,
     `ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── OKR cascade FKs (REQ-PER-01) ───
+    `ALTER TABLE "OKR" DROP CONSTRAINT IF EXISTS "OKR_companyId_fkey"`,
+    `ALTER TABLE "OKR" ADD CONSTRAINT "OKR_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "OKR" DROP CONSTRAINT IF EXISTS "OKR_projectId_fkey"`,
+    `ALTER TABLE "OKR" ADD CONSTRAINT "OKR_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   ];
 
   let applied = 0;
