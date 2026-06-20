@@ -363,6 +363,7 @@ model Employee {
   onboardingTasks   OnboardingTask[]
   reimbursements    Reimbursement[]
   projectAllocations ProjectAllocation[]
+  projectMembers     ProjectMember[]
   fnfCalculations   FNFCalculation[]
   employeePaymentMethods EmployeePaymentMethod[]
   loans             Loan[]
@@ -1377,6 +1378,7 @@ model Project {
   allocations   ProjectAllocation[]
   invoices      Invoice[]
   timesheets    Timesheet[]
+  members       ProjectMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1459,6 +1461,46 @@ model ProjectAllocation {
 
   @@index([projectId])
   @@index([employeeId])
+}
+
+// ============ PROJECT-LEVEL RBAC (REQ-SEC-11) ============
+// Per-project role assignment. Distinct from ProjectAllocation:
+//   - ProjectAllocation = "this employee works on this project" (resource + billing)
+//   - ProjectMember     = "this employee has access to this project" (RBAC)
+// An employee can be a Member with role='viewer' without any allocation,
+// or be allocated but not a Member (no project-page access).
+
+model ProjectMember {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  userId      String?  // optional link to User (for non-employee users like finance/it_admin)
+
+  // Role on this project:
+  //   manager  — full project edit, sees financials, can manage members
+  //   finance  — sees financials + invoices, cannot edit project fields
+  //   member   — sees project (no financials), can log timesheets, edit tasks
+  //   viewer   — read-only, no financials (for client stakeholders / observers)
+  role        String   @default("member")
+
+  // Optional fine-grained permissions (JSON). Reserved for future use.
+  // Example: {"viewFinancials": true, "editTasks": false, "approveTimesheets": true}
+  permissions String?
+
+  assignedBy  String?
+  assignedAt  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, employeeId])
+  @@index([projectId])
+  @@index([employeeId])
+  @@index([role])
 }
 
 // ============ HELPDESK / TICKET SYSTEM ============

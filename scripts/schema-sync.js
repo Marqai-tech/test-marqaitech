@@ -369,6 +369,25 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "Timesheet_invoiced_idx" ON "Timesheet"("invoiced")`,
     `CREATE INDEX IF NOT EXISTS "Timesheet_locked_idx" ON "Timesheet"("locked")`,
     `CREATE INDEX IF NOT EXISTS "Timesheet_invoiceId_idx" ON "Timesheet"("invoiceId")`,
+
+    // ─── ProjectMember (REQ-SEC-11, added 2026-06-21) ───
+    `CREATE TABLE IF NOT EXISTS "ProjectMember" (
+      "id" TEXT NOT NULL,
+      "projectId" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "userId" TEXT,
+      "role" TEXT NOT NULL DEFAULT 'member',
+      "permissions" TEXT,
+      "assignedBy" TEXT,
+      "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ProjectMember_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "ProjectMember_projectId_employeeId_key" ON "ProjectMember"("projectId", "employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "ProjectMember_projectId_idx" ON "ProjectMember"("projectId")`,
+    `CREATE INDEX IF NOT EXISTS "ProjectMember_employeeId_idx" ON "ProjectMember"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "ProjectMember_role_idx" ON "ProjectMember"("role")`,
   ];
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -422,6 +441,13 @@ async function main() {
 
     `ALTER TABLE "Timesheet" DROP CONSTRAINT IF EXISTS "Timesheet_projectTaskId_fkey"`,
     `ALTER TABLE "Timesheet" ADD CONSTRAINT "Timesheet_projectTaskId_fkey" FOREIGN KEY ("projectTaskId") REFERENCES "ProjectTask"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    // ─── ProjectMember FKs (REQ-SEC-11) ───
+    `ALTER TABLE "ProjectMember" DROP CONSTRAINT IF EXISTS "ProjectMember_projectId_fkey"`,
+    `ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "ProjectMember" DROP CONSTRAINT IF EXISTS "ProjectMember_employeeId_fkey"`,
+    `ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   ];
 
   let applied = 0;

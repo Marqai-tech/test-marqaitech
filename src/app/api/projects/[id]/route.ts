@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
+import { resolveProjectAccess, gateProjectFinancials } from '@/lib/project-rbac';
 
 function corsHeaders() {
   return {
@@ -15,11 +17,17 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// ─── GET /api/projects/[id] ───────────────────────────────────────
+// Returns the project. Project-Level RBAC (REQ-SEC-11) applies:
+//   - If user has no access → 403
+//   - If user can view but not financials → financial fields are stripped
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureSchemaSynced();
+
     const token = getTokenFromHeaders(request);
     if (!token) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -32,47 +40,78 @@ export async function GET(
 
     const { id } = await params;
 
-    const project = await prisma.project.findUnique({
-      where: { id },
-      include: {
-        client: { select: { id: true, name: true, code: true, contactName: true, contactEmail: true } },
-        department: { select: { id: true, name: true, code: true } },
-        company: { select: { id: true, name: true } },
-        tasks: {
-          include: {
-            milestone: { select: { id: true, name: true } },
+    // RBAC check
+    const access = await resolveProjectAccess(decoded, id);
+    if (!access.canView) {
+      return NextResponse.json(
+        { error: 'You do not have access to this project', access: 'denied' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
+    const project = await withSchemaSync(() =>
+      prisma.project.findUnique({
+        where: { id },
+        include: {
+          client: { select: { id: true, name: true, code: true, contactName: true, contactEmail: true, billingCurrency: true } },
+          department: { select: { id: true, name: true, code: true } },
+          company: { select: { id: true, name: true } },
+          tasks: {
+            include: {
+              milestone: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
           },
-          orderBy: { createdAt: 'desc' },
-        },
-        milestones: {
-          include: { _count: { select: { tasks: true } } },
-          orderBy: { plannedDate: 'asc' },
-        },
-        allocations: {
-          include: {
-            employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } },
+          milestones: {
+            include: { _count: { select: { tasks: true } } },
+            orderBy: { plannedDate: 'asc' },
           },
-          orderBy: { createdAt: 'desc' },
+          allocations: {
+            include: {
+              employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+          members: {
+            include: {
+              employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } },
+            },
+            orderBy: { assignedAt: 'desc' },
+          },
         },
-      },
-    });
+      })
+    );
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    return NextResponse.json({ project }, { headers: corsHeaders() });
+    // Apply financial-field gating
+    const gatedProject = gateProjectFinancials(
+      project as unknown as Record<string, unknown>,
+      access
+    );
+
+    return NextResponse.json(
+      { project: gatedProject, access: { role: access.role, canViewFinancials: access.canViewFinancials, canEdit: access.canEdit, canManageMembers: access.canManageMembers } },
+      { headers: corsHeaders() }
+    );
   } catch (error) {
     console.error('Get project error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
 
+// ─── PUT /api/projects/[id] ───────────────────────────────────────
+// RBAC: only manager / hr_admin / super_admin / tenant_admin can edit.
+// Financial fields (budgetAmount, billingRate, costRate) require canViewFinancials.
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureSchemaSynced();
+
     const token = getTokenFromHeaders(request);
     if (!token) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -84,11 +123,34 @@ export async function PUT(
     }
 
     const { id } = await params;
+
+    // RBAC check
+    const access = await resolveProjectAccess(decoded, id);
+    if (!access.canView) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
+    }
+    if (!access.canEdit) {
+      return NextResponse.json(
+        { error: 'You do not have edit permission on this project', access: 'denied' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     const body = await request.json();
 
     const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Financial fields require canViewFinancials (i.e., manager / finance / hr_admin)
+    const financialFields = ['budgetAmount', 'billingRate', 'costRate', 'currency', 'billingType'];
+    const hasFinancialEdit = body && Object.keys(body).some((k) => financialFields.includes(k));
+    if (hasFinancialEdit && !access.canViewFinancials) {
+      return NextResponse.json(
+        { error: 'You do not have permission to edit financial fields on this project' },
+        { status: 403, headers: corsHeaders() }
+      );
     }
 
     const updateData: Record<string, unknown> = {};
@@ -104,21 +166,23 @@ export async function PUT(
     if (body.startDate !== undefined) updateData.startDate = new Date(body.startDate);
     if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null;
 
-    const project = await prisma.project.update({
-      where: { id },
-      data: updateData,
-      include: {
-        client: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-      },
-    });
+    const project = await withSchemaSync(() =>
+      prisma.project.update({
+        where: { id },
+        data: updateData,
+        include: {
+          client: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } },
+        },
+      })
+    );
 
     await prisma.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_PROJECT',
         module: 'projects',
-        details: `Updated project ${id}`,
+        details: `Updated project ${id} (role: ${access.role})`,
       },
     });
 
@@ -129,11 +193,15 @@ export async function PUT(
   }
 }
 
+// ─── PATCH /api/projects/[id] ─────────────────────────────────────
+// Same RBAC as PUT. Used for status changes.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureSchemaSynced();
+
     const token = getTokenFromHeaders(request);
     if (!token) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -145,11 +213,32 @@ export async function PATCH(
     }
 
     const { id } = await params;
+
+    const access = await resolveProjectAccess(decoded, id);
+    if (!access.canView) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
+    }
+    if (!access.canEdit) {
+      return NextResponse.json(
+        { error: 'You do not have edit permission on this project' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     const body = await request.json();
 
     const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    const financialFields = ['budgetAmount', 'billingRate', 'costRate', 'currency', 'billingType'];
+    const hasFinancialEdit = body && Object.keys(body).some((k) => financialFields.includes(k));
+    if (hasFinancialEdit && !access.canViewFinancials) {
+      return NextResponse.json(
+        { error: 'You do not have permission to edit financial fields on this project' },
+        { status: 403, headers: corsHeaders() }
+      );
     }
 
     const updateData: Record<string, unknown> = {};
@@ -165,14 +254,16 @@ export async function PATCH(
     if (body.startDate !== undefined) updateData.startDate = new Date(body.startDate);
     if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null;
 
-    const project = await prisma.project.update({
-      where: { id },
-      data: updateData,
-      include: {
-        client: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-      },
-    });
+    const project = await withSchemaSync(() =>
+      prisma.project.update({
+        where: { id },
+        data: updateData,
+        include: {
+          client: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } },
+        },
+      })
+    );
 
     // Notify relevant users on status change
     if (body.status && body.status !== existing.status) {
@@ -201,7 +292,7 @@ export async function PATCH(
         userId: decoded.userId as string,
         action: 'UPDATE_PROJECT',
         module: 'projects',
-        details: `Updated project ${id}`,
+        details: `Updated project ${id} (role: ${access.role})`,
       },
     });
 
@@ -212,11 +303,16 @@ export async function PATCH(
   }
 }
 
+// ─── DELETE /api/projects/[id] ────────────────────────────────────
+// Only super_admin / tenant_admin can delete. Project managers cannot
+// delete their own projects (must escalate).
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureSchemaSynced();
+
     const token = getTokenFromHeaders(request);
     if (!token) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -229,12 +325,21 @@ export async function DELETE(
 
     const { id } = await params;
 
+    const userRole = decoded.role as string;
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+      return NextResponse.json(
+        { error: 'Only super_admin or tenant_admin can delete projects' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // Delete related records first (tasks, allocations, milestones)
+    // Delete related records first (members, tasks, allocations, milestones)
+    await withSchemaSync(() => prisma.projectMember.deleteMany({ where: { projectId: id } }));
     await prisma.projectTask.deleteMany({ where: { projectId: id } });
     await prisma.projectAllocation.deleteMany({ where: { projectId: id } });
     await prisma.projectMilestone.deleteMany({ where: { projectId: id } });

@@ -79,6 +79,8 @@ function createFallbackProxy(): PrismaClient {
         'exitInterview', 'recognition', 'aIConfig', 'aIPromptLog',
         // Invoicing (added 2026-06-21, REQ-PM-09)
         'invoice', 'invoiceLineItem',
+        // Project-level RBAC (added 2026-06-21, REQ-SEC-11)
+        'projectMember',
       ]
 
       if (modelNames.includes(prop)) {

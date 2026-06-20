@@ -1210,3 +1210,49 @@ Stage Summary:
 - All 7 status workflow states supported: draft → issued → sent → partial → paid / overdue / disputed / cancelled
 - Currency cascade: body → client.billingCurrency → project.currency → company.currency → USD (sensible defaults at every step)
 - Builds clean; ready to deploy
+
+---
+Task ID: 8
+Agent: main (Super Z)
+Task: Build Timesheet Schema Fix + Lock (REQ-PM-07, REQ-SEC-12) — second of 5 prioritized SRS modules
+
+Work Log:
+- Extended Timesheet model in prisma/schema.prisma:
+  * Added projectId + projectTaskId FK columns with Project/ProjectTask relations
+  * Renamed legacy project/task String columns to projectText/taskText (kept @map("project") / @map("task") for backward compat with existing DB column names)
+  * Added locked Boolean, lockedBy String?, lockedAt DateTime?, lockReason String?
+  * Added invoiced Boolean, invoiceId String?
+  * DROPPED @@unique([employeeId, date]) — this was blocking employees from logging time against multiple projects on the same day
+  * Added 6 new indexes: projectId, projectTaskId, status, invoiced, locked, invoiceId
+- Added back-reference relations: timesheets[] on Project + ProjectTask
+- Extended scripts/schema-sync.js + src/lib/schema-sync.ts with:
+  * ALTER TABLE ADD COLUMN IF NOT EXISTS for all 8 new columns
+  * DROP INDEX IF EXISTS "Timesheet_employeeId_date_key" (Prisma's auto-generated unique constraint name) plus key1 fallback
+  * CREATE INDEX IF NOT EXISTS for the 6 new indexes
+  * DROP+ADD CONSTRAINT for Timesheet_projectId_fkey + Timesheet_projectTaskId_fkey
+- Rewrote /api/timesheets GET to support filters: projectId, projectTaskId, invoiced, locked, dateFrom, dateTo (with full project + projectTask includes)
+- Rewrote /api/timesheets POST to accept projectId FK; auto-hydrates projectText from project.name (and taskText from projectTask.name) so legacy UI/reports keep working
+- Added /api/timesheets/[id] GET (was missing — only PUT/PATCH/DELETE existed)
+- Updated /api/timesheets/[id] PUT to block edits when row is locked (HTTP 423 Locked) unless caller is super_admin; auto-hydrates text from FK lookup
+- Updated /api/timesheets/[id] PATCH to support locked: true|false + lockReason; lock allowed for managers+, unlock restricted to super_admin only (REQ-SEC-12); audit log for every lock/unlock
+- Updated /api/timesheets/[id] DELETE: blocks invoiced timesheets for ALL roles (audit trail); blocks locked for non-super_admin
+- Created /api/timesheets/bulk-approve — approves/rejects multiple at once, skips locked rows
+- Created /api/timesheets/bulk-lock — bulk lock (managers+) or bulk unlock (super_admin only)
+- Updated /api/invoices/[id]/generate-from-timesheets to:
+  * Filter by projectId FK (with OR fallback to projectText name match for legacy rows)
+  * Skip already-invoiced timesheets (prevents double-billing)
+  * Group by (employeeId, date, projectId) so multi-project days create separate line items
+  * After generating line items, mark ALL source timesheets as invoiced=true + invoiceId=<invoice.id>
+- Updated /timesheets UI page:
+  * Project input → dropdown (fetched from /api/projects, displays name + code)
+  * Table shows Locked (purple) and Invoiced (emerald) badges next to project name
+  * Added Lock/Unlock button (only shown if not invoiced; super_admin-only to unlock)
+  * Edit + Delete buttons hidden when row is locked or invoiced
+  * Status badge supports new 'locked' state (purple)
+- Verified: npx prisma generate succeeds; npx next build succeeds with all new routes in output (/api/timesheets, /api/timesheets/[id], /api/timesheets/bulk-approve, /api/timesheets/bulk-lock)
+
+Stage Summary:
+- REQ-PM-07 Timesheet Schema Fix: FULLY IMPLEMENTED — project/task are now proper FKs, per-day unique dropped (multi-project days work)
+- REQ-SEC-12 Lock + Super Admin Override: FULLY IMPLEMENTED — managers+ can lock; only super_admin can unlock; locked rows return HTTP 423 on edit/delete attempts
+- Invoiced state on Timesheet: FULLY IMPLEMENTED — invoice generation marks source rows; double-billing prevented; invoiced rows cannot be edited or deleted
+- Backward compatibility maintained: legacy project/task String columns kept (mapped via @map); existing UI code that referenced ts.project/ts.task now uses project.name/taskText fallback chain
