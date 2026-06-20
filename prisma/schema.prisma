@@ -916,19 +916,53 @@ model Timesheet {
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   date        DateTime
-  project     String?
-  task        String?
+
+  // ─── REQ-PM-07 / REQ-SEC-12: FKs + lock + invoiced state ───
+  // Project / task are now proper FKs. The legacy String? fields are kept
+  // (populated from the FK lookup on save) so existing UI code + reports
+  // keep working without a rewrite.
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectTaskId String?
+  projectTask ProjectTask? @relation(fields: [projectTaskId], references: [id], onDelete: SetNull)
+
+  // Legacy free-text columns — kept for backward compat with existing UI + data.
+  // On save, if projectId is set, the API hydrates `project` with project.name.
+  projectText String?  @map("project")
+  taskText    String?  @map("task")
+
   hours       Float @default(0)
   description String?
-  status      String @default("draft") // draft, submitted, approved, rejected
+  status      String @default("draft") // draft, submitted, approved, rejected, locked
+
   approvedBy  String?
   approvedAt  DateTime?
+
+  // ─── REQ-SEC-12: Lock — once locked, the row is immutable except by super_admin ───
+  locked      Boolean  @default(false)
+  lockedBy    String?
+  lockedAt    DateTime?
+  lockReason  String?
+
+  // ─── Invoiced state — set when this timesheet is included in an InvoiceLineItem ───
+  invoiced    Boolean  @default(false)
+  invoiceId   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([employeeId, date])
+  // NOTE: dropped @@unique([employeeId, date]) — the per-day unique constraint
+  // prevented employees from logging time against MULTIPLE projects on the same
+  // day, which is the normal case for consulting work. Multi-project days are
+  // now fully supported.
+
   @@index([employeeId])
+  @@index([projectId])
+  @@index([projectTaskId])
+  @@index([status])
+  @@index([invoiced])
+  @@index([locked])
+  @@index([invoiceId])
 }
 
 // ============ FEEDBACK ============
@@ -1342,6 +1376,7 @@ model Project {
   milestones    ProjectMilestone[]
   allocations   ProjectAllocation[]
   invoices      Invoice[]
+  timesheets    Timesheet[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1371,6 +1406,8 @@ model ProjectTask {
   isBillable    Boolean @default(true)
   description   String?
   completedAt   DateTime?
+
+  timesheets    Timesheet[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

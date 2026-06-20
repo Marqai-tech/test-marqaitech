@@ -344,6 +344,31 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_timesheetId_idx" ON "InvoiceLineItem"("timesheetId")`,
     `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_projectId_idx" ON "InvoiceLineItem"("projectId")`,
     `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_employeeId_idx" ON "InvoiceLineItem"("employeeId")`,
+
+    // ─── Timesheet schema fix (REQ-PM-07, REQ-SEC-12, added 2026-06-21) ───
+    // 1. Add projectId + projectTaskId FK columns (kept nullable so existing rows survive)
+    // 2. Add lock fields (locked, lockedBy, lockedAt, lockReason)
+    // 3. Add invoiced fields (invoiced, invoiceId)
+    // 4. DROP the @@unique([employeeId, date]) constraint — it blocked multi-project days
+    // 5. Add new indexes (projectId, status, invoiced, locked, invoiceId)
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "projectId" TEXT`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "projectTaskId" TEXT`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "locked" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "lockedBy" TEXT`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "lockedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "lockReason" TEXT`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "invoiced" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "Timesheet" ADD COLUMN IF NOT EXISTS "invoiceId" TEXT`,
+    // Drop the per-day unique constraint (Prisma name: Timesheet_employeeId_date_key)
+    `DROP INDEX IF EXISTS "Timesheet_employeeId_date_key"`,
+    `DROP INDEX IF EXISTS "Timesheet_employeeId_date_key1"`,
+    // New indexes
+    `CREATE INDEX IF NOT EXISTS "Timesheet_projectId_idx" ON "Timesheet"("projectId")`,
+    `CREATE INDEX IF NOT EXISTS "Timesheet_projectTaskId_idx" ON "Timesheet"("projectTaskId")`,
+    `CREATE INDEX IF NOT EXISTS "Timesheet_status_idx" ON "Timesheet"("status")`,
+    `CREATE INDEX IF NOT EXISTS "Timesheet_invoiced_idx" ON "Timesheet"("invoiced")`,
+    `CREATE INDEX IF NOT EXISTS "Timesheet_locked_idx" ON "Timesheet"("locked")`,
+    `CREATE INDEX IF NOT EXISTS "Timesheet_invoiceId_idx" ON "Timesheet"("invoiceId")`,
   ];
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -390,6 +415,13 @@ async function main() {
 
     `ALTER TABLE "InvoiceLineItem" DROP CONSTRAINT IF EXISTS "InvoiceLineItem_invoiceId_fkey"`,
     `ALTER TABLE "InvoiceLineItem" ADD CONSTRAINT "InvoiceLineItem_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Timesheet FKs (REQ-PM-07) ───
+    `ALTER TABLE "Timesheet" DROP CONSTRAINT IF EXISTS "Timesheet_projectId_fkey"`,
+    `ALTER TABLE "Timesheet" ADD CONSTRAINT "Timesheet_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    `ALTER TABLE "Timesheet" DROP CONSTRAINT IF EXISTS "Timesheet_projectTaskId_fkey"`,
+    `ALTER TABLE "Timesheet" ADD CONSTRAINT "Timesheet_projectTaskId_fkey" FOREIGN KEY ("projectTaskId") REFERENCES "ProjectTask"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
   ];
 
   let applied = 0;

@@ -85,58 +85,53 @@ export async function POST(
       );
     }
 
-    // Query approved timesheets in the date range, optionally filtered by
-    // project (matched against the Timesheet.project string field — it's
-    // currently a free-text String per the existing schema; we match by
-    // project name OR by ProjectAllocation to find the project).
+    // Query approved timesheets in the date range.
+    // REQ-PM-07 fix: prefer projectId FK; fall back to free-text project name
+    // for legacy rows that haven't been migrated.
     const timesheetWhere: Record<string, unknown> = {
       status: 'approved',
       date: { gte: new Date(dateFrom), lte: new Date(dateTo) },
+      // Skip already-invoiced timesheets (don't double-bill)
+      invoiced: false,
     };
     if (employeeId) timesheetWhere.employeeId = employeeId;
-
-    const timesheets = await withSchemaSync(() => prisma.timesheet.findMany({ where: timesheetWhere }));
-
-    // Filter timesheets to those whose project string matches the requested
-    // projectId (we look up the project name from the DB and match by name).
-    let filteredTimesheets = timesheets;
     if (projectId) {
+      // Match by projectId FK OR by project text name (for legacy rows)
       const project = await prisma.project.findUnique({
         where: { id: projectId },
         select: { id: true, name: true, currency: true, billingRate: true, billingType: true },
       });
       if (project) {
-        filteredTimesheets = timesheets.filter((t) => {
-          // Match by project name (loose) or by allocation lookup
-          if (t.project && project.name && t.project.toLowerCase() === project.name.toLowerCase()) {
-            return true;
-          }
-          return false;
-        });
+        timesheetWhere.OR = [
+          { projectId },
+          { projectText: { equals: project.name, mode: 'insensitive' } },
+        ];
       }
     }
 
-    if (filteredTimesheets.length === 0) {
+    const timesheets = await withSchemaSync(() => prisma.timesheet.findMany({ where: timesheetWhere }));
+
+    if (timesheets.length === 0) {
       return NextResponse.json({
-        message: 'No approved timesheets found in the given range',
+        message: 'No approved (non-invoiced) timesheets found in the given range',
         lineItemsCreated: 0,
         lineItems: [],
       }, { headers: corsHeaders() });
     }
 
-    // Group timesheets by (employeeId, date) — we'll create one line item per day per employee
-    // (consolidating into daily entries keeps the invoice readable).
-    // NOTE: The current Timesheet schema has @@unique([employeeId, date]) so there's
-    // only one row per employee per day, but we still group for safety.
-    const grouped = new Map<string, typeof filteredTimesheets>();
-    for (const t of filteredTimesheets) {
-      const key = `${t.employeeId}|${t.date.toISOString().split('T')[0]}`;
+    // Group timesheets by (employeeId, date, projectId) — one line item per day
+    // per employee per project. The previous @@unique([employeeId, date]) was
+    // dropped in the REQ-PM-07 fix, so an employee can now log time against
+    // multiple projects on the same day (each becomes its own line item).
+    const grouped = new Map<string, typeof timesheets>();
+    for (const t of timesheets) {
+      const key = `${t.employeeId}|${t.date.toISOString().split('T')[0]}|${t.projectId || ''}`;
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(t);
     }
 
     // Pre-fetch all employees + allocations to avoid N+1 queries
-    const employeeIds = Array.from(new Set(filteredTimesheets.map((t) => t.employeeId)));
+    const employeeIds = Array.from(new Set(timesheets.map((t) => t.employeeId)));
     const [employees, allocations] = await Promise.all([
       prisma.employee.findMany({
         where: { id: { in: employeeIds } },
@@ -178,18 +173,33 @@ export async function POST(
     let warnings: string[] = [];
 
     for (const [key, dailyTimesheets] of grouped.entries()) {
-      const [employeeId, dateStr] = key.split('|');
+      const [employeeId, dateStr, tsProjectId] = key.split('|');
       const emp = empMap.get(employeeId);
       if (!emp) continue;
 
       const totalHours = dailyTimesheets.reduce((s, t) => s + (t.hours || 0), 0);
       if (totalHours <= 0) continue;
 
+      // Determine the effective project for this group: prefer the FK on the
+      // timesheet row, fall back to the body projectId.
+      const effectiveProjectId = tsProjectId || projectId;
+
       // Find billing rate for this employee on the project
       let billingRate = defaultBillingRate;
       let rateSourceCurrency = sourceCurrency;
-      if (projectId) {
-        const empAllocs = allocMap.get(`${employeeId}|${projectId}`) || [];
+      if (effectiveProjectId) {
+        // If we haven't already loaded this project's currency/rate, do so now
+        if (effectiveProjectId !== projectId) {
+          const p = await prisma.project.findUnique({
+            where: { id: effectiveProjectId },
+            select: { currency: true, billingRate: true },
+          });
+          if (p) {
+            rateSourceCurrency = p.currency;
+            billingRate = p.billingRate || 0;
+          }
+        }
+        const empAllocs = allocMap.get(`${employeeId}|${effectiveProjectId}`) || [];
         if (empAllocs.length > 0) {
           // Use the most recent allocation
           const alloc = empAllocs.sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
@@ -225,7 +235,7 @@ export async function POST(
             invoiceId: id,
             sourceType: 'timesheet',
             timesheetId: dailyTimesheets[0].id,
-            projectId: projectId || null,
+            projectId: effectiveProjectId || null,
             employeeId,
             description,
             date: new Date(dateStr),
@@ -243,6 +253,22 @@ export async function POST(
         })
       );
       lineItemsCreated.push(lineItem);
+    }
+
+    // ─── REQ-PM-07: Mark all source timesheets as invoiced ───
+    // This prevents double-billing on subsequent invoice generations and
+    // gives managers visibility into which time has been billed.
+    const timesheetIds = timesheets.map((t) => t.id);
+    if (timesheetIds.length > 0) {
+      await withSchemaSync(() =>
+        prisma.timesheet.updateMany({
+          where: { id: { in: timesheetIds } },
+          data: {
+            invoiced: true,
+            invoiceId: id,
+          },
+        })
+      );
     }
 
     // Recalc invoice totals

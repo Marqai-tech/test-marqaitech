@@ -14,6 +14,9 @@ import {
   FiXCircle,
   FiFileText,
   FiCalendar,
+  FiLock,
+  FiUnlock,
+  FiDollarSign,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -25,13 +28,26 @@ interface Timesheet {
   id: string;
   employeeId: string;
   date: string;
-  project: string | null;
-  task: string | null;
+  projectId: string | null;
+  project: { id: string; name: string; code: string | null } | null;
+  projectTaskId: string | null;
+  projectTask: { id: string; name: string } | null;
+  // Legacy free-text fields (kept for backward compat)
+  projectText?: string | null;
+  taskText?: string | null;
   hours: number;
   description: string | null;
   status: string;
   approvedBy?: string | null;
   approvedAt?: string | null;
+  // REQ-SEC-12 lock
+  locked?: boolean;
+  lockedBy?: string | null;
+  lockedAt?: string | null;
+  lockReason?: string | null;
+  // Invoiced state
+  invoiced?: boolean;
+  invoiceId?: string | null;
   employee?: { id: string; firstName: string; lastName: string; employeeId: string; avatar?: string | null };
 }
 
@@ -41,6 +57,15 @@ interface Employee {
   firstName: string;
   lastName: string;
   email: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  code: string | null;
+  clientId: string | null;
+  companyId: string;
+  status: string;
 }
 
 /* ── Helpers ── */
@@ -60,6 +85,7 @@ function getStatusBadge(status: string) {
     submitted: 'nexus-badge nexus-badge-warning',
     approved: 'nexus-badge nexus-badge-success',
     rejected: 'nexus-badge nexus-badge-error',
+    locked: 'bg-purple-100 text-purple-700 nexus-badge',
   };
   return map[status] || 'nexus-badge nexus-badge-info';
 }
@@ -67,7 +93,7 @@ function getStatusBadge(status: string) {
 const initialForm = {
   employeeId: '',
   date: '',
-  project: '',
+  projectId: '',
   task: '',
   hours: '',
   description: '',
@@ -100,6 +126,7 @@ export default function TimesheetsPage() {
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -132,27 +159,37 @@ export default function TimesheetsPage() {
           setEmployees(empData.employees || []);
         }
       }
+
+      if (projects.length === 0) {
+        const projRes = await fetch('/api/projects?limit=200', { headers });
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          setProjects(projData.projects || []);
+        }
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load timesheets');
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, employees.length]);
+  }, [filterStatus, employees.length, projects.length]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
-  /* Get unique projects for filter */
-  const uniqueProjects = [...new Set(timesheets.map(t => t.project).filter(Boolean))] as string[];
+  /* Get unique projects for filter (use project.name from FK lookup, fall back to projectText) */
+  const uniqueProjects = [...new Set(timesheets.map(t => t.project?.name || t.projectText).filter(Boolean))] as string[];
 
   /* Filter timesheets */
   const filteredTimesheets = timesheets.filter(ts => {
+    const projectName = ts.project?.name || ts.projectText || '';
+    const taskName = ts.projectTask?.name || ts.taskText || '';
     const matchSearch = !search ||
-      ts.project?.toLowerCase().includes(search.toLowerCase()) ||
-      ts.task?.toLowerCase().includes(search.toLowerCase()) ||
+      projectName.toLowerCase().includes(search.toLowerCase()) ||
+      taskName.toLowerCase().includes(search.toLowerCase()) ||
       ts.description?.toLowerCase().includes(search.toLowerCase()) ||
       (ts.employee ? `${ts.employee.firstName} ${ts.employee.lastName}`.toLowerCase().includes(search.toLowerCase()) : false);
-    const matchProject = !filterProject || ts.project === filterProject;
+    const matchProject = !filterProject || projectName === filterProject;
     return matchSearch && matchProject;
   });
 
@@ -195,8 +232,8 @@ export default function TimesheetsPage() {
     setForm({
       employeeId: ts.employeeId,
       date: ts.date ? new Date(ts.date).toISOString().split('T')[0] : '',
-      project: ts.project || '',
-      task: ts.task || '',
+      projectId: ts.projectId || (ts.project ? ts.project.id : ''),
+      task: ts.projectTask?.name || ts.taskText || '',
       hours: ts.hours?.toString() || '',
       description: ts.description || '',
       status: ts.status,
@@ -215,17 +252,17 @@ export default function TimesheetsPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.date || !form.project || !form.task || !form.hours) {
-      toast.error('Please fill in all required fields');
+    if (!form.date || !form.projectId || !form.task || !form.hours) {
+      toast.error('Please fill in all required fields (project is now a dropdown — pick one)');
       return;
     }
     try {
       setSubmitting(true);
-      const payload = {
+      const payload: Record<string, unknown> = {
         employeeId: form.employeeId || employees.find(e => e.email === user?.email)?.id,
         date: form.date,
-        project: form.project,
-        task: form.task,
+        projectId: form.projectId,
+        task: form.task, // free-text task name (legacy column)
         hours: parseFloat(form.hours),
         description: form.description,
         status: form.status,
@@ -301,6 +338,27 @@ export default function TimesheetsPage() {
         throw new Error(d.error || 'Failed');
       }
       toast.success(`Timesheet ${status === 'approved' ? 'approved' : 'rejected'} successfully`);
+      fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
+    }
+  };
+
+  /* Lock / Unlock (REQ-SEC-12) */
+  const handleLockToggle = async (ts: Timesheet) => {
+    const newLocked = !ts.locked;
+    const reason = newLocked ? prompt('Lock reason (optional):') || '' : '';
+    try {
+      const res = await fetch(`/api/timesheets/${ts.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ locked: newLocked, lockReason: newLocked ? reason : undefined }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed');
+      }
+      toast.success(newLocked ? 'Timesheet locked' : 'Timesheet unlocked');
       fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Action failed');
@@ -405,7 +463,15 @@ export default function TimesheetsPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Project *</label>
-                <input type="text" value={form.project} onChange={e => setForm(p => ({ ...p, project: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Project name" />
+                <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="">Select Project</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.code ? ` (${p.code})` : ''}</option>
+                  ))}
+                </select>
+                {projects.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No projects found. Create one under Projects first.</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Task *</label>
@@ -530,13 +596,25 @@ export default function TimesheetsPage() {
                         <td className="px-4 py-3 text-sm text-nexus-text-secondary">
                           {ts.employee ? `${ts.employee.firstName} ${ts.employee.lastName}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{ts.project || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{ts.task || '—'}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">
+                          {ts.project?.name || ts.projectText || '—'}
+                          {ts.locked && (
+                            <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-full" title={`Locked${ts.lockReason ? ': ' + ts.lockReason : ''}`}>
+                              <FiLock className="w-2.5 h-2.5" /> Locked
+                            </span>
+                          )}
+                          {ts.invoiced && (
+                            <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full" title={`Invoiced${ts.invoiceId ? ' under invoice ' + ts.invoiceId : ''}`}>
+                              <FiDollarSign className="w-2.5 h-2.5" /> Invoiced
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{ts.projectTask?.name || ts.taskText || '—'}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-nexus-text-primary">{ts.hours}h</td>
                         <td className="px-4 py-3"><span className={getStatusBadge(ts.status)}>{ts.status}</span></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            {isAdmin && ts.status === 'submitted' && (
+                            {isAdmin && ts.status === 'submitted' && !ts.locked && (
                               <>
                                 <button onClick={() => handleStatusChange(ts.id, 'approved')} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
                                   <FiCheckCircle className="w-4 h-4" />
@@ -546,12 +624,21 @@ export default function TimesheetsPage() {
                                 </button>
                               </>
                             )}
-                            <button onClick={() => handleEdit(ts)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
-                              <FiEdit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteConfirmId(ts.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
+                            {isAdmin && !ts.invoiced && (
+                              <button onClick={() => handleLockToggle(ts)} className={`p-2 rounded-lg transition-colors ${ts.locked ? 'text-purple-600 hover:bg-purple-50' : 'text-nexus-text-muted hover:text-purple-500 hover:bg-purple-50'}`} title={ts.locked ? 'Unlock (super_admin only)' : 'Lock'}>
+                                {ts.locked ? <FiUnlock className="w-4 h-4" /> : <FiLock className="w-4 h-4" />}
+                              </button>
+                            )}
+                            {!ts.locked && !ts.invoiced && (
+                              <>
+                                <button onClick={() => handleEdit(ts)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => setDeleteConfirmId(ts.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </>
