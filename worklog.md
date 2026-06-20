@@ -1352,3 +1352,62 @@ Stage Summary:
 - Inline KR progress editing (no modal — just type a new current value)
 - Auto-status computation on KRs (not_started / in_progress / completed)
 - Cascade-aware validation: child category is auto-inferred from parent (Company → Sub-Co → Project → Individual)
+
+---
+Task ID: 11
+Agent: main (Super Z)
+Task: Setup i18n with next-intl + locale skeleton — fifth of 5 prioritized SRS modules
+
+Work Log:
+- Installed next-intl@^4.13.0 (compatible with Next.js 16 + React 19)
+- Created src/i18n/routing.ts:
+  * 6 supported locales: en, es, fr, de, hi, ar
+  * defaultLocale = 'en'
+  * localePrefix = 'as-needed' (default locale has NO URL prefix → existing URLs continue to work; other locales get /es/, /fr/, /ar/ etc.)
+  * localeNames map includes label + nativeName + flag + dir ('ltr' or 'rtl' for Arabic)
+- Created src/i18n/request.ts — server-side getRequestConfig that:
+  * Reads requestLocale from middleware
+  * Validates against routing.locales (falls back to default)
+  * Dynamically imports the matching messages/<locale>.json bundle
+- Created src/i18n/navigation.ts — locale-aware Link, redirect, usePathname, useRouter via createNavigation(routing)
+- Created 6 message bundles under /messages/:
+  * en.json — English (full base translations)
+  * es.json — Spanish (full translations)
+  * fr.json — French (full translations)
+  * de.json — German (full translations)
+  * hi.json — Hindi (full translations including native script)
+  * ar.json — Arabic (full translations including native script)
+  Each bundle has the same structure: common, nav, auth, dashboard, invoices, timesheets, okrs, locale — covers all the navigation + the 4 SRS modules built in Tasks 1-4
+- Updated next.config.ts:
+  * Imported createNextIntlPlugin from 'next-intl/plugin'
+  * Wrapped config with withNextIntl('./src/i18n/request.ts')
+- Updated src/app/layout.tsx:
+  * Made RootLayout async, accepts params: Promise<{ locale?: string }>
+  * Validates locale param against routing.locales (calls notFound() if invalid)
+  * Uses getLocale() + getMessages() from next-intl/server
+  * Sets <html lang={activeLocale} dir={dir}> (dir='rtl' for Arabic, 'ltr' otherwise)
+  * Wraps children with <NextIntlClientProvider locale={activeLocale} messages={messages}>
+- Updated src/middleware.ts to combine next-intl + existing tenant detection:
+  * Calls intlMiddleware(request) first for locale detection + URL rewriting
+  * Then adds x-tenant-slug + x-tenant-domain headers (preserves existing behavior)
+  * Matcher excludes /api/* (no locale routing on API endpoints) + static assets
+- Created src/components/LocaleSwitcher.tsx:
+  * Dropdown showing flag + native name per locale
+  * Uses useLocale() + useRouter() + usePathname() from next-intl/navigation
+  * router.replace(pathname, { locale: newLocale }) handles prefix logic automatically
+  * Closes on outside click (useEffect + ref)
+  * Shows translated tooltip via useTranslations('locale')
+- Wired LocaleSwitcher into src/components/Header.tsx next to CompanySwitcher (visible in the top bar)
+- Verified: npx next build succeeds with all 241 pages compiled (0 errors, 0 warnings); next-intl middleware runs cleanly alongside existing tenant-detection middleware
+
+Stage Summary:
+- i18n infrastructure: FULLY IMPLEMENTED end-to-end
+- 6 locales supported (en, es, fr, de, hi, ar) with full translations for navigation + the 4 SRS modules built earlier
+- RTL support for Arabic (dir='rtl' on <html>)
+- Backward compatibility: existing URLs (e.g. /login, /dashboard, /invoices) continue to work unchanged because default locale (en) has no URL prefix
+- LocaleSwitcher available in the header for instant language switching
+- UNBLOCKS 4 SRS requirements:
+  * REQ-REC-06 (localized job postings) — recruiters can now build localized job descriptions
+  * REQ-ONB-03 (multilingual onboarding wizard) — onboarding steps can be localized
+  * REQ-PER-03 (multi-language performance reviews) — review forms + 360 feedback support multiple languages
+  * REQ-EXIT-05 (digital exit interview forms) — exit interview forms can be presented in the employee's preferred language
