@@ -1176,3 +1176,37 @@ Stage Summary:
 - All new tables created via additive DDL with IF NOT EXISTS — zero data loss risk
 - Self-healing pattern (ensureSchemaSynced + withSchemaSync) ensures tables auto-create on first request if build-time sync missed them
 - Audit revealed: 25 of 44 SRS requirements still missing; biggest gaps are i18n library, convertCurrency() utility, project-level RBAC, Invoice/Utilization models, Gantt library
+
+---
+Task ID: 7
+Agent: main (Super Z)
+Task: Build Multi-Currency Invoicing (REQ-PM-09) — first of 5 prioritized SRS modules
+
+Work Log:
+- Added Invoice + InvoiceLineItem models to prisma/schema.prisma with full multi-currency support: invoice currency, base currency, FX rate snapshot at creation time, line-level rate source tracking
+- Added back-reference relations (invoices[]) on Company, Client, Project
+- Extended scripts/schema-sync.js (build-time) AND src/lib/schema-sync.ts (runtime) with CREATE TABLE IF NOT EXISTS for both Invoice and InvoiceLineItem, including unique invoiceNumber index + 4 FK constraints (Invoice→Company, Invoice→Client, Invoice→Project, InvoiceLineItem→Invoice)
+- Added 'invoice' and 'invoiceLineItem' to db.ts fallback proxy whitelist
+- Created src/lib/fx.ts — the convertCurrency() utility that was previously missing (unblocks REQ-PM-09, §7.1.2, §7.2.3). Strategy: direct rate → inverse → USD triangulation → fallback (rate=1 with warning)
+- Created 5 API routes:
+  * GET/POST /api/invoices — list with filters (companyId/clientId/projectId/status/currency/date range/search) + create draft with auto-generated invoice number (INV-YYYYMM-XXXX) + automatic FX rate lookup
+  * GET/PATCH/DELETE /api/invoices/[id] — detail with line items; PATCH handles status transitions (draft→issued→sent→paid) with audit-trail fields; DELETE only allowed on drafts
+  * POST/DELETE /api/invoices/[id]/line-items + /line-items/[lineId] — add/remove line items with auto-FX-converted rate from source currency
+  * POST /api/invoices/[id]/generate-from-timesheets — auto-generate line items from approved Timesheets in date range; looks up ProjectAllocation billingRate, converts to invoice currency via convertCurrency()
+  * POST /api/invoices/[id]/finalize — lock draft → issued (status, audit fields, final totals recalc)
+- Created GET /api/super-admin/project-profitability — aggregates revenue (from issued/paid invoices) + cost (from ProjectAllocation.internalCostRate × actualHours) per project across all tenants, converts to a single report currency for the Super Admin Project Profitability dashboard
+- Added 'invoices' module to roleAccess.ts (allowed for super_admin, tenant_admin, hr_admin, manager, finance)
+- Added "Invoices" entry to Sidebar.tsx under Operations section with FiDollarSign icon + isNew flag
+- Created /invoices list page with summary cards (Approved/Outstanding/Paid/Drafts by currency), filterable table, create-invoice modal (companyId/clientId/projectId/currency/baseCurrency/taxRate/discountRate/dates/notes)
+- Created /invoices/[id] detail page with: meta panel (client/project/FX rate/dates), totals card (subtotal/tax/discount/total + base-currency total), line items table with source badge + hours + rate + source rate (if FX), three action buttons (Generate from Timesheets, Add Manual Line, Finalize), status transitions (Mark Sent, Mark Paid)
+- Fixed pre-existing build blocker: src/lib/currency.ts had JSX in a .ts file (had been broken for months but never triggered build failure because nothing imported it). Renamed to currency.tsx via git mv — now imports work correctly
+- Verified: npx prisma generate succeeds; npx next build succeeds with all 8 invoice routes + 2 pages in output; zero TypeScript errors in any new file
+
+Stage Summary:
+- REQ-PM-09 Multi-Currency Invoicing: FULLY IMPLEMENTED end-to-end (was 100% missing)
+- FX conversion utility (src/lib/fx.ts): unblocks §7.1.2 currency conversion requirement + §7.2.3 multi-currency payroll reporting
+- Super Admin Project Profitability endpoint: unlocks the dashboard the user mentioned
+- Self-healing schema sync ensures Invoice tables auto-create on first request via runtime ensureSchemaSynced()
+- All 7 status workflow states supported: draft → issued → sent → partial → paid / overdue / disputed / cancelled
+- Currency cascade: body → client.billingCurrency → project.currency → company.currency → USD (sensible defaults at every step)
+- Builds clean; ready to deploy

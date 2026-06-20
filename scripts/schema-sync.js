@@ -264,6 +264,86 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "AIPromptLog_category_idx" ON "AIPromptLog"("category")`,
     `CREATE INDEX IF NOT EXISTS "AIPromptLog_status_idx" ON "AIPromptLog"("status")`,
     `CREATE INDEX IF NOT EXISTS "AIPromptLog_createdAt_idx" ON "AIPromptLog"("createdAt")`,
+
+    // ─── Invoicing (REQ-PM-09, added 2026-06-21) ───
+    // Invoice
+    `CREATE TABLE IF NOT EXISTS "Invoice" (
+      "id" TEXT NOT NULL,
+      "invoiceNumber" TEXT NOT NULL,
+      "companyId" TEXT NOT NULL,
+      "clientId" TEXT,
+      "projectId" TEXT,
+      "invoiceType" TEXT NOT NULL DEFAULT 'timesheet',
+      "billingType" TEXT NOT NULL DEFAULT 'time_and_material',
+      "currency" TEXT NOT NULL DEFAULT 'USD',
+      "baseCurrency" TEXT,
+      "exchangeRate" DOUBLE PRECISION NOT NULL DEFAULT 1,
+      "fxRateDate" TIMESTAMP(3),
+      "fxSource" TEXT,
+      "subtotal" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "taxRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "taxAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "discountRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "discountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "totalAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "subtotalBase" DOUBLE PRECISION,
+      "totalAmountBase" DOUBLE PRECISION,
+      "fxGainLoss" DOUBLE PRECISION,
+      "issueDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "dueDate" TIMESTAMP(3),
+      "periodStart" TIMESTAMP(3),
+      "periodEnd" TIMESTAMP(3),
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "notes" TEXT,
+      "internalNotes" TEXT,
+      "createdBy" TEXT,
+      "issuedBy" TEXT,
+      "issuedAt" TIMESTAMP(3),
+      "paidAt" TIMESTAMP(3),
+      "paymentRef" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Invoice_invoiceNumber_key" ON "Invoice"("invoiceNumber")`,
+    `CREATE INDEX IF NOT EXISTS "Invoice_companyId_idx" ON "Invoice"("companyId")`,
+    `CREATE INDEX IF NOT EXISTS "Invoice_clientId_idx" ON "Invoice"("clientId")`,
+    `CREATE INDEX IF NOT EXISTS "Invoice_projectId_idx" ON "Invoice"("projectId")`,
+    `CREATE INDEX IF NOT EXISTS "Invoice_status_idx" ON "Invoice"("status")`,
+    `CREATE INDEX IF NOT EXISTS "Invoice_issueDate_idx" ON "Invoice"("issueDate")`,
+
+    // InvoiceLineItem
+    `CREATE TABLE IF NOT EXISTS "InvoiceLineItem" (
+      "id" TEXT NOT NULL,
+      "invoiceId" TEXT NOT NULL,
+      "sourceType" TEXT NOT NULL DEFAULT 'timesheet',
+      "timesheetId" TEXT,
+      "milestoneId" TEXT,
+      "projectId" TEXT,
+      "projectTaskId" TEXT,
+      "employeeId" TEXT,
+      "description" TEXT NOT NULL,
+      "date" TIMESTAMP(3),
+      "hours" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "quantity" DOUBLE PRECISION NOT NULL DEFAULT 1,
+      "unit" TEXT NOT NULL DEFAULT 'hours',
+      "rate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "rateSourceCurrency" TEXT,
+      "rateSourceAmount" DOUBLE PRECISION,
+      "fxRate" DOUBLE PRECISION,
+      "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "amountBase" DOUBLE PRECISION,
+      "taxable" BOOLEAN NOT NULL DEFAULT true,
+      "taxRate" DOUBLE PRECISION,
+      "taxAmount" DOUBLE PRECISION,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "InvoiceLineItem_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_invoiceId_idx" ON "InvoiceLineItem"("invoiceId")`,
+    `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_timesheetId_idx" ON "InvoiceLineItem"("timesheetId")`,
+    `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_projectId_idx" ON "InvoiceLineItem"("projectId")`,
+    `CREATE INDEX IF NOT EXISTS "InvoiceLineItem_employeeId_idx" ON "InvoiceLineItem"("employeeId")`,
   ];
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -297,6 +377,19 @@ async function main() {
 
     `ALTER TABLE "Recognition" DROP CONSTRAINT IF EXISTS "Recognition_toId_fkey"`,
     `ALTER TABLE "Recognition" ADD CONSTRAINT "Recognition_toId_fkey" FOREIGN KEY ("toId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Invoicing FKs (REQ-PM-09) ───
+    `ALTER TABLE "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_companyId_fkey"`,
+    `ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_clientId_fkey"`,
+    `ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    `ALTER TABLE "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_projectId_fkey"`,
+    `ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    `ALTER TABLE "InvoiceLineItem" DROP CONSTRAINT IF EXISTS "InvoiceLineItem_invoiceId_fkey"`,
+    `ALTER TABLE "InvoiceLineItem" ADD CONSTRAINT "InvoiceLineItem_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   ];
 
   let applied = 0;

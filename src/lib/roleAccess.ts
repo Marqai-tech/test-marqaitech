@@ -39,6 +39,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   helpdesk: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
   assets: ['super_admin', 'tenant_admin', 'hr_admin', 'it_admin'],
   projects: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'],
+  invoices: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'finance'],
   expenses: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
   travel: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
   separation: ['super_admin', 'tenant_admin', 'hr_admin'],

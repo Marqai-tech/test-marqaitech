@@ -170,6 +170,7 @@ model Company {
   roles           Role[]
   payrollDefinitions PayrollDefinition[]
   bankPaymentFiles BankPaymentFile[]
+  invoices        Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1258,6 +1259,7 @@ model Client {
   status      String @default("active") // active, inactive, suspended
 
   projects    Project[]
+  invoices    Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1339,6 +1341,7 @@ model Project {
   tasks         ProjectTask[]
   milestones    ProjectMilestone[]
   allocations   ProjectAllocation[]
+  invoices      Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3067,4 +3070,126 @@ model IncomeTaxDeclaration {
   @@index([employeeId])
   @@index([financialYear])
   @@index([status])
+}
+
+// ============ INVOICING (REQ-PM-09) ============
+// Multi-currency client invoicing. Header lives in `Invoice`; individual
+// billable rows (one per approved timesheet day, milestone, or manual line)
+// live in `InvoiceLineItem`. Line-level FX rate can override the invoice-
+// level rate for mixed-source invoices.
+
+model Invoice {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  // Type & billing model
+  invoiceType     String   @default("timesheet") // timesheet, milestone, fixed, retainer, expense, manual
+  billingType     String   @default("time_and_material") // mirrors Project.billingType
+
+  // Currency — invoice currency is what the client pays in; base currency
+  // is the company's reporting currency (for FX gain/loss + profitability).
+  currency        String   @default("USD")
+  baseCurrency    String?
+
+  // FX — exchange rate is recorded at invoice creation time so the totals
+  // never drift even if the rate table is updated later.
+  // Semantics: 1 baseCurrency = exchangeRate * currency
+  // e.g. baseCurrency=INR, currency=USD, exchangeRate=0.012 → 100 INR = 1.20 USD
+  exchangeRate    Float    @default(1)
+  fxRateDate      DateTime?
+  fxSource        String?  // MANUAL, EXCHANGE_RATE_TABLE, CENTRAL_BANK, INVERSE
+
+  // Totals in invoice currency
+  subtotal        Float    @default(0)
+  taxRate         Float    @default(0)
+  taxAmount       Float    @default(0)
+  discountRate    Float    @default(0)
+  discountAmount  Float    @default(0)
+  totalAmount     Float    @default(0)
+
+  // Totals in base currency (for reporting / profitability)
+  subtotalBase    Float?
+  totalAmountBase Float?
+  fxGainLoss      Float?
+
+  // Dates
+  issueDate       DateTime @default(now())
+  dueDate         DateTime?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+
+  // Status workflow: draft → issued → sent → (partial|paid|overdue|disputed) → cancelled
+  status          String   @default("draft")
+
+  notes           String?
+  internalNotes   String?
+
+  // Audit
+  createdBy       String?
+  issuedBy        String?
+  issuedAt        DateTime?
+  paidAt          DateTime?
+  paymentRef      String?
+
+  lineItems       InvoiceLineItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+model InvoiceLineItem {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Source linkage
+  sourceType      String   @default("timesheet") // timesheet, milestone, manual, expense
+  timesheetId     String?
+  milestoneId     String?
+  projectId       String?
+  projectTaskId   String?
+  employeeId      String?
+
+  description     String
+  date            DateTime?
+
+  // Quantity & rate (rate is in INVOICE currency)
+  hours           Float    @default(0)
+  quantity        Float    @default(1)
+  unit            String   @default("hours") // hours, days, units, fixed
+
+  rate            Float    @default(0)
+  // Source-rate tracking — original rate in source currency before FX
+  rateSourceCurrency String?
+  rateSourceAmount   Float?
+  fxRate          Float?
+
+  amount          Float    @default(0) // in invoice currency
+  amountBase      Float?   // in base currency
+
+  taxable         Boolean  @default(true)
+  taxRate         Float?
+  taxAmount       Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([timesheetId])
+  @@index([projectId])
+  @@index([employeeId])
 }

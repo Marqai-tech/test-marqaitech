@@ -77,6 +77,8 @@ function createFallbackProxy(): PrismaClient {
         // P0 fix: missing models (added 2026-06-20)
         'preboardingCandidate', 'exitRequest', 'oKR', 'keyResult',
         'exitInterview', 'recognition', 'aIConfig', 'aIPromptLog',
+        // Invoicing (added 2026-06-21, REQ-PM-09)
+        'invoice', 'invoiceLineItem',
       ]
 
       if (modelNames.includes(prop)) {
