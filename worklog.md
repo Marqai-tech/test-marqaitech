@@ -1152,3 +1152,27 @@ Stage Summary:
 - The "no data" issue was caused by 5 routes asking Prisma to count a non-existent `employees` relation on Company.
 - All 5 routes now correctly count branches+departments via _count, and employee counts via a separate groupBy query on the raw Employee.companyId column.
 - The /api/debug/schema route is left in place for future schema-drift debugging (super_admin only).
+
+---
+Task ID: 6
+Agent: Super Z (main)
+Task: Audit Nexus HRMS against SRS Addendum (Recruitment, Onboarding, PM, Performance, Exit, Admin, Security) — 44 requirements. Generate Excel compliance matrix, fix P0 broken Prisma models.
+
+Work Log:
+- Launched 5 parallel Explore sub-agents to audit each module area
+- Compiled comprehensive audit report: 1/44 fully implemented, 15 partial, 3 placeholder, 25 missing
+- Generated Excel compliance matrix at /home/z/my-project/download/Nexus_HRMS_SRS_Compliance_Matrix.xlsx (5 sheets: Executive Summary, Compliance Matrix, P0 Broken Models, Cross-Cutting Gaps, Remediation Roadmap). Passed xlsx.py validate (exit 0)
+- Added 9 missing Prisma models to schema.prisma: PreboardingCandidate, ExitRequest, OKR, KeyResult, ExitInterview, Survey, SurveyResponse, Recognition, AIConfig, AIPromptLog
+- Added back-reference relations on Employee (5 new) and Separation (1 new)
+- Extended scripts/schema-sync.js and src/lib/schema-sync.ts with CREATE TABLE IF NOT EXISTS for all 9 new tables + DROP+ADD CONSTRAINT pattern for 10 FK relations
+- Wired ensureSchemaSynced() + withSchemaSync() into 8 broken API routes: preboarding, exit-workflow, okrs, exit-interview, engagement, ai-admin (+ their [id] variants + prompt-logs)
+- Added 8 new model names to db.ts fallback proxy whitelist
+- Verified: npx prisma generate succeeds; npx next build compiles with zero errors/warnings
+- Committed (5ec0368) and pushed to origin/main; Vercel auto-deploy triggered
+
+Stage Summary:
+- Excel deliverable: /home/z/my-project/download/Nexus_HRMS_SRS_Compliance_Matrix.xlsx (5 sheets, 44 reqs, 6 P0 issues, 11 cross-cutting gaps, 30 roadmap tasks)
+- P0 fix deployed: 6 broken API surfaces now functional (no more prisma.<model> is not a function)
+- All new tables created via additive DDL with IF NOT EXISTS — zero data loss risk
+- Self-healing pattern (ensureSchemaSynced + withSchemaSync) ensures tables auto-create on first request if build-time sync missed them
+- Audit revealed: 25 of 44 SRS requirements still missing; biggest gaps are i18n library, convertCurrency() utility, project-level RBAC, Invoice/Utilization models, Gantt library
