@@ -1,58 +1,34 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware'
+import { routing } from '@/i18n/routing'
 
 /**
- * Tenant-aware middleware.
+ * Combined middleware: i18n locale routing + tenant detection.
  *
- * Multi-tenancy in this HRMS works at TWO levels:
+ * 1. next-intl middleware runs first — detects locale from Accept-Language
+ *    header or URL prefix, rewrites /es/login → /login with locale='es' in
+ *    the request, and sets the `x-next-intl-locale` header.
  *
- *   1. ROW-LEVEL SCOPING (already enforced in the API layer):
- *      Every authenticated API request reads `tenantId` from the JWT and
- *      scopes all DB queries to that tenant. This means a tenant_admin can
- *      never see another tenant's data, regardless of which hostname they
- *      log in from.
+ * 2. Our tenant-detection logic runs on the (possibly rewritten) request —
+ *    extracts the tenant slug from subdomain or ?tenant= query param, sets
+ *    `x-tenant-slug` and `x-tenant-domain` headers for downstream use.
  *
- *   2. HOSTNAME-BASED TENANT DETECTION (this middleware):
- *      When a candidate opens `acme.3boxeshrms.com/careers` (or a tenant's
- *      own custom domain like `careers.acme.com`), we want to auto-detect
- *      the tenant from the hostname and surface it as a request header so
- *      public pages and APIs can pre-filter to that tenant.
- *
- * The middleware sets two headers on every request:
- *   - `x-tenant-slug`:   the tenant slug inferred from the hostname (or empty)
- *   - `x-tenant-domain`: the full hostname (for logging / debugging)
- *
- * Public pages (like /careers) and public APIs (like /api/public/jobs) can
- * read these headers to auto-scope their results, even before any JWT is
- * presented. Authenticated APIs continue to use the JWT's tenantId for
- * authorization — these headers are ONLY a UX hint for public surfaces.
- *
- * The hostname → tenant mapping is intentionally simple: it looks for a
- * `?tenant=<slug>` query param first (highest priority), then checks the
- * first subdomain segment (e.g. `acme.app.com` → `acme`). The actual
- * resolution to a real tenant in the DB happens in the API route — the
- * middleware just passes along the hint.
+ * 3. The combined response is returned with both locale + tenant context.
  */
+
+const intlMiddleware = createMiddleware(routing)
+
 function extractTenantSlug(request: NextRequest): string {
   // 1. ?tenant=xxx query param (explicit override — useful for testing)
   const fromQuery = request.nextUrl.searchParams.get('tenant')
   if (fromQuery) return fromQuery
 
   // 2. Subdomain extraction: <slug>.<root-domain>
-  //    Examples:
-  //      acme.3boxeshrms.com        → acme
-  //      acme-staffing.3boxeshrms.com → acme-staffing
-  //      careers.acme.com            → acme       (only first subdomain used)
-  //      localhost / 3boxeshrms.com  → ''         (no subdomain)
   const host = request.headers.get('host') || ''
-  // Strip port
   const hostname = host.split(':')[0]
-  // Split on dots
   const parts = hostname.split('.')
-  // Need at least 3 parts (subdomain.domain.tld) to have a subdomain
-  // For 2-part hosts like `3boxeshrms.com` or `localhost`, there's no subdomain
   if (parts.length >= 3) {
-    // Skip well-known non-tenant subdomains
     const sub = parts[0].toLowerCase()
     if (sub && !['www', 'api', 'app', 'admin', 'mail', 'ftp'].includes(sub)) {
       return sub
@@ -62,29 +38,43 @@ function extractTenantSlug(request: NextRequest): string {
 }
 
 export default function middleware(request: NextRequest) {
+  // 1. Run next-intl middleware first (handles locale detection + URL rewriting)
+  const response = intlMiddleware(request)
+
+  // 2. Add tenant headers to the response's request headers
   const tenantSlug = extractTenantSlug(request)
   const host = request.headers.get('host') || ''
 
-  // Clone the request and add tenant headers. These are read by:
-  //   - /api/public/jobs (auto-filters by tenantSlug if present)
-  //   - /careers page (auto-scopes job listings)
-  //   - /login page (pre-fills the tenant field — future enhancement)
   const requestHeaders = new Headers(request.headers)
   if (tenantSlug) {
     requestHeaders.set('x-tenant-slug', tenantSlug)
   }
   requestHeaders.set('x-tenant-domain', host)
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  })
+  // If intl middleware returned a NextResponse.next(), we can augment it
+  // with our tenant headers. If it returned a rewrite/redirect, we still
+  // want to add the tenant headers to the underlying request.
+  if (response.headers) {
+    // The response from intl middleware may include headers we want to keep
+    // (e.g., Set-Cookie for locale preference). We just augment the request.
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+      headers: response.headers,
+    })
+  }
+
+  return response
 }
 
 export const config = {
-  // Run middleware on every page and API route except static assets.
-  // We intentionally include `careers` and `api` here so the tenant headers
-  // are available to the public careers page and the public jobs API.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon-|robots.txt|sw.js|manifest.json).*)'],
+  // Run middleware on every page and API route except:
+  //   - static assets (_next/static, _next/image, icons)
+  //   - API routes (we don't want locale routing on /api/*)
+  //   - service worker + manifest
+  //   - Next 16 special files (icon-*, robots.txt, etc.)
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|icon-|robots.txt|sw.js|manifest.json|api).*)',
+  ],
 }

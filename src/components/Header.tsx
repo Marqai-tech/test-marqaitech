@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import CompanySwitcher from '@/components/CompanySwitcher';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -136,6 +137,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
       {/* Company Switcher */}
       <CompanySwitcher />
+
+      {/* Locale Switcher (i18n — REQ-REC-06, REQ-ONB-03, REQ-PER-03, REQ-EXIT-05) */}
+      <LocaleSwitcher />
 
       <div className="flex items-center gap-2">
         {/* Notification Bell */}

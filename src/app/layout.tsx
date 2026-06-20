@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { NextIntlClientProvider, hasLocale } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import { notFound } from "next/navigation";
+import { routing, localeNames } from "@/i18n/routing";
 import "./globals.css";
 
 const inter = Inter({
@@ -57,13 +61,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
 }: Readonly<{
   children: React.ReactNode;
+  params: Promise<{ locale?: string }>;
 }>) {
+  // Validate locale param (if present) against our supported locales
+  const { locale } = await params;
+  if (locale && !hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  // Get the locale + messages for the current request
+  const activeLocale = locale ?? (await getLocale());
+  const messages = await getMessages();
+  const dir = localeNames[activeLocale as keyof typeof localeNames]?.dir ?? 'ltr';
+
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang={activeLocale} dir={dir} className={`${inter.variable} h-full antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -72,7 +89,9 @@ export default function RootLayout({
         <meta name="msapplication-navbutton-color" content="#3B82F6" />
       </head>
       <body className="min-h-full flex flex-col">
-        {children}
+        <NextIntlClientProvider locale={activeLocale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `

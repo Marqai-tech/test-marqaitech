@@ -1300,3 +1300,55 @@ Stage Summary:
 - Inferred access for project managers (via Project.projectManagerId) and allocated employees (via ProjectAllocation) — no explicit ProjectMember row needed for these cases
 - Financial-field gating applies at the API level (defense-in-depth: even if UI shows the fields, the API strips them on GET and rejects edits on PUT/PATCH)
 - Super_admin override preserved at all levels
+
+---
+Task ID: 10
+Agent: main (Super Z)
+Task: Build OKR Cascade UI (REQ-PER-01) — fourth of 5 prioritized SRS modules
+
+Work Log:
+- Extended OKR model in prisma/schema.prisma:
+  * Made ownerId nullable (was required Employee FK — blocked company-level OKRs)
+  * Added companyId String? (FK → Company) for category='company' or 'sub_company'
+  * Added projectId String? (FK → Project) for category='project'
+  * Added createdById String? (audit: who created the OKR)
+  * Added 4 new indexes: companyId, projectId, quarter, year
+  * Added okrs[] back-reference relations on Company + Project
+- Extended scripts/schema-sync.js + src/lib/schema-sync.ts with:
+  * ALTER TABLE "OKR" ALTER COLUMN "ownerId" DROP NOT NULL (the existing column was NOT NULL)
+  * ALTER TABLE ADD COLUMN IF NOT EXISTS for companyId, projectId, createdById
+  * CREATE INDEX IF NOT EXISTS for the 4 new indexes
+  * DROP+ADD CONSTRAINT for OKR_companyId_fkey + OKR_projectId_fkey
+- Rewrote /api/okrs GET to support:
+  * ?cascade=true → returns pre-built tree (top-level OKRs with children nested 3 levels deep via Prisma includes)
+  * Filters: ?category, ?quarter, ?year, ?companyId, ?projectId, ?ownerId
+  * Returns owner, company, project, keyResults, childOkrs (3 levels deep) in includes
+- Rewrote /api/okrs POST to validate ownership based on category:
+  * individual → ownerId required (Employee ID)
+  * company/sub_company → companyId required
+  * project → projectId required
+  * Accepts keyResults array inline (creates KRs in same transaction)
+  * Auto-computes currentQuarter() if not provided
+- Created /api/okrs/key-results (POST) — add a KR to an existing OKR
+- Created /api/okrs/key-results/[krId] (PATCH/DELETE):
+  * PATCH auto-computes status from currentValue/targetValue ratio (>=100% → completed, >0 → in_progress, =0 → not_started)
+  * DELETE removes a KR
+- Created /okrs UI page with recursive OKRNode component:
+  * Tree visualization with depth-based indentation + vertical connector lines
+  * Each node shows: category badge (color-coded: Company=violet, Sub-Co=indigo, Project=cyan, Individual=pink), status badge, quarter/year, objective, owner name, progress %, progress bar (color: emerald >=80%, blue >=50%, amber >=25%, slate otherwise)
+  * Key results list with inline current-value inputs (PATCH on change, local state update without refetch)
+  * Per-node actions: Add Child (auto-infers child category from parent), Edit, Delete
+  * Top-level: 5 summary cards (Total / Company / Project / Individual / Avg Progress)
+  * Filters: category dropdown, quarter text input, Refresh button
+  * 'New Top-Level OKR' button creates a company-level OKR with no parent
+  * Create/Edit modal: objective textarea, category select (disabled when adding child — auto-inferred), status select, conditional owner field (company/project/employee dropdown based on category), quarter/year inputs, inline key-results editor (title + targetValue + unit, add/remove rows)
+- Added 'OKR Cascade' entry to Sidebar.tsx under 'Performance & Growth' section with FiTarget icon + isNew flag
+- Verified: npx prisma generate succeeds; npx next build succeeds with all new routes (/api/okrs, /api/okrs/[id], /api/okrs/key-results, /api/okrs/key-results/[krId], /okrs page) in output
+
+Stage Summary:
+- REQ-PER-01 OKR Cascade: FULLY IMPLEMENTED end-to-end
+- 4 cascade levels supported with distinct visual treatment per level
+- Tree can be N-levels deep via parentOkrId self-reference; UI renders 3 levels of children via Prisma includes (more levels can be fetched on demand)
+- Inline KR progress editing (no modal — just type a new current value)
+- Auto-status computation on KRs (not_started / in_progress / completed)
+- Cascade-aware validation: child category is auto-inferred from parent (Company → Sub-Co → Project → Individual)
