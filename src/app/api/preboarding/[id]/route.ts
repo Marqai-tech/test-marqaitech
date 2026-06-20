@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -36,9 +37,12 @@ export async function GET(
     }
 
     const { id } = await params;
-    const candidate = await prisma.preboardingCandidate.findUnique({
-      where: { id },
-    });
+    await ensureSchemaSynced();
+    const candidate = await withSchemaSync(() =>
+      prisma.preboardingCandidate.findUnique({
+        where: { id },
+      })
+    );
 
     if (!candidate) {
       return NextResponse.json(
@@ -84,7 +88,8 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.preboardingCandidate.findUnique({ where: { id } });
+    await ensureSchemaSynced();
+    const existing = await withSchemaSync(() => prisma.preboardingCandidate.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json(
         { error: 'Candidate not found' },
@@ -112,10 +117,12 @@ export async function PUT(
     if (body.hrVerified !== undefined) updateData.hrVerified = body.hrVerified;
     if (body.accountProvisioned !== undefined) updateData.accountProvisioned = body.accountProvisioned;
 
-    const candidate = await prisma.preboardingCandidate.update({
-      where: { id },
-      data: updateData,
-    });
+    const candidate = await withSchemaSync(() =>
+      prisma.preboardingCandidate.update({
+        where: { id },
+        data: updateData,
+      })
+    );
 
     await prisma.auditLog.create({
       data: {
@@ -169,7 +176,8 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await prisma.preboardingCandidate.findUnique({ where: { id } });
+    await ensureSchemaSynced();
+    const existing = await withSchemaSync(() => prisma.preboardingCandidate.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json(
         { error: 'Candidate not found' },
@@ -177,7 +185,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.preboardingCandidate.delete({ where: { id } });
+    await withSchemaSync(() => prisma.preboardingCandidate.delete({ where: { id } }));
 
     await prisma.auditLog.create({
       data: {

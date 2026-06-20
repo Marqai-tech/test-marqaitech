@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -43,14 +44,19 @@ export async function GET(request: Request) {
       };
     }
 
+    // Ensure the AIPromptLog table exists (P0 fix for missing model)
+    await ensureSchemaSynced();
+
     const [logs, total] = await Promise.all([
-      prisma.aIPromptLog.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.aIPromptLog.count({ where }),
+      withSchemaSync(() =>
+        prisma.aIPromptLog.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        })
+      ),
+      withSchemaSync(() => prisma.aIPromptLog.count({ where })),
     ]);
 
     return NextResponse.json({

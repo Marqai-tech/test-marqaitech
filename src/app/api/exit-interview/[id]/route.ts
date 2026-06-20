@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -21,13 +22,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    await ensureSchemaSynced();
 
-    const interview = await prisma.exitInterview.findUnique({
-      where: { id },
-      include: {
-        employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } }, designation: { select: { title: true } } } },
-      },
-    });
+    const interview = await withSchemaSync(() =>
+      prisma.exitInterview.findUnique({
+        where: { id },
+        include: {
+          employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } }, designation: { select: { title: true } } } },
+        },
+      })
+    );
 
     if (!interview) {
       return NextResponse.json({ error: 'Exit interview not found' }, { status: 404, headers: corsHeaders() });
@@ -59,13 +63,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.suggestions !== undefined) data.suggestions = body.suggestions;
     if (body.status) data.status = body.status;
 
-    const interview = await prisma.exitInterview.update({
-      where: { id },
-      data,
-      include: {
-        employee: { select: { firstName: true, lastName: true, employeeId: true } },
-      },
-    });
+    await ensureSchemaSynced();
+    const interview = await withSchemaSync(() =>
+      prisma.exitInterview.update({
+        where: { id },
+        data,
+        include: {
+          employee: { select: { firstName: true, lastName: true, employeeId: true } },
+        },
+      })
+    );
 
     return NextResponse.json({ interview }, { headers: corsHeaders() });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -29,8 +30,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'survey' or 'recognition'
 
+    await ensureSchemaSynced();
+
     if (type === 'recognition') {
-      const recognition = await prisma.recognition.findUnique({ where: { id } });
+      const recognition = await withSchemaSync(() => prisma.recognition.findUnique({ where: { id } }));
       if (!recognition) {
         return NextResponse.json({ error: 'Recognition not found' }, { status: 404, headers: corsHeaders() });
       }
@@ -42,13 +45,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Default: survey
-    const survey = await prisma.survey.findUnique({
-      where: { id },
-      include: {
-        responses: true,
-        _count: { select: { responses: true } },
-      },
-    });
+    const survey = await withSchemaSync(() =>
+      prisma.survey.findUnique({
+        where: { id },
+        include: {
+          responses: true,
+          _count: { select: { responses: true } },
+        },
+      })
+    );
 
     if (!survey) {
       return NextResponse.json({ error: 'Survey not found' }, { status: 404, headers: corsHeaders() });
@@ -77,39 +82,45 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
+    await ensureSchemaSynced();
+
     if (type === 'recognition') {
-      const recognition = await prisma.recognition.update({
-        where: { id },
-        data: {
-          ...(body.type && { type: body.type }),
-          ...(body.title !== undefined && { title: body.title }),
-          ...(body.message !== undefined && { message: body.message }),
-          ...(body.points !== undefined && { points: body.points }),
-          ...(body.isPublic !== undefined && { isPublic: body.isPublic }),
-          ...(body.category && { category: body.category }),
-        },
-      });
+      const recognition = await withSchemaSync(() =>
+        prisma.recognition.update({
+          where: { id },
+          data: {
+            ...(body.type && { type: body.type }),
+            ...(body.title !== undefined && { title: body.title }),
+            ...(body.message !== undefined && { message: body.message }),
+            ...(body.points !== undefined && { points: body.points }),
+            ...(body.isPublic !== undefined && { isPublic: body.isPublic }),
+            ...(body.category && { category: body.category }),
+          },
+        })
+      );
       return NextResponse.json({ recognition }, { headers: corsHeaders() });
     }
 
     // Default: survey update (status change, etc.)
-    const survey = await prisma.survey.update({
-      where: { id },
-      data: {
-        ...(body.title && { title: body.title }),
-        ...(body.description !== undefined && { description: body.description }),
-        ...(body.type && { type: body.type }),
-        ...(body.status && { status: body.status }),
-        ...(body.anonymous !== undefined && { anonymous: body.anonymous }),
-        ...(body.targetAudience && { targetAudience: body.targetAudience }),
-        ...(body.questions && { questions: typeof body.questions === 'string' ? body.questions : JSON.stringify(body.questions) }),
-        ...(body.startDate && { startDate: new Date(body.startDate) }),
-        ...(body.endDate !== undefined && { endDate: body.endDate ? new Date(body.endDate) : null }),
-      },
-      include: {
-        _count: { select: { responses: true } },
-      },
-    });
+    const survey = await withSchemaSync(() =>
+      prisma.survey.update({
+        where: { id },
+        data: {
+          ...(body.title && { title: body.title }),
+          ...(body.description !== undefined && { description: body.description }),
+          ...(body.type && { type: body.type }),
+          ...(body.status && { status: body.status }),
+          ...(body.anonymous !== undefined && { anonymous: body.anonymous }),
+          ...(body.targetAudience && { targetAudience: body.targetAudience }),
+          ...(body.questions && { questions: typeof body.questions === 'string' ? body.questions : JSON.stringify(body.questions) }),
+          ...(body.startDate && { startDate: new Date(body.startDate) }),
+          ...(body.endDate !== undefined && { endDate: body.endDate ? new Date(body.endDate) : null }),
+        },
+        include: {
+          _count: { select: { responses: true } },
+        },
+      })
+    );
 
     return NextResponse.json({ survey }, { headers: corsHeaders() });
   } catch (error) {
@@ -133,13 +144,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
+    await ensureSchemaSynced();
+
     if (type === 'recognition') {
-      await prisma.recognition.delete({ where: { id } });
+      await withSchemaSync(() => prisma.recognition.delete({ where: { id } }));
       return NextResponse.json({ success: true }, { headers: corsHeaders() });
     }
 
     // Default: delete survey (cascades responses)
-    await prisma.survey.delete({ where: { id } });
+    await withSchemaSync(() => prisma.survey.delete({ where: { id } }));
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Delete engagement error:', error);

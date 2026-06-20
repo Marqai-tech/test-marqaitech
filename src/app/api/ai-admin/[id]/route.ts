@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -29,7 +30,8 @@ export async function GET(
     }
 
     const { id } = await params;
-    const config = await prisma.aIConfig.findUnique({ where: { id } });
+    await ensureSchemaSynced();
+    const config = await withSchemaSync(() => prisma.aIConfig.findUnique({ where: { id } }));
 
     if (!config) {
       return NextResponse.json({ error: 'AI config not found' }, { status: 404, headers: corsHeaders() });
@@ -60,7 +62,8 @@ export async function PUT(
     const body = await request.json();
     const { name, type, category, content, model, temperature, maxTokens, isActive, version, description } = body;
 
-    const existing = await prisma.aIConfig.findUnique({ where: { id } });
+    await ensureSchemaSynced();
+    const existing = await withSchemaSync(() => prisma.aIConfig.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'AI config not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -77,10 +80,12 @@ export async function PUT(
     if (version !== undefined) updateData.version = version;
     if (description !== undefined) updateData.description = description;
 
-    const config = await prisma.aIConfig.update({
-      where: { id },
-      data: updateData,
-    });
+    const config = await withSchemaSync(() =>
+      prisma.aIConfig.update({
+        where: { id },
+        data: updateData,
+      })
+    );
 
     await prisma.auditLog.create({
       data: {
@@ -113,12 +118,13 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await prisma.aIConfig.findUnique({ where: { id } });
+    await ensureSchemaSynced();
+    const existing = await withSchemaSync(() => prisma.aIConfig.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'AI config not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.aIConfig.delete({ where: { id } });
+    await withSchemaSync(() => prisma.aIConfig.delete({ where: { id } }));
 
     await prisma.auditLog.create({
       data: {

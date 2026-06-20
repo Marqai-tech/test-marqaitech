@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -31,6 +32,9 @@ export async function GET(request: Request) {
         { status: 401, headers: corsHeaders() }
       );
     }
+
+    // Ensure the PreboardingCandidate table exists (P0 fix for missing model)
+    await ensureSchemaSynced();
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -134,27 +138,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const candidate = await prisma.preboardingCandidate.create({
-      data: {
-        candidateName,
-        candidateEmail,
-        candidatePhone: candidatePhone || null,
-        jobTitle: jobTitle || null,
-        departmentId: departmentId || null,
-        offeredSalary: offeredSalary ? parseFloat(String(offeredSalary)) : null,
-        currency: currency || 'USD',
-        offerDate: offerDate ? new Date(offerDate) : new Date(),
-        joiningDate: joiningDate ? new Date(joiningDate) : null,
-        notes: notes || null,
-        offerId: offerId || null,
-        status: status || 'offer_accepted',
-        documentsUploaded: null,
-        backgroundCheckStatus: 'pending',
-        backgroundCheckNotes: null,
-        hrVerified: false,
-        accountProvisioned: false,
-      },
-    });
+    // Ensure the PreboardingCandidate table exists before creating
+    await ensureSchemaSynced();
+
+    const candidate = await withSchemaSync(() =>
+      prisma.preboardingCandidate.create({
+        data: {
+          candidateName,
+          candidateEmail,
+          candidatePhone: candidatePhone || null,
+          jobTitle: jobTitle || null,
+          departmentId: departmentId || null,
+          offeredSalary: offeredSalary ? parseFloat(String(offeredSalary)) : null,
+          currency: currency || 'USD',
+          offerDate: offerDate ? new Date(offerDate) : new Date(),
+          joiningDate: joiningDate ? new Date(joiningDate) : null,
+          notes: notes || null,
+          offerId: offerId || null,
+          status: status || 'offer_accepted',
+          documentsUploaded: null,
+          backgroundCheckStatus: 'pending',
+          backgroundCheckNotes: null,
+          hrVerified: false,
+          accountProvisioned: false,
+        },
+      })
+    );
 
     await prisma.auditLog.create({
       data: {

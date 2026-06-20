@@ -74,6 +74,9 @@ function createFallbackProxy(): PrismaClient {
         'jobPosting', 'jobApplication', 'companyGroup', 'subscriptionPlan',
         'subscription', 'payrollDefinition', 'employeePaymentMethod', 'loan',
         'overtimeRecord', 'payrollHold', 'bankPaymentFile', 'payrollValidation',
+        // P0 fix: missing models (added 2026-06-20)
+        'preboardingCandidate', 'exitRequest', 'oKR', 'keyResult',
+        'exitInterview', 'recognition', 'aIConfig', 'aIPromptLog',
       ]
 
       if (modelNames.includes(prop)) {

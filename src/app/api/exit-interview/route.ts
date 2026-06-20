@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -27,14 +28,19 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (separationId) where.separationId = separationId;
 
-    const interviews = await prisma.exitInterview.findMany({
-      where,
-      include: {
-        employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } }, designation: { select: { title: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    // Ensure the ExitInterview table exists (P0 fix for missing model)
+    await ensureSchemaSynced();
+
+    const interviews = await withSchemaSync(() =>
+      prisma.exitInterview.findMany({
+        where,
+        include: {
+          employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } }, designation: { select: { title: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      })
+    );
 
     return NextResponse.json({ interviews }, { headers: corsHeaders() });
   } catch (error) {
@@ -57,23 +63,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'separationId and employeeId are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const interview = await prisma.exitInterview.create({
-      data: {
-        separationId,
-        employeeId,
-        interviewDate: interviewDate ? new Date(interviewDate) : new Date(),
-        interviewer: interviewer || null,
-        reason: reason || null,
-        feedback: feedback || null,
-        rating: rating ? parseInt(rating) : null,
-        wouldRehire: wouldRehire !== undefined ? Boolean(wouldRehire) : null,
-        suggestions: suggestions || null,
-        status: 'completed',
-      },
-      include: {
-        employee: { select: { firstName: true, lastName: true, employeeId: true } },
-      },
-    });
+    await ensureSchemaSynced();
+
+    const interview = await withSchemaSync(() =>
+      prisma.exitInterview.create({
+        data: {
+          separationId,
+          employeeId,
+          interviewDate: interviewDate ? new Date(interviewDate) : new Date(),
+          interviewer: interviewer || null,
+          reason: reason || null,
+          feedback: feedback || null,
+          rating: rating ? parseInt(rating) : null,
+          wouldRehire: wouldRehire !== undefined ? Boolean(wouldRehire) : null,
+          suggestions: suggestions || null,
+          status: 'completed',
+        },
+        include: {
+          employee: { select: { firstName: true, lastName: true, employeeId: true } },
+        },
+      })
+    );
 
     return NextResponse.json({ interview }, { status: 201, headers: corsHeaders() });
   } catch (error) {

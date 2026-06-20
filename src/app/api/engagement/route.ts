@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -29,12 +30,17 @@ export async function GET(request: Request) {
     const type = searchParams.get('type'); // 'surveys' or 'recognitions'
     const status = searchParams.get('status');
 
+    // Ensure the Survey + SurveyResponse + Recognition tables exist (P0 fix)
+    await ensureSchemaSynced();
+
     if (type === 'recognitions' || type === 'recognition') {
-      const recognitions = await prisma.recognition.findMany({
-        where: status ? { category: status } : {},
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      });
+      const recognitions = await withSchemaSync(() =>
+        prisma.recognition.findMany({
+          where: status ? { category: status } : {},
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        })
+      );
 
       // Enrich with employee data
       const employeeIds = new Set<string>();
@@ -63,15 +69,17 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [surveys, total] = await Promise.all([
-      prisma.survey.findMany({
-        where,
-        include: {
-          _count: { select: { responses: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      prisma.survey.count({ where }),
+      withSchemaSync(() =>
+        prisma.survey.findMany({
+          where,
+          include: {
+            _count: { select: { responses: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        })
+      ),
+      withSchemaSync(() => prisma.survey.count({ where })),
     ]);
 
     return NextResponse.json({ surveys, total }, { headers: corsHeaders() });
@@ -101,18 +109,22 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing required fields: toId, message' }, { status: 400, headers: corsHeaders() });
       }
 
-      const recognition = await prisma.recognition.create({
-        data: {
-          fromId: decoded.userId as string,
-          toId,
-          type: type || 'kudos',
-          title: title || '',
-          message,
-          points: points || 0,
-          isPublic: isPublic !== false,
-          category: category || 'general',
-        },
-      });
+      await ensureSchemaSynced();
+
+      const recognition = await withSchemaSync(() =>
+        prisma.recognition.create({
+          data: {
+            fromId: decoded.userId as string,
+            toId,
+            type: type || 'kudos',
+            title: title || '',
+            message,
+            points: points || 0,
+            isPublic: isPublic !== false,
+            category: category || 'general',
+          },
+        })
+      );
 
       return NextResponse.json({ recognition }, { status: 201, headers: corsHeaders() });
     }
@@ -124,14 +136,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing required fields: surveyId, answers' }, { status: 400, headers: corsHeaders() });
       }
 
-      const response = await prisma.surveyResponse.create({
-        data: {
-          surveyId,
-          employeeId: decoded.userId as string,
-          answers: typeof answers === 'string' ? answers : JSON.stringify(answers),
-          sentiment: sentiment || null,
-        },
-      });
+      await ensureSchemaSynced();
+
+      const response = await withSchemaSync(() =>
+        prisma.surveyResponse.create({
+          data: {
+            surveyId,
+            employeeId: decoded.userId as string,
+            answers: typeof answers === 'string' ? answers : JSON.stringify(answers),
+            sentiment: sentiment || null,
+          },
+        })
+      );
 
       return NextResponse.json({ response }, { status: 201, headers: corsHeaders() });
     }
@@ -142,22 +158,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required field: title' }, { status: 400, headers: corsHeaders() });
     }
 
-    const survey = await prisma.survey.create({
-      data: {
-        title,
-        description: description || null,
-        type: type || 'pulse',
-        status: 'draft',
-        anonymous: anonymous !== false,
-        targetAudience: targetAudience || 'all',
-        questions: typeof questions === 'string' ? questions : JSON.stringify(questions || []),
-        startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : null,
-      },
-      include: {
-        _count: { select: { responses: true } },
-      },
-    });
+    await ensureSchemaSynced();
+
+    const survey = await withSchemaSync(() =>
+      prisma.survey.create({
+        data: {
+          title,
+          description: description || null,
+          type: type || 'pulse',
+          status: 'draft',
+          anonymous: anonymous !== false,
+          targetAudience: targetAudience || 'all',
+          questions: typeof questions === 'string' ? questions : JSON.stringify(questions || []),
+          startDate: startDate ? new Date(startDate) : new Date(),
+          endDate: endDate ? new Date(endDate) : null,
+        },
+        include: {
+          _count: { select: { responses: true } },
+        },
+      })
+    );
 
     return NextResponse.json({ survey }, { status: 201, headers: corsHeaders() });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -35,24 +36,33 @@ export async function GET(request: Request) {
     if (category) where.category = category;
     if (isActive !== null && isActive !== undefined && isActive !== '') where.isActive = isActive === 'true';
 
+    // Ensure the AIConfig + AIPromptLog tables exist (P0 fix for missing model)
+    await ensureSchemaSynced();
+
     const [configs, promptLogs, configCount, logCount] = await Promise.all([
-      prisma.aIConfig.findMany({
-        where,
-        orderBy: { updatedAt: 'desc' },
-      }),
-      prisma.aIPromptLog.findMany({
-        take: 20,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.aIConfig.count({ where }),
-      prisma.aIPromptLog.count(),
+      withSchemaSync(() =>
+        prisma.aIConfig.findMany({
+          where,
+          orderBy: { updatedAt: 'desc' },
+        })
+      ),
+      withSchemaSync(() =>
+        prisma.aIPromptLog.findMany({
+          take: 20,
+          orderBy: { createdAt: 'desc' },
+        })
+      ),
+      withSchemaSync(() => prisma.aIConfig.count({ where })),
+      withSchemaSync(() => prisma.aIPromptLog.count()),
     ]);
 
     // Compute monitoring stats
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentLogs = await prisma.aIPromptLog.findMany({
-      where: { createdAt: { gte: last24h } },
-    });
+    const recentLogs = await withSchemaSync(() =>
+      prisma.aIPromptLog.findMany({
+        where: { createdAt: { gte: last24h } },
+      })
+    );
 
     const totalRequests24h = recentLogs.length;
     const avgLatency = recentLogs.length > 0
@@ -114,20 +124,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const config = await prisma.aIConfig.create({
-      data: {
-        name,
-        type,
-        category,
-        content,
-        model: model || 'gpt-4',
-        temperature: temperature !== undefined ? parseFloat(temperature) : 0.7,
-        maxTokens: maxTokens !== undefined ? parseInt(maxTokens) : 2048,
-        isActive: isActive !== undefined ? isActive : true,
-        version: version || '1.0',
-        description: description || null,
-      },
-    });
+    await ensureSchemaSynced();
+
+    const config = await withSchemaSync(() =>
+      prisma.aIConfig.create({
+        data: {
+          name,
+          type,
+          category,
+          content,
+          model: model || 'gpt-4',
+          temperature: temperature !== undefined ? parseFloat(temperature) : 0.7,
+          maxTokens: maxTokens !== undefined ? parseInt(maxTokens) : 2048,
+          isActive: isActive !== undefined ? isActive : true,
+          version: version || '1.0',
+          description: description || null,
+        },
+      })
+    );
 
     await prisma.auditLog.create({
       data: {
