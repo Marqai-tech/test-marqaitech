@@ -53,6 +53,8 @@ import {
   FiGift,
   FiMapPin,
   FiActivity,
+  FiShoppingBag,
+  FiShoppingCart,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -234,7 +236,26 @@ const navSections: NavSection[] = [
     label: 'External Relations',
     items: [
       { label: 'Clients', href: '/clients', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'company' },
+      { label: 'SOWs', href: '/clients/sow', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'company', isNew: true },
+      { label: 'Client Insights', href: '/clients/insights', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'company', isNew: true },
       { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'company' },
+      { label: 'Vendor Compliance', href: '/vendors/compliance', icon: <FiShield className="w-5 h-5" />, moduleKey: 'company', isNew: true },
+      { label: 'Purchase Orders', href: '/purchase-orders', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'company', isNew: true },
+      { label: 'Vendor Invoices (AP)', href: '/vendor-invoices', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'company', isNew: true },
+    ],
+  },
+  {
+    key: 'marketplace',
+    label: 'Marketplace & Wellness',
+    items: [
+      { label: 'Marketplace Hub', href: '/marketplace', icon: <FiShoppingBag className="w-5 h-5" />, isNew: true },
+      { label: 'My Wallet', href: '/marketplace/wallet', icon: <FiCreditCard className="w-5 h-5" />, isNew: true },
+      { label: 'Corporate Catalog', href: '/marketplace/catalog', icon: <FiShoppingCart className="w-5 h-5" />, isNew: true },
+      { label: 'Insurance Top-Up', href: '/marketplace/insurance', icon: <FiShield className="w-5 h-5" />, isNew: true },
+      { label: 'Earned Wage Access', href: '/marketplace/ewa', icon: <FiDollarSign className="w-5 h-5" />, isNew: true },
+      { label: 'Loan Marketplace', href: '/marketplace/loans', icon: <FiBriefcase className="w-5 h-5" />, isNew: true },
+      { label: 'Gifting & Rewards', href: '/marketplace/gifting', icon: <FiGift className="w-5 h-5" />, isNew: true },
+      { label: 'AI Insights', href: '/marketplace/insights', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
     ],
   },
   {

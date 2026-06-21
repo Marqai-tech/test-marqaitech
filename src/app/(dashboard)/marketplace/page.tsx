@@ -1,0 +1,34 @@
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+export default function MarketplaceHub() {
+  const tiles = [
+    { href: '/marketplace/wallet', title: 'My Wallet', desc: 'Multi-bucket wallet · Co-pay · Tax-exempt categories', icon: '👛', color: 'from-purple-500 to-pink-500' },
+    { href: '/marketplace/catalog', title: 'Corporate Catalog', desc: 'Sodexo · Xoxoday · Amazon Business · Corporate rates', icon: '🛍️', color: 'from-blue-500 to-cyan-500' },
+    { href: '/marketplace/insurance', title: 'Insurance Top-Up', desc: 'Group + voluntary · AI claims assistant · Payroll deduction', icon: '🛡️', color: 'from-green-500 to-emerald-500' },
+    { href: '/marketplace/ewa', title: 'Earned Wage Access', desc: 'Real-time earned-to-date · Wagestream/EarnIn API · 70% cap', icon: '💸', color: 'from-yellow-500 to-orange-500' },
+    { href: '/marketplace/loans', title: 'Loan Marketplace', desc: 'Pre-approved offers · e-sign consent · Garnishment', icon: '🏦', color: 'from-indigo-500 to-blue-500' },
+    { href: '/marketplace/gifting', title: 'Gifting & Rewards', desc: 'Milestone automation · P2P kudos · Wallet redemption', icon: '🎁', color: 'from-red-500 to-pink-500' },
+    { href: '/marketplace/insights', title: 'AI Insights (Admin)', desc: 'Financial stress · Fraud patterns · Wallet audit trail', icon: '🧠', color: 'from-gray-700 to-gray-900' },
+  ];
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Marketplace & Financial Wellness</h1>
+        <p className="text-sm text-gray-600 mt-1">Corporate Super-App · Multi-currency · Multi-tenant · AI-curated</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tiles.map(t => (
+          <Link key={t.href} href={t.href} className="block group">
+            <div className={`bg-gradient-to-br ${t.color} text-white rounded-lg p-5 shadow-lg group-hover:shadow-2xl transition-shadow`}>
+              <div className="text-3xl mb-2">{t.icon}</div>
+              <h3 className="text-lg font-bold">{t.title}</h3>
+              <p className="text-xs opacity-90 mt-1">{t.desc}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

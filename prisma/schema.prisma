@@ -180,6 +180,13 @@ model Company {
   payrollAnomalies      PayrollAnomaly[]
   ghostEmployeeFlags    GhostEmployeeFlag[]
 
+  // ─── Client/Vendor Addendum back-references ───
+  clientBranches        ClientBranch[] @relation("ClientBranchCompany")
+  purchaseOrders        PurchaseOrder[] @relation("POCompany")
+
+  // ─── Marketplace Addendum back-references ───
+  walletBudgetAllocations WalletBudgetAllocation[] @relation("WalletBudgetCompany")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -411,6 +418,20 @@ model Employee {
   attendanceAuditLogs       AttendanceAuditLog[]
   biometricEnrollments      BiometricEnrollment[]
   biometricPunches          BiometricPunch[]
+
+  // ─── Marketplace Addendum back-references ───
+  wallets                   Wallet[]
+  marketplaceOrders         MarketplaceOrder[]
+  insurancePolicies         InsurancePolicy[]
+  insuranceClaims           InsuranceClaim[]   @relation("ClaimEmployee")
+  ewaRequests               EWARequest[]       @relation("EWAEmployee")
+  loanMarketListings        LoanMarketplaceListing[] @relation("LoanMktEmployee")
+  giftsReceived             Gift[]             @relation("GiftRecipient")
+  giftsSent                 Gift[]             @relation("GiftSender")
+  rewardPointsLedger        RewardPointsLedger[] @relation("RewardPointsEmployee")
+  marketplaceFraudFlags     MarketplaceFraudFlag[] @relation("FraudEmployee")
+  financialStressFlags      FinancialStressFlag[] @relation("StressEmployee")
+  walletBudgetAllocations   WalletBudgetAllocation[] @relation("WalletBudgetEmployee")
 
   // ─── AI Recruitment back-references ───
   referrals              Referral[]
@@ -1036,6 +1057,9 @@ model Timesheet {
   invoiced    Boolean  @default(false)
   invoiceId   String?
 
+  // ─── Client/Vendor Addendum back-references ───
+  clientApproval ClientTimesheetApproval?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1387,6 +1411,13 @@ model Client {
 
   projects    Project[]
   invoices    Invoice[]
+  branches        ClientBranch[]
+  contacts        ClientContact[]
+  sows            SOW[]
+  portalUsers     ClientPortalUser[]
+  timesheetApprovals ClientTimesheetApproval[]
+  churnRisks      ClientChurnRisk[]
+  marginSnapshots ClientMarginSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1424,6 +1455,14 @@ model Vendor {
   rating        Float @default(0)
 
   status        String @default("active") // active, inactive, suspended
+
+  documents        VendorDocument[]
+  portalUsers      VendorPortalUser[]
+  staff            VendorStaff[]
+  contractorRequests ContractorRequest[]
+  purchaseOrders   PurchaseOrder[]
+  vendorInvoices   VendorInvoice[]
+  piiPurgedAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1472,6 +1511,10 @@ model Project {
   timesheets    Timesheet[]
   members       ProjectMember[]
   okrs          OKR[]
+  sows          SOW[]
+  contractorRequests ContractorRequest[]
+  purchaseOrders PurchaseOrder[] @relation("POProject")
+  marginSnapshots ClientMarginSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5240,4 +5283,561 @@ model AttendanceAiThreshold {
   isActive                Boolean @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+}
+
+// ============ AI CLIENT & VENDOR MANAGEMENT (ADDENDUM) ============
+
+model ClientBranch {
+  id          String @id @default(cuid())
+  clientId    String
+  client      Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String  // e.g., "Microsoft UK"
+  companyId   String  // local Sub-Company that owns this branch
+  company     Company @relation("ClientBranchCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  country     String?
+  billingCurrency String @default("INR")
+  paymentTerms String @default("net_30")
+  taxId       String?  // VAT/GST number
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([clientId])
+  @@index([companyId])
+}
+
+model ClientContact {
+  id          String @id @default(cuid())
+  clientId    String
+  client      Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  phone       String?
+  role        String? // Project Manager, Finance, HR
+  preferredLanguage String @default("en")
+  isPrimary   Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([clientId])
+}
+
+model SOW {
+  id              String @id @default(cuid())
+  clientId        String
+  client          Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId       String?  // auto-linked once approved
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title           String
+  fileName        String
+  fileUrl         String?
+  rawText         String?  @db.Text
+  // AI-extracted
+  startDate       DateTime?
+  endDate         DateTime?
+  maxHeadcount    Int?
+  billRatesJson   Json?    // { "developer": 80, "qa": 60 } in client currency
+  milestonesJson  Json?    // [{ name, date, amount }]
+  totalValue      Float?
+  currency        String @default("INR")
+  // workflow
+  status          String @default("pending") // pending, ai_parsed, approved, rejected
+  approvedById    String?
+  approvedAt      DateTime?
+  aiConfidence    Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([clientId])
+  @@index([status])
+}
+
+model ClientPortalUser {
+  id            String @id @default(cuid())
+  clientId      String
+  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  email         String
+  name          String?
+  passwordHash  String?
+  otpSecret     String?
+  mfaEnabled    Boolean @default(true)
+  preferredLanguage String @default("en")
+  lastLoginAt   DateTime?
+  status        String @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([clientId, email])
+  @@index([clientId])
+}
+
+model ClientTimesheetApproval {
+  id            String @id @default(cuid())
+  clientId      String
+  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  timesheetId   String
+  timesheet     Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  status        String @default("pending") // pending, approved, rejected
+  approvedById  String?  // ClientPortalUser id
+  approvedAt    DateTime?
+  comments      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([timesheetId])
+  @@index([clientId])
+}
+
+model ClientChurnRisk {
+  id            String @id @default(cuid())
+  clientId      String
+  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  riskScore     Float   // 0..1
+  riskLevel     String  // low, medium, high
+  factorsJson   Json?
+  recommendations String?  @db.Text
+  notifiedManager Boolean @default(false)
+  evaluatedAt   DateTime @default(now())
+  @@index([clientId])
+  @@index([riskLevel])
+}
+
+model ClientMarginSnapshot {
+  id            String @id @default(cuid())
+  clientId      String
+  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  revenueBase   Float
+  costEmployee  Float
+  costVendor    Float
+  grossMargin   Float
+  marginPct     Float
+  currency      String @default("INR")
+  snapshotAt    DateTime @default(now())
+  @@index([clientId])
+  @@index([projectId])
+}
+
+// Vendor-side models
+
+model VendorCategory {
+  id          String @id @default(cuid())
+  name        String  // Staffing Agency, Background Check Provider, IT Hardware, Benefits Administrator
+  description String?
+  createdAt   DateTime @default(now())
+  @@index([name])
+}
+
+model VendorDocument {
+  id              String @id @default(cuid())
+  vendorId        String
+  vendor          Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name            String  // e.g., "Insurance Certificate 2026"
+  type            String  // insurance, dpa, labor_license, nda, iso, other
+  fileUrl         String?
+  issuedAt        DateTime?
+  expiryDate      DateTime?
+  reminderSent30  Boolean @default(false)
+  reminderSent15  Boolean @default(false)
+  reminderSent7   Boolean @default(false)
+  status          String @default("valid") // valid, expiring, expired
+  uploadedById    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([vendorId])
+  @@index([expiryDate])
+}
+
+model VendorPortalUser {
+  id            String @id @default(cuid())
+  vendorId      String
+  vendor        Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  email         String
+  name          String?
+  passwordHash  String?
+  otpSecret     String?
+  mfaEnabled    Boolean @default(true)
+  canSubmitCandidates Boolean @default(true)
+  lastLoginAt   DateTime?
+  status        String @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([vendorId, email])
+  @@index([vendorId])
+}
+
+model VendorStaff {
+  id              String @id @default(cuid())
+  vendorId        String
+  vendor          Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name            String
+  email           String?
+  phone           String?
+  role            String?
+  skillTags       String?
+  billRate        Float?
+  costRate        Float?
+  currency        String @default("INR")
+  candidateApplicationId String?  // link to ATS application once submitted
+  onboardedAt     DateTime?
+  offboardedAt    DateTime?
+  status          String @default("available") // available, submitted, onboarded, offboarded
+  piiMasked       Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([vendorId])
+  @@index([status])
+}
+
+model ContractorRequest {
+  id            String @id @default(cuid())
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requestedById String?
+  vendorId      String?
+  vendor        Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  role          String
+  skillTags     String?
+  headcount     Int @default(1)
+  billRateMax   Float?
+  currency      String @default("INR")
+  startDate     DateTime?
+  durationDays  Int?
+  status        String @default("open") // open, submitted, fulfilled, cancelled
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([projectId])
+  @@index([vendorId])
+}
+
+model PurchaseOrder {
+  id              String @id @default(cuid())
+  poNumber        String
+  vendorId        String
+  vendor          Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company @relation("POCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  projectId       String?
+  project         Project? @relation("POProject", fields: [projectId], references: [id], onDelete: SetNull)
+  contractorRequestId String?
+  currency        String @default("INR")
+  baseCurrency    String @default("INR")
+  exchangeRate    Float @default(1)
+  totalAmount     Float
+  baseAmount      Float  // in base currency
+  status          String @default("draft") // draft, issued, partially_received, received, closed, cancelled
+  issuedAt        DateTime?
+  expectedBy      DateTime?
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lineItems       PurchaseOrderLineItem[]
+  vendorInvoices  VendorInvoice[]
+  @@unique([poNumber])
+  @@index([vendorId])
+  @@index([companyId])
+}
+
+model PurchaseOrderLineItem {
+  id              String @id @default(cuid())
+  poId            String
+  po              PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  description     String
+  quantity        Float
+  unitPrice       Float
+  currency        String @default("INR")
+  total           Float
+  matchedQty      Float @default(0)
+  @@index([poId])
+}
+
+model VendorInvoice {
+  id              String @id @default(cuid())
+  vendorId        String
+  vendor          Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  poId            String?
+  po              PurchaseOrder? @relation(fields: [poId], references: [id], onDelete: SetNull)
+  invoiceNumber   String
+  invoiceDate     DateTime
+  currency        String @default("INR")
+  baseCurrency    String @default("INR")
+  exchangeRate    Float @default(1)
+  totalAmount     Float
+  baseAmount      Float
+  status          String @default("draft") // draft, matched, mismatched, approved, paid, rejected
+  matchedJson     Json?    // 3-way matching result: { poMatched, timesheetMatched, qtyDelta, rateDelta }
+  paidAt          DateTime?
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([vendorId])
+  @@index([poId])
+  @@index([status])
+}
+
+// ============ AI MARKETPLACE & E-COMMERCE (ADDENDUM) ============
+
+model Wallet {
+  id            String @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  currency      String @default("INR")
+  buckets       WalletBucket[]
+  transactions  WalletTransaction[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([employeeId, currency])
+  @@index([employeeId])
+}
+
+model WalletBucket {
+  id            String @id @default(cuid())
+  walletId      String
+  wallet        Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  category      String  // meal_allowance, learning_development, wellness, general_rewards, kudos, gift
+  balance       Float @default(0)
+  employerCoPayPct Float @default(100) // 0..100
+  taxExemptLimit Float?
+  expiresAt     DateTime?
+  transactions  WalletTransaction[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([walletId, category])
+  @@index([walletId])
+}
+
+model WalletTransaction {
+  id            String @id @default(cuid())
+  walletId      String
+  wallet        Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  bucketId      String?
+  bucket        WalletBucket? @relation(fields: [bucketId], references: [id], onDelete: SetNull)
+  type          String  // credit, debit, expiry, forfeiture, transfer
+  amount        Float
+  currency      String @default("INR")
+  baseAmount    Float @default(0)
+  reference     String?  // order id, gift id, payroll run id
+  description   String?
+  initiatedById String?
+  createdAt     DateTime @default(now())
+  @@index([walletId])
+  @@index([bucketId])
+}
+
+model MarketplaceProduct {
+  id              String @id @default(cuid())
+  sku             String @unique
+  name            String
+  description     String?  @db.Text
+  category        String  // voucher, gift_card, physical_goods, digital_goods, course, insurance_topup, ewa_fee
+  providerName    String  // Sodexo, Xoxoday, Amazon Business, Plum
+  providerSku     String?
+  publicPrice     Float
+  corporatePrice  Float
+  currency        String @default("INR")
+  allowedBuckets  String  // comma-separated: meal_allowance,wellness
+  imageUrl        String?
+  fulfillmentMode String @default("digital") // digital, physical, api_redirect
+  quantityLimitPerQuarter Int @default(0)  // 0 = unlimited
+  status          String @default("active")
+  orders          MarketplaceOrder[]
+  gifts           Gift[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([category])
+  @@index([providerName])
+}
+
+model MarketplaceOrder {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  productId       String
+  product         MarketplaceProduct @relation(fields: [productId], references: [id])
+  qty             Int @default(1)
+  unitPrice       Float  // corporate price
+  totalAmount     Float
+  currency        String @default("INR")
+  walletBucketId  String?
+  employerCoPayPct Float @default(100)
+  employerPaidAmount Float @default(0)
+  employeePaidAmount Float @default(0)
+  fulfillmentStatus String @default("pending") // pending, fulfilled, shipped, failed, refunded
+  fulfillmentRef  String?  // gift card code, tracking number, etc.
+  blockedByFraud  Boolean @default(false)
+  fraudReason     String?
+  status          String @default("placed") // placed, completed, cancelled
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([employeeId])
+  @@index([productId])
+}
+
+model MarketplaceProvider {
+  id            String @id @default(cuid())
+  name          String @unique // Amazon Business, Plum, Xoxoday, Sodexo, Wagestream, EarnIn
+  type          String  // shopping, insurance, ewa, loan, gift
+  apiBaseUrl    String?
+  apiKeyMasked  String?
+  webhookSecret String?
+  status        String @default("active")
+  superAdminApproved Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model InsurancePolicy {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policyType      String  // group_health, group_life, topup_health, topup_life, voluntary
+  providerName    String
+  policyNumber    String?
+  coverageAmount  Float
+  premiumAmount   Float
+  premiumCurrency String @default("INR")
+  paymentMode     String @default("payroll_deduction") // payroll_deduction, direct
+  deductionFrequency String @default("monthly") // monthly, quarterly, annual, one_time
+  startDate       DateTime
+  endDate         DateTime?
+  dependentsJson  Json?
+  status          String @default("active")
+  claims          InsuranceClaim[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([employeeId])
+}
+
+model InsuranceClaim {
+  id              String @id @default(cuid())
+  policyId        String
+  policy          InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee @relation("ClaimEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  claimAmount     Float
+  billFileUrl     String?
+  aiParsedJson    Json?  // { amount, diagnosis, policyNumber, hospitalName }
+  aiConfidence    Float?
+  status          String @default("draft") // draft, submitted, under_review, approved, rejected, paid
+  submittedAt     DateTime?
+  resolvedAt      DateTime?
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([policyId])
+  @@index([employeeId])
+}
+
+model EWARequest {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation("EWAEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  providerName    String  // Wagestream, EarnIn
+  requestedAmount Float
+  earnedToDate    Float  // computed from attendance+timesheets
+  feeAmount       Float @default(0)
+  currency        String @default("INR")
+  status          String @default("pending") // pending, approved, transferred, settled, rejected
+  transferredAt   DateTime?
+  settledAt       DateTime?  // when payroll deducted and sent to fintech
+  payrollRunId    String?
+  externalRef     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([employeeId])
+  @@index([status])
+}
+
+model LoanMarketplaceListing {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation("LoanMktEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  bankName        String
+  offerAmount     Float
+  interestRate    Float
+  tenureMonths    Int
+  emiAmount       Float
+  processingFee   Float @default(0)
+  currency        String @default("INR")
+  consentGiven    Boolean @default(false)
+  consentAt       DateTime?
+  deepLinkSentAt  DateTime?
+  applicationStatus String @default("pre_approved") // pre_approved, applied, approved, disbursed, rejected
+  garnishmentActive Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([employeeId])
+  @@index([bankName])
+}
+
+model Gift {
+  id              String @id @default(cuid())
+  recipientId     String
+  recipient       Employee @relation("GiftRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  senderId        String?
+  sender          Employee? @relation("GiftSender", fields: [senderId], references: [id], onDelete: SetNull)
+  triggerEvent    String  // work_anniversary, birthday, referral, project_completion, high_performance, manual
+  productId       String?
+  product         MarketplaceProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  voucherCode     String?
+  message         String?  @db.Text
+  value           Float @default(0)
+  currency        String @default("INR")
+  status          String @default("sent") // sent, viewed, redeemed, expired
+  createdAt       DateTime @default(now())
+  @@index([recipientId])
+  @@index([triggerEvent])
+}
+
+model RewardPointsLedger {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation("RewardPointsEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  type            String  // earn, redeem, expire
+  points          Int
+  balanceAfter    Int
+  source          String  // p2p_kudos, milestone, performance, redemption
+  referenceId     String?  // recognition id, gift id
+  createdAt       DateTime @default(now())
+  @@index([employeeId])
+}
+
+model MarketplaceFraudFlag {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation("FraudEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  orderId         String?
+  reason          String  // bulk_high_value, velocity, cross_category_violation, resale_suspicion
+  riskScore       Float
+  mfaTriggered    Boolean @default(false)
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  @@index([employeeId])
+}
+
+model FinancialStressFlag {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation("StressEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  riskScore       Float
+  riskLevel       String  // low, medium, high
+  factorsJson     Json?  // { ewaUsage, paydayLoans, attendanceDrop }
+  recommendedAction String?
+  notifiedHR      Boolean @default(false)
+  anonymized      Boolean @default(true)
+  evaluatedAt     DateTime @default(now())
+  @@index([employeeId])
+}
+
+model WalletBudgetAllocation {
+  id              String @id @default(cuid())
+  companyId       String
+  company         Company @relation("WalletBudgetCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  departmentId    String?
+  employeeId      String?
+  employee        Employee? @relation("WalletBudgetEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  bucketCategory  String
+  monthlyAmount   Float
+  currency        String @default("INR")
+  activeFrom      DateTime
+  activeUntil     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([companyId])
 }
