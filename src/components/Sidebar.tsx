@@ -49,6 +49,10 @@ import {
   FiVideo,
   FiHardDrive,
   FiPlayCircle,
+  FiRefreshCw,
+  FiGift,
+  FiMapPin,
+  FiActivity,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -163,7 +167,18 @@ const navSections: NavSection[] = [
     label: 'Time & Attendance',
     items: [
       { label: 'Attendance', href: '/attendance', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Gatepass', href: '/attendance/gatepass', icon: <FiShield className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Overtime Requests', href: '/attendance/overtime', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Comp-Off Balance', href: '/attendance/comp-off', icon: <FiGift className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Burnout Analytics', href: '/attendance/burnout', icon: <FiActivity className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Audit Trail', href: '/attendance/audit-log', icon: <FiLock className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Policy Config', href: '/attendance/policy-config', icon: <FiSettings className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Leave Management', href: '/leave', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
+      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'leave' },
+      { label: 'Optional Holidays', href: '/leave/optional-holidays', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
       { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-5 h-5" />, moduleKey: 'attendance' },
     ],
   },

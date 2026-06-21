@@ -205,6 +205,9 @@ model Branch {
   departments Department[]
   employees   Employee[]
 
+  // ─── AI Attendance & Leave Addendum ───
+  geofences   Geofence[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -392,6 +395,19 @@ model Employee {
   dottedLineManagers     DottedLineManager[]  @relation("DottedLineManager_Employee")
   managedDottedLines     DottedLineManager[]  @relation("DottedLineManager_Manager")
   teamMemberships        TeamMember[]
+
+  // ─── AI Attendance & Leave Addendum back-references ───
+  attendanceRegularizations AttendanceRegularization[]
+  hourlyPermissions         HourlyPermission[]
+  gatepasses                Gatepass[]
+  overtimeRequests          OvertimeRequest[]
+  compOffLeaves             CompOffLeave[]
+  wfhSnapshots              WfhAttendanceSnapshot[]
+  rosterAssignments         EmployeeRosterAssignment[]
+  leaveEncashmentRequests   LeaveEncashmentRequest[]
+  optionalHolidayElections  OptionalHolidayElection[]
+  burnoutFlags              BurnoutFlag[]
+  attendanceAuditLogs       AttendanceAuditLog[]
 
   // ─── AI Recruitment back-references ───
   referrals              Referral[]
@@ -619,8 +635,19 @@ model LeaveType {
   maxCarryForward Int @default(0)
   status      String @default("active")
 
+  // REQ-LVE-02: force attachment upload (e.g. medical cert for sick leave > N days)
+  attachmentMandatory   Boolean @default(false)
+  attachmentMandatoryAfterDays Int @default(0)
+  // REQ-LVE-04: enable AI collaborative leave check
+  collaborativeCheckEnabled Boolean @default(true)
+  // REQ-LVE-07: encashment allowed for this leave type
+  encashmentAllowed    Boolean @default(false)
+  encashmentBasis      String  @default("basic") // basic | gross | monthly_salary
+  maxEncashmentDays    Int     @default(0)
+
   leaveBalances  LeaveBalance[]
   leaveRequests  LeaveRequest[]
+  encashmentRequests LeaveEncashmentRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -662,6 +689,12 @@ model LeaveRequest {
   approvedAt  DateTime?
   comments    String?
   halfDay     Boolean @default(false)
+  // REQ-LVE-01: half-day slot — "first_half" or "second_half"
+  halfDaySlot String?
+  // REQ-LVE-04: AI collaborative leave check warning snapshot
+  aiCollaborativeWarning String?
+
+  attachments LeaveAttachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1199,6 +1232,11 @@ model Holiday {
   type        String @default("public") // public, company, optional
   country     String?
   description String?
+  // REQ-CFG-05: optional holiday quota — employees can elect N out of M
+  isOptional  Boolean @default(false)
+  optionalQuota Int @default(0)
+
+  elections   OptionalHolidayElection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4680,3 +4718,392 @@ model WelcomeSeriesEmail {
   @@index([status])
 }
 
+
+// =====================================================================
+// AI Attendance & Leave Management Addendum
+// Covers REQ-ATT-04, REQ-ATT-06, REQ-REG-01..03, REQ-PERM-01..02,
+// REQ-GATE-01..02, REQ-OT-02..03, REQ-CFG-02..03, REQ-CFG-05..06,
+// REQ-LVE-02..04, REQ-LVE-07, REQ-AI-ATT-03..04, REQ-SEC-ATT-04
+// =====================================================================
+
+// ── Geofence — drawn perimeter around an office location (REQ-ATT-04) ──
+model Geofence {
+  id          String   @id @default(cuid())
+  name        String
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  // GeoJSON-like polygon stored as JSON: { type: "Polygon", coordinates: [[[lat,lng], ...]] }
+  polygon     Json
+  centerLat   Float
+  centerLng   Float
+  radiusMeters Int    @default(200)   // also used for circular geofences
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([branchId])
+}
+
+// ── Attendance Regularization (REQ-REG-01, REQ-REG-02, REQ-REG-03) ──
+model AttendanceRegularization {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  punchType   String   // "check_in" | "check_out"
+  requestedTime DateTime
+  reason      String
+  // Optional AI suggestion snapshot (REQ-REG-02)
+  aiSuggestedTime DateTime?
+  aiConfidence Float?
+  // Is this on a weekend/holiday? (REQ-REG-03 — needs higher-level approval)
+  isWeekend   Boolean  @default(false)
+  isHoliday   Boolean  @default(false)
+
+  status      String   @default("pending") // pending, approved, rejected
+  approvedBy  String?
+  approvedAt  DateTime?
+  comments    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ── Hourly Permission / Short-Leave (REQ-PERM-01, REQ-PERM-02) ──
+model HourlyPermission {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+  hours       Float    // 0.25, 0.5, 1.0, 1.5, etc. (REQ-PERM-01: increments of 15/30 min)
+  reason      String
+
+  // REQ-PERM-02: deducted from daily target → adjusted required check-out time
+  adjustedCheckOut DateTime?
+
+  status      String   @default("pending") // pending, approved, rejected, auto_approved
+  approvedBy  String?
+  approvedAt  DateTime?
+  autoApproved Boolean @default(false)     // REQ-AI-ATT-04: AI auto-approval
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([date])
+}
+
+// ── Gatepass — physical movement token (REQ-GATE-01, REQ-GATE-02) ──
+model Gatepass {
+  id          String   @id @default(cuid())
+  employeeId  String?  // null for visitor/contractor
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  // REQ-GATE-02: visitor/contractor fields
+  visitorName    String?
+  visitorCompany String?
+  visitorPhone   String?
+  projectId      String?   // logged against a project for compliance
+
+  type        String   // "early_departure" | "late_arrival" | "visitor" | "contractor"
+  requestedAt DateTime
+  actualOutTime  DateTime?
+  actualInTime   DateTime?
+
+  // Two-tier approval (REQ-GATE-01): manager + security
+  managerStatus   String @default("pending") // pending, approved, rejected
+  managerApprovedBy String?
+  managerApprovedAt DateTime?
+  securityStatus   String @default("pending")
+  securityApprovedBy String?
+  securityApprovedAt DateTime?
+  // Final state — only open when both manager + security have approved
+  gateOpenedAt    DateTime?
+
+  reason      String
+  status      String   @default("pending") // pending, approved, rejected, completed, cancelled
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+// ── Pre-OT Approval (REQ-OT-02) — distinct from OvertimeRecord (actual OT) ──
+model OvertimeRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+  estimatedHours Float
+  reason      String
+  projectId   String?
+
+  // REQ-OT-03: convert OT to Comp-Off instead of payout
+  payoutPreference String @default("payout") // "payout" | "comp_off"
+  compOffCreditedId String? // FK to CompOffLeave when converted
+  compOffCreditedAt DateTime?
+
+  status      String   @default("pending") // pending, approved, rejected, cancelled
+  approvedBy  String?
+  approvedAt  DateTime?
+  comments    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([date])
+}
+
+// ── Comp-Off Leave (REQ-OT-03) — earned from OT conversion ──
+model CompOffLeave {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  earnedDate  DateTime
+  hours       Float
+  source      String   @default("overtime") // "overtime" | "holiday_work" | "weekend_work"
+  sourceOvertimeRequestId String?  // back-link to OvertimeRequest
+  expiryDate  DateTime?  // Comp-offs typically expire after a defined window
+  used        Float    @default(0)
+  status      String   @default("active") // active, expired, used, partially_used
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ── WFH Snapshot — single GPS coordinate at check-in/out (REQ-ATT-06, REQ-SEC-ATT-01) ──
+model WfhAttendanceSnapshot {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date        DateTime
+  punchType   String   // "check_in" | "check_out"
+  punchTime   DateTime
+  latitude    Float
+  longitude   Float
+  // Optional — AI activity summary (REQ-ATT-07)
+  activityChats     Int @default(0)
+  activityTimesheets Float @default(0)
+  activityEmails    Int @default(0)
+  aiBurnoutRisk     Float?  // 0..1, optional
+
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+// ── Rotational Roster (REQ-CFG-02) — auto-rotating shifts ──
+model RotationalRoster {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+
+  // Pattern is an ordered list of shift IDs the employee rotates through
+  // e.g. ["shift_morning_id", "shift_morning_id", "shift_night_id"]
+  pattern       Json
+  rotationUnit  String @default("week") // "day" | "week"
+  startDate     DateTime
+
+  isActive      Boolean @default(true)
+  assignments   EmployeeRosterAssignment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Employee → Roster assignment with a "current offset" into the pattern
+model EmployeeRosterAssignment {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  rosterId    String
+  roster      RotationalRoster @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+
+  // Index into roster.pattern — advances each rotation unit
+  currentOffset Int   @default(0)
+  startDate    DateTime
+  endDate      DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, rosterId])
+  @@index([employeeId])
+}
+
+// ── Attendance Policy with rounding & grace rules (REQ-CFG-03) ──
+model AttendancePolicyConfig {
+  id              String   @id @default(cuid())
+  name            String
+  // REQ-CFG-03: rounding rules
+  roundEnabled    Boolean  @default(false)
+  roundMinutes    Int      @default(15)  // round to nearest 15 minutes
+  roundDirection  String   @default("nearest") // "nearest" | "up" | "down"
+  // Late-coming grace (minutes)
+  lateGraceMinutes Int     @default(10)
+  // Early-departure grace (minutes)
+  earlyGraceMinutes Int    @default(10)
+  // REQ-OT-01: auto-OT enabled
+  autoOvertimeEnabled Boolean @default(true)
+  overtimeThresholdMinutes Int @default(480) // 8 hours
+  // REQ-AI-ATT-04: auto-approval rules
+  autoApprovePermissionMinutes Int @default(0)  // 0 = disabled; e.g. 30 = auto-approve permissions ≤ 30 min
+  autoApproveMinAttendancePct Float @default(90) // employee needs ≥ 90% attendance to qualify
+  // WFH policy (REQ-ATT-06/07)
+  wfhActivityMonitoringEnabled Boolean @default(false)
+  wfhInactivityThresholdHours Int @default(4) // flag if zero activity for 4h block
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── Leave Encashment Request (REQ-LVE-07) ──
+model LeaveEncashmentRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  days        Float
+  // Calculation basis: basic, gross, or monthly_salary
+  basis       String   @default("basic") // basic | gross | monthly_salary
+  ratePerDay  Float
+  amount      Float
+  // Country-specific tax implications stored as JSON
+  taxImplications Json?
+
+  status      String   @default("pending") // pending, approved, rejected, processed
+  approvedBy  String?
+  approvedAt  DateTime?
+  payrollRunId String?  // Linked to payroll run when paid
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ── Leave Attachment (REQ-LVE-02) — medical certs, supporting docs ──
+model LeaveAttachment {
+  id          String   @id @default(cuid())
+  leaveRequestId String
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  // REQ-SEC-ATT-03: medical certificates stored in a restricted container
+  isMedical   Boolean  @default(false)
+  // Locked — only Occupational Health officers can unlock
+  locked      Boolean  @default(false)
+  uploadedAt  DateTime @default(now())
+
+  @@index([leaveRequestId])
+}
+
+// ── Optional Holiday Election (REQ-CFG-05) ──
+model OptionalHolidayElection {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  holidayId   String
+  holiday     Holiday  @relation(fields: [holidayId], references: [id], onDelete: Cascade)
+
+  year        Int
+  selectedAt  DateTime @default(now())
+
+  @@unique([employeeId, holidayId])
+  @@index([employeeId])
+}
+
+// ── Matrix Routing Rule (REQ-CFG-06) ──
+// Routes leave/OT/gatepass approval based on project assignment for that day
+model ApprovalRoutingRule {
+  id          String   @id @default(cuid())
+  name        String
+  // Request type this rule applies to: "leave" | "overtime" | "gatepass" | "permission"
+  requestType String
+  // If the employee is allocated to this project on the request date, route to alternateManagerId
+  projectId   String?
+  alternateManagerId String?
+  // Fallback — if no project match, use primary manager
+  priority    Int      @default(100)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([requestType])
+  @@index([projectId])
+}
+
+// ── Burnout Flag (REQ-AI-ATT-03) ──
+model BurnoutFlag {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Risk score 0..1
+  riskScore   Float
+  riskLevel   String   // "low" | "moderate" | "high" | "critical"
+  // Contributing factors (JSON)
+  factors     Json     // { overtime: 1.2, leaveUsage: 0.3, activityScore: 0.95 }
+  recommendations String?
+  notifiedManager Boolean @default(false)
+  acknowledgedAt DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([riskLevel])
+}
+
+// ── Attendance Audit Trail (REQ-SEC-ATT-04) ──
+// Append-only log of every change to an attendance record
+model AttendanceAuditLog {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendanceId String?
+
+  action      String   // "manual_edit" | "regularization_approved" | "shift_change" | "mass_correction"
+  // Original + changed data, JSON snapshot
+  beforeData  Json?
+  afterData   Json?
+  changedBy   String
+  changedByIp String?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([action])
+  @@index([createdAt])
+}

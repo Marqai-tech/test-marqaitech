@@ -8,6 +8,7 @@ import {
   FiX,
   FiClock,
   FiMessageSquare,
+  FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -122,6 +123,7 @@ const initialForm = {
   endDate: '',
   reason: '',
   halfDay: false,
+  halfDaySlot: 'first_half' as 'first_half' | 'second_half',
 };
 
 /* ── Component ── */
@@ -135,6 +137,11 @@ export default function LeavePage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
+  // REQ-LVE-03: holiday overlay
+  const [holidays, setHolidays] = useState<Array<{ id: string; name: string; date: string; type: string }>>([]);
+  // REQ-LVE-04: AI collaborative check warning
+  const [aiWarning, setAiWarning] = useState<string | null>(null);
+  const [aiWarningLoading, setAiWarningLoading] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(initialForm);
@@ -202,18 +209,65 @@ export default function LeavePage() {
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
+  /* REQ-LVE-03: Fetch holidays for overlay when form opens */
+  useEffect(() => {
+    if (showForm) {
+      fetch('/api/holidays', { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(d => {
+          const list = Array.isArray(d) ? d : (d.holidays || d.data || []);
+          setHolidays(list.map((h: { id: string; name: string; date: string; type: string }) => ({ id: h.id, name: h.name, date: h.date, type: h.type })));
+        })
+        .catch(() => { /* non-fatal */ });
+    }
+  }, [showForm]);
+
+  /* REQ-LVE-04: AI Collaborative check when date range changes */
+  useEffect(() => {
+    if (!employee?.id || !form.startDate || !form.endDate) {
+      setAiWarning(null);
+      return;
+    }
+    setAiWarningLoading(true);
+    const ctrl = new AbortController();
+    fetch('/api/leave/collaborative-check', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ employeeId: employee.id, startDate: form.startDate, endDate: form.endDate }),
+      signal: ctrl.signal,
+    })
+      .then(r => r.json())
+      .then(d => setAiWarning(d.warning || null))
+      .catch(() => setAiWarning(null))
+      .finally(() => setAiWarningLoading(false));
+    return () => ctrl.abort();
+  }, [employee?.id, form.startDate, form.endDate]);
+
   /* Apply Leave */
   const handleOpenApplyForm = () => {
     setForm(initialForm);
     setShowForm(true);
     setActionRowId(null);
+    setAiWarning(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
   const handleCancelForm = () => {
     setShowForm(false);
     setForm(initialForm);
+    setAiWarning(null);
   };
+
+  /* Compute holidays overlapping the selected range (REQ-LVE-03 overlay) */
+  const holidaysInRange = (() => {
+    if (!form.startDate || !form.endDate) return [];
+    const s = new Date(form.startDate);
+    const e = new Date(form.endDate);
+    return holidays.filter(h => {
+      const hd = new Date(h.date);
+      return hd >= s && hd <= e;
+    });
+  })();
 
   const handleApply = async () => {
     if (!form.leaveTypeId || !form.startDate || !form.endDate) {
@@ -236,6 +290,7 @@ export default function LeavePage() {
           endDate: form.endDate,
           reason: form.reason,
           halfDay: form.halfDay,
+          halfDaySlot: form.halfDay ? form.halfDaySlot : null,
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -497,6 +552,42 @@ export default function LeavePage() {
                   </p>
                 </div>
               )}
+              {/* REQ-LVE-03: Holiday Calendar Overlay */}
+              {holidaysInRange.length > 0 && (
+                <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
+                  <p className="text-xs font-semibold text-violet-800 mb-1.5">
+                    <FiCalendar className="w-3.5 h-3.5 inline mr-1" />
+                    Public Holidays in your selected range:
+                  </p>
+                  <ul className="text-xs text-violet-700 space-y-0.5">
+                    {holidaysInRange.map(h => (
+                      <li key={h.id}>• {h.name} — {formatDate(h.date)} ({h.type})</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* REQ-LVE-04: AI Collaborative Leave Check */}
+              {form.startDate && form.endDate && (
+                <div className={`p-3 rounded-lg border ${
+                  aiWarning ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'
+                }`}>
+                  {aiWarningLoading ? (
+                    <p className="text-xs text-slate-600 flex items-center gap-1">
+                      <FiClock className="w-3 h-3 animate-spin" /> Checking team availability...
+                    </p>
+                  ) : aiWarning ? (
+                    <p className="text-xs text-amber-800">
+                      <FiAlertCircle className="w-3.5 h-3.5 inline mr-1" />
+                      <strong>AI Warning:</strong> {aiWarning}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-emerald-700">
+                      <FiCheck className="w-3.5 h-3.5 inline mr-1" />
+                      <strong>AI Check:</strong> No team availability conflicts detected for these dates.
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason</label>
                 <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Provide a reason for your leave..." />
@@ -505,6 +596,21 @@ export default function LeavePage() {
                 <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border text-blue-500 focus:ring-blue-500/20" />
                 <span className="text-sm text-nexus-text-primary">Half Day Leave</span>
               </label>
+              {form.halfDay && (
+                <div className="ml-7">
+                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Half-Day Slot</label>
+                  <div className="flex gap-2">
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'first_half' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-nexus-border text-nexus-text-secondary'}`}>
+                      <input type="radio" checked={form.halfDaySlot === 'first_half'} onChange={() => setForm(p => ({ ...p, halfDaySlot: 'first_half' }))} className="hidden" />
+                      First Half (morning)
+                    </label>
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'second_half' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-nexus-border text-nexus-text-secondary'}`}>
+                      <input type="radio" checked={form.halfDaySlot === 'second_half'} onChange={() => setForm(p => ({ ...p, halfDaySlot: 'second_half' }))} className="hidden" />
+                      Second Half (afternoon)
+                    </label>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
                 <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
                 <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">

@@ -105,13 +105,52 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { employeeId, leaveTypeId, startDate, endDate, reason, halfDay } = body;
+    const { employeeId, leaveTypeId, startDate, endDate, reason, halfDay, halfDaySlot } = body;
 
     if (!employeeId || !leaveTypeId || !startDate || !endDate) {
       return NextResponse.json(
         { error: 'Missing required fields: employeeId, leaveTypeId, startDate, endDate' },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // REQ-LVE-04: AI Collaborative Leave Check — compute warning before persisting
+    let aiCollaborativeWarning: string | null = null;
+    try {
+      const team = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { id: true, departmentId: true },
+      });
+      if (team?.departmentId) {
+        const teamMembers = await prisma.employee.findMany({
+          where: { departmentId: team.departmentId, id: { not: employeeId }, status: 'active' },
+          select: { id: true },
+        });
+        if (teamMembers.length > 0) {
+          const overlapping = await prisma.leaveRequest.findMany({
+            where: {
+              employeeId: { in: teamMembers.map(m => m.id) },
+              status: { in: ['approved', 'pending'] },
+              AND: [
+                { startDate: { lte: new Date(endDate) } },
+                { endDate: { gte: new Date(startDate) } },
+              ],
+            },
+            include: { employee: { select: { id: true, firstName: true, lastName: true } } },
+          });
+          const uniqueOnLeave = new Map<string, string>();
+          for (const lr of overlapping) {
+            if (lr.employee) uniqueOnLeave.set(lr.employee.id, `${lr.employee.firstName} ${lr.employee.lastName}`);
+          }
+          const threshold = Math.max(1, Math.floor(teamMembers.length * 0.3));
+          if (uniqueOnLeave.size >= threshold) {
+            const names = Array.from(uniqueOnLeave.values()).slice(0, 5).join(', ');
+            aiCollaborativeWarning = `Warning: ${uniqueOnLeave.size} other team member(s) are on leave during these dates (${names}${uniqueOnLeave.size > 5 ? ', ...' : ''}). Project delivery may be impacted.`;
+          }
+        }
+      }
+    } catch {
+      // Non-fatal — leave request can still proceed without the AI warning
     }
 
     const leaveRequest = await prisma.leaveRequest.create({
@@ -122,6 +161,8 @@ export async function POST(request: Request) {
         endDate: new Date(endDate),
         reason,
         halfDay: halfDay || false,
+        halfDaySlot: halfDaySlot || null,
+        aiCollaborativeWarning,
         status: 'pending',
       },
       include: {
