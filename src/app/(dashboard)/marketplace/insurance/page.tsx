@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function InsurancePage() {
   const [policies, setPolicies] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
-  useEffect(() => { load(); }, []);
-  async function load(): Promise<void> {
+
+  const load = useCallback(async (): Promise<void> => {
     const token = localStorage.getItem('token');
     const [p, c] = await Promise.all([
       fetch('/api/insurance/policies', { headers: { Authorization: `Bearer ${token}` } }),
@@ -15,7 +16,12 @@ export default function InsurancePage() {
     ]);
     setPolicies((await p.json()).policies || []);
     setClaims((await c.json()).claims || []);
-  }
+  }, []);
+
+  // Auto-seed wellness + insurance demo data on first load
+  const { seeded } = useAutoSeedDemo('wellness', () => load());
+
+  useEffect(() => { load(); }, [load, seeded]);
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

@@ -1,19 +1,28 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState('');
   const [loading, setLoading] = useState(true);
-  useEffect(() => { load(); }, [category]);
-  async function load(): Promise<void> {
+
+  const load = useCallback(async (cat: string): Promise<void> => {
     setLoading(true);
     const token = localStorage.getItem('token');
-    const url = `/api/marketplace/products${category ? `?category=${category}` : ''}`;
+    const url = `/api/marketplace/products${cat ? `?category=${cat}` : ''}`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    setProducts((await r.json()).products || []); setLoading(false);
-  }
+    setProducts((await r.json()).products || []);
+    setLoading(false);
+  }, []);
+
+  // Auto-seed demo data on first load if catalog is empty
+  const { seeded } = useAutoSeedDemo('marketplace', () => load(category));
+
+  useEffect(() => {
+    load(category);
+  }, [category, load, seeded]);
   async function buy(p: any) {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (!u.employeeId) { alert('No employee context'); return; }

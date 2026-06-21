@@ -55,6 +55,12 @@ import {
   FiActivity,
   FiShoppingBag,
   FiShoppingCart,
+  FiDatabase,
+  FiEdit3,
+  FiCheckSquare,
+  FiUserCheck,
+  FiBook,
+  FiFile,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -201,10 +207,42 @@ const navSections: NavSection[] = [
     key: 'compensation',
     label: 'Compensation',
     items: [
+      // Landing / overview
       { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll' },
+      // ─── Compensation Setup ───
+      { label: 'CTC Templates', href: '/payroll/ctc-templates', icon: <FiLayers className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Component Master', href: '/payroll/components', icon: <FiDatabase className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Salary Settings', href: '/payroll/salary-settings', icon: <FiEdit3 className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Definitions', href: '/payroll/definitions', icon: <FiClipboard className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      // ─── Tax & Statutory ───
+      { label: 'Income Tax', href: '/payroll/income-tax', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Tax Slabs', href: '/payroll/tax-slabs', icon: <FiBarChart2 className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Statutory Components', href: '/payroll/statutory', icon: <FiShield className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Gratuity', href: '/payroll/gratuity', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      // ─── Payroll Processing ───
+      { label: 'Payroll Inputs', href: '/payroll/inputs', icon: <FiEdit3 className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Pre-Payroll Validation', href: '/payroll/validations', icon: <FiCheckSquare className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll Processing', href: '/payroll/processing', icon: <FiPlayCircle className="w-5 h-5" />, moduleKey: 'payroll' },
+      { label: 'Overtime', href: '/payroll/overtime', icon: <FiActivity className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Loans', href: '/payroll/loans', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'F&F Settlement', href: '/payroll/fnf', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Holds', href: '/payroll/holds', icon: <FiLock className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      // ─── Multi-Country ───
+      { label: 'Currency & FX', href: '/payroll/currency', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Dimensions', href: '/payroll/dimensions', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Cross-Border Secondment', href: '/payroll/secondment', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Group Dashboard', href: '/payroll/group-dashboard', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      // ─── Compliance & Filing ───
+      { label: 'Compliance Calendar', href: '/payroll/compliance', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'GL Mapping', href: '/payroll/gl-mapping', icon: <FiBook className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Bank File Generation', href: '/payroll/bank-files', icon: <FiFile className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Reports', href: '/payroll/reports', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      // ─── Employee Payments ───
+      { label: 'Payment Methods', href: '/payroll/payment-methods', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payslips', href: '/payroll/payslips', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll' },
+      // ─── Governance & AI ───
+      { label: 'Payroll Approvals', href: '/payroll/approvals', icon: <FiUserCheck className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
     ],
   },

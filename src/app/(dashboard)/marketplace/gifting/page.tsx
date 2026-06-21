@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function GiftingPage() {
   const [tab, setTab] = useState<'gifts' | 'kudos'>('gifts');
   const [gifts, setGifts] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
-  useEffect(() => { load(); }, [tab]);
-  async function load(): Promise<void> {
+
+  const load = useCallback(async (): Promise<void> => {
     const token = localStorage.getItem('token');
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (tab === 'gifts') {
@@ -17,7 +18,12 @@ export default function GiftingPage() {
       const r = await fetch(`/api/recognition?employeeId=${u.employeeId || ''}`, { headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json(); setLedger(d.ledger || []);
     }
-  }
+  }, [tab]);
+
+  // Auto-seed wellness (incl. gifts + kudos) demo data on first load
+  const { seeded } = useAutoSeedDemo('wellness', () => load());
+
+  useEffect(() => { load(); }, [tab, load, seeded]);
   async function runMilestones(): Promise<void> {
     const token = localStorage.getItem('token');
     const r = await fetch('/api/gifts/milestone-scan', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });

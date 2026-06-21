@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -111,6 +112,12 @@ export default function ChatPage() {
     fetchRooms();
     fetchEmployees();
   }, [fetchRooms, fetchEmployees]);
+
+  // Auto-seed collaboration demo data on first load, then re-fetch rooms
+  const { seeded: chatSeeded } = useAutoSeedDemo('collaboration', () => { fetchRooms(); });
+  useEffect(() => {
+    if (chatSeeded) fetchRooms();
+  }, [chatSeeded, fetchRooms]);
 
   useEffect(() => {
     if (activeRoom) fetchMessages(activeRoom.id);

@@ -1,21 +1,27 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function EWAPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [earnedToDate, setEarnedToDate] = useState(0);
   const [maxWithdrawable, setMaxWithdrawable] = useState(0);
   const [amount, setAmount] = useState(0);
-  useEffect(() => { load(); }, []);
-  async function load(): Promise<void> {
+
+  const load = useCallback(async (): Promise<void> => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (!u.employeeId) return;
     const token = localStorage.getItem('token');
     const r = await fetch(`/api/ewa?employeeId=${u.employeeId}`, { headers: { Authorization: `Bearer ${token}` } });
     const d = await r.json();
     setRequests(d.requests || []);
-  }
+  }, []);
+
+  // Auto-seed wellness (incl. EWA) demo data on first load
+  const { seeded } = useAutoSeedDemo('wellness', () => load());
+
+  useEffect(() => { load(); }, [load, seeded]);
   async function request(): Promise<void> {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (!u.employeeId || amount <= 0) return;

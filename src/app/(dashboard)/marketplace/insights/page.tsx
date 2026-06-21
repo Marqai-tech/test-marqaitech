@@ -1,16 +1,26 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function MarketplaceInsightsPage() {
   const [stress, setStress] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Auto-seed wellness (incl. financial stress flags) demo data on first load
+  const { seeded } = useAutoSeedDemo('wellness');
+
   async function runStress(): Promise<void> {
     setLoading(true);
     const token = localStorage.getItem('token');
     const r = await fetch('/api/marketplace/ai/financial-stress', { headers: { Authorization: `Bearer ${token}` } });
     setStress((await r.json()).results || []); setLoading(false);
   }
+
+  // Auto-run stress analysis once after seeding completes
+  useEffect(() => {
+    if (seeded) runStress();
+  }, [seeded]);
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">

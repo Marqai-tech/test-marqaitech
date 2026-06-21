@@ -2,10 +2,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function MarketplaceHub() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Silently trigger demo-data seed on first load so the Vercel deployment
+  // always shows marketplace content without an admin having to click.
+  const { seeded } = useAutoSeedDemo('marketplace');
 
   const tiles = [
     { href: '/marketplace/wallet', title: 'My Wallet', desc: 'Multi-bucket wallet · Co-pay · Tax-exempt categories', icon: '👛', color: 'from-purple-500 to-pink-500' },

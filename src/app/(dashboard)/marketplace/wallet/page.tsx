@@ -1,19 +1,27 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState<any>(null);
   const [employeeId, setEmployeeId] = useState('');
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (u.employeeId) { setEmployeeId(u.employeeId); loadWallet(u.employeeId); }
-  }, []);
-  async function loadWallet(empId: string): Promise<void> {
+
+  const loadWallet = useCallback(async (empId: string): Promise<void> => {
     const token = localStorage.getItem('token');
     const r = await fetch(`/api/wallet?employeeId=${empId}`, { headers: { Authorization: `Bearer ${token}` } });
     setWallet((await r.json()).wallet);
-  }
+  }, []);
+
+  // Auto-seed wellness/wallet demo data on first load
+  const { seeded } = useAutoSeedDemo('wellness', () => {
+    if (employeeId) loadWallet(employeeId);
+  });
+
+  useEffect(() => {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    if (u.employeeId) { setEmployeeId(u.employeeId); loadWallet(u.employeeId); }
+  }, [loadWallet, seeded]);
   if (!wallet) return <div className="p-6 text-gray-500">Loading wallet...</div>;
   return (
     <div className="p-6 space-y-6">

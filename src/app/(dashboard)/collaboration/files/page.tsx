@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -75,6 +76,12 @@ export default function FilesPage() {
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
+
+  // Auto-seed collaboration demo data on first load, then re-fetch files
+  const { seeded: filesSeeded } = useAutoSeedDemo('collaboration', () => { fetchFiles(); });
+  useEffect(() => {
+    if (filesSeeded) fetchFiles();
+  }, [filesSeeded, fetchFiles]);
 
   const handleUpload = async () => {
     if (!newFileName) {

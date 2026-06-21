@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -84,6 +85,12 @@ export default function VendorsPage() {
   }, []);
 
   useEffect(() => { fetchVendors(); }, [fetchVendors]);
+
+  // Auto-seed vendor demo data on first load, then re-fetch
+  const { seeded: vendorsSeeded } = useAutoSeedDemo('vendors', () => { fetchVendors(); });
+  useEffect(() => {
+    if (vendorsSeeded) fetchVendors();
+  }, [vendorsSeeded, fetchVendors]);
 
   const handleAddNew = () => {
     setEditingId(null);

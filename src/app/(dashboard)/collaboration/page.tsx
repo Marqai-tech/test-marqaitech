@@ -6,6 +6,7 @@ import {
   FiMessageCircle, FiFileText, FiVideo, FiUsers, FiGlobe, FiShield,
   FiLock, FiCpu, FiArrowRight, FiActivity, FiClock, FiZap, FiArrowLeft,
 } from 'react-icons/fi';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 interface ModuleTile {
   title: string;
@@ -57,6 +58,9 @@ const tiles: ModuleTile[] = [
 
 export default function CollaborationHubPage() {
   const router = useRouter();
+  // Silently trigger collaboration demo-data seed on first load so the
+  // Vercel deployment shows chat rooms / files / call recordings.
+  useAutoSeedDemo('collaboration');
 
   return (
     <div className="space-y-6">

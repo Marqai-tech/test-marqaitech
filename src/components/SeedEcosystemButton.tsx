@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 interface Props {
   /** Which module to seed. 'all' seeds everything. */
-  module?: 'clients' | 'vendors' | 'marketplace' | 'wellness' | 'all';
+  module?: 'clients' | 'vendors' | 'marketplace' | 'wellness' | 'collaboration' | 'all';
   /** Button label override. */
   label?: string;
   /** Compact variant for tighter UIs. */

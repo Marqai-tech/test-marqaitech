@@ -1,17 +1,23 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 export default function LoansPage() {
   const [listings, setListings] = useState<any[]>([]);
-  useEffect(() => { load(); }, []);
-  async function load(): Promise<void> {
+
+  const load = useCallback(async (): Promise<void> => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (!u.employeeId) return;
     const token = localStorage.getItem('token');
     const r = await fetch(`/api/loan-marketplace?employeeId=${u.employeeId}`, { headers: { Authorization: `Bearer ${token}` } });
     setListings((await r.json()).listings || []);
-  }
+  }, []);
+
+  // Auto-seed wellness (incl. loan listings) demo data on first load
+  const { seeded } = useAutoSeedDemo('wellness', () => load());
+
+  useEffect(() => { load(); }, [load, seeded]);
   return (
     <div className="p-6 space-y-6">
       <div>

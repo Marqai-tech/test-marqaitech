@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -78,6 +79,12 @@ export default function ClientsPage() {
   }, []);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
+
+  // Auto-seed client demo data on first load, then re-fetch
+  const { seeded: clientsSeeded } = useAutoSeedDemo('clients', () => { fetchClients(); });
+  useEffect(() => {
+    if (clientsSeeded) fetchClients();
+  }, [clientsSeeded, fetchClients]);
 
   const handleAddNew = () => {
     setEditingId(null);

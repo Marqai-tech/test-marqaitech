@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -76,6 +77,12 @@ export default function CallsPage() {
     fetchCalls();
     fetchEmployees();
   }, [fetchCalls, fetchEmployees]);
+
+  // Auto-seed collaboration demo data on first load, then re-fetch calls
+  const { seeded: callsSeeded } = useAutoSeedDemo('collaboration', () => { fetchCalls(); });
+  useEffect(() => {
+    if (callsSeeded) fetchCalls();
+  }, [callsSeeded, fetchCalls]);
 
   const handleStartCall = async () => {
     if (selectedParticipants.length === 0) {
