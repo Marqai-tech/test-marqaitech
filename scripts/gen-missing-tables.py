@@ -39,10 +39,10 @@ import sys
 import json
 from pathlib import Path
 
-SCHEMA = Path("/home/z/my-project/prisma/schema.prisma")
-INIT_SQL = Path("/home/z/my-project/prisma/migrations/0_init/migration.sql")
-SYNC_JS = Path("/home/z/my-project/scripts/schema-sync.js")
-OUT_JS = Path("/home/z/my-project/scripts/_generated-tables.js")
+SCHEMA = Path(__file__).resolve().parent.parent / "prisma" / "schema.prisma"
+INIT_SQL = Path(__file__).resolve().parent.parent / "prisma" / "migrations" / "0_init" / "migration.sql"
+SYNC_JS = Path(__file__).resolve().parent / "schema-sync.js"
+OUT_JS = Path(__file__).resolve().parent / "_generated-tables.js"
 
 PRISMA_TO_PG = {
     "String": "TEXT",
