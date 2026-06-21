@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npx prisma generate && node scripts/schema-sync.js && npx next build"
+  "buildCommand": "npx prisma generate && python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js && npx next build"
 }

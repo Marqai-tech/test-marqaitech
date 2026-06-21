@@ -1,11 +1,13 @@
 /**
  * Gatepass API — REQ-GATE-01, REQ-GATE-02
+ * + REQ-AI-ATT-04: AI auto-approval for early-departure/late-arrival within grace
  *
  * Two-tier approval: Manager (time loss) + Security (physical gate opening).
  * Visitor/contractor gatepasses have no employeeId but log visitorName/Company.
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import prisma from '@/lib/prisma';
+import { buildContext, evaluateGatepassAutoApproval } from '@/lib/auto-approval-engine';
 
 export { OPTIONS };
 
@@ -60,6 +62,31 @@ export async function POST(request: Request) {
       employeeId = emp.id;
     }
 
+    // REQ-AI-ATT-04: run auto-approval engine for employee gatepasses
+    // Visitor/contractor gatepasses always need security review.
+    let managerStatus = 'pending';
+    let managerApprovedBy: string | null = null;
+    let managerApprovedAt: Date | null = null;
+    let autoApprovalDecision: { autoApproved: boolean; reason: string; confidence: number } | null = null;
+
+    if (employeeId) {
+      const ctx = await buildContext(employeeId);
+      const minutesOffset = typeof body.minutesOffset === 'number'
+        ? Number(body.minutesOffset)
+        : 30; // default 30 min if not specified
+      const decision = await evaluateGatepassAutoApproval(ctx, {
+        type,
+        minutesOffset,
+        isVisitor: false,
+      });
+      autoApprovalDecision = decision;
+      if (decision.autoApproved) {
+        managerStatus = 'approved';
+        managerApprovedBy = 'ai_auto';
+        managerApprovedAt = new Date();
+      }
+    }
+
     const record = await prisma.gatepass.create({
       data: {
         employeeId,
@@ -70,10 +97,13 @@ export async function POST(request: Request) {
         type,
         requestedAt,
         reason,
-        status: 'pending',
+        managerStatus,
+        managerApprovedBy,
+        managerApprovedAt,
+        status: managerStatus === 'approved' ? 'approved' : 'pending',
       },
     });
-    return ok({ gatepass: record }, 201);
+    return ok({ gatepass: record, autoApprovalDecision }, 201);
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to create', 500);
   }

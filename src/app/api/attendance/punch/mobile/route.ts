@@ -50,6 +50,7 @@
 import { requireUser, findEmployeeByEmail, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@/generated/prisma/client';
+import { localDayStartFor, localMinutesSinceMidnight, resolveTimezone } from '@/lib/timezone-utils';
 
 export { OPTIONS };
 
@@ -121,6 +122,22 @@ export async function POST(request: Request) {
   // 2. Resolve employee
   const emp = await findEmployeeByEmail(user.email);
   if (!emp) return fail('Employee record not found', 404);
+
+  // REQ-ATT-05: Multi-country time sync — resolve the employee's local
+  // timezone so the "attendance day" bucket is computed in LOCAL time, not UTC.
+  // We look up the employee's branch + company + tenant to find a declared
+  // timezone, falling back to UTC if none is set.
+  let employeeTz = 'UTC';
+  try {
+    const [branch, company, tenant] = await Promise.all([
+      emp.branchId ? prisma.branch.findUnique({ where: { id: emp.branchId }, select: { timezone: true, name: true } }) : null,
+      emp.companyId ? prisma.company.findUnique({ where: { id: emp.companyId }, select: { timezone: true, name: true } }) : null,
+      null, // tenant lookup would go here if Employee had tenantId
+    ]);
+    employeeTz = resolveTimezone([branch, company]);
+  } catch {
+    // If timezone columns don't exist yet, just fall back to UTC.
+  }
 
   // 3. Validate input
   const punchType = String(body.punchType || '').trim();
@@ -205,9 +222,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // Off-hours check (if configured)
+  // Off-hours check (if configured) — uses LOCAL time-of-day (REQ-ATT-05)
   if (thresholds.offHoursEndMinutes > thresholds.offHoursStartMinutes) {
-    const minutesSinceMidnight = punchTime.getHours() * 60 + punchTime.getMinutes();
+    const minutesSinceMidnight = localMinutesSinceMidnight(punchTime, employeeTz);
     if (
       minutesSinceMidnight < thresholds.offHoursStartMinutes ||
       minutesSinceMidnight > thresholds.offHoursEndMinutes
@@ -244,9 +261,10 @@ export async function POST(request: Request) {
     return null;
   });
 
-  // 7. Upsert Attendance record (idempotent per employee + date)
-  const dayStart = new Date(punchTime);
-  dayStart.setHours(0, 0, 0, 0);
+  // 7. Upsert Attendance record (idempotent per employee + LOCAL date — REQ-ATT-05)
+  //    The "day" bucket is computed in the employee's local timezone so that
+  //    a 9 AM IST punch on the 21st is recorded on the 21st (not the 20th in UTC).
+  const dayStart = localDayStartFor(punchTime, employeeTz);
 
   let attendanceId: string | null = null;
   let previousStatus: string | null = null;
@@ -313,6 +331,10 @@ export async function POST(request: Request) {
       ok: true,
       punchType,
       punchTime,
+      // REQ-ATT-05: include the resolved timezone + local-day bucket so the
+      // mobile app can confirm which day the punch was recorded under.
+      timezone: employeeTz,
+      attendanceDay: dayStart,
       flagged,
       flagReasons,
       spoofingRisk,

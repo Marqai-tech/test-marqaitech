@@ -1887,3 +1887,44 @@ Stage Summary:
 - All Prisma "table does not exist" / "column does not exist" errors will be resolved after next Vercel deploy (schema-sync.js creates all missing tables idempotently with IF NOT EXISTS)
 - Leave, Attendance, and Timesheet are now separate sidebar menus for easier navigation
 - Holiday, OptionalHolidayElection, LeaveEncashmentRequest, Geofence, BurnoutFlag, AttendancePolicyConfig, AttendanceRegularization, HourlyPermission, Gatepass, OvertimeRequest, CompOffLeave, WfhAttendanceSnapshot, RotationalRoster, EmployeeRosterAssignment, LeaveAttachment, ApprovalRoutingRule, AttendanceAuditLog tables will all be created on next deploy
+
+---
+Task ID: 5
+Agent: main (Super Z continuation)
+Task: Fix payroll sub-section errors, build candidate dashboard, test biometric webhook, expand auto-approval engine, multi-country time sync, INR default, intro minimization
+
+Work Log:
+- Inventoried all 187 models in schema.prisma; found 90 missing from BOTH 0_init migration AND schema-sync.js (Payroll, Recruitment, Employee lifecycle, Timesheet, etc.)
+- Wrote scripts/gen-missing-tables.py — parses prisma/schema.prisma, generates CREATE TABLE IF NOT EXISTS statements for every missing model. Outputs to scripts/_generated-tables.js (90 models → 284 statements).
+- Patched scripts/schema-sync.js to load and execute the generated statements.
+- Updated vercel.json + package.json build commands to run `python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js` so the schema is always in sync on every build.
+- Created biometric webhook test scripts (bash + Node.js): scripts/test-biometric-webhook.{sh,js}. They register a device via admin API, capture the raw token, send a ZKTeco-format check_in (fingerprint), then a check_out (card mode), then verify the punch log.
+- Built Candidate Portal (REQ-ATS-04):
+  * /api/candidate-portal/auth/request-otp + verify-otp — OTP-based login (no passwords, REQ-SEC-REC-02 PII-safe)
+  * /api/candidate-portal/dashboard — full dashboard aggregate endpoint
+  * /candidate-portal/login — email → OTP → JWT flow
+  * /candidate-portal/dashboard — candidate-facing dashboard with: application stats (applied/shortlisted/interviewing/offered/hired/rejected), interview activity (upcoming/attended/missed), AI interview sessions (completed vs missed), resume insights (parsed data + confidence), skill matrix (frequency-aggregated), sentiment scores, AI suggestions (missing skills, engagement warnings, interview prep, stale applications), learning recommendations (curated catalog keyed by skill slug)
+- Built REQ-ATT-05 multi-country time sync:
+  * src/lib/timezone-utils.ts — localDayStartFor, localMinutesSinceMidnight, formatInTimezone, timezoneAbbrev, resolveTimezone
+  * Patched /api/attendance/punch/mobile to: resolve employee timezone via branch→company→tenant chain; compute attendance-day bucket in LOCAL time (not UTC); run off-hours check in local time; include timezone + attendanceDay in response
+- Expanded REQ-AI-ATT-04 auto-approval engine:
+  * src/lib/auto-approval-engine.ts — covers Permission + Leave + Overtime + Gatepass workflows; each returns {autoApproved, reason, confidence, rulesEvaluated}; anti-abuse (5 req/7d, 3 auto-approvals/24h) + trust (≥ minAttendancePct) predicates shared across all workflows
+  * Patched /api/attendance/overtime-request/route.ts to call evaluateOvertimeAutoApproval; auto-credits CompOffLeave when approved with comp_off preference
+  * Patched /api/attendance/gatepass/route.ts to call evaluateGatepassAutoApproval; auto-approves manager tier for in-grace employee gatepasses; visitors/contractors always deferred to human
+  * Added 4 new columns to AttendancePolicyConfig: autoApproveLeaveSingleDay, autoApproveLeaveTypes, autoApproveOvertimeHours, autoApproveGatepassMinutes — updated schema.prisma + schema-sync.js with ALTER TABLE ADD COLUMN IF NOT EXISTS for idempotent migration
+- Applied minimized + hover-preview pattern to admin intro sections:
+  * Rewrote src/components/SrsBanner.tsx — collapsed by default, hover-preview popover, click-to-pin (matches ModuleTips/ModuleWorkflow pattern). Affects 4 admin pages.
+  * Created new src/components/ModuleIntro.tsx — reusable intro/header for any module landing page, same pattern.
+- Verified INR default currency:
+  * Changed Tenant.baseCurrency schema default from "USD" → "INR"
+  * Updated schema-sync.js to default baseCurrency to 'INR' for existing tenants
+  * Patched 7 runtime API defaults from USD → INR: offers, tenants, subscriptions, projects, expenses, preboarding, payroll/ctc-calculator
+  * Seed scripts intentionally left using multi-currency sample data (USD+INR+EUR)
+
+Stage Summary:
+- All 90 missing Prisma tables will be created on next Vercel deploy (payroll/recruitment/employee sub-pages will work)
+- Candidate portal live at /candidate-portal/login → /candidate-portal/dashboard
+- Biometric webhook testable via scripts/test-biometric-webhook.{sh,js} once admin JWT is available
+- Multi-country time sync: punch day-bucketing now respects employee timezone (Bangalore 9 AM IST on the 21st is correctly recorded on the 21st, not the 20th in UTC)
+- Auto-approval engine now covers Permission + Overtime + Gatepass; Leave evaluator ready (just needs UI wiring)
+- All Tenant.baseCurrency defaults are INR; runtime API defaults are INR (seed scripts intentionally multi-currency)

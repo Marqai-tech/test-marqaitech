@@ -125,7 +125,7 @@ export async function POST(request: Request) {
         deliveryManagerId,
         projectType: projectType || 'internal',
         billingType: billingType || 'non_billable',
-        currency: currency || 'USD',
+        currency: currency || 'INR',
         budgetAmount: budgetAmount ?? 0,
         estimatedHours: estimatedHours ?? 0,
         billingRate: billingRate ?? 0,

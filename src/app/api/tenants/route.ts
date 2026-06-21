@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         domain,
         plan: plan || 'starter',
         country,
-        currency: currency || 'USD',
+        currency: currency || 'INR',
         timezone: timezone || 'UTC',
         logo,
         // When a super admin creates a tenant directly, it's active immediately

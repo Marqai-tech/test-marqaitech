@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         title,
         category,
         amount: parseFloat(amount),
-        currency: currency || 'USD',
+        currency: currency || 'INR',
         date: new Date(date),
         description,
       },

@@ -150,7 +150,7 @@ export async function POST(request: Request) {
           jobTitle: jobTitle || null,
           departmentId: departmentId || null,
           offeredSalary: offeredSalary ? parseFloat(String(offeredSalary)) : null,
-          currency: currency || 'USD',
+          currency: currency || 'INR',
           offerDate: offerDate ? new Date(offerDate) : new Date(),
           joiningDate: joiningDate ? new Date(joiningDate) : null,
           notes: notes || null,

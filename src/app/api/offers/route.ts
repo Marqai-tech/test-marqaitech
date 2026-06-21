@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         position,
         department,
         offeredSalary,
-        offeredCurrency: offeredCurrency || 'USD',
+        offeredCurrency: offeredCurrency || 'INR',
         offeredCTC,
         salaryBreakdown,
         joiningDate: new Date(joiningDate),

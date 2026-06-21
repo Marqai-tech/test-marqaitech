@@ -29,7 +29,7 @@ model Tenant {
   // ─── SRS REQ-GL-03 / REQ-GL-04: Multi-currency support ───
   // The tenant's base currency for consolidated group reporting.
   // Sub-companies operating in other currencies auto-convert to this.
-  baseCurrency String  @default("USD")
+  baseCurrency String  @default("INR")
 
   // ─── SRS REQ-GL-06: Multi-country data residency ───
   // Server region where this tenant's data is stored (e.g. 'us-east-1', 'eu-west-1').
@@ -4975,9 +4975,16 @@ model AttendancePolicyConfig {
   // REQ-OT-01: auto-OT enabled
   autoOvertimeEnabled Boolean @default(true)
   overtimeThresholdMinutes Int @default(480) // 8 hours
-  // REQ-AI-ATT-04: auto-approval rules
+  // REQ-AI-ATT-04: auto-approval rules (Permission)
   autoApprovePermissionMinutes Int @default(0)  // 0 = disabled; e.g. 30 = auto-approve permissions ≤ 30 min
   autoApproveMinAttendancePct Float @default(90) // employee needs ≥ 90% attendance to qualify
+  // REQ-AI-ATT-04: auto-approval rules (Leave — extended engine)
+  autoApproveLeaveSingleDay Boolean @default(false) // master switch for leave auto-approval
+  autoApproveLeaveTypes    String   @default("[]") // JSON array, e.g. ["casual", "sick"]
+  // REQ-AI-ATT-04: auto-approval rules (Overtime)
+  autoApproveOvertimeHours Float @default(0) // 0 = disabled; e.g. 2 = auto-approve OT ≤ 2 hours
+  // REQ-AI-ATT-04: auto-approval rules (Gatepass)
+  autoApproveGatepassMinutes Int @default(0) // 0 = disabled; e.g. 30 = auto-approve gatepass within 30 min of shift boundary
   // WFH policy (REQ-ATT-06/07)
   wfhActivityMonitoringEnabled Boolean @default(false)
   wfhInactivityThresholdHours Int @default(4) // flag if zero activity for 4h block

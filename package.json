@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && node scripts/schema-sync.js && next build",
-    "schema:sync": "node scripts/schema-sync.js",
+    "build": "prisma generate && python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js && next build",
+    "schema:sync": "python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",

@@ -100,7 +100,7 @@ export async function POST(request: Request) {
         trialEnd: trialEnd ? new Date(trialEnd) : null,
         billingCycle: billingCycle || 'monthly',
         amount: amount ?? 0,
-        currency: currency || 'USD',
+        currency: currency || 'INR',
         paymentStatus: paymentStatus || 'pending',
         status: 'active',
         autoRenew: autoRenew ?? true,
