@@ -81,6 +81,18 @@ function createFallbackProxy(): PrismaClient {
         'invoice', 'invoiceLineItem',
         // Project-level RBAC (added 2026-06-21, REQ-SEC-11)
         'projectMember',
+        // Employee Core & Collaboration (added 2026-06-21, REQ-EMP/COL/AI-EMP/SEC-EMP)
+        'employeeCustomField', 'employeeCustomFieldValue',
+        'dottedLineManager', 'team', 'teamMember',
+        'socialProfile', 'sSOProvider', 'calendarSync',
+        'chatRoom', 'chatRoomMember', 'chatMessage',
+        'callLog', 'callParticipant',
+        'fileNode', 'fileVersion', 'fileShareLink',
+        'aIKnowledgeQuery', 'documentIntelligenceResult',
+        'chatSummary', 'sentimentAnalysis',
+        'storageQuota', 'legalHold', 'collaborationFeatureFlag',
+        'communicationPolicy', 'storageAnalytics',
+        'dLPScanLog', 'gDPRAnonymizationRequest', 'watermarkAccessLog',
       ]
 
       if (modelNames.includes(prop)) {

@@ -387,6 +387,26 @@ model Employee {
   ghostEmployeeFlags     GhostEmployeeFlag[]
   crossBorderSecondments CrossBorderSecondment[]
 
+  // ─── Employee Core & Collaboration back-references ───
+  customFieldValues      EmployeeCustomFieldValue[]
+  dottedLineManagers     DottedLineManager[]  @relation("DottedLineManager_Employee")
+  managedDottedLines     DottedLineManager[]  @relation("DottedLineManager_Manager")
+  teamMemberships        TeamMember[]
+  teamLeads              Team[]
+  socialProfiles         SocialProfile[]
+  calendarSyncs          CalendarSync[]
+  chatMessages           ChatMessage[]
+  callLogs               CallLog[]
+  callParticipations     CallParticipant[]
+  fileNodesOwned         FileNode[]           @relation("FileNode_Owner")
+  fileVersionsUploaded   FileVersion[]        @relation("FileVersion_Uploader")
+  fileSharesCreated      FileShareLink[]
+  fileNodesUploaded      FileNode[]           @relation("FileNode_Uploader")
+  documentIntelligenceResults DocumentIntelligenceResult[]
+  gdprAnonymizationRequests GDPRAnonymizationRequest[]
+  dlpScanLogs            DLPScanLog[]
+  watermarkAccessLogs    WatermarkAccessLog[]
+
   // ─── P0 fix back-references (added 2026-06-20) ───
   exitRequests      ExitRequest[]
   okrs              OKR[]
@@ -3619,3 +3639,680 @@ model DataResidencyPolicy {
 // are queryable from the run side as well. (Prisma already supports the
 // reverse direction implicitly via the FK columns above; this just makes
 // the include() API cleaner.)
+
+// =====================================================================
+// EMPLOYEE CORE & COLLABORATION (REQ-EMP-01..06, REQ-SOC-01..05,
+// REQ-COL-01..11, REQ-AI-EMP-01..04, REQ-SEC-EMP-01..04)
+// Multi-Country · Multi-Tenancy · Multi-Lingual · Multi-Currency · AI-Based
+// =====================================================================
+
+// ─── REQ-EMP-02: Localized Custom Fields ──────────────────────────────
+// Tenant Admins can configure custom fields that apply only to specific
+// countries or sub-companies (Blood Type for Japan, IRP5 for South Africa,
+// Visa Expiry for UAE, etc.).
+model EmployeeCustomField {
+  id            String   @id @default(cuid())
+  // Scope: 'global' | 'country' | 'company'
+  //   global  → applies to all employees of the tenant
+  //   country → applies only to employees in `countryCode`
+  //   company → applies only to employees in `companyId`
+  scope         String   @default("global")
+  countryCode   String?  // ISO 3166-1 alpha-2 (e.g. "JP", "ZA", "AE")
+  companyId     String?  // Sub-Company ID
+
+  label         String   // Display label (e.g. "Blood Type")
+  key           String   // Stable identifier (e.g. "blood_type")
+  fieldType     String   // text | number | date | select | multiselect | boolean | file
+  options       String?  // JSON for select/multiselect: ["A","B","O","AB"]
+  isRequired    Boolean  @default(false)
+  isSystemLocked Boolean @default(false) // REQ-EMP-01: system-locked fields cannot be deleted
+  isVisibleToManager Boolean @default(false)
+  isVisibleToPeer     Boolean @default(false)
+  displayOrder  Int      @default(0)
+
+  // Who configured it (audit)
+  createdById   String?
+
+  values        EmployeeCustomFieldValue[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([scope, countryCode, companyId])
+  @@index([key])
+}
+
+// Per-employee values for the custom fields above.
+model EmployeeCustomFieldValue {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fieldId       String
+  field         EmployeeCustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  valueText     String?
+  valueNumber   Float?
+  valueDate     DateTime?
+  valueBoolean  Boolean?
+  valueJson     String?  // For multiselect / file references
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([employeeId, fieldId])
+  @@index([employeeId])
+  @@index([fieldId])
+}
+
+// ─── REQ-EMP-04: Dotted-Line Reporting ────────────────────────────────
+// Map employees to multiple managers (solid line + dotted lines).
+model DottedLineManager {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation("DottedLineManager_Employee", fields: [employeeId], references: [id], onDelete: Cascade)
+  managerId     String   // The user/employee who is the secondary manager
+  manager       Employee @relation("DottedLineManager_Manager", fields: [managerId], references: [id], onDelete: Cascade)
+  managerType   String   @default("dotted") // solid | dotted | project | functional
+  startDate     DateTime @default(now())
+  endDate       DateTime?
+  notes         String?  // e.g. "Global Project Lead for Project Alpha"
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([managerId])
+}
+
+// ─── REQ-EMP-05: Team & Crew Configurations ───────────────────────────
+// Virtual teams for collaboration and bulk actions (shift allocations, etc.)
+model Team {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  teamType      String   @default("virtual") // virtual | crew | shift | project | department
+  companyId     String?
+  leadId        String?  // Team lead (Employee ID)
+  lead          Employee? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  members       TeamMember[]
+  isActive      Boolean  @default(true)
+  metadata      String?  // JSON: shift pattern, etc.
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([teamType])
+}
+
+model TeamMember {
+  id            String   @id @default(cuid())
+  teamId        String
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  role          String   @default("member") // lead | member | observer
+  joinedAt      DateTime @default(now())
+  leftAt        DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([teamId, employeeId])
+  @@index([teamId])
+  @@index([employeeId])
+}
+
+// ─── REQ-SOC-01/02: Social Profile Ingestion ──────────────────────────
+model SocialProfile {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  provider      String   // linkedin | microsoft | google | github | twitter
+  providerUserId String?
+  profileUrl    String?
+  accessToken   String?  // Encrypted at app layer
+  refreshToken  String?
+  tokenExpiresAt DateTime?
+  rawData       String?  // JSON snapshot of imported profile data
+  lastSyncedAt  DateTime?
+  autoSync      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([employeeId, provider])
+  @@index([employeeId])
+}
+
+// ─── REQ-SOC-03/04: SSO & JIT Provisioning ────────────────────────────
+model SSOProvider {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String   // Display name (e.g. "Corporate Azure AD")
+  providerType  String   // saml | oidc | microsoft | google | okta | azuread
+  clientId      String?
+  clientSecret  String?  // Encrypted
+  issuer        String?  // SAML entity ID or OIDC issuer URL
+  metadataUrl   String?  // SAML metadata URL or OIDC discovery URL
+  redirectUri   String?
+  scopes        String?  // JSON array of OIDC scopes
+  jitProvisioningEnabled Boolean @default(true) // REQ-SOC-04
+  jitDefaultRole String  @default("employee") // Role assigned to JIT-provisioned users
+  jitDefaultStatus String @default("pending_onboarding") // REQ-SOC-04
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  logoUrl       String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// ─── REQ-SOC-05: Calendar Integration ─────────────────────────────────
+model CalendarSync {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  provider      String   // outlook | google | ical
+  calendarId    String?
+  refreshToken  String?  // Encrypted
+  syncDirection String   @default("bidirectional") // to_calendar | to_hrms | bidirectional
+  syncLeaveApproved Boolean @default(true)
+  syncHolidays      Boolean @default(true)
+  syncFocusTime     Boolean @default(true) // Calendar → HRMS for capacity planning
+  lastSyncedAt  DateTime?
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([employeeId, provider])
+  @@index([employeeId])
+}
+
+// ─── REQ-COL-01/02/03/04: Contextual Chat ─────────────────────────────
+model ChatRoom {
+  id            String   @id @default(cuid())
+  name          String?
+  roomType      String   // direct | group | project | team | announcement
+  companyId     String?
+  projectId     String?
+  teamId        String?
+  createdBy     String
+  avatarUrl     String?
+  description   String?
+  isE2EE        Boolean  @default(false) // REQ-SEC-EMP-03: End-to-end encryption for 1:1
+  isAnnouncement Boolean @default(false) // REQ-6.2: Tenant Admin controls who can create
+  retentionDays Int?     // REQ-6.2: Auto-delete messages older than N days
+  lastMessageAt DateTime?
+  isActive      Boolean  @default(true)
+
+  members       ChatRoomMember[]
+  messages      ChatMessage[]
+  summaries     ChatSummary[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([roomType])
+  @@index([companyId])
+  @@index([projectId])
+}
+
+model ChatRoomMember {
+  id            String   @id @default(cuid())
+  roomId        String
+  room          ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId        String
+  role          String   @default("member") // admin | member
+  joinedAt      DateTime @default(now())
+  lastReadAt    DateTime?
+  mutedUntil    DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  roomId        String
+  room          ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId      String
+  sender        Employee @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  parentMessageId String? // REQ-COL-02: Threading
+  parentMessage ChatMessage? @relation("ChatMessage_Thread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       ChatMessage[] @relation("ChatMessage_Thread")
+  body          String
+  attachments   String?  // JSON array of file metadata
+  // REQ-COL-04: AI translation
+  originalLanguage String? // ISO 639-1: "fr", "en", etc.
+  translatedBody String?
+  translatedTo  String?
+  // REQ-COL-03: Detected inline actions (dates, file refs)
+  detectedActions String? // JSON: [{type:"calendar_invite", date:"2026-06-22T15:00:00Z"}]
+  // REQ-SEC-EMP-01: DLP scan result
+  dlpStatus     String   @default("clean") // clean | flagged | blocked
+  dlpReason     String?
+  isEdited      Boolean  @default(false)
+  editedAt      DateTime?
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([roomId, createdAt])
+  @@index([parentMessageId])
+  @@index([senderId])
+}
+
+// ─── REQ-COL-05/06/07: Voice & Video Calls ────────────────────────────
+model CallLog {
+  id            String   @id @default(cuid())
+  callType      String   // audio | video
+  provider      String   @default("native_webrtc") // native_webrtc | zoom | teams | webex
+  initiatorId   String
+  initiator     Employee @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
+  roomId        String?  // Optional link to a chat room
+  meetingUrl    String?  // For external providers (Zoom/Teams/Webex deep link)
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+  durationSec   Int?
+  status        String   @default("initiated") // initiated | answered | missed | completed | failed
+  consentForRecording Boolean @default(false) // REQ-COL-07
+  transcriptUrl String?  // REQ-COL-07: AI transcription
+  transcriptStatus String @default("none") // none | requested | in_progress | ready | failed
+  summaryText   String?  // AI-generated summary
+  isE2EE        Boolean  @default(false) // REQ-SEC-EMP-03
+  participants  CallParticipant[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([initiatorId])
+  @@index([roomId])
+  @@index([startedAt])
+}
+
+model CallParticipant {
+  id            String   @id @default(cuid())
+  callId        String
+  call          CallLog  @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId        String
+  user          Employee @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt      DateTime?
+  leftAt        DateTime?
+  connectionQuality String? // good | fair | poor
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([callId, userId])
+  @@index([callId])
+}
+
+// ─── REQ-COL-08/09/10/11: Enterprise File Management ──────────────────
+// Granular storage hierarchies: Personal / Project / Company Drive
+model FileNode {
+  id            String   @id @default(cuid())
+  name          String
+  driveType     String   // personal | project | company
+  // Exactly one of these is set depending on driveType:
+  ownerEmployeeId String? // personal drive
+  owner          Employee? @relation("FileNode_Owner", fields: [ownerEmployeeId], references: [id], onDelete: Cascade)
+  projectId     String?  // project drive
+  companyId     String?  // company drive
+  parentId      String?  // For nested folders (null = root)
+  parent        FileNode? @relation("FileNode_Hierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children      FileNode[] @relation("FileNode_Hierarchy")
+  nodeType      String   // file | folder
+  mimeType      String?
+  sizeBytes     Int      @default(0)
+  storagePath   String?  // Local FS path or external URL
+  // REQ-COL-09: Versioning
+  currentVersion Int     @default(1)
+  versions       FileVersion[]
+  // REQ-COL-11: External cloud sync
+  externalProvider String? // sharepoint | google_drive | one_drive | dropbox
+  externalId    String?
+  externalSyncUrl String?
+  externalSyncedAt DateTime?
+  // REQ-SEC-EMP-01: DLP
+  dlpScanStatus String   @default("pending") // pending | clean | flagged | blocked
+  dlpFlags      String?  // JSON: ["SSN","CREDIT_CARD"]
+  // REQ-SEC-EMP-02: GDPR anonymization tracking
+  isAnonymized  Boolean  @default(false)
+  // REQ-SEC-EMP-04: Watermark tracking
+  watermarkEnabled Boolean @default(false)
+  // REQ-6.1: Legal hold
+  isUnderLegalHold Boolean @default(false)
+  description   String?
+  uploadedById  String
+  uploadedBy    Employee @relation("FileNode_Uploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  shareLinks    FileShareLink[]
+  watermarkAccesses WatermarkAccessLog[]
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([driveType, ownerEmployeeId])
+  @@index([driveType, projectId])
+  @@index([driveType, companyId])
+  @@index([parentId])
+}
+
+model FileVersion {
+  id            String   @id @default(cuid())
+  fileId        String
+  file          FileNode @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  sizeBytes     Int
+  storagePath   String
+  mimeType      String?
+  checksum      String?  // SHA-256 for integrity
+  uploadedById  String
+  uploadedBy    Employee @relation("FileVersion_Uploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  changeLog     String?  // e.g. "Updated salary table"
+  isActive      Boolean  @default(true) // false = soft-deleted version
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([fileId, versionNumber])
+}
+
+// Track file shares (watermarking, access logging)
+model FileShareLink {
+  id            String   @id @default(cuid())
+  fileId        String
+  file          FileNode @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  createdBy     String
+  creator       Employee @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  shareUrl      String   @unique
+  shareType     String   @default("link") // link | user | email
+  recipientEmail String?
+  recipientUserId String?
+  expiresAt     DateTime?
+  passwordHash  String?
+  downloadEnabled Boolean @default(true)
+  watermarkEnabled Boolean @default(true) // REQ-SEC-EMP-04
+  accessCount   Int      @default(0)
+  lastAccessedAt DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([fileId])
+  @@index([shareUrl])
+}
+
+// ─── REQ-AI-EMP-01: AI Knowledge Assistant (extends existing AIChatLog) ─
+// Already have AIChatLog model — adding a metadata extension for HR context.
+model AIKnowledgeQuery {
+  id            String   @id @default(cuid())
+  userId        String
+  query         String
+  intent        String?  // leave_balance | policy_lookup | payslip_query | benefits | directory
+  responseText  String?
+  contextJson   String?  // Snapshot of context used (employeeId, scopes)
+  confidenceScore Float?
+  wasHelpful    Boolean?
+  feedbackText  String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([intent])
+}
+
+// ─── REQ-AI-EMP-02: Document Intelligence ─────────────────────────────
+model DocumentIntelligenceResult {
+  id            String   @id @default(cuid())
+  fileId        String?  // Link to FileNode if uploaded via File Hub
+  documentId    String?  // Link to Document if uploaded via Employee Documents
+  employeeId    String?
+  employee      Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  documentType  String?  // medical_certificate | invoice | receipt | id_proof | contract
+    // Extracted structured data (JSON)
+  extractedData String?  // {diagnosis, from_date, to_date, doctor_name, ...}
+  rawOcrText    String?
+  // Linked action — e.g. auto-filled leave request ID
+  linkedEntityId String?
+  linkedEntityType String? // leave_request | expense_claim | onboarding_task
+  confidenceScore Float?
+  status        String   @default("processed") // pending | processed | failed | needs_review
+  reviewedById  String?
+  reviewedAt    DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([fileId])
+  @@index([documentId])
+  @@index([employeeId])
+}
+
+// ─── REQ-AI-EMP-03: Chat Summarization ────────────────────────────────
+model ChatSummary {
+  id            String   @id @default(cuid())
+  roomId        String
+  room          ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  summaryType   String   @default("daily") // daily | weekly | on_demand
+  periodStart   DateTime
+  periodEnd     DateTime
+  summaryText   String
+  keyPoints     String?  // JSON array of bullet points
+  actionItems   String?  // JSON array of action items
+  mentionedUsers String? // JSON array of user IDs mentioned
+  generatedFor  String   // User ID who requested the summary
+  messageCount  Int
+
+  createdAt     DateTime @default(now())
+
+  @@index([roomId, periodStart])
+}
+
+// ─── REQ-AI-EMP-04: Sentiment Analysis ────────────────────────────────
+model SentimentAnalysis {
+  id            String   @id @default(cuid())
+  // Scope: 'room' | 'team' | 'company' | 'department'
+  scope         String
+  scopeId       String?  // Room/Team/Company/Department ID
+  periodStart   DateTime
+  periodEnd     DateTime
+  // Sentiment scores 0-100
+  positivityScore Float?
+  negativityScore Float?
+  toxicityScore Float?
+  burnoutRiskScore Float?  // Composite: low activity + negative sentiment
+  messageCount  Int
+  participantCount Int
+  // Aggregated signals — anonymous aggregates only (privacy preserving)
+  topNegativeKeywords String? // JSON array
+  topPositiveKeywords String? // JSON array
+  alertTriggered Boolean @default(false)
+  alertReason   String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([scope, scopeId, periodStart])
+}
+
+// ─── Super & Tenant Admin (Section 6) ─────────────────────────────────
+// REQ-6.1: Global Storage Quotas — per Parent Company (Tenant)
+model StorageQuota {
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
+  totalQuotaBytes Int    @default(10737418240) // 10 GB default
+  usedQuotaBytes Int     @default(0)
+  // Per-drive-type allocation
+  personalQuotaBytes Int @default(1073741824) // 1 GB per employee
+  projectQuotaBytes Int @default(5368709120)  // 5 GB per project
+  companyQuotaBytes Int @default(2147483648)  // 2 GB per sub-company
+  quotaAlertThreshold Float @default(0.85) // Alert at 85% usage
+  lastRecalculatedAt DateTime?
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// REQ-6.1: eDiscovery / Legal Hold
+model LegalHold {
+  id            String   @id @default(cuid())
+  tenantId      String
+  initiatedBy   String   // Super Admin user ID
+  targetUserId  String?  // User under hold (optional — can be project/company-wide)
+  targetRoomId  String?
+  targetFileId  String?
+  caseReference String?  // Legal case ID
+  reason        String
+  startDate     DateTime @default(now())
+  endDate       DateTime? // Null = ongoing hold
+  status        String   @default("active") // active | released | superseded
+  releasedBy    String?
+  releasedAt    DateTime?
+  releaseReason String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([targetUserId])
+}
+
+// REQ-6.1: Feature Toggles (already have FeatureFlag — extending with quota context)
+// Using a separate model for collaboration-specific toggles to keep concerns isolated.
+model CollaborationFeatureFlag {
+  id            String   @id @default(cuid())
+  tenantId      String
+  featureKey    String   // native_calling | ai_translation | file_preview | webrtc_group_calls | ...
+  isEnabled     Boolean  @default(true)
+  // Per-tenant load-management limits
+  maxCallDurationMin Int @default(60)
+  maxFileUploadMB Int    @default(100)
+  maxChatAttachments Int @default(10)
+  configuredBy  String?
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, featureKey])
+  @@index([tenantId])
+}
+
+// REQ-6.2: Communication Governance — auto-delete rules per room type
+model CommunicationPolicy {
+  id            String   @id @default(cuid())
+  tenantId      String
+  policyKey     String   // announcement_creators | message_retention | file_retention
+  policyValue   String   // JSON: e.g. {"allowed_roles":["tenant_admin","hr_admin"]}
+  appliesToRoomType String? // direct | group | project | announcement | all
+  isActive      Boolean  @default(true)
+  updatedBy     String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, policyKey])
+  @@index([tenantId])
+}
+
+// REQ-6.2: Storage Analytics snapshot (per sub-company / project)
+model StorageAnalytics {
+  id            String   @id @default(cuid())
+  tenantId      String
+  companyId     String?
+  projectId     String?
+  driveType     String   // personal | project | company
+  totalBytes    Int      @default(0)
+  fileCount     Int      @default(0)
+  // Top consumers
+  topFiles      String?  // JSON array of {fileId, name, sizeBytes}
+  // Trends
+  growthLast30Days Float? // Percentage growth
+  cleanupCandidates Int?  // Files not accessed in 90+ days
+  snapshotDate  DateTime @default(now())
+
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, snapshotDate])
+  @@index([companyId, driveType])
+}
+
+// ─── REQ-SEC-EMP-01: DLP (Data Loss Prevention) ───────────────────────
+model DLPScanLog {
+  id            String   @id @default(cuid())
+  // Source: chat_message | file_upload | file_share
+  sourceType    String
+  sourceId      String   // Message ID / File ID
+  userId        String   // Who triggered the scan
+  user          Employee @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Detection results
+  patterns      String?  // JSON: ["CREDIT_CARD","SSN","PHONE","EMAIL"]
+  riskScore     Float    @default(0) // 0-100
+  action        String   @default("allow") // allow | flag | block
+  reasonText    String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewAction  String?  // dismissed | confirmed_violation | escalated
+
+  createdAt     DateTime @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([userId])
+  @@index([action])
+}
+
+// ─── REQ-SEC-EMP-02: GDPR Right to Be Forgotten ───────────────────────
+// Tracks anonymization workflow when an employee exits.
+model GDPRAnonymizationRequest {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  requestedBy   String
+  reason        String   // employee_exit | gdpr_request | legal_order
+  status        String   @default("pending") // pending | in_progress | completed | failed
+  // What was anonymized
+  anonymizedFields String? // JSON: ["name","email","phone","ssn"]
+  retainedFields String?  // JSON: ["payroll_records"] — kept for statutory period
+  retentionPeriodYears Int @default(7) // REQ-SEC-EMP-02: 7 years
+  scheduledPurgeDate DateTime? // When retained data should be purged
+  completedAt   DateTime?
+  failedReason  String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ─── REQ-SEC-EMP-04: Watermarking ─────────────────────────────────────
+model WatermarkAccessLog {
+  id            String   @id @default(cuid())
+  fileId        String
+  file          FileNode @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId        String
+  user          Employee @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail     String   // Captured at access time (in case user is later anonymized)
+  userIp        String?
+  userAgent     String?
+  watermarkText String   // The watermark applied (email + timestamp)
+  accessType    String   @default("view") // view | download | print
+  snapshotUrl   String?  // Optional screenshot capture for high-sensitivity docs
+
+  createdAt     DateTime @default(now())
+
+  @@index([fileId, createdAt])
+  @@index([userId])
+}

@@ -604,17 +604,11 @@ export default function PayrollManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
-            <FiDollarSign className="w-6 h-6 text-emerald-500" />
-            Payroll Management
-          </h1>
-          <p className="text-nexus-text-secondary mt-1">
-            Configure salary structures, process payroll, and manage compliance
-          </p>
-        </div>
+      {/* Header — concise; the persistent sub-nav (layout.tsx) shows the title bar */}
+      <div>
+        <p className="text-nexus-text-secondary text-sm">
+          Configure salary structures, process payroll, and manage compliance. Use the sub-menu above to navigate between payroll modules.
+        </p>
       </div>
 
       {/* Module Tips */}

@@ -46,6 +46,9 @@ import {
   FiCpu,
   FiLayers,
   FiLock,
+  FiVideo,
+  FiHardDrive,
+  FiPlayCircle,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -84,6 +87,14 @@ const navSections: NavSection[] = [
       { label: 'Super Admin Console', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
       // REQ-SA-05: Feature flags per parent company
       { label: 'Feature Flags', href: '/super-admin/feature-flags', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // REQ-6.1: Storage quotas per tenant (REQ-SEC-EMP / Collaboration addendum)
+      { label: 'Storage Quotas', href: '/super-admin/storage-quotas', icon: <FiHardDrive className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // REQ-6.1: eDiscovery & Legal Holds
+      { label: 'eDiscovery / Legal Holds', href: '/super-admin/ediscovery', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // REQ-SOC-03/04: SSO provider config (per tenant)
+      { label: 'SSO Providers', href: '/super-admin/sso-providers', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // REQ-6.1: Collaboration feature toggles per tenant
+      { label: 'Collaboration Features', href: '/super-admin/collab-features', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // REQ-SEC-06 / REQ-SA-10: Audit logs (incl. context swaps)
       { label: 'Audit Logs', href: '/super-admin/audit-logs', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // SRS §6 RBAC matrix
@@ -106,6 +117,12 @@ const navSections: NavSection[] = [
       { label: 'Group Companies (read-only)', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       // SRS §6 RBAC matrix (group-level)
       { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // REQ-EMP-02: Profile Configuration (custom fields)
+      { label: 'Profile Configuration', href: '/tenant-admin/profile-config', icon: <FiSettings className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // REQ-6.2: Storage Analytics
+      { label: 'Storage Analytics', href: '/tenant-admin/storage-analytics', icon: <FiBarChart2 className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
+      // REQ-6.2: Communication Governance
+      { label: 'Communication Governance', href: '/tenant-admin/comm-governance', icon: <FiMessageCircle className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       // REQ-TA-04/05: Group-level AI insights
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
     ],
@@ -156,6 +173,9 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll' },
       { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Processing', href: '/payroll/processing', icon: <FiPlayCircle className="w-5 h-5" />, moduleKey: 'payroll' },
+      { label: 'Payslips', href: '/payroll/payslips', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll' },
+      { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
     ],
   },
   {
@@ -196,6 +216,16 @@ const navSections: NavSection[] = [
       { label: 'Helpdesk', href: '/helpdesk', icon: <FiHelpCircle className="w-5 h-5" />, moduleKey: 'helpdesk' },
       { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-5 h-5" />, moduleKey: 'grievances' },
       { label: 'AI Assistant', href: '/ai-assistant', icon: <FiMessageCircle className="w-5 h-5" /> },
+    ],
+  },
+  {
+    key: 'collaboration',
+    label: 'Collaboration Hub',
+    items: [
+      { label: 'Hub Home', href: '/collaboration', icon: <FiUsers className="w-5 h-5" />, isNew: true },
+      { label: 'Chat', href: '/collaboration/chat', icon: <FiMessageCircle className="w-5 h-5" />, isNew: true },
+      { label: 'File Hub', href: '/collaboration/files', icon: <FiFileText className="w-5 h-5" />, isNew: true },
+      { label: 'Calls', href: '/collaboration/calls', icon: <FiVideo className="w-5 h-5" />, isNew: true },
     ],
   },
   {
