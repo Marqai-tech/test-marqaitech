@@ -392,6 +392,9 @@ model Employee {
   dottedLineManagers     DottedLineManager[]  @relation("DottedLineManager_Employee")
   managedDottedLines     DottedLineManager[]  @relation("DottedLineManager_Manager")
   teamMemberships        TeamMember[]
+
+  // ─── AI Recruitment back-references ───
+  referrals              Referral[]
   teamLeads              Team[]
   socialProfiles         SocialProfile[]
   calendarSyncs          CalendarSync[]
@@ -509,6 +512,8 @@ model JobPosting {
   vacancies   Int @default(1)
 
   applications JobApplication[]
+  referrals    Referral[]
+  boardPostings JobBoardPosting[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -535,7 +540,9 @@ model JobApplication {
   interviewDate  DateTime?
   expectedSalary String?
 
-  interviews Interview[]
+  interviews    Interview[]
+  resumeParses  ResumeParse[]
+  sentimentScores CandidateSentimentScore[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -576,17 +583,27 @@ model OnboardingTask {
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   task       String
-  category   String @default("general") // general, it_setup, hr_docs, training, introduction
+  category   String @default("general") // general, it_setup, hr_docs, training, introduction, buddy_setup, payroll_setup, project_allocation
   status     String @default("pending") // pending, in_progress, completed
   dueDate    DateTime?
   completedDate DateTime?
   assignedBy String?
   notes      String?
 
+  // ─── REQ-ONB-08/09: Cascade wiring ───
+  // Originating preboarding candidate (if this task was auto-created from cascade)
+  preboardingCandidateId String?
+  // OnboardingTaskTemplate that this task was generated from (if applicable)
+  templateId        String?
+  // Buddy assigned (for category=buddy_setup tasks)
+  buddyEmployeeId   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([employeeId])
+  @@index([preboardingCandidateId])
+  @@index([category])
 }
 
 // ============ LEAVE MANAGEMENT ============
@@ -1679,6 +1696,21 @@ model Offer {
   respondedAt       DateTime?
   responseNotes     String?
 
+  // ─── REQ-OFR-01: Offer template + generated PDF ───
+  templateId        String?
+  generatedPdfUrl   String?
+  generatedAt       DateTime?
+
+  // ─── REQ-OFR-03: E-signature integration ───
+  esignProvider     String? // docusign | adobesign | internal
+  esignEnvelopeId   String?
+  signedPdfUrl      String?
+  signedAt          DateTime?
+  signedById        String?
+
+  // ─── REQ-OFR-04: Decline survey back-reference ───
+  declineSurvey     OfferDeclineSurvey?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1868,7 +1900,7 @@ model PreboardingCandidate {
   jobTitle        String?
   departmentId    String?
   offeredSalary   Float?
-  currency        String   @default("USD")
+  currency        String   @default("INR")
   offerDate       DateTime @default(now())
   joiningDate     DateTime?
   notes           String?
@@ -1891,11 +1923,30 @@ model PreboardingCandidate {
   hrVerified         Boolean @default(false)
   accountProvisioned Boolean @default(false)
 
+  // ─── REQ-ONB-01/05/08: Cascade wiring ───
+  // Populated when preboarding completes — points to the newly created Employee record.
+  employeeId         String?
+  // Requisition that this hire fulfills (optional — for analytics).
+  requisitionId      String?
+  // IT provisioning tracking
+  itProvisioningStatus String @default("pending") // pending | initiated | completed | failed
+  itProvisioningNotes  String?
+  // Buddy assigned for Day-1 (Employee.id)
+  buddyEmployeeId    String?
+  // Welcome series tracking
+  welcomeSeriesInitiated Boolean @default(false)
+
+  // Background checks (REQ-ONB-03)
+  backgroundChecks   BackgroundCheck[]
+  // Welcome series emails (REQ-ONB-04)
+  welcomeSeriesEmails WelcomeSeriesEmail[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([candidateEmail])
+  @@index([employeeId])
 }
 
 // ─── Exit Request (REQ-EXIT-01 employee self-service resignation) ───
@@ -4316,3 +4367,316 @@ model WatermarkAccessLog {
   @@index([fileId, createdAt])
   @@index([userId])
 }
+
+// ============ AI RECRUITMENT / ATS / PREBOARDING / ONBOARDING (Addendum) ============
+// Backs REQ-PORT-04, REQ-SRC-01..06, REQ-ATS-01..06, REQ-AI-INT-01..08,
+// REQ-OFR-01..04, REQ-ONB-01..09, REQ-SEC-REC-01..04, plus
+// Tenant-Admin Recruitment Analytics. Added 2026-06-21.
+
+// ─── REQ-SRC-05: Employee referral tracking ───
+model Referral {
+  id                    String   @id @default(cuid())
+  jobPostingId          String
+  jobPosting            JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  referrerEmployeeId    String
+  referrerEmployee      Employee @relation(fields: [referrerEmployeeId], references: [id])
+  candidateName         String
+  candidateEmail        String
+  candidatePhone        String?
+  candidateResume       String?
+  notes                 String?
+  bonusAmount           Float?
+  bonusCurrency         String   @default("INR")
+  trackToken            String   @unique @default(cuid())
+  clickCount            Int      @default(0)
+  // pending | applied | interviewed | offered | hired | rejected | bonus_paid
+  status                String   @default("pending")
+  hiredAt               DateTime?
+  bonusPaidAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([jobPostingId])
+  @@index([referrerEmployeeId])
+  @@index([trackToken])
+  @@index([status])
+}
+
+// ─── REQ-SEC-REC-04: Candidate consent management ───
+model CandidateConsent {
+  id            String   @id @default(cuid())
+  candidateEmail String
+  tenantId      String
+  // resume_processing | background_check | ai_evaluation | video_recording | marketing | data_retention
+  purpose       String
+  grantedAt     DateTime @default(now())
+  withdrawnAt   DateTime?
+  version       String   @default("1.0") // consent-text version
+  ipAddress     String?
+  userAgent     String?
+  source        String   @default("careers_portal") // careers_portal | candidate_portal | email_link
+
+  @@index([candidateEmail, tenantId])
+  @@index([purpose])
+}
+
+// ─── REQ-SEC-REC-03: PII masking policy for hiring panel ───
+model CandidatePiiPolicy {
+  id              String @id @default(cuid())
+  tenantId        String
+  // dob | gender | photo | address | phone | email | aadhaar | ssn | sin
+  field           String
+  // JSON array of role keys, e.g. '["hr_manager","recruiter"]'
+  visibleToRoles  String
+  // hash | partial | hidden | full
+  maskingStrategy String @default("hidden")
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?
+
+  @@unique([tenantId, field])
+}
+
+// ─── REQ-ATS-01/02: Real resume parsing (multi-format, multi-lingual) ───
+// Stored as a separate table so multiple parse attempts (re-parse after edits)
+// can coexist. JobApplication points to the latest via resumeParsedId.
+model ResumeParse {
+  id              String   @id @default(cuid())
+  jobApplicationId String
+  jobApplication  JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  // raw extracted text
+  rawText         String
+  // detected source language code (ISO 639-1): en, hi, de, ja, es, fr, ar, ...
+  language        String?
+  // AI-extracted structured fields (JSON)
+  parsedData      String   // { name, email, phone, skills[], education[], experience[], certifications[], summary }
+  // confidence 0..1 from the AI extraction
+  confidence      Float    @default(0)
+  // pdf | docx | doc | text | unknown
+  sourceFormat    String   @default("unknown")
+  parseError      String?
+  createdAt       DateTime @default(now())
+
+  @@index([jobApplicationId])
+}
+
+// ─── REQ-ATS-04/06: Candidate-facing portal auth + messaging ───
+model CandidatePortalUser {
+  id              String   @id @default(cuid())
+  candidateEmail  String
+  candidateName   String
+  // OTP-based login — no password. OTPs expire in 15 minutes.
+  currentOtpHash  String?
+  otpExpiresAt    DateTime?
+  lastLoginAt     DateTime?
+  // Token for "magic link" login from email
+  magicToken      String?  @unique
+  magicExpiresAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([candidateEmail])
+}
+
+model CandidateMessage {
+  id              String   @id @default(cuid())
+  // threaded conversation — root messages have null parentMessageId
+  parentMessageId String?
+  parentMessage   CandidateMessage? @relation("MessageThread", fields: [parentMessageId], references: [id], onDelete: NoAction)
+  replies         CandidateMessage[] @relation("MessageThread")
+
+  candidateEmail  String
+  // null senderId = candidate sent it; non-null = HR user sent it
+  senderUserId    String?
+  senderName      String
+  senderRole      String   @default("candidate") // candidate | hr | recruiter | hiring_manager
+  body            String
+  // optional attachment URL (uploaded file)
+  attachmentUrl   String?
+  attachmentName  String?
+  readAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([candidateEmail])
+  @@index([parentMessageId])
+  @@index([senderUserId])
+}
+
+// ─── REQ-AI-INT-02: Candidate sentiment & engagement scoring ───
+model CandidateSentimentScore {
+  id              String   @id @default(cuid())
+  jobApplicationId String
+  jobApplication  JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  // positive | neutral | negative | mixed
+  sentiment       String   @default("neutral")
+  // 0..100 — engagement quality (responsiveness + tone)
+  engagementScore Int      @default(50)
+  // 0..100 — risk of ghosting / rejection
+  dropoffRisk     Int      @default(50)
+  // free-text rationale from the AI
+  rationale       String?
+  // source: chat_screening | video_interview | email_response
+  source          String   @default("chat_screening")
+  createdAt       DateTime @default(now())
+
+  @@index([jobApplicationId])
+}
+
+// ─── REQ-AI-INT-07: Time-stamped interview feedback ───
+model InterviewFeedback {
+  id              String   @id @default(cuid())
+  interviewId     String
+  // interview relation is implicit (Interview model has no back-relation slot today);
+  // we store the id and join manually.
+  interviewerId   String?
+  interviewerName String
+  // timestamp in seconds within the video / chat transcript this feedback refers to
+  timestampSec    Int?
+  // positive | negative | neutral | concern | highlight
+  sentiment       String   @default("neutral")
+  body            String
+  // optional rating 1..5 on the specific moment
+  rating          Int?
+  createdAt       DateTime @default(now())
+
+  @@index([interviewId])
+  @@index([interviewerId])
+}
+
+// ─── REQ-OFR-01: Dynamic offer letter templates ───
+model OfferTemplate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  // ISO country code this template is for: US, IN, UK, AE, DE, * (wildcard)
+  country         String   @default("*")
+  // language code for the template body
+  language        String   @default("en")
+  // HTML / Markdown body with {{placeholders}} — e.g. {{candidateName}}, {{position}}, {{salary}}, {{currency}}, {{joiningDate}}, {{probationDays}}, {{reportingTo}}
+  body            String
+  // optional header / footer HTML
+  header          String?
+  footer          String?
+  // legal clauses as JSON array of {title, body} pairs
+  clauses         String?
+  isActive        Boolean  @default(true)
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, country])
+  @@index([isActive])
+}
+
+// ─── REQ-OFR-04: Decline analysis micro-survey ───
+model OfferDeclineSurvey {
+  id              String   @id @default(cuid())
+  offerId         String   @unique
+  offer           Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  // candidate-facing token so they can submit without logging in
+  token           String   @unique @default(cuid())
+  // compensation_too_low | accepted_another_offer | location | role_fit | benefits | counter_offer | personal | other
+  primaryReason   String?
+  // free-text
+  comments        String?
+  // would they reconsider in future?
+  openToFuture    Boolean?
+  submittedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([offerId])
+}
+
+// ─── REQ-ONB-01/05/08: Onboarding task templates + cascade wiring ───
+model OnboardingTaskTemplate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  task            String
+  // general | it_setup | hr_docs | training | introduction | buddy_setup | payroll_setup | project_allocation
+  category        String   @default("general")
+  // due X days after joining (negative = pre-joining)
+  dueOffsetDays   Int      @default(0)
+  // optional designation-level filter
+  appliesToRole   String?
+  // optional department filter
+  appliesToDepartment String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, isActive])
+}
+
+// ─── REQ-SRC-01/02/03: Job board multi-posting + auto-close on hire ───
+model JobBoardPosting {
+  id              String   @id @default(cuid())
+  jobPostingId    String
+  jobPosting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  // linkedin | indeed | glassdoor | stepstone | naukri | internal_careers
+  board           String
+  // external board's job id (returned after posting)
+  externalJobId   String?
+  // pending | posted | closed | failed | expired
+  status          String   @default("pending")
+  // live URL on the external board
+  externalUrl     String?
+  // last sync payload (JSON)
+  lastSyncPayload String?
+  lastSyncedAt    DateTime?
+  errorMessage    String?
+  postedAt        DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([jobPostingId, board])
+  @@index([jobPostingId])
+  @@index([board, status])
+}
+
+// ─── REQ-ONB-03: Background verification vendor integration ───
+model BackgroundCheck {
+  id              String   @id @default(cuid())
+  preboardingCandidateId String
+  preboardingCandidate PreboardingCandidate @relation(fields: [preboardingCandidateId], references: [id], onDelete: Cascade)
+  // vendor: sterling | hireright | internal | manual
+  vendor          String   @default("manual")
+  // package: basic | standard | enhanced | executive
+  package         String   @default("standard")
+  // candidate consent reference (links to CandidateConsent row with purpose=background_check)
+  consentId       String?
+  // pending | initiated | in_progress | cleared | failed | cancelled
+  status          String   @default("pending")
+  // external vendor's case id
+  externalCaseId  String?
+  reportUrl       String?
+  summary         String?
+  initiatedAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([preboardingCandidateId])
+  @@index([status])
+}
+
+// ─── REQ-ONB-04: Welcome series email tracking ───
+model WelcomeSeriesEmail {
+  id              String   @id @default(cuid())
+  preboardingCandidateId String
+  preboardingCandidate PreboardingCandidate @relation(fields: [preboardingCandidateId], references: [id], onDelete: Cascade)
+  // day_0 | day_3 | day_7 | day_before_joining | day_1_welcome
+  sequenceKey     String
+  subject         String
+  body            String
+  // pending | sent | failed | skipped
+  status          String   @default("pending")
+  sentAt          DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@unique([preboardingCandidateId, sequenceKey])
+  @@index([preboardingCandidateId])
+  @@index([status])
+}
+

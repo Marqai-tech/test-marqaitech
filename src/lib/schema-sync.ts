@@ -370,6 +370,284 @@ const SYNC_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS "OKR_projectId_idx" ON "OKR"("projectId")`,
   `CREATE INDEX IF NOT EXISTS "OKR_quarter_idx" ON "OKR"("quarter")`,
   `CREATE INDEX IF NOT EXISTS "OKR_year_idx" ON "OKR"("year")`,
+
+  // ─── AI Recruitment Addendum (added 2026-06-21) ───
+  // Backs REQ-SRC-05, REQ-SEC-REC-03/04, REQ-ATS-01/02/04/06, REQ-AI-INT-02/07,
+  // REQ-OFR-01/03/04, REQ-ONB-01/03/04/05/08/09, REQ-SRC-01/02/03.
+  //
+  // 1) Referral table (REQ-SRC-05) — fixes broken /api/referrals route.
+  `CREATE TABLE IF NOT EXISTS "Referral" (
+    "id" TEXT NOT NULL,
+    "jobPostingId" TEXT NOT NULL,
+    "referrerEmployeeId" TEXT NOT NULL,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "candidatePhone" TEXT,
+    "candidateResume" TEXT,
+    "notes" TEXT,
+    "bonusAmount" DOUBLE PRECISION,
+    "bonusCurrency" TEXT NOT NULL DEFAULT 'INR',
+    "trackToken" TEXT NOT NULL,
+    "clickCount" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "hiredAt" TIMESTAMP(3),
+    "bonusPaidAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Referral_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Referral_trackToken_key" ON "Referral"("trackToken")`,
+  `CREATE INDEX IF NOT EXISTS "Referral_jobPostingId_idx" ON "Referral"("jobPostingId")`,
+  `CREATE INDEX IF NOT EXISTS "Referral_referrerEmployeeId_idx" ON "Referral"("referrerEmployeeId")`,
+  `CREATE INDEX IF NOT EXISTS "Referral_status_idx" ON "Referral"("status")`,
+
+  // 2) CandidateConsent (REQ-SEC-REC-04)
+  `CREATE TABLE IF NOT EXISTS "CandidateConsent" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "withdrawnAt" TIMESTAMP(3),
+    "version" TEXT NOT NULL DEFAULT '1.0',
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "source" TEXT NOT NULL DEFAULT 'careers_portal',
+    CONSTRAINT "CandidateConsent_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CandidateConsent_candidateEmail_tenantId_idx" ON "CandidateConsent"("candidateEmail", "tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateConsent_purpose_idx" ON "CandidateConsent"("purpose")`,
+
+  // 3) CandidatePiiPolicy (REQ-SEC-REC-03)
+  `CREATE TABLE IF NOT EXISTS "CandidatePiiPolicy" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "field" TEXT NOT NULL,
+    "visibleToRoles" TEXT NOT NULL,
+    "maskingStrategy" TEXT NOT NULL DEFAULT 'hidden',
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedBy" TEXT,
+    CONSTRAINT "CandidatePiiPolicy_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidatePiiPolicy_tenantId_field_key" ON "CandidatePiiPolicy"("tenantId", "field")`,
+
+  // 4) ResumeParse (REQ-ATS-01/02)
+  `CREATE TABLE IF NOT EXISTS "ResumeParse" (
+    "id" TEXT NOT NULL,
+    "jobApplicationId" TEXT NOT NULL,
+    "rawText" TEXT NOT NULL,
+    "language" TEXT,
+    "parsedData" TEXT NOT NULL,
+    "confidence" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "sourceFormat" TEXT NOT NULL DEFAULT 'unknown',
+    "parseError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ResumeParse_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ResumeParse_jobApplicationId_idx" ON "ResumeParse"("jobApplicationId")`,
+
+  // 5) CandidatePortalUser (REQ-ATS-04/06)
+  `CREATE TABLE IF NOT EXISTS "CandidatePortalUser" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "candidateName" TEXT NOT NULL,
+    "currentOtpHash" TEXT,
+    "otpExpiresAt" TIMESTAMP(3),
+    "lastLoginAt" TIMESTAMP(3),
+    "magicToken" TEXT,
+    "magicExpiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidatePortalUser_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidatePortalUser_candidateEmail_key" ON "CandidatePortalUser"("candidateEmail")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidatePortalUser_magicToken_key" ON "CandidatePortalUser"("magicToken")`,
+
+  // 6) CandidateMessage (REQ-ATS-06)
+  `CREATE TABLE IF NOT EXISTS "CandidateMessage" (
+    "id" TEXT NOT NULL,
+    "parentMessageId" TEXT,
+    "candidateEmail" TEXT NOT NULL,
+    "senderUserId" TEXT,
+    "senderName" TEXT NOT NULL,
+    "senderRole" TEXT NOT NULL DEFAULT 'candidate',
+    "body" TEXT NOT NULL,
+    "attachmentUrl" TEXT,
+    "attachmentName" TEXT,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateMessage_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CandidateMessage_candidateEmail_idx" ON "CandidateMessage"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateMessage_parentMessageId_idx" ON "CandidateMessage"("parentMessageId")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateMessage_senderUserId_idx" ON "CandidateMessage"("senderUserId")`,
+
+  // 7) CandidateSentimentScore (REQ-AI-INT-02)
+  `CREATE TABLE IF NOT EXISTS "CandidateSentimentScore" (
+    "id" TEXT NOT NULL,
+    "jobApplicationId" TEXT NOT NULL,
+    "sentiment" TEXT NOT NULL DEFAULT 'neutral',
+    "engagementScore" INTEGER NOT NULL DEFAULT 50,
+    "dropoffRisk" INTEGER NOT NULL DEFAULT 50,
+    "rationale" TEXT,
+    "source" TEXT NOT NULL DEFAULT 'chat_screening',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateSentimentScore_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CandidateSentimentScore_jobApplicationId_idx" ON "CandidateSentimentScore"("jobApplicationId")`,
+
+  // 8) InterviewFeedback (REQ-AI-INT-07)
+  `CREATE TABLE IF NOT EXISTS "InterviewFeedback" (
+    "id" TEXT NOT NULL,
+    "interviewId" TEXT NOT NULL,
+    "interviewerId" TEXT,
+    "interviewerName" TEXT NOT NULL,
+    "timestampSec" INTEGER,
+    "sentiment" TEXT NOT NULL DEFAULT 'neutral',
+    "body" TEXT NOT NULL,
+    "rating" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_idx" ON "InterviewFeedback"("interviewId")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewerId_idx" ON "InterviewFeedback"("interviewerId")`,
+
+  // 9) OfferTemplate (REQ-OFR-01)
+  `CREATE TABLE IF NOT EXISTS "OfferTemplate" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "country" TEXT NOT NULL DEFAULT '*',
+    "language" TEXT NOT NULL DEFAULT 'en',
+    "body" TEXT NOT NULL,
+    "header" TEXT,
+    "footer" TEXT,
+    "clauses" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OfferTemplate_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OfferTemplate_tenantId_country_idx" ON "OfferTemplate"("tenantId", "country")`,
+  `CREATE INDEX IF NOT EXISTS "OfferTemplate_isActive_idx" ON "OfferTemplate"("isActive")`,
+
+  // 10) OfferDeclineSurvey (REQ-OFR-04)
+  `CREATE TABLE IF NOT EXISTS "OfferDeclineSurvey" (
+    "id" TEXT NOT NULL,
+    "offerId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "primaryReason" TEXT,
+    "comments" TEXT,
+    "openToFuture" BOOLEAN,
+    "submittedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OfferDeclineSurvey_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "OfferDeclineSurvey_token_key" ON "OfferDeclineSurvey"("token")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "OfferDeclineSurvey_offerId_key" ON "OfferDeclineSurvey"("offerId")`,
+
+  // 11) OnboardingTaskTemplate (REQ-ONB-01/05/08)
+  `CREATE TABLE IF NOT EXISTS "OnboardingTaskTemplate" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "task" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'general',
+    "dueOffsetDays" INTEGER NOT NULL DEFAULT 0,
+    "appliesToRole" TEXT,
+    "appliesToDepartment" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "OnboardingTaskTemplate_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingTaskTemplate_tenantId_isActive_idx" ON "OnboardingTaskTemplate"("tenantId", "isActive")`,
+
+  // 12) JobBoardPosting (REQ-SRC-01/02/03)
+  `CREATE TABLE IF NOT EXISTS "JobBoardPosting" (
+    "id" TEXT NOT NULL,
+    "jobPostingId" TEXT NOT NULL,
+    "board" TEXT NOT NULL,
+    "externalJobId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "externalUrl" TEXT,
+    "lastSyncPayload" TEXT,
+    "lastSyncedAt" TIMESTAMP(3),
+    "errorMessage" TEXT,
+    "postedAt" TIMESTAMP(3),
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "JobBoardPosting_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "JobBoardPosting_jobPostingId_board_key" ON "JobBoardPosting"("jobPostingId", "board")`,
+  `CREATE INDEX IF NOT EXISTS "JobBoardPosting_board_status_idx" ON "JobBoardPosting"("board", "status")`,
+
+  // 13) BackgroundCheck (REQ-ONB-03)
+  `CREATE TABLE IF NOT EXISTS "BackgroundCheck" (
+    "id" TEXT NOT NULL,
+    "preboardingCandidateId" TEXT NOT NULL,
+    "vendor" TEXT NOT NULL DEFAULT 'manual',
+    "package" TEXT NOT NULL DEFAULT 'standard',
+    "consentId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "externalCaseId" TEXT,
+    "reportUrl" TEXT,
+    "summary" TEXT,
+    "initiatedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "BackgroundCheck_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "BackgroundCheck_preboardingCandidateId_idx" ON "BackgroundCheck"("preboardingCandidateId")`,
+  `CREATE INDEX IF NOT EXISTS "BackgroundCheck_status_idx" ON "BackgroundCheck"("status")`,
+
+  // 14) WelcomeSeriesEmail (REQ-ONB-04)
+  `CREATE TABLE IF NOT EXISTS "WelcomeSeriesEmail" (
+    "id" TEXT NOT NULL,
+    "preboardingCandidateId" TEXT NOT NULL,
+    "sequenceKey" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "sentAt" TIMESTAMP(3),
+    "errorMessage" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "WelcomeSeriesEmail_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "WelcomeSeriesEmail_preboardingCandidateId_sequenceKey_key" ON "WelcomeSeriesEmail"("preboardingCandidateId", "sequenceKey")`,
+  `CREATE INDEX IF NOT EXISTS "WelcomeSeriesEmail_status_idx" ON "WelcomeSeriesEmail"("status")`,
+
+  // 15) Offer — extend with esign + template columns (REQ-OFR-01/03/04)
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "templateId" TEXT`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "generatedPdfUrl" TEXT`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "generatedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "esignProvider" TEXT`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "esignEnvelopeId" TEXT`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "signedPdfUrl" TEXT`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "signedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "signedById" TEXT`,
+
+  // 16) PreboardingCandidate — extend with cascade wiring columns (REQ-ONB-01/05/08)
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "employeeId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "requisitionId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "itProvisioningStatus" TEXT NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "itProvisioningNotes" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "buddyEmployeeId" TEXT`,
+  `ALTER TABLE "PreboardingCandidate" ADD COLUMN IF NOT EXISTS "welcomeSeriesInitiated" BOOLEAN NOT NULL DEFAULT false`,
+  `CREATE INDEX IF NOT EXISTS "PreboardingCandidate_employeeId_idx" ON "PreboardingCandidate"("employeeId")`,
+
+  // 17) OnboardingTask — extend with cascade wiring columns (REQ-ONB-08/09)
+  `ALTER TABLE "OnboardingTask" ADD COLUMN IF NOT EXISTS "preboardingCandidateId" TEXT`,
+  `ALTER TABLE "OnboardingTask" ADD COLUMN IF NOT EXISTS "templateId" TEXT`,
+  `ALTER TABLE "OnboardingTask" ADD COLUMN IF NOT EXISTS "buddyEmployeeId" TEXT`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingTask_preboardingCandidateId_idx" ON "OnboardingTask"("preboardingCandidateId")`,
+  `CREATE INDEX IF NOT EXISTS "OnboardingTask_category_idx" ON "OnboardingTask"("category")`,
+
+  // 18) PreboardingCandidate.currency default fix (already INR in schema, fix legacy rows)
+  `ALTER TABLE "PreboardingCandidate" ALTER COLUMN "currency" SET DEFAULT 'INR'`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.
