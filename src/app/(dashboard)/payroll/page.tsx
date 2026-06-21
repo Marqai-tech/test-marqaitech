@@ -37,6 +37,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
+import ModuleIntro from '@/components/ModuleIntro';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -610,6 +611,33 @@ export default function PayrollManagementPage() {
           Configure salary structures, process payroll, and manage compliance. Use the sub-menu above to navigate between payroll modules.
         </p>
       </div>
+
+      {/* Module Intro — minimized by default with hover preview */}
+      <ModuleIntro
+        title="Payroll Management"
+        subtitle="Multi-country, multi-currency payroll with statutory compliance"
+        srsRef="REQ-PAY-01..18"
+        icon={<FiDollarSign className="w-4 h-4" />}
+        accent="emerald"
+      >
+        <p>
+          The Payroll module handles the entire compensation lifecycle — from defining CTC templates and
+          salary components (basic, HRA, allowances, deductions) to running monthly payroll across
+          multiple countries, currencies, and statutory regimes (PF, ESI, TDS, Professional Tax in India;
+          equivalent filings for other jurisdictions).
+        </p>
+        <p>
+          Payroll runs are locked, approved, and validated before disbursement. The module supports
+          bank-file generation, payslip distribution, holds, arrears, loans, overtime, gratuity, FNF
+          (full-and-final settlement), and AI-driven anomaly detection (ghost employees, duplicate
+          disbursements, off-hours edits). All changes are audit-logged per REQ-SEC-PAY-01.
+        </p>
+        <p>
+          Multi-currency is first-class: every amount is stored with its currency code (INR by default),
+          and exchange rates are tracked for cross-border reporting. The compliance center tracks
+          upcoming statutory filings and alerts before due dates.
+        </p>
+      </ModuleIntro>
 
       {/* Module Tips */}
       <ModuleTips

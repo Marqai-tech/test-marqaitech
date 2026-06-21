@@ -22,6 +22,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import ModuleIntro from '@/components/ModuleIntro';
 
 /* ── Employee Tips ── */
 const employeeTips = [
@@ -496,6 +497,37 @@ export default function EmployeesPage() {
           </button>
         )}
       </div>
+
+      {/* Module Intro — minimized by default with hover preview (saves vertical space) */}
+      <ModuleIntro
+        title="Employee Management"
+        subtitle="Centralized directory, lifecycle, documents, and AI insights"
+        srsRef="REQ-EMP-01..15"
+        icon={<FiUsers className="w-4 h-4" />}
+        accent="blue"
+        quickStats={
+          <>
+            <span><b className="text-slate-700">{employees.length}</b> total</span>
+            <span><b className="text-emerald-600">{employees.filter(e => e.status === 'active').length}</b> active</span>
+          </>
+        }
+      >
+        <p>
+          The Employees module is the system of record for your entire workforce — from pre-hire to alumni.
+          It captures the full employee lifecycle: onboarding, transfers, promotions, separations, and
+          ongoing profile changes (skills, dependents, qualifications, experience).
+        </p>
+        <p>
+          Each employee record holds personal details, employment terms, compensation components, documents,
+          and links to related modules — payroll runs, performance reviews, attendance, leave, training, and
+          asset assignments. Role-based access ensures that PII is masked for non-HR users per REQ-SEC-EMP-01.
+        </p>
+        <p>
+          Use the search bar to find employees by name, employee ID, email, department, designation, or status.
+          Admins can add new employees, edit profiles, and trigger onboarding workflows. Self-service is
+          available for employees to view and update their own profile.
+        </p>
+      </ModuleIntro>
 
       {/* Module Tips */}
       <ModuleTips

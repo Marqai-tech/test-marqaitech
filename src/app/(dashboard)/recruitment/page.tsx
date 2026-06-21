@@ -34,6 +34,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import ModuleIntro from '@/components/ModuleIntro';
 import {
   maskCandidateFields,
   buildPiiMaskTooltip,
@@ -673,6 +674,39 @@ export default function RecruitmentPage() {
           </div>
         )}
       </div>
+
+      {/* Module Intro — minimized by default with hover preview */}
+      <ModuleIntro
+        title="Recruitment & ATS"
+        subtitle="Requisitions → Job postings → Applications → Interviews → Offers → Onboarding"
+        srsRef="REQ-ATS-01..12 · REQ-SEC-REC-01..03"
+        icon={<FiBriefcase className="w-4 h-4" />}
+        accent="violet"
+        quickStats={
+          <>
+            <span><b className="text-slate-700">{jobs.length}</b> jobs</span>
+            <span><b className="text-violet-600">{jobs.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
+          </>
+        }
+      >
+        <p>
+          The Recruitment module is a full Applicant Tracking System (ATS) covering the end-to-end hiring
+          funnel — from raising a job requisition with department / hiring manager approval, posting the
+          job internally and externally, receiving applications, screening, scheduling interviews (manual
+          and AI-proctored), rolling out offers, and converting accepted candidates into employees.
+        </p>
+        <p>
+          PII is masked for hiring panel members per REQ-SEC-REC-03 by default; only authorized recruiters
+          and HR admins see full candidate contact details. All candidate activity — applications, interview
+          feedback, sentiment scores, AI interview sessions, and offer history — is consolidated into a
+          single candidate timeline that recruiters can audit at any time.
+        </p>
+        <p>
+          The Candidate Portal (separate login) lets external candidates self-serve: dashboard with their
+          application status, upcoming interviews, resume insights, skill matrix, AI suggestions, and
+          recommended learning courses for skills they're missing for the jobs they applied to.
+        </p>
+      </ModuleIntro>
 
       {/* Module Tips */}
       <ModuleTips
