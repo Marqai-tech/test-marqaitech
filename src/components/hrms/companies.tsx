@@ -24,12 +24,12 @@ export function Companies() {
   const [showEditCompany, setShowEditCompany] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyInfo | null>(null);
   const [editForm, setEditForm] = useState({
-    name: '', code: '', industry: 'IT Services', country: '', currency: 'USD', isActive: true,
+    name: '', code: '', industry: 'IT Services', country: '', currency: 'INR', isActive: true,
   });
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    name: '', code: '', industry: 'IT Services', country: '', currency: 'USD',
+    name: '', code: '', industry: 'IT Services', country: '', currency: 'INR',
   });
 
   const fetchCompanies = useCallback(async () => {
@@ -64,7 +64,7 @@ export function Companies() {
       await createCompany(form);
       toast.success('Company created successfully');
       setShowAddCompany(false);
-      setForm({ name: '', code: '', industry: 'IT Services', country: '', currency: 'USD' });
+      setForm({ name: '', code: '', industry: 'IT Services', country: '', currency: 'INR' });
       fetchCompanies();
     } catch {
       toast.error('Failed to create company');
@@ -80,7 +80,7 @@ export function Companies() {
       code: company.code,
       industry: company.industry || 'IT Services',
       country: company.country || '',
-      currency: company.currency || 'USD',
+      currency: company.currency || 'INR',
       isActive: company.isActive,
     });
     setShowEditCompany(true);
@@ -243,8 +243,8 @@ export function Companies() {
                 <Select value={form.currency} onValueChange={(v) => setForm(f => ({ ...f, currency: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="INR">INR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="SGD">SGD</SelectItem>
@@ -300,8 +300,8 @@ export function Companies() {
                 <Select value={editForm.currency} onValueChange={(v) => setEditForm(f => ({ ...f, currency: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="INR">INR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="GBP">GBP</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="SGD">SGD</SelectItem>

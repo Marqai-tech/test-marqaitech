@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Resolve currency: prefer body → client.billingCurrency → project.currency → company.currency → USD
+    // Resolve currency: prefer body → client.billingCurrency → project.currency → company.currency → INR (platform default)
     let invoiceCurrency = currency;
     let baseCur = baseCurrency;
     if (!invoiceCurrency || !baseCur) {
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
         const co = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } });
         if (co) invoiceCurrency = co.currency;
       }
-      if (!invoiceCurrency) invoiceCurrency = 'USD';
+      if (!invoiceCurrency) invoiceCurrency = 'INR';
 
       // Base currency defaults to the company's currency
       if (!baseCur) {

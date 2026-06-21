@@ -117,7 +117,7 @@ function getUserStatusBadge(status: string) {
   return { className: map[status] || 'nexus-badge nexus-badge-info', label: status };
 }
 
-function formatCurrency(amount: number, currency = 'USD') {
+function formatCurrency(amount: number, currency = 'INR') {
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
   } catch {
@@ -150,7 +150,7 @@ export default function TenantAdminPage() {
   // Settings editing
   const [settingsEditing, setSettingsEditing] = useState(false);
   const [settingsForm, setSettingsForm] = useState({
-    name: '', domain: '', country: '', currency: 'USD', timezone: 'UTC', logo: '',
+    name: '', domain: '', country: '', currency: 'INR', timezone: 'UTC', logo: '',
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -174,7 +174,7 @@ export default function TenantAdminPage() {
             name: t.name || '',
             domain: t.domain || '',
             country: t.country || '',
-            currency: t.currency || 'USD',
+            currency: t.currency || 'INR',
             timezone: t.timezone || 'UTC',
             logo: t.logo || '',
           });
@@ -781,7 +781,7 @@ export default function TenantAdminPage() {
                       name: tenantInfo.name || '',
                       domain: tenantInfo.domain || '',
                       country: tenantInfo.country || '',
-                      currency: tenantInfo.currency || 'USD',
+                      currency: tenantInfo.currency || 'INR',
                       timezone: tenantInfo.timezone || 'UTC',
                       logo: tenantInfo.logo || '',
                     });
@@ -856,7 +856,7 @@ export default function TenantAdminPage() {
                   onChange={e => setSettingsForm(p => ({ ...p, currency: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 >
-                  <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="INR">INR</option>
+                  <option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
                 </select>
               ) : (
                 <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.currency}</p>

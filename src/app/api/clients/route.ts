@@ -108,7 +108,7 @@ export async function POST(request: Request) {
         state,
         country,
         zipCode,
-        billingCurrency: billingCurrency || 'USD',
+        billingCurrency: billingCurrency || 'INR',
         paymentTerms: paymentTerms || 'net_30',
         contractStart: contractStart ? new Date(contractStart) : null,
         contractEnd: contractEnd ? new Date(contractEnd) : null,

@@ -180,7 +180,7 @@ export async function POST(request: Request) {
         otherDeductions,
         totalDeductions,
         netSalary,
-        currency: employee.salaryCurrency || 'USD',
+        currency: employee.salaryCurrency || 'INR',
         status: 'draft',
       },
       include: {

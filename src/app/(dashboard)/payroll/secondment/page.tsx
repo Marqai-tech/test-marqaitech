@@ -65,8 +65,8 @@ export default function SecondmentPage() {
     ssCoverageCountry: 'HOME',
     homePayPct: 100,
     hostPayPct: 0,
-    homeCurrency: 'USD',
-    hostCurrency: 'USD',
+    homeCurrency: 'INR',
+    hostCurrency: 'INR',
     notes: '',
   });
 
@@ -256,13 +256,13 @@ export default function SecondmentPage() {
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Home Company *">
-                  <select value={form.homeCompanyId} onChange={(e) => { const c = companies.find(co => co.id === e.target.value); setForm({ ...form, homeCompanyId: e.target.value, homeCountry: c?.country || '', homeCurrency: c?.currency || 'USD' }); }} className="w-full px-3 py-2 text-sm border border-nexus-border rounded-lg">
+                  <select value={form.homeCompanyId} onChange={(e) => { const c = companies.find(co => co.id === e.target.value); setForm({ ...form, homeCompanyId: e.target.value, homeCountry: c?.country || '', homeCurrency: c?.currency || 'INR' }); }} className="w-full px-3 py-2 text-sm border border-nexus-border rounded-lg">
                     <option value="">Select…</option>
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.country})</option>)}
                   </select>
                 </Field>
                 <Field label="Host Company *">
-                  <select value={form.hostCompanyId} onChange={(e) => { const c = companies.find(co => co.id === e.target.value); setForm({ ...form, hostCompanyId: e.target.value, hostCountry: c?.country || '', hostCurrency: c?.currency || 'USD' }); }} className="w-full px-3 py-2 text-sm border border-nexus-border rounded-lg">
+                  <select value={form.hostCompanyId} onChange={(e) => { const c = companies.find(co => co.id === e.target.value); setForm({ ...form, hostCompanyId: e.target.value, hostCountry: c?.country || '', hostCurrency: c?.currency || 'INR' }); }} className="w-full px-3 py-2 text-sm border border-nexus-border rounded-lg">
                     <option value="">Select…</option>
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.country})</option>)}
                   </select>

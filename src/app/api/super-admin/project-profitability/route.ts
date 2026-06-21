@@ -27,7 +27,7 @@ export async function OPTIONS() {
 // Query params:
 //   ?tenantId=  → restrict to a single tenant (optional, for tenant_admin)
 //   ?from=&to=  → invoice issueDate range
-//   ?currency=  → report currency (default: USD)
+//   ?currency=  → report currency (default: INR)
 export async function GET(request: Request) {
   try {
     await ensureSchemaSynced();
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
-    const reportCurrency = searchParams.get('currency') || 'USD';
+    const reportCurrency = searchParams.get('currency') || 'INR';
     const tenantId = searchParams.get('tenantId');
 
     // Build invoice where clause: only issued/paid/partial count as revenue

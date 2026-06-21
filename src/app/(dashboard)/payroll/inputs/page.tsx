@@ -105,8 +105,8 @@ const UNIT_TYPE_OPTIONS = [
 ];
 
 const CURRENCY_CODE_OPTIONS = [
-  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'INR', label: 'INR - Indian Rupee' },
+  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'GBP', label: 'GBP - British Pound' },
   { value: 'SGD', label: 'SGD - Singapore Dollar' },
   { value: 'AED', label: 'AED - UAE Dirham' },
@@ -135,7 +135,7 @@ const emptyForm = {
   unitType: 'AMOUNT',
   inputDateFrom: '',
   inputDateTo: '',
-  currencyCode: 'USD',
+  currencyCode: 'INR',
   exchangeRate: '' as string,
   source: 'MANUAL',
   referenceDocument: '',
@@ -294,7 +294,7 @@ export default function PayrollInputsPage() {
       unitType: item.unitType || 'AMOUNT',
       inputDateFrom: item.inputDateFrom ? new Date(item.inputDateFrom).toISOString().split('T')[0] : '',
       inputDateTo: item.inputDateTo ? new Date(item.inputDateTo).toISOString().split('T')[0] : '',
-      currencyCode: item.currencyCode || 'USD',
+      currencyCode: item.currencyCode || 'INR',
       exchangeRate: item.exchangeRate != null ? String(item.exchangeRate) : '',
       source: item.source,
       referenceDocument: item.referenceDocument || '',

@@ -265,46 +265,46 @@ export default function InvoicesPage() {
         <p><strong>Multi-Currency Invoicing (REQ-PM-09):</strong> Generate client invoices from approved timesheets with automatic FX conversion via the ExchangeRate table. Invoices can be in any currency; totals are also computed in your company's base currency for profitability reporting.</p>
       </ModuleTips>
 
-      {/* Summary cards */}
+      {/* Summary cards — INR is the platform default currency */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 border border-slate-200">
           <p className="text-xs uppercase tracking-wider text-slate-500">Total Approved</p>
           <p className="text-2xl font-bold text-slate-800 mt-1">
             {Object.entries(summaryByCurrency)
-              .filter(([cur]) => cur !== 'USD')
+              .filter(([cur]) => cur !== 'INR')
               .map(([cur, v]) => formatCurrency(v.approved, cur))
-              .concat(summaryByCurrency.USD ? [formatCurrency(summaryByCurrency.USD.approved, 'USD')] : [])
-              .join(' · ') || formatCurrency(0, 'USD')}
+              .concat(summaryByCurrency.INR ? [formatCurrency(summaryByCurrency.INR.approved, 'INR')] : [])
+              .join(' · ') || formatCurrency(0, 'INR')}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-slate-200">
           <p className="text-xs uppercase tracking-wider text-slate-500">Outstanding</p>
           <p className="text-2xl font-bold text-amber-600 mt-1">
             {Object.entries(summaryByCurrency)
-              .filter(([cur]) => cur !== 'USD')
+              .filter(([cur]) => cur !== 'INR')
               .map(([cur, v]) => formatCurrency(v.outstanding, cur))
-              .concat(summaryByCurrency.USD ? [formatCurrency(summaryByCurrency.USD.outstanding, 'USD')] : [])
-              .join(' · ') || formatCurrency(0, 'USD')}
+              .concat(summaryByCurrency.INR ? [formatCurrency(summaryByCurrency.INR.outstanding, 'INR')] : [])
+              .join(' · ') || formatCurrency(0, 'INR')}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-slate-200">
           <p className="text-xs uppercase tracking-wider text-slate-500">Paid</p>
           <p className="text-2xl font-bold text-emerald-600 mt-1">
             {Object.entries(summaryByCurrency)
-              .filter(([cur]) => cur !== 'USD')
+              .filter(([cur]) => cur !== 'INR')
               .map(([cur, v]) => formatCurrency(v.paid, cur))
-              .concat(summaryByCurrency.USD ? [formatCurrency(summaryByCurrency.USD.paid, 'USD')] : [])
-              .join(' · ') || formatCurrency(0, 'USD')}
+              .concat(summaryByCurrency.INR ? [formatCurrency(summaryByCurrency.INR.paid, 'INR')] : [])
+              .join(' · ') || formatCurrency(0, 'INR')}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-slate-200">
           <p className="text-xs uppercase tracking-wider text-slate-500">Drafts</p>
           <p className="text-2xl font-bold text-slate-500 mt-1">
             {Object.entries(summaryByCurrency)
-              .filter(([cur]) => cur !== 'USD')
+              .filter(([cur]) => cur !== 'INR')
               .map(([cur, v]) => formatCurrency(v.drafts, cur))
-              .concat(summaryByCurrency.USD ? [formatCurrency(summaryByCurrency.USD.drafts, 'USD')] : [])
-              .join(' · ') || formatCurrency(0, 'USD')}
+              .concat(summaryByCurrency.INR ? [formatCurrency(summaryByCurrency.INR.drafts, 'INR')] : [])
+              .join(' · ') || formatCurrency(0, 'INR')}
           </p>
         </div>
       </div>
@@ -344,8 +344,8 @@ export default function InvoicesPage() {
             className="nexus-input min-w-[100px]"
           >
             <option value="">All Currencies</option>
-            <option value="USD">USD</option>
             <option value="INR">INR</option>
+            <option value="USD">USD</option>
             <option value="EUR">EUR</option>
             <option value="GBP">GBP</option>
             <option value="SGD">SGD</option>
@@ -417,7 +417,7 @@ export default function InvoicesPage() {
                       <p className="text-xs text-slate-500">{formatCurrency(inv.totalAmountBase, inv.baseCurrency)} base</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{inv._count.lineItems}</td>
+                  <td className="px-4 py-3 text-slate-600">{inv._count?.lineItems ?? 0}</td>
                   <td className="px-4 py-3">
                     <span className={getStatusBadge(inv.status)}>{formatStatus(inv.status)}</span>
                   </td>
@@ -589,8 +589,8 @@ export default function InvoicesPage() {
                     className="nexus-input w-full"
                   >
                     <option value="">Auto (from client/project)</option>
-                    <option value="USD">USD</option>
                     <option value="INR">INR</option>
+                    <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="GBP">GBP</option>
                     <option value="SGD">SGD</option>
@@ -605,8 +605,8 @@ export default function InvoicesPage() {
                     className="nexus-input w-full"
                   >
                     <option value="">Auto (from company)</option>
-                    <option value="USD">USD</option>
                     <option value="INR">INR</option>
+                    <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="GBP">GBP</option>
                   </select>

@@ -26,7 +26,7 @@ function getStatusBadge(status: string) {
 }
 
 const emptyForm = {
-  name: '', code: '', industry: '', contactName: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', country: '', zipCode: '', billingCurrency: 'USD', paymentTerms: 'net_30',
+  name: '', code: '', industry: '', contactName: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', country: '', zipCode: '', billingCurrency: 'INR', paymentTerms: 'net_30',
 };
 
 interface Client {
@@ -100,7 +100,7 @@ export default function ClientsPage() {
       state: client.state || '',
       country: client.country || '',
       zipCode: client.zipCode || '',
-      billingCurrency: client.billingCurrency || 'USD',
+      billingCurrency: client.billingCurrency || 'INR',
       paymentTerms: client.paymentTerms || 'net_30',
     });
     setViewingId(null);
@@ -269,7 +269,7 @@ export default function ClientsPage() {
                 <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">ZIP</label><input value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Currency</label><select value={form.billingCurrency} onChange={(e) => setForm({ ...form, billingCurrency: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="INR">INR</option></select></div>
+                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Currency</label><select value={form.billingCurrency} onChange={(e) => setForm({ ...form, billingCurrency: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
                 <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Payment Terms</label><select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="net_15">Net 15</option><option value="net_30">Net 30</option><option value="net_45">Net 45</option><option value="net_60">Net 60</option><option value="immediate">Immediate</option></select></div>
               </div>
               <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">

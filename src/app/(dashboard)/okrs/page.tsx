@@ -79,8 +79,11 @@ function getCategoryBadge(category: string) {
   );
 }
 
-function getProgress(krs: KeyResult[]): number {
-  if (krs.length === 0) return 0;
+function getProgress(krs: KeyResult[] | undefined | null): number {
+  // Defensive: API may occasionally return OKRs without keyResults populated
+  // (e.g. during schema drift or partial Prisma includes on deeply nested
+  // child OKRs). Treat undefined/null as an empty array.
+  if (!krs || !Array.isArray(krs) || krs.length === 0) return 0;
   const total = krs.reduce((s, kr) => {
     const pct = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
     return s + Math.min(100, pct);
@@ -112,8 +115,11 @@ function OKRNode({
   onUpdateKR: (kr: KeyResult, newCurrent: number) => void;
 }) {
   const [expanded, setExpanded] = useState(depth < 3);
-  const hasChildren = okr.childOkrs && okr.childOkrs.length > 0;
-  const progress = getProgress(okr.keyResults);
+  const hasChildren = !!(okr.childOkrs && okr.childOkrs.length > 0);
+  // Defensive: childOkrs/keyResults may be missing on deeply nested children
+  // (Prisma includes only go 4 levels deep in /api/okrs). Fall back to [].
+  const keyResults = Array.isArray(okr.keyResults) ? okr.keyResults : [];
+  const progress = getProgress(keyResults);
 
   const ownerLabel = okr.category === 'individual'
     ? okr.owner ? `${okr.owner.firstName} ${okr.owner.lastName}` : '—'
@@ -189,10 +195,10 @@ function OKRNode({
         </div>
 
         {/* Key Results */}
-        {okr.keyResults.length > 0 && (
+        {keyResults.length > 0 && (
           <div className="mt-3 space-y-2">
             <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">Key Results</p>
-            {okr.keyResults.map(kr => {
+            {keyResults.map(kr => {
               const krPct = kr.targetValue > 0 ? Math.min(100, (kr.currentValue / kr.targetValue) * 100) : 0;
               return (
                 <div key={kr.id} className="bg-slate-50 rounded p-2">
@@ -364,7 +370,7 @@ export default function OKRCascadePage() {
       quarter: okr.quarter,
       year: okr.year,
       status: okr.status,
-      keyResults: okr.keyResults.map(kr => ({ title: kr.title, targetValue: kr.targetValue, unit: kr.unit || '' })),
+      keyResults: (Array.isArray(okr.keyResults) ? okr.keyResults : []).map(kr => ({ title: kr.title, targetValue: kr.targetValue, unit: kr.unit || '' })),
     });
     setShowModal(true);
   };
@@ -795,7 +801,8 @@ export default function OKRCascadePage() {
 /* ── Utility: flatten tree to a list ── */
 function flatten(okrs: OKR[]): OKR[] {
   const out: OKR[] = [];
-  const walk = (list: OKR[]) => {
+  const walk = (list: OKR[] | undefined | null) => {
+    if (!Array.isArray(list)) return;
     for (const o of list) {
       out.push(o);
       if (o.childOkrs) walk(o.childOkrs);
@@ -807,7 +814,8 @@ function flatten(okrs: OKR[]): OKR[] {
 
 function updateKRInTree(okrs: OKR[], krId: string, newCurrent: number): OKR[] {
   return okrs.map(o => {
-    const keyResults = o.keyResults.map(kr =>
+    const krs = Array.isArray(o.keyResults) ? o.keyResults : [];
+    const keyResults = krs.map(kr =>
       kr.id === krId ? { ...kr, currentValue: newCurrent } : kr
     );
     const childOkrs = o.childOkrs ? updateKRInTree(o.childOkrs, krId, newCurrent) : undefined;

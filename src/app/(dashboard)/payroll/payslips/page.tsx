@@ -193,8 +193,8 @@ export default function PayslipsPage() {
     return empId;
   };
 
-  const formatCurrency = (val: number, curr: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: curr, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val);
+  const formatCurrency = (val: number, curr: string = 'INR') => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: curr, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val);
   };
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString() : '—';

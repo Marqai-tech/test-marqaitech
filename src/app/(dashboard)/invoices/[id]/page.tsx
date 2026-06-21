@@ -466,7 +466,7 @@ export default function InvoiceDetailPage() {
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800">
             Line Items
-            <span className="ml-2 text-xs text-slate-500">({invoice.lineItems.length})</span>
+            <span className="ml-2 text-xs text-slate-500">({Array.isArray(invoice.lineItems) ? invoice.lineItems.length : 0})</span>
           </h2>
           {isDraft && (
             <button onClick={() => setShowAddLine(true)} className="nexus-btn-secondary flex items-center gap-2 text-sm">
@@ -491,7 +491,7 @@ export default function InvoiceDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {invoice.lineItems.length === 0 ? (
+              {(Array.isArray(invoice.lineItems) ? invoice.lineItems : []).length === 0 ? (
                 <tr>
                   <td colSpan={isDraft ? (hasDifferentBase ? 8 : 7) : (hasDifferentBase ? 7 : 6)} className="text-center py-12 text-slate-400">
                     <div className="flex flex-col items-center gap-2">
@@ -510,7 +510,7 @@ export default function InvoiceDetailPage() {
                     </div>
                   </td>
                 </tr>
-              ) : invoice.lineItems.map(li => (
+              ) : (Array.isArray(invoice.lineItems) ? invoice.lineItems : []).map(li => (
                 <tr key={li.id} className="hover:bg-slate-50">
                   <td className="px-4 py-2">
                     <p className="text-slate-800">{li.description}</p>
@@ -546,7 +546,7 @@ export default function InvoiceDetailPage() {
                 </tr>
               ))}
             </tbody>
-            {invoice.lineItems.length > 0 && (
+            {(Array.isArray(invoice.lineItems) ? invoice.lineItems : []).length > 0 && (
               <tfoot className="bg-slate-50 border-t border-slate-200">
                 <tr>
                   <td colSpan={hasDifferentBase ? 5 : 4} className="px-4 py-3 text-right text-slate-600 font-medium">Subtotal</td>
@@ -734,8 +734,8 @@ export default function InvoiceDetailPage() {
                     className="nexus-input w-full"
                   >
                     <option value="">Same as invoice</option>
-                    <option value="USD">USD</option>
                     <option value="INR">INR</option>
+                    <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="GBP">GBP</option>
                     <option value="SGD">SGD</option>

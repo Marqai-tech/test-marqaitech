@@ -75,8 +75,8 @@ const STATUS_OPTIONS = [
 ];
 
 const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD' },
   { value: 'INR', label: 'INR' },
+  { value: 'USD', label: 'USD' },
   { value: 'GBP', label: 'GBP' },
   { value: 'SGD', label: 'SGD' },
   { value: 'AED', label: 'AED' },
@@ -95,7 +95,7 @@ const emptyForm = {
   loanRecovery: '' as string,
   taxDeduction: '' as string,
   otherRecoveries: '' as string,
-  currency: 'USD',
+  currency: 'INR',
   remarks: '',
 };
 
@@ -194,7 +194,7 @@ export default function FNFSettlementPage() {
     return empId;
   };
 
-  const formatCurrency = (val: number, curr: string = 'USD') => {
+  const formatCurrency = (val: number, curr: string = 'INR') => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: curr, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val);
   };
 
@@ -221,7 +221,7 @@ export default function FNFSettlementPage() {
       loanRecovery: String(item.loanRecovery),
       taxDeduction: String(item.taxDeduction),
       otherRecoveries: String(item.otherRecoveries),
-      currency: item.currency || 'USD',
+      currency: item.currency || 'INR',
       remarks: item.remarks || '',
     });
     setEditingId(item.id);

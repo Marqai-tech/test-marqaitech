@@ -469,8 +469,8 @@ export default function EmployeeDetailPage() {
               <div className="nexus-card p-4">
                 <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Salary</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salary ? `${employee.salaryCurrency || 'USD'} ${employee.salary.toLocaleString()}` : '—'}</p></div>
-                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Currency</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salaryCurrency || 'USD'}</p></div>
+                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Salary</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'}</p></div>
+                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Currency</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salaryCurrency || 'INR'}</p></div>
                 </div>
               </div>
 

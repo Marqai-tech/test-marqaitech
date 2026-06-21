@@ -80,8 +80,8 @@ type StatutoryType = 'PF' | 'ESI' | 'PT' | 'TDS' | 'LWF';
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', INR: '₹', GBP: '£', SGD: 'S$', AED: 'د.إ', AUD: 'A$',
 };
-const fmtCurrency = (amount: number, currency = 'USD') => {
-  const symbol = CURRENCY_SYMBOLS[currency] || '$';
+const fmtCurrency = (amount: number, currency = 'INR') => {
+  const symbol = CURRENCY_SYMBOLS[currency] || '₹';
   return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 

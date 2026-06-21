@@ -124,7 +124,7 @@ const initialForm = {
   departmentId: '',
   projectType: 'internal',
   billingType: 'non_billable',
-  currency: 'USD',
+  currency: 'INR',
   budgetAmount: 0,
   estimatedHours: 0,
   startDate: '',
@@ -243,7 +243,7 @@ export default function ProjectsPage() {
       departmentId: p.departmentId || '',
       projectType: p.projectType,
       billingType: p.billingType,
-      currency: p.currency || 'USD',
+      currency: p.currency || 'INR',
       budgetAmount: p.budgetAmount,
       estimatedHours: p.estimatedHours,
       startDate: p.startDate ? new Date(p.startDate).toISOString().split('T')[0] : '',
@@ -678,7 +678,7 @@ export default function ProjectsPage() {
                       </div>
                       <div className="p-4 bg-slate-50 rounded-lg">
                         <p className="text-xs font-medium text-nexus-text-secondary">Currency</p>
-                        <p className="text-xl font-bold text-nexus-text-primary">{item.currency || 'USD'}</p>
+                        <p className="text-xl font-bold text-nexus-text-primary">{item.currency || 'INR'}</p>
                       </div>
                     </div>
                   )}
@@ -773,9 +773,9 @@ export default function ProjectsPage() {
                   onChange={(e) => setForm({ ...form, currency: e.target.value })}
                   className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
+                  <option value="INR">INR</option>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
-                  <option value="INR">INR</option>
                   <option value="GBP">GBP</option>
                 </select>
               </div>

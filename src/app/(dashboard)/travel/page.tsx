@@ -54,7 +54,7 @@ function formatDate(d: string | null | undefined) {
 
 function formatCurrency(amount: number | null | undefined) {
   if (amount === null || amount === undefined) return '—';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount);
 }
 
 function getStatusBadge(status: string) {

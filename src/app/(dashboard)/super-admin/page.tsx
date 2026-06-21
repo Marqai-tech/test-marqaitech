@@ -120,7 +120,7 @@ export default function SuperAdminPage() {
   const [viewingTenant, setViewingTenant] = useState<Tenant | null>(null);
   const [submittingTenant, setSubmittingTenant] = useState(false);
   const [tenantForm, setTenantForm] = useState({
-    name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC',
+    name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC',
     adminName: '', adminEmail: '', adminPassword: '',
     maxCompaniesAllowed: 0, // 0 = unlimited
   });
@@ -345,7 +345,7 @@ export default function SuperAdminPage() {
   const handleCancelTenantForm = () => {
     setShowTenantForm(false);
     setEditingTenantId(null);
-    setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 });
+    setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 });
   };
 
   const handleSubmitTenant = async (e: React.FormEvent) => {
@@ -779,7 +779,7 @@ export default function SuperAdminPage() {
             </div>
           )}
           {activeTab === 'tenants' && !showTenantForm && (
-            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'USD', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
               <FiPlus className="w-4 h-4" /> Add Tenant
             </button>
           )}
@@ -1111,7 +1111,7 @@ export default function SuperAdminPage() {
                   <div><label className={labelCls}>Country</label><input value={tenantForm.country} onChange={(e) => setTenantForm({ ...tenantForm, country: e.target.value })} className={inputCls} placeholder="US" /></div>
                   <div><label className={labelCls}>Currency</label>
                     <select value={tenantForm.currency} onChange={(e) => setTenantForm({ ...tenantForm, currency: e.target.value })} className={selectCls}>
-                      <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="INR">INR</option>
+                      <option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
                     </select>
                   </div>
                   <div><label className={labelCls}>Timezone</label><input value={tenantForm.timezone} onChange={(e) => setTenantForm({ ...tenantForm, timezone: e.target.value })} className={inputCls} placeholder="UTC" /></div>

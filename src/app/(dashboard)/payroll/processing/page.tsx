@@ -75,8 +75,8 @@ const RUN_TYPE_OPTIONS = [
 ];
 
 const CURRENCY_CODE_OPTIONS = [
-  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'INR', label: 'INR - Indian Rupee' },
+  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'GBP', label: 'GBP - British Pound' },
   { value: 'SGD', label: 'SGD - Singapore Dollar' },
   { value: 'AED', label: 'AED - UAE Dirham' },
@@ -116,7 +116,7 @@ const emptyForm = {
   periodEndDate: '',
   payDate: '',
   runType: 'REGULAR',
-  currencyCode: 'USD',
+  currencyCode: 'INR',
   taxProjectionMethod: 'CUMULATIVE',
   includeStatutory: true,
   processingMode: 'FULL',
@@ -391,7 +391,7 @@ export default function PayrollProcessingPage() {
       const data = await res.json();
       const summary = data.data?.summary;
       if (summary) {
-        toast.success(`Calculation complete: ${summary.totalEmployees} employees, Net Pay: ${formatCurrency(summary.totalNetPay, 'USD')}`);
+        toast.success(`Calculation complete: ${summary.totalEmployees} employees, Net Pay: ${formatCurrency(summary.totalNetPay, 'INR')}`);
       } else {
         toast.success('Payroll calculation completed successfully');
       }

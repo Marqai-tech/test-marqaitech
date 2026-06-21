@@ -277,10 +277,10 @@ export function listCapabilitiesForRole(role: string): string[] {
 
 /**
  * The "platform base currency" used by super_admin for normalized global
-// financial reporting (REQ-GL-03). Hard-coded to USD for now; could be
-// moved to a SystemConfig table later.
+ * financial reporting (REQ-GL-03). Default is INR (platform-wide default);
+ * tenant-level overrides come from the Tenant.baseCurrency column.
  */
-export const PLATFORM_BASE_CURRENCY = 'USD';
+export const PLATFORM_BASE_CURRENCY = 'INR';
 
 /**
  * The list of UI languages currently supported by the platform (REQ-GL-01).

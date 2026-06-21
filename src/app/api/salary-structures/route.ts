@@ -77,7 +77,7 @@ export async function POST(request: Request) {
         name,
         companyId,
         country,
-        currency: currency || 'USD',
+        currency: currency || 'INR',
         description,
         status: 'active',
         components: {

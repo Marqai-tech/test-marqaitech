@@ -37,7 +37,7 @@ const offersWorkflowSteps = [
 ];
 
 const initialForm = {
-  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'USD', joiningDate: '', probationPeriod: 90,
+  candidateName: '', candidateEmail: '', position: '', department: '', offeredSalary: 0, offeredCurrency: 'INR', joiningDate: '', probationPeriod: 90,
 };
 
 function getStatusBadge(status: string) {
@@ -241,9 +241,9 @@ export default function OffersPage() {
               <div>
                 <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
                 <select value={form.offeredCurrency} onChange={(e) => setForm({ ...form, offeredCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <option value="INR">INR</option>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
-                  <option value="INR">INR</option>
                 </select>
               </div>
               <div>

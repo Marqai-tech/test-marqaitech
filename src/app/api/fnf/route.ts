@@ -119,7 +119,7 @@ export async function POST(request: Request) {
         totalEarnings,
         totalDeductions,
         netAmount,
-        currency: currency || 'USD',
+        currency: currency || 'INR',
         remarks,
         status: 'pending',
       },

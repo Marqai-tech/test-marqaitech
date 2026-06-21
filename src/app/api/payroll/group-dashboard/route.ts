@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     });
     if (!tenant) return Response.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders });
 
-    const baseCurrency = tenant.baseCurrency || tenant.currency || 'USD';
+    const baseCurrency = tenant.baseCurrency || tenant.currency || 'INR';
 
     // Get all companies in the tenant's group(s)
     const groups = await prisma.companyGroup.findMany({
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
     // Build per-company summary
     const perCompany = allCompanies.map((co) => {
       const run = runs.find((r) => r.companyId === co.id);
-      const sourceCurrency = co.currency || 'USD';
+      const sourceCurrency = co.currency || 'INR';
       const fxRate = sourceCurrency === baseCurrency ? 1 : (fxRates.get(`${sourceCurrency}_${baseCurrency}`) || null);
 
       return {

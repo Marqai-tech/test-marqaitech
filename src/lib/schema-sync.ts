@@ -20,7 +20,7 @@ const SYNC_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const SYNC_STATEMENTS: string[] = [
   // ─── Tenant: new SRS columns (REQ-GL-01/03/06, REQ-SA-02) ───
   `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "language" TEXT NOT NULL DEFAULT 'en'`,
-  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "baseCurrency" TEXT NOT NULL DEFAULT 'USD'`,
+  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "baseCurrency" TEXT NOT NULL DEFAULT 'INR'`,
   `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "dataRegion" TEXT`,
   `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "subscriptionSeats" INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "subscriptionStorage" INTEGER NOT NULL DEFAULT 0`,
@@ -59,7 +59,7 @@ const SYNC_STATEMENTS: string[] = [
     "jobTitle" TEXT,
     "departmentId" TEXT,
     "offeredSalary" DOUBLE PRECISION,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" TEXT NOT NULL DEFAULT 'INR',
     "offerDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "joiningDate" TIMESTAMP(3),
     "notes" TEXT,
@@ -255,7 +255,7 @@ const SYNC_STATEMENTS: string[] = [
     "projectId" TEXT,
     "invoiceType" TEXT NOT NULL DEFAULT 'timesheet',
     "billingType" TEXT NOT NULL DEFAULT 'time_and_material',
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" TEXT NOT NULL DEFAULT 'INR',
     "baseCurrency" TEXT,
     "exchangeRate" DOUBLE PRECISION NOT NULL DEFAULT 1,
     "fxRateDate" TIMESTAMP(3),

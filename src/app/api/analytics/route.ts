@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       departmentDistribution,
       leave: { pending: pendingLeaves, approved: approvedLeaves, total: totalLeaves },
       attendance: { rate: parseFloat(attendanceRate), present: presentCount, total: recentAttendance.length },
-      payroll: { total: totalPayroll, paid: paidPayroll, pending: totalPayroll - paidPayroll, currency: 'USD', month: currentMonth, year: currentYear, recordCount: payrollRecords.length },
+      payroll: { total: totalPayroll, paid: paidPayroll, pending: totalPayroll - paidPayroll, currency: 'INR', month: currentMonth, year: currentYear, recordCount: payrollRecords.length },
       recruitment: { openPositions, totalApplications, interviewStage, offered, hired },
     });
   } catch (error) {
