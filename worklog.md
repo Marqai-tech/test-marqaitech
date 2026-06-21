@@ -1453,3 +1453,40 @@ Stage Summary:
 - SoD enforcement happens at TWO layers: runtime check (API refuses to approve) + audit record (sodConflictFlag + sodCheckedAt captured at approval time)
 - Adjustment log is truly immutable (no PATCH/DELETE route exposed; schema has only createdAt, no updatedAt)
 - All 4 new UI pages follow existing payroll page conventions (auth headers, nexus-card, toast, icon set) for visual consistency
+
+---
+Task ID: 13
+Agent: main (Super Z)
+Task: Fix production 404 on /login (and all other routes) at nexus-hrms-mu.vercel.app
+
+Work Log:
+- Diagnosed via curl: every route (/login, /, /dashboard, /employees, /payroll, etc.) returned HTTP 404 with `x-matched-path: /_not-found` and `x-middleware-request-x-next-intl-locale: en` headers
+- Root cause: the i18n setup in Task 11 used `createMiddleware(routing)` from next-intl with `localePrefix: 'as-needed'`. next-intl's middleware rewrites /login -> /en/login INTERNALLY (server-side). It expects the app to be structured under `app/[locale]/`. Our app uses `app/login/`, `app/(dashboard)/`, etc. — NO `[locale]` segment. So the rewritten path /en/login matched no route -> Next.js served /_not-found for every page. The entire production deployment was broken, not just /login.
+- Fix in src/middleware.ts:
+  * Removed `intlMiddleware = createMiddleware(routing)` and its invocation entirely
+  * Implemented custom locale detection: NEXT_LOCALE cookie -> Accept-Language header -> 'en' default
+  * Set `x-next-intl-locale` request header manually so next-intl's getLocale() in layout.tsx still works
+  * Set NEXT_LOCALE cookie on the response (1-year max-age) so future requests remember the locale
+  * Preserved all existing tenant-slug extraction logic unchanged
+  * NO URL rewriting happens — /login stays /login
+- Fix in src/i18n/navigation.ts:
+  * Removed `createNavigation(routing)` (it produced locale-aware Link/useRouter/usePathname that expected URL prefixes)
+  * Re-exported plain next/link and next/navigation hooks instead
+- Fix in src/components/LocaleSwitcher.tsx:
+  * Switched from URL-based locale switching (router.replace(pathname, {locale})) to cookie-based
+  * POSTs to new /api/i18n/set-locale endpoint to set NEXT_LOCALE cookie, then router.refresh()
+- New endpoint src/app/api/i18n/set-locale/route.ts:
+  * POST: validates locale against supported list, sets NEXT_LOCALE cookie (1-year max-age)
+  * GET: returns supported locales for health checks
+- No changes needed to layout.tsx — it already used getLocale()/getMessages() which read the x-next-intl-locale header
+- Verified locally: npx next build succeeds (258/258 pages, 0 errors); npx next start returns HTTP 200 on /, /login, /dashboard
+- Committed (084977c) + pushed to origin/main
+- Verified production: https://nexus-hrms-mu.vercel.app/login now returns HTTP 200
+- Verified 13 routes all return 200: /, /login, /dashboard, /employees, /payroll, /recruitment, /leave, /timesheets, /okrs, /invoices, /payroll/ai-insights, /payroll/approvals, /payroll/group-dashboard
+
+Stage Summary:
+- Production outage RESOLVED — all routes back to HTTP 200
+- i18n infrastructure preserved (6 locales, RTL support for Arabic, NextIntlClientProvider in layout, message bundles) but locale switching is now COOKIE-BASED instead of URL-based
+- This means URL prefixes like /es/login no longer work — but they never could have worked anyway without restructuring the entire app under app/[locale]/. The previous URL-prefix approach was fundamentally broken for this app's structure.
+- If URL-based locale prefixes are ever needed in the future, the proper fix is to restructure the app: move app/login, app/(dashboard), app/careers, app/interview, app/api under app/[locale]/ (massive refactor — touches every page and every import).
+- Recommended next step: update the i18n routing.ts to remove `localePrefix: 'as-needed'` (it's now misleading since we don't use next-intl's middleware). But this is cosmetic — doesn't affect runtime.
