@@ -9,8 +9,23 @@ import {
   FiMail, FiPhone, FiUser, FiDollarSign, FiFileText,
   FiHeart, FiShare2, FiChevronRight, FiExternalLink,
   FiGrid, FiZap, FiAward, FiTarget, FiLayers,
+  FiShield, FiCpu, FiUnlock,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+
+/* ──────────────────────────────────────────────────────────────────── */
+/* REQ-SEC-REC-02 — AI Transparency disclaimer (shared string)         */
+/* ──────────────────────────────────────────────────────────────────── */
+const AI_TRANSPARENCY_TEXT =
+  'You are interacting with an AI system. Your responses and video are being analyzed algorithmically to assess fit. A human recruiter will review this data.';
+
+/* Consent purposes (exact strings — see WAVE2-A spec) */
+const CONSENT_PURPOSES = {
+  resume_processing: 'Resume processing',
+  background_check: 'Background check',
+  ai_evaluation: 'AI evaluation',
+  video_recording: 'Video recording',
+} as const;
 
 /* ──────────────────────────────────────────────────────────────────── */
 /* Types                                                                */
@@ -47,6 +62,17 @@ interface ApplyFormState {
   resumeDataUrl: string;
   resumeFileName: string;
   source: string;
+  // REQ-SRC-05 — referral token captured from ?ref= URL param. Pass-through
+  // to /api/public/apply which attributes the application to the matching
+  // Referral row and flips its status pending → applied.
+  referralToken: string;
+  // REQ-SEC-REC-04 — consent checkboxes (all 4 required for submit)
+  consentResume: boolean;
+  consentBackground: boolean;
+  consentAiEvaluation: boolean;
+  consentVideo: boolean;
+  // REQ-SEC-REC-02 — AI Transparency acknowledgment
+  aiTransparencyAck: boolean;
 }
 
 const EMPTY_FORM: ApplyFormState = {
@@ -58,7 +84,21 @@ const EMPTY_FORM: ApplyFormState = {
   resumeDataUrl: '',
   resumeFileName: '',
   source: 'website',
+  referralToken: '',
+  consentResume: false,
+  consentBackground: false,
+  consentAiEvaluation: false,
+  consentVideo: false,
+  aiTransparencyAck: false,
 };
+
+interface ExistingConsent {
+  id: string;
+  purpose: string;
+  grantedAt: string;
+  withdrawnAt: string | null;
+  tenantId: string;
+}
 
 const JOB_TYPE_LABELS: Record<string, string> = {
   'full-time': 'Full Time',
@@ -106,6 +146,44 @@ export default function CareersPage() {
   const [applyJob, setApplyJob] = useState<PublicJob | null>(null);
   const [form, setForm] = useState<ApplyFormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+
+  // REQ-SEC-REC-04 — withdraw-consent modal state
+  const [showWithdraw, setShowWithdraw] = useState(false);
+
+  /* ── REQ-SRC-05 — referral token capture ──
+   * When a candidate opens /careers?ref=<token>&jobId=<jobId> (typically
+   * redirected there by /api/referrals/track/[token]), we capture both
+   * params so we can:
+   *   1. Show a "You were referred by a 3 Boxes Corp employee!" banner
+   *   2. Pre-fill the referral token into the apply form (survives modal
+   *      open/close because we read it from this state on every openApply)
+   *   3. Visually highlight the specific job card the referrer pointed to
+   *   4. Pass it to /api/public/apply so the referral gets attributed
+   */
+  const [referralToken, setReferralToken] = useState<string | null>(null);
+  const [referralJobId, setReferralJobId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // queueMicrotask defers the setState calls out of the synchronous
+    // effect body to avoid the react-hooks/set-state-in-effect lint rule
+    // (cascading renders). Same pattern used in /recruitment/page.tsx.
+    queueMicrotask(() => {
+      if (typeof window === 'undefined') return;
+      try {
+        const url = new URL(window.location.href);
+        const ref = url.searchParams.get('ref');
+        const jobId = url.searchParams.get('jobId');
+        if (ref && typeof ref === 'string' && ref.trim()) {
+          setReferralToken(ref.trim());
+        }
+        if (jobId && typeof jobId === 'string' && jobId.trim()) {
+          setReferralJobId(jobId.trim());
+        }
+      } catch {
+        // window.location access can throw in non-browser envs — safe to ignore.
+      }
+    });
+  }, []);
 
   /* ── Role-based scoping state ──
    * The job portal is public, but if a logged-in user opens it we honor
@@ -290,13 +368,17 @@ export default function CareersPage() {
   /* ── Apply modal handlers ── */
   const openApply = (job: PublicJob) => {
     setApplyJob(job);
-    setForm(EMPTY_FORM);
+    // REQ-SRC-05: pre-fill the referral token from URL ?ref= param so the
+    // apply API can attribute the application to the matching Referral.
+    // We spread EMPTY_FORM then override referralToken — this preserves the
+    // consent-checkbox reset behaviour while keeping the token sticky.
+    setForm({ ...EMPTY_FORM, referralToken: referralToken || '' });
     setShowApply(true);
   };
   const closeApply = () => {
     setShowApply(false);
     setApplyJob(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, referralToken: referralToken || '' });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,14 +412,69 @@ export default function CareersPage() {
       toast.error('Please attach your resume');
       return;
     }
+    // REQ-SEC-REC-04 — require the 4 consent checkboxes + AI transparency ack
+    if (!form.consentResume || !form.consentBackground || !form.consentAiEvaluation || !form.consentVideo) {
+      toast.error('Please review and check all 4 consent boxes to continue');
+      return;
+    }
+    if (!form.aiTransparencyAck) {
+      toast.error('Please acknowledge the AI Transparency notice to continue');
+      return;
+    }
     setSubmitting(true);
     try {
+      // Step 1: Record consents BEFORE the apply call (REQ-SEC-REC-04).
+      // Each checked purpose becomes a separate CandidateConsent row keyed by
+      // (candidateEmail, tenantId, purpose). The API is idempotent — if a
+      // prior active consent exists, the POST is a no-op.
+      const tenantId = applyJob.tenant?.id;
+      const consentPurposes: string[] = [];
+      if (form.consentResume) consentPurposes.push('resume_processing');
+      if (form.consentBackground) consentPurposes.push('background_check');
+      if (form.consentAiEvaluation) consentPurposes.push('ai_evaluation');
+      if (form.consentVideo) consentPurposes.push('video_recording');
+
+      if (tenantId) {
+        // Fire all consent POSTs in parallel — failures are logged but do not
+        // block the application itself (the candidate has clicked through,
+        // so we honor their intent). The /api/ats/consent route captures IP
+        // + User-Agent on the server.
+        await Promise.allSettled(
+          consentPurposes.map(purpose =>
+            fetch('/api/ats/consent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                candidateEmail: form.candidateEmail.trim(),
+                tenantId,
+                purpose,
+                source: 'careers_portal',
+              }),
+            })
+          )
+        );
+      } else {
+        console.warn('[careers] applyJob.tenant.id missing — skipping consent POST');
+      }
+
+      // Step 2: Submit the application itself (carries the referral token
+      // for REQ-SRC-05 attribution).
       const res = await fetch('/api/public/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobPostingId: applyJob.id,
-          ...form,
+          candidateName: form.candidateName,
+          candidateEmail: form.candidateEmail,
+          candidatePhone: form.candidatePhone,
+          coverLetter: form.coverLetter,
+          expectedSalary: form.expectedSalary,
+          resumeDataUrl: form.resumeDataUrl,
+          resumeFileName: form.resumeFileName,
+          source: form.source,
+          // REQ-SRC-05: ensure the referral token (if any) makes it to the
+          // server so the application can be attributed to a Referral row.
+          referralToken: form.referralToken || referralToken || undefined,
         }),
       });
       const data = await res.json();
@@ -348,6 +485,11 @@ export default function CareersPage() {
           return;
         }
         throw new Error(data.error || 'Failed to submit');
+      }
+      // REQ-SRC-05: surface a small extra toast if the referral was
+      // attributed so the candidate knows their connection will get credit.
+      if (data.referralAttributed) {
+        toast.success('Your referral has been recorded — your connection will get credit!');
       }
       toast.success(data.message || 'Application submitted successfully!');
       closeApply();
@@ -438,13 +580,38 @@ export default function CareersPage() {
                   </span>
                 ) : scopeInfo.userRole === 'super_admin' ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold ring-1 ring-emerald-200">
-                    <FiUsers className="w-3 h-3" /> Super Admin view — showing ALL tenants' openings
+                    <FiUsers className="w-3 h-3" /> Super Admin view — showing ALL tenants&apos; openings
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 text-slate-600 text-[11px] font-semibold ring-1 ring-slate-200">
                     <FiGrid className="w-3 h-3" /> Showing openings across all companies
                   </span>
                 )}
+              </div>
+            )}
+
+            {/* REQ-SRC-05 — Referral banner
+                Shown when the visitor arrived via an employee's trackable
+                referral link (?ref=<token>). Lets them know their
+                application will be attributed to the referring employee. */}
+            {referralToken && (
+              <div className="mb-6 max-w-2xl mx-auto">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-50 to-indigo-50 ring-1 ring-violet-200 text-left">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white flex-shrink-0">
+                    <FiHeart className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-violet-900">
+                      You were referred by a 3 Boxes Corp employee!
+                    </p>
+                    <p className="text-xs text-violet-700 mt-0.5">
+                      Your application will be attributed to the person who shared this link.
+                      {referralJobId && jobs.find((j) => j.id === referralJobId) && (
+                        <> Scroll down to the <b>“{jobs.find((j) => j.id === referralJobId)?.title}”</b> role and hit Apply.</>
+                      )}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -567,7 +734,12 @@ export default function CareersPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} onApply={() => openApply(job)} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onApply={() => openApply(job)}
+                  isReferred={referralJobId === job.id}
+                />
               ))}
             </div>
           )}
@@ -615,7 +787,7 @@ export default function CareersPage() {
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">More than just a job</h2>
             <p className="text-sm text-slate-500 mt-2">
-              From day one, you'll join a culture built on growth, ownership, and impact.
+              From day one, you&apos;ll join a culture built on growth, ownership, and impact.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -682,6 +854,28 @@ export default function CareersPage() {
         </div>
       </footer>
 
+      {/* ───────────── REQ-PORT-04 — schema.org JobPosting JSON-LD ─────────────
+          One <script type="application/ld+json"> per visible job posting.
+          This is what Google's "Google for Jobs" crawler reads to index
+          the role in its job search vertical. Critical fields:
+            - title, description, hiringOrganization.name
+            - jobLocation.address.addressLocality
+            - employmentType (FULL_TIME / PART_TIME / CONTRACTOR / TEMPORARY / INTERN)
+            - datePosted, validThrough
+            - baseSalary (optional but improves CTR)
+
+          We render these as raw <script> tags with dangerouslySetInnerHTML.
+          React 18+ renders them to the DOM (does not execute them — which
+          is fine because JSON-LD is data, not executable JS). Googlebot's
+          renderer picks them up after hydration.
+
+          We rebuild the JSON-LD set whenever `jobs` changes (filter, search,
+          tenant scoping) so the indexed set always matches the visible UI.
+          Defensive: skip jobs missing required fields (title or description)
+          to avoid emitting invalid markup that would be flagged by Google's
+          Rich Results validator. */}
+      <JobPostingJsonLd jobs={filteredJobs} />
+
       {/* ───────────── Apply Modal ───────────── */}
       {showApply && applyJob && (
         <ApplyModal
@@ -692,7 +886,29 @@ export default function CareersPage() {
           onSubmit={handleSubmitApply}
           onFileChange={handleFileChange}
           submitting={submitting}
+          onWithdraw={() => setShowWithdraw(true)}
         />
+      )}
+
+      {/* ───────────── Withdraw Consent Modal (REQ-SEC-REC-04) ───────────── */}
+      {showWithdraw && (
+        <WithdrawConsentModal
+          defaultEmail={form.candidateEmail}
+          defaultTenantId={applyJob?.tenant?.id || null}
+          onClose={() => setShowWithdraw(false)}
+        />
+      )}
+
+      {/* ───────────── Floating "withdraw consent" link (always reachable) ───────────── */}
+      {!showApply && !showWithdraw && (
+        <button
+          onClick={() => setShowWithdraw(true)}
+          className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-slate-200 shadow-md text-[11px] font-semibold text-slate-600 hover:text-rose-600 hover:border-rose-200 transition-colors"
+          title="Withdraw any previously granted consent"
+        >
+          <FiUnlock className="w-3.5 h-3.5" />
+          Withdraw my consent
+        </button>
       )}
     </div>
   );
@@ -701,9 +917,21 @@ export default function CareersPage() {
 /* ──────────────────────────────────────────────────────────────────── */
 /* Job Card                                                             */
 /* ──────────────────────────────────────────────────────────────────── */
-function JobCard({ job, onApply }: { job: PublicJob; onApply: () => void }) {
+function JobCard({ job, onApply, isReferred }: { job: PublicJob; onApply: () => void; isReferred?: boolean }) {
   return (
-    <div className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-lg hover:shadow-slate-200/50 transition-all flex flex-col">
+    <div
+      className={`group bg-white border rounded-2xl p-5 hover:shadow-lg hover:shadow-slate-200/50 transition-all flex flex-col relative ${
+        isReferred
+          ? 'border-violet-400 ring-2 ring-violet-200 shadow-md shadow-violet-200/40'
+          : 'border-slate-200 hover:border-indigo-300'
+      }`}
+    >
+      {/* REQ-SRC-05 — "Referred for you" badge when the visitor arrived via a referral link to this specific job */}
+      {isReferred && (
+        <div className="absolute -top-2.5 left-4 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
+          <FiHeart className="w-2.5 h-2.5" /> Referred for you
+        </div>
+      )}
       <div className="flex items-start gap-3 mb-3">
         <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
           {job.company?.name?.charAt(0) || 'J'}
@@ -751,7 +979,11 @@ function JobCard({ job, onApply }: { job: PublicJob; onApply: () => void }) {
         </div>
         <button
           onClick={onApply}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-md hover:shadow-indigo-500/30 transition-all"
+          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all ${
+            isReferred
+              ? 'bg-gradient-to-r from-violet-500 to-purple-600 hover:shadow-md hover:shadow-violet-500/30'
+              : 'bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-md hover:shadow-indigo-500/30'
+          }`}
         >
           Apply <FiArrowRight className="w-3 h-3" />
         </button>
@@ -771,6 +1003,7 @@ function ApplyModal({
   onSubmit,
   onFileChange,
   submitting,
+  onWithdraw,
 }: {
   job: PublicJob;
   form: ApplyFormState;
@@ -779,6 +1012,7 @@ function ApplyModal({
   onSubmit: (e: React.FormEvent) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   submitting: boolean;
+  onWithdraw: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
@@ -876,12 +1110,78 @@ function ApplyModal({
             )}
           </Field>
 
+          {/* REQ-SEC-REC-04 — Consent checkboxes (4 required) */}
+          <div className="rounded-xl border border-slate-200 p-3 space-y-2.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+              <FiShield className="w-3.5 h-3.5 text-indigo-500" />
+              Your Consents <span className="text-rose-500 normal-case font-normal lowercase">(all 4 required)</span>
+            </div>
+            <ConsentCheckbox
+              checked={form.consentResume}
+              onChange={(v) => setForm({ ...form, consentResume: v })}
+              label={CONSENT_PURPOSES.resume_processing}
+              description="I consent to my resume being parsed and stored to evaluate my fit for this role."
+            />
+            <ConsentCheckbox
+              checked={form.consentBackground}
+              onChange={(v) => setForm({ ...form, consentBackground: v })}
+              label={CONSENT_PURPOSES.background_check}
+              description="I consent to a background / reference check should I advance to the offer stage."
+            />
+            <ConsentCheckbox
+              checked={form.consentAiEvaluation}
+              onChange={(v) => setForm({ ...form, consentAiEvaluation: v })}
+              label={CONSENT_PURPOSES.ai_evaluation}
+              description="I consent to my chat / interview responses being analyzed by an AI evaluation system."
+            />
+            <ConsentCheckbox
+              checked={form.consentVideo}
+              onChange={(v) => setForm({ ...form, consentVideo: v })}
+              label={CONSENT_PURPOSES.video_recording}
+              description="I consent to video recording of my interview responses for review by the hiring team."
+            />
+          </div>
+
+          {/* REQ-SEC-REC-02 — AI Transparency disclaimer */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2.5">
+            <div className="flex items-start gap-2">
+              <FiCpu className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider">AI Transparency Notice</p>
+                <p className="text-xs text-amber-900 mt-1 leading-relaxed">{AI_TRANSPARENCY_TEXT}</p>
+              </div>
+            </div>
+            <ConsentCheckbox
+              checked={form.aiTransparencyAck}
+              onChange={(v) => setForm({ ...form, aiTransparencyAck: v })}
+              label="I have read and understand the AI Transparency notice"
+              description="Acknowledges EU AI Act Article 13 disclosure obligations."
+              accent="amber"
+            />
+          </div>
+
           <div className="px-3 py-2.5 rounded-lg bg-slate-50 text-[11px] text-slate-600 flex items-start gap-2">
             <FiCheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
             <p>
               By submitting, you consent to {job.company?.name || 'the hiring team'} reviewing your
               application and contacting you about this role. Your data is stored securely and never shared externally.
+              You may withdraw any consent at any time — see the "Withdraw my consent" link below.
             </p>
+          </div>
+
+          {/* Withdraw consent link — REQ-SEC-REC-04 right-to-withdraw */}
+          <div className="flex items-center justify-end pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onWithdraw();
+              }}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-rose-600 transition-colors"
+            >
+              <FiUnlock className="w-3.5 h-3.5" />
+              I withdraw my consent
+            </button>
           </div>
         </form>
 
@@ -923,5 +1223,406 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/* Consent Checkbox                                                      */
+/* ──────────────────────────────────────────────────────────────────── */
+function ConsentCheckbox({
+  checked,
+  onChange,
+  label,
+  description,
+  accent = 'indigo',
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  description?: string;
+  accent?: 'indigo' | 'amber';
+}) {
+  const accentClass =
+    accent === 'amber'
+      ? 'border-amber-300 text-amber-600 focus:ring-amber-500'
+      : 'border-slate-300 text-indigo-600 focus:ring-indigo-500';
+  return (
+    <label className="flex items-start gap-2.5 cursor-pointer group">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className={`mt-0.5 w-4 h-4 rounded ${accentClass} focus:ring-2 focus:ring-offset-0`}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-slate-800 group-hover:text-slate-900">{label}</p>
+        {description && <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{description}</p>}
+      </div>
+    </label>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/* Withdraw Consent Modal (REQ-SEC-REC-04 right-to-withdraw)            */
+/* ──────────────────────────────────────────────────────────────────── */
+function WithdrawConsentModal({
+  defaultEmail,
+  defaultTenantId,
+  onClose,
+}: {
+  defaultEmail: string;
+  defaultTenantId: string | null;
+  onClose: () => void;
+}) {
+  const [email, setEmail] = useState(defaultEmail || '');
+  const [tenantId, setTenantId] = useState<string>(defaultTenantId || '');
+  const [consents, setConsents] = useState<ExistingConsent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+
+  const fetchConsents = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Enter a valid email first');
+      return;
+    }
+    setLoading(true);
+    setSearched(true);
+    try {
+      const params = new URLSearchParams({ candidateEmail: email, includeWithdrawn: 'true' });
+      if (tenantId) params.set('tenantId', tenantId);
+      const res = await fetch(`/api/ats/consent?${params.toString()}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to load consents');
+      }
+      const data = await res.json();
+      setConsents(data.consents || []);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load consents');
+      setConsents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const withdrawOne = async (c: ExistingConsent) => {
+    setWithdrawing(c.id);
+    try {
+      const res = await fetch(`/api/ats/consent/${c.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to withdraw consent');
+      }
+      toast.success(`Consent for ${c.purpose} withdrawn`);
+      // Update local state so the UI flips immediately
+      setConsents(prev => (prev || []).map(x => x.id === c.id ? { ...x, withdrawnAt: new Date().toISOString() } : x));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to withdraw consent');
+    } finally {
+      setWithdrawing(null);
+    }
+  };
+
+  const withdrawAll = async () => {
+    const active = (consents || []).filter(c => !c.withdrawnAt);
+    if (active.length === 0) {
+      toast.success('No active consents to withdraw');
+      return;
+    }
+    setWithdrawing('all');
+    try {
+      await Promise.allSettled(
+        active.map(c =>
+          fetch(`/api/ats/consent/${c.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+      );
+      toast.success(`Withdrew ${active.length} consent${active.length > 1 ? 's' : ''}`);
+      setConsents(prev => (prev || []).map(x => ({ ...x, withdrawnAt: x.withdrawnAt || new Date().toISOString() })));
+    } finally {
+      setWithdrawing(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 bg-gradient-to-r from-rose-50 to-orange-50 border-b border-slate-100 flex items-start justify-between">
+          <div>
+            <p className="text-[11px] text-rose-700 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+              <FiUnlock className="w-3.5 h-3.5" /> REQ-SEC-REC-04 — Right to Withdraw
+            </p>
+            <h3 className="font-bold text-slate-900 mt-0.5">Withdraw my consent</h3>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              You may withdraw any previously granted consent at any time. Withdrawing consent
+              does not automatically delete your application — please contact the hiring team to
+              request data deletion (Right to be Forgotten).
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/60 text-slate-500 hover:text-slate-900">
+            <FiX className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Your Email *">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="jane@example.com"
+                className="form-input"
+              />
+            </Field>
+            <Field label="Tenant ID (optional)">
+              <input
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+                placeholder="auto-detect from job"
+                className="form-input"
+              />
+            </Field>
+          </div>
+          <button
+            onClick={fetchConsents}
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 hover:shadow-lg hover:shadow-rose-500/30 disabled:opacity-60 transition-all inline-flex items-center justify-center gap-2"
+          >
+            {loading ? 'Loading...' : <>Find my consents <FiArrowRight className="w-4 h-4" /></>}
+          </button>
+
+          {searched && !loading && (
+            consents.length === 0 ? (
+              <div className="text-center py-6 text-sm text-slate-500">
+                <FiShield className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                No consent records found for this email
+                {tenantId ? ' in this tenant.' : ' across all tenants.'}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    {consents.length} consent record{consents.length === 1 ? '' : 's'} found
+                  </p>
+                  {consents.some(c => !c.withdrawnAt) && (
+                    <button
+                      onClick={withdrawAll}
+                      disabled={withdrawing === 'all'}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      {withdrawing === 'all' ? 'Withdrawing...' : 'Withdraw all active'}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {consents.map((c) => {
+                    const isActive = !c.withdrawnAt;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`p-3 rounded-lg border flex items-center justify-between ${
+                          isActive ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/50'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 capitalize">
+                            {c.purpose.replace(/_/g, ' ')}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Granted {new Date(c.grantedAt).toLocaleString()}
+                            {c.withdrawnAt && ` · Withdrawn ${new Date(c.withdrawnAt).toLocaleString()}`}
+                          </p>
+                        </div>
+                        {isActive && (
+                          <button
+                            onClick={() => withdrawOne(c)}
+                            disabled={withdrawing === c.id || withdrawing === 'all'}
+                            className="px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-rose-500 hover:bg-rose-600 disabled:opacity-50 transition-colors flex-shrink-0"
+                          >
+                            {withdrawing === c.id ? 'Withdrawing...' : 'Withdraw'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-100 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/* REQ-PORT-04 — schema.org JobPosting JSON-LD generator                 */
+/* ──────────────────────────────────────────────────────────────────── */
+/**
+ * Renders one `<script type="application/ld+json">` tag per job posting,
+ * emitting the standard schema.org JobPosting graph so Google's "Google
+ * for Jobs" crawler can index the role and surface it in job search.
+ *
+ * Hardening rules (from the P0 .length crash post-mortem):
+ *   - Defensive: every field access uses optional chaining / `|| ''`
+ *   - Skip jobs missing required schema fields (title or description)
+ *     rather than emitting invalid markup that would fail Google's
+ *     Rich Results validator.
+ *   - The `jobs` array is normalized with `|| []` at the top.
+ *
+ * Field mapping notes:
+ *   - hiringOrganization.name = the tenant / company brand
+ *   - hiringOrganization.sameAs = canonical brand URL (uses tenant slug
+ *     if available, else the app origin)
+ *   - employmentType: schema.org expects FULL_TIME / PART_TIME /
+ *     CONTRACTOR / TEMPORARY / INTERN — our JobPosting.type uses
+ *     'full-time' / 'part-time' / 'contract' / 'internship' (kebab-case)
+ *   - baseSalary is only emitted when `salary` parses to a finite number
+ *   - validThrough is only emitted when `closingDate` is present
+ */
+function JobPostingJsonLd({ jobs }: { jobs: PublicJob[] }) {
+  // Defensive: never trust that jobs is an array — the P0 crash taught us
+  // to always default to [] when reading from API-derived state.
+  const list: PublicJob[] = Array.isArray(jobs) ? jobs : [];
+
+  // Filter out any rows missing required schema.org fields. We'd rather
+  // emit fewer valid scripts than ship invalid ones Google flags.
+  const valid = list.filter((j) => j && j.title && j.description);
+
+  if (valid.length === 0) return null;
+
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://3boxes.com';
+
+  return (
+    <>
+      {valid.map((job) => {
+        // Map our kebab-case type strings to schema.org enum values.
+        // Anything unrecognized → 'FULL_TIME' (safe default — unknown
+        // employment types would be rejected by Google's validator).
+        const employmentTypeMap: Record<string, string> = {
+          'full-time': 'FULL_TIME',
+          'part-time': 'PART_TIME',
+          contract: 'CONTRACTOR',
+          contractor: 'CONTRACTOR',
+          temporary: 'TEMPORARY',
+          internship: 'INTERN',
+          intern: 'INTERN',
+        };
+        const employmentType = employmentTypeMap[job.type] || 'FULL_TIME';
+
+        // Parse salary — our JobPosting.salary is a free-text string
+        // (e.g. "₹12 LPA" or "$120,000"). We try to extract the first
+        // numeric value as a conservative estimate. If unparseable, we
+        // skip baseSalary entirely (Google prefers absent over malformed).
+        let baseSalary: Record<string, unknown> | undefined;
+        if (job.salary) {
+          // Strip everything that isn't a digit, comma, period, or space.
+          const cleaned = String(job.salary).replace(/[^0-9.,]/g, '').trim();
+          // Take the first comma-or-dot-delimited number.
+          const match = cleaned.match(/[\d.,]+/);
+          if (match) {
+            // Remove thousands separators (commas) and parse.
+            const numStr = match[0].replace(/,/g, '');
+            const num = parseFloat(numStr);
+            if (Number.isFinite(num) && num > 0) {
+              // Heuristic: salaries under 1000 are likely in "LPA" form
+              // (e.g. "12 LPA" → 12,00,000 INR). Multiply by 100000.
+              // Anything ≥ 1000 is treated as an absolute annual number.
+              const annualValue = num < 1000 ? num * 100000 : num;
+              baseSalary = {
+                '@type': 'MonetaryAmount',
+                currency: 'INR',
+                value: {
+                  '@type': 'QuantitativeValue',
+                  value: annualValue,
+                  unitText: 'YEAR',
+                },
+              };
+            }
+          }
+        }
+
+        // Determine the organization name + sameAs URL. Prefer tenant
+        // info (most accurate), fall back to company, then "3 Boxes Corp".
+        const orgName =
+          job.tenant?.name ||
+          job.company?.name ||
+          '3 Boxes Corp';
+        const orgSameAs =
+          job.tenant?.slug
+            ? `${appUrl}/careers/${job.tenant.slug}`
+            : 'https://3boxes.com';
+
+        const jsonLd = {
+          '@context': 'https://schema.org/',
+          '@type': 'JobPosting',
+          title: job.title,
+          description: String(job.description).replace(/<[^>]+>/g, '').slice(0, 5000),
+          hiringOrganization: {
+            '@type': 'Organization',
+            name: orgName,
+            sameAs: orgSameAs,
+          },
+          jobLocation: {
+            '@type': 'Place',
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: job.location || 'Remote',
+              addressCountry: job.company?.country || 'IN',
+            },
+          },
+          employmentType,
+          datePosted: job.postedDate
+            ? new Date(job.postedDate).toISOString()
+            : new Date().toISOString(),
+          // validThrough is only emitted if closingDate is set — Google
+          // will use the absence of validThrough to mean "indefinitely open".
+          ...(job.closingDate
+            ? { validThrough: new Date(job.closingDate).toISOString() }
+            : {}),
+          ...(baseSalary ? { baseSalary } : {}),
+          // Direct link to the job on the careers page (anchor not implemented
+          // per-job, so we link to the openings section).
+          url: `${appUrl}/careers#openings`,
+          // Bonus fields Google uses for filtering / display:
+          directApply: true,
+          // experienceRequirements is free-text — Google accepts the same
+          // string we show to humans.
+          ...(job.experience ? { experienceRequirements: job.experience } : {}),
+          // Industry / department as additional context.
+          ...(job.department?.name ? { industry: job.department.name } : {}),
+        };
+
+        return (
+          <script
+            key={`jsonld-job-${job.id}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        );
+      })}
+    </>
   );
 }

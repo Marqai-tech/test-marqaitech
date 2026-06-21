@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment, useMemo } from 'react';
+import Link from 'next/link';
 import {
   FiBriefcase,
   FiPlus,
@@ -14,11 +15,30 @@ import {
   FiChevronUp,
   FiEdit2,
   FiTrash2,
+  FiFileText,
+  FiRefreshCw,
+  FiUpload,
+  FiActivity,
+  FiMail,
+  FiPhone,
+  FiAward,
+  FiBriefcase as FiWork,
+  FiZap,
+  FiShield,
+  FiLock,
+  FiBarChart2,
+  FiExternalLink,
+  FiArrowRight,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import {
+  maskCandidateFields,
+  buildPiiMaskTooltip,
+  PiiPolicyEntry,
+} from '@/lib/pii-mask';
 
 /* ── Recruitment Tips ── */
 const recruitmentTips = [
@@ -91,6 +111,39 @@ interface JobApplication {
   jobPostingId: string;
 }
 
+interface ParsedResume {
+  name: string;
+  email: string;
+  phone: string;
+  location?: string;
+  summary?: string;
+  skills: string[];
+  education: { institution: string; degree: string; year?: string }[];
+  experience: { company: string; role: string; duration: string; description?: string }[];
+  certifications: string[];
+  languages: string[];
+}
+
+interface ResumeParseRow {
+  id: string;
+  language: string | null;
+  parsedData: string;
+  confidence: number;
+  sourceFormat: string;
+  parseError: string | null;
+  createdAt: string;
+}
+
+interface SentimentRow {
+  id: string;
+  sentiment: 'positive' | 'neutral' | 'negative' | 'mixed';
+  engagementScore: number;
+  dropoffRisk: number;
+  rationale: string | null;
+  source: string;
+  createdAt: string;
+}
+
 interface Department { id: string; name: string }
 
 /* ── Helpers ── */
@@ -126,6 +179,29 @@ function getAppStatusBadge(status: string) {
   };
   const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
   return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+}
+
+function getSentimentBadge(s: SentimentRow | null | undefined) {
+  if (!s) return { className: 'bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[10px] font-semibold', label: 'No sentiment', title: 'No sentiment analysis run yet' };
+  const map: Record<string, string> = {
+    positive: 'bg-emerald-100 text-emerald-700',
+    neutral: 'bg-slate-100 text-slate-600',
+    negative: 'bg-red-100 text-red-700',
+    mixed: 'bg-amber-100 text-amber-700',
+  };
+  const label = `${s.sentiment} · ${s.engagementScore}/100`;
+  return {
+    className: `${map[s.sentiment] || map.neutral} px-2 py-0.5 rounded-full text-[10px] font-semibold`,
+    label,
+    title: s.rationale || `Engagement ${s.engagementScore}, dropoff risk ${s.dropoffRisk}`,
+  };
+}
+
+function formatTimestamp(sec: number | null | undefined) {
+  if (sec === null || sec === undefined) return '—';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 const initialJobForm = {
@@ -183,6 +259,55 @@ export default function RecruitmentPage() {
 
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
+  /* ─── WAVE2-A: PII masking policies (REQ-SEC-REC-03) ─── */
+  const [piiPolicies, setPiiPolicies] = useState<PiiPolicyEntry[]>([]);
+
+  // Role flag: recruiters + admins see full values; everyone else (hiring panel,
+  // interviewers, managers) sees masked values per the tenant policy.
+  const isRecruiterOrAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter', 'recruiter_admin'].includes(user?.role || '');
+
+  useEffect(() => {
+    // Fetch tenant PII policies once on mount. Non-admins also need this so
+    // they can resolve the visibleToRoles whitelist for their own role.
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/ats/pii-policy', { headers: getAuthHeaders() });
+        if (!r.ok) {
+          if (!cancelled) setPiiPolicies([]);
+          return;
+        }
+        const d = await r.json();
+        if (!cancelled) setPiiPolicies(d.policies || []);
+      } catch {
+        if (!cancelled) setPiiPolicies([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Memoized masked copy of the applications list. We mask only the PII fields
+  // that exist on the JobApplication row (email + phone today). The original
+  // `applications` array is preserved for editing flows so admins can still
+  // PATCH the raw candidateEmail through the inline edit form.
+  const maskedApplications = useMemo(() => {
+    if (!applications || applications.length === 0) return [];
+    return applications.map(a =>
+      maskCandidateFields(
+        a as unknown as Record<string, unknown>,
+        user?.role,
+        piiPolicies,
+      ) as unknown as JobApplication & { __piiMaskedFields?: string[] }
+    );
+  }, [applications, piiPolicies, user?.role]);
+
+  /* ─── WAVE2-C: Resume parser + sentiment state ─── */
+  const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
+  const [parseByApp, setParseByApp] = useState<Record<string, { parse: ResumeParseRow | null; parsed: ParsedResume | null; loading: boolean }>>({});
+  const [sentimentByApp, setSentimentByApp] = useState<Record<string, SentimentRow | null>>({});
+  const [parsingAppId, setParsingAppId] = useState<string | null>(null);
+  const [runningSentimentAppId, setRunningSentimentAppId] = useState<string | null>(null);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -209,6 +334,25 @@ export default function RecruitmentPage() {
           }
         });
         setApplications(allApps);
+
+        // ─── WAVE2-C: Lazy-load latest sentiment per application (batched) ───
+        // Cap to the first 30 applications to avoid hammering the API.
+        Promise.all(
+          allApps.slice(0, 30).map(async (a) => {
+            try {
+              const r = await fetch(`/api/ats/sentiment?jobApplicationId=${a.id}`, { headers });
+              if (!r.ok) return [a.id, null] as const;
+              const d = await r.json();
+              return [a.id, d.sentiment || null] as const;
+            } catch {
+              return [a.id, null] as const;
+            }
+          }),
+        ).then((entries) => {
+          const map: Record<string, SentimentRow | null> = {};
+          entries.forEach(([id, s]) => { map[id] = s; });
+          setSentimentByApp(map);
+        }).catch(() => { /* ignore */ });
       }
     } catch (err) {
       console.error(err);
@@ -394,6 +538,95 @@ export default function RecruitmentPage() {
     }
   };
 
+  /* ─────────────────────────────────────────────────────────── */
+  /* WAVE2-C: Parsed resume + sentiment actions                  */
+  /* ─────────────────────────────────────────────────────────── */
+
+  const fetchParsedResume = useCallback(async (appId: string) => {
+    setParseByApp(prev => ({ ...prev, [appId]: { parse: prev[appId]?.parse ?? null, parsed: prev[appId]?.parsed ?? null, loading: true } }));
+    try {
+      const r = await fetch(`/api/ats/parse-resume?jobApplicationId=${appId}`, { headers: getAuthHeaders() });
+      const d = r.ok ? await r.json() : { parse: null, parsedData: null };
+      let parsed: ParsedResume | null = null;
+      try { parsed = d.parsedData ? (typeof d.parsedData === 'string' ? JSON.parse(d.parsedData) : d.parsedData) : null; } catch { parsed = null; }
+      setParseByApp(prev => ({ ...prev, [appId]: { parse: d.parse || null, parsed, loading: false } }));
+    } catch {
+      setParseByApp(prev => ({ ...prev, [appId]: { parse: null, parsed: null, loading: false } }));
+    }
+  }, []);
+
+  const handleToggleAppExpand = (appId: string) => {
+    const next = expandedAppId === appId ? null : appId;
+    setExpandedAppId(next);
+    if (next && !parseByApp[appId]) {
+      fetchParsedResume(appId);
+    }
+  };
+
+  const handleUploadResume = async (appId: string, file: File) => {
+    // Convert file → base64 data URL → POST to parser
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      if (!dataUrl) { toast.error('Failed to read file'); return; }
+      try {
+        setParsingAppId(appId);
+        const r = await fetch('/api/ats/parse-resume', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ jobApplicationId: appId, resumeDataUrl: dataUrl }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d?.error || 'Parse failed');
+        toast.success(`Resume parsed (confidence ${Math.round((d.confidence || 0) * 100)}%, ${d.language || 'en'})`);
+        // Refetch parse + sentiment for this app
+        await fetchParsedResume(appId);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to parse resume');
+      } finally {
+        setParsingAppId(null);
+      }
+    };
+    reader.onerror = () => toast.error('Failed to read file');
+    reader.readAsDataURL(file);
+  };
+
+  const handleReparse = async (appId: string) => {
+    // Re-parse requires the original resume file. Since we don't store it,
+    // we prompt the user to re-upload. If they have no resume on file, we
+    // try to re-extract from the existing rawText stored on the latest parse.
+    const existing = parseByApp[appId]?.parse;
+    if (!existing) {
+      toast.error('No prior parse — upload a resume first');
+      return;
+    }
+    // Trigger the hidden file input
+    const input = document.getElementById(`resume-upload-${appId}`) as HTMLInputElement | null;
+    if (input) {
+      input.click();
+      return;
+    }
+  };
+
+  const handleRunSentiment = async (appId: string) => {
+    try {
+      setRunningSentimentAppId(appId);
+      const r = await fetch('/api/ats/sentiment', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ jobApplicationId: appId, source: 'chat_screening' }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error || 'Sentiment failed');
+      setSentimentByApp(prev => ({ ...prev, [appId]: d }));
+      toast.success(`Sentiment: ${d.sentiment} (engagement ${d.engagementScore}/100)`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to compute sentiment');
+    } finally {
+      setRunningSentimentAppId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -404,12 +637,40 @@ export default function RecruitmentPage() {
             Recruitment
           </h1>
           <p className="text-nexus-text-secondary mt-1">Manage job postings and applications</p>
+          {/* REQ-SEC-REC-03 PII masked indicator */}
+          {!isRecruiterOrAdmin ? (
+            <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
+              <FiShield className="w-3 h-3" /> PII masked for hiring panel
+            </span>
+          ) : (
+            <Link href="/recruitment/pii-policy" className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-violet-600 hover:text-violet-700">
+              <FiLock className="w-3 h-3" /> Configure PII masking policy
+            </Link>
+          )}
         </div>
         {isAdmin && (
-          <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" />
-            Post Job
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/recruitment/analytics"
+              className="inline-flex items-center gap-2 px-3 py-2.5 border border-violet-200 text-violet-700 rounded-lg hover:bg-violet-50 font-medium text-sm transition-colors"
+              title="Recruitment Analytics: Cost per Hire, Time to Fill, source effectiveness"
+            >
+              <FiBarChart2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Analytics</span>
+            </Link>
+            <Link
+              href="/recruitment/job-boards"
+              className="inline-flex items-center gap-2 px-3 py-2.5 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 font-medium text-sm transition-colors"
+              title="Manage all external job board postings"
+            >
+              <FiExternalLink className="w-4 h-4" />
+              <span className="hidden sm:inline">Job Boards</span>
+            </Link>
+            <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+              <FiPlus className="w-4 h-4" />
+              Post Job
+            </button>
+          </div>
         )}
       </div>
 
@@ -642,6 +903,13 @@ export default function RecruitmentPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
+                            <Link
+                              href={`/recruitment/${job.id}`}
+                              className="px-3 py-2 border border-violet-200 text-violet-700 rounded-lg text-xs font-medium hover:bg-violet-50 transition-colors inline-flex items-center gap-1"
+                              title="View job detail, funnel, candidates, and multi-post to boards"
+                            >
+                              View Detail <FiArrowRight className="w-3 h-3" />
+                            </Link>
                             <button onClick={() => handleOpenApplyForm(job.id)} className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
                               Apply
                             </button>
@@ -684,15 +952,39 @@ export default function RecruitmentPage() {
                           {/* Applications for this job */}
                           {job.applications && job.applications.length > 0 && (
                             <div>
-                              <h4 className="text-sm font-semibold text-nexus-text-primary mb-2">Applications ({job.applications.length})</h4>
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-semibold text-nexus-text-primary">Applications ({job.applications.length})</h4>
+                                {!isRecruiterOrAdmin && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
+                                    <FiShield className="w-2.5 h-2.5" /> PII masked
+                                  </span>
+                                )}
+                              </div>
                               <div className="space-y-2">
-                                {job.applications.map(app => {
+                                {job.applications.map(rawApp => {
+                                  // Apply PII masking inline so the expanded per-job list also honors the tenant policy.
+                                  const app = maskCandidateFields(
+                                    rawApp as unknown as Record<string, unknown>,
+                                    user?.role,
+                                    piiPolicies,
+                                  ) as unknown as JobApplication & { __piiMaskedFields?: string[] };
                                   const appBadge = getAppStatusBadge(app.status);
                                   const isEditing = editingAppId === app.id;
+                                  const maskedFields = app.__piiMaskedFields || [];
                                   return (
                                     <div key={app.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${isEditing ? 'border-blue-300 bg-blue-50/50' : 'border-nexus-border'}`}>
-                                      <div>
-                                        <p className="text-sm font-medium text-nexus-text-primary">{app.candidateName}</p>
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <p className="text-sm font-medium text-nexus-text-primary">{app.candidateName}</p>
+                                          {maskedFields.length > 0 && (
+                                            <span
+                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200"
+                                              title={buildPiiMaskTooltip(maskedFields)}
+                                            >
+                                              <FiShield className="w-2.5 h-2.5" /> PII masked
+                                            </span>
+                                          )}
+                                        </div>
                                         <p className="text-xs text-nexus-text-muted">{app.candidateEmail} · Applied {formatDate(app.appliedDate)}</p>
                                       </div>
                                       {isEditing ? (
@@ -754,6 +1046,7 @@ export default function RecruitmentPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Job Title</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Source</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Sentiment</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Applied Date</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Rating</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
@@ -767,6 +1060,7 @@ export default function RecruitmentPage() {
                       <td className="px-4 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td>
                       <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
                       <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                      <td className="px-4 py-3"><div className="h-5 w-20 bg-slate-200 rounded-full" /></td>
                       <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
                       <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
                       <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded ml-auto" /></td>
@@ -774,20 +1068,40 @@ export default function RecruitmentPage() {
                   ))
                 ) : applications.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
                       <p className="text-nexus-text-secondary font-medium">No applications yet</p>
                     </td>
                   </tr>
                 ) : (
-                  applications.map(app => {
+                  <>
+                    {maskedApplications.map(app => {
                     const badge = getAppStatusBadge(app.status);
                     const isEditing = editingAppId === app.id;
+                    const isAppExpanded = expandedAppId === app.id;
+                    const sentiment = sentimentByApp[app.id];
+                    const parseState = parseByApp[app.id];
+                    const sentimentBadge = getSentimentBadge(sentiment);
+                    const maskedFields = app.__piiMaskedFields || [];
+                    const piiTooltip = buildPiiMaskTooltip(maskedFields);
                     return (
-                      <tr key={app.id} className={`border-b border-nexus-border/50 transition-colors ${isEditing ? 'bg-blue-50/50' : 'hover:bg-slate-50/50'}`}>
+                      <Fragment key={app.id}>
+                      <tr className={`border-b border-nexus-border/50 transition-colors ${isEditing ? 'bg-blue-50/50' : 'hover:bg-slate-50/50'}`}>
                         <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-nexus-text-primary">{app.candidateName}</p>
-                          <p className="text-xs text-nexus-text-muted">{app.candidateEmail}</p>
+                          <div className="flex items-center gap-1.5">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-nexus-text-primary">{app.candidateName}</p>
+                              <p className="text-xs text-nexus-text-muted">{app.candidateEmail}</p>
+                            </div>
+                            {maskedFields.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200 flex-shrink-0"
+                                title={piiTooltip}
+                              >
+                                <FiShield className="w-2.5 h-2.5" /> PII masked
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-nexus-text-secondary">{app.jobPosting?.title || '—'}</td>
                         <td className="px-4 py-3 text-sm text-nexus-text-secondary capitalize">{app.source}</td>
@@ -809,6 +1123,19 @@ export default function RecruitmentPage() {
                             <span className={badge.className}>{badge.label}</span>
                           )}
                         </td>
+                        <td className="px-4 py-3">
+                          <span className={sentimentBadge.className} title={sentimentBadge.title}>{sentimentBadge.label}</span>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleRunSentiment(app.id)}
+                              disabled={runningSentimentAppId === app.id}
+                              className="ml-2 p-1 rounded text-nexus-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-50"
+                              title="Run sentiment analysis"
+                            >
+                              {runningSentimentAppId === app.id ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiActivity className="w-3 h-3" />}
+                            </button>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(app.appliedDate)}</td>
                         <td className="px-4 py-3">
                           {app.rating ? (
@@ -826,22 +1153,246 @@ export default function RecruitmentPage() {
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-end">
+                            <div className="flex items-center justify-end gap-1">
                               {isAdmin && (
                                 <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit Status">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
                               )}
+                              <button onClick={() => handleToggleAppExpand(app.id)} className={`p-2 rounded-lg border transition-colors ${isAppExpanded ? 'bg-violet-50 text-violet-600 border-violet-200' : 'text-nexus-text-secondary border-nexus-border hover:bg-slate-50'}`} title="View parsed resume">
+                                {isAppExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+                              </button>
                             </div>
                           )}
                         </td>
                       </tr>
+                      {isAppExpanded && (
+                        <tr className="bg-slate-50/40">
+                          <td colSpan={8} className="px-6 py-5">
+                            <ParsedResumePanel
+                              appId={app.id}
+                              state={parseState}
+                              parsing={parsingAppId === app.id}
+                              onUpload={handleUploadResume}
+                              onReparse={handleReparse}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
-                  })
+                    })}
+                  </>
                 )}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Parsed Resume expandable panel                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function ParsedResumePanel({
+  appId,
+  state,
+  parsing,
+  onUpload,
+  onReparse,
+}: {
+  appId: string;
+  state: { parse: ResumeParseRow | null; parsed: ParsedResume | null; loading: boolean } | undefined;
+  parsing: boolean;
+  onUpload: (appId: string, file: File) => void;
+  onReparse: (appId: string) => void;
+}) {
+  const parse = state?.parse || null;
+  const parsed = state?.parsed || null;
+  const loading = state?.loading || parsing;
+
+  return (
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FiFileText className="w-5 h-5 text-violet-500" />
+          <h4 className="text-sm font-semibold text-nexus-text-primary">Parsed Resume</h4>
+          {parse && (
+            <div className="flex items-center gap-2 ml-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 uppercase">{parse.language || '—'}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${parse.confidence >= 0.8 ? 'bg-emerald-100 text-emerald-700' : parse.confidence >= 0.5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                {Math.round(parse.confidence * 100)}% conf
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 uppercase">{parse.sourceFormat}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {/* hidden file input */}
+          <input
+            id={`resume-upload-${appId}`}
+            type="file"
+            accept=".pdf,.docx,.doc,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onUpload(appId, f);
+              e.target.value = '';
+            }}
+          />
+          <label
+            htmlFor={`resume-upload-${appId}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 cursor-pointer transition-colors"
+          >
+            <FiUpload className="w-3.5 h-3.5" />
+            Upload &amp; Parse
+          </label>
+          {parse && (
+            <button
+              onClick={() => onReparse(appId)}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              {loading ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiRefreshCw className="w-3.5 h-3.5" />}
+              Re-parse
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-nexus-text-muted py-6">
+          <FiRefreshCw className="w-4 h-4 animate-spin" />
+          Parsing resume…
+        </div>
+      ) : !parse ? (
+        <div className="py-6 text-center">
+          <FiFileText className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" />
+          <p className="text-sm text-nexus-text-secondary font-medium">No parsed resume yet</p>
+          <p className="text-xs text-nexus-text-muted mt-1">Upload a PDF, DOCX, DOC, or TXT resume to extract structured data via ZAI.</p>
+        </div>
+      ) : parse.parseError && !parsed ? (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+          <p className="text-sm font-semibold text-red-700">Parse failed</p>
+          <p className="text-xs text-red-600 mt-1">{parse.parseError}</p>
+        </div>
+      ) : !parsed ? (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+          <p className="text-sm text-amber-700">Resume was parsed but structured data is unavailable.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Top-level identity */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-white border border-nexus-border">
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-1">Name</p>
+              <p className="text-sm font-medium text-nexus-text-primary">{parsed.name || '—'}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-white border border-nexus-border">
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-1">Contact</p>
+              <div className="text-sm text-nexus-text-secondary space-y-0.5">
+                {parsed.email && <p className="flex items-center gap-1.5"><FiMail className="w-3 h-3" /> {parsed.email}</p>}
+                {parsed.phone && <p className="flex items-center gap-1.5"><FiPhone className="w-3 h-3" /> {parsed.phone}</p>}
+                {parsed.location && <p className="flex items-center gap-1.5"><FiMapPin className="w-3 h-3" /> {parsed.location}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Summary */}
+          {parsed.summary && (
+            <div className="p-3 rounded-lg bg-white border border-nexus-border">
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-1">Summary</p>
+              <p className="text-sm text-nexus-text-secondary">{parsed.summary}</p>
+            </div>
+          )}
+
+          {/* Skills */}
+          {parsed.skills && parsed.skills.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-2">Skills ({parsed.skills.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {parsed.skills.map((s, i) => (
+                  <span key={`${s}-${i}`} className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Experience */}
+            <div>
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-2 flex items-center gap-1.5"><FiWork className="w-3 h-3" /> Experience ({(parsed.experience || []).length})</p>
+              <div className="space-y-2">
+                {(parsed.experience || []).map((x, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-white border border-nexus-border">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-nexus-text-primary">{x.role || '—'} · {x.company || '—'}</p>
+                      <span className="text-[10px] text-nexus-text-muted">{x.duration || ''}</span>
+                    </div>
+                    {x.description && <p className="text-xs text-nexus-text-secondary mt-1">{x.description}</p>}
+                  </div>
+                ))}
+                {(parsed.experience || []).length === 0 && <p className="text-xs text-nexus-text-muted">No experience extracted.</p>}
+              </div>
+            </div>
+
+            {/* Education */}
+            <div>
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-2 flex items-center gap-1.5"><FiAward className="w-3 h-3" /> Education ({(parsed.education || []).length})</p>
+              <div className="space-y-2">
+                {(parsed.education || []).map((e, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-white border border-nexus-border">
+                    <p className="text-sm font-medium text-nexus-text-primary">{e.degree || '—'}</p>
+                    <p className="text-xs text-nexus-text-secondary">{e.institution || '—'}{e.year ? ` · ${e.year}` : ''}</p>
+                  </div>
+                ))}
+                {(parsed.education || []).length === 0 && <p className="text-xs text-nexus-text-muted">No education extracted.</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Certifications + Languages */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-2">Certifications ({(parsed.certifications || []).length})</p>
+              {(parsed.certifications || []).length > 0 ? (
+                <ul className="text-sm text-nexus-text-secondary list-disc list-inside space-y-0.5">
+                  {parsed.certifications.map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+              ) : <p className="text-xs text-nexus-text-muted">None extracted.</p>}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-nexus-text-muted uppercase mb-2">Languages ({(parsed.languages || []).length})</p>
+              {(parsed.languages || []).length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.languages.map((l, i) => <span key={i} className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium uppercase">{l}</span>)}
+                </div>
+              ) : <p className="text-xs text-nexus-text-muted">None extracted.</p>}
+            </div>
+          </div>
+
+          {/* Parse error (non-fatal) */}
+          {parse.parseError && (
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+              <strong>Note:</strong> {parse.parseError}
+            </div>
+          )}
+
+          {/* Raw text preview */}
+          <details className="group">
+            <summary className="cursor-pointer text-xs font-semibold text-nexus-text-muted hover:text-nexus-text-primary flex items-center gap-1">
+              <FiFileText className="w-3 h-3" /> Show raw extracted text
+            </summary>
+            <pre className="mt-2 p-3 rounded-lg bg-slate-50 border border-nexus-border text-xs text-nexus-text-secondary whitespace-pre-wrap max-h-48 overflow-y-auto">
+              {/* rawText is not returned by the API to keep payloads small; show a hint instead */}
+              Raw resume text is stored on the server (ResumeParse.rawText). Open this record via /api/ats/parse-resume/{`{id}`} to view it.
+            </pre>
+          </details>
         </div>
       )}
     </div>

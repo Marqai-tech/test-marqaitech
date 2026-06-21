@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +28,11 @@ export async function OPTIONS() {
  *   - resumeDataUrl: string (optional) — base64 data URL of the resume file
  *                    (e.g. "data:application/pdf;base64,...")
  *   - resumeFileName: string (optional) — original file name for record-keeping
+ *   - referralToken: string (optional) — track token from an employee's
+ *                    shared referral link. If present and matches a Referral
+ *                    row, that referral's candidate fields are back-filled
+ *                    with the submitted data and its status is advanced
+ *                    from 'pending' → 'applied'.
  *
  * The endpoint validates that:
  *   1. The job posting exists and is OPEN
@@ -37,6 +43,11 @@ export async function OPTIONS() {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Make sure the Referral table exists (it was added in the WAVE2-B
+    // schema addendum). ensureSchemaSynced is a no-op if the DB is already
+    // up to date, and gracefully skips on local SQLite (file: DSN).
+    await ensureSchemaSynced();
+
     const body = await req.json();
     const {
       jobPostingId,
@@ -48,6 +59,7 @@ export async function POST(req: NextRequest) {
       source,
       resumeDataUrl,
       resumeFileName,
+      referralToken,
     } = body;
 
     // ===== Validate required fields =====
@@ -206,10 +218,74 @@ export async function POST(req: NextRequest) {
       // Non-fatal — the application itself was already saved
     }
 
+    // ===== Referral attribution (best-effort, non-blocking) =====
+    // If the candidate arrived via an employee's trackable referral link,
+    // the careers page passes `referralToken` (the ?ref= param) through.
+    // We look up the Referral by token, back-fill the candidate fields
+    // (they're stub placeholders when the link was just a shareable URL),
+    // and advance status pending → applied. If anything goes wrong we
+    // swallow the error — the application itself was already saved.
+    let referralAttributed = false;
+    if (referralToken && typeof referralToken === 'string') {
+      try {
+        referralAttributed = await withSchemaSync(async () => {
+          // Look up the referral by its unique track token.
+          const referral = await db.referral.findUnique({
+            where: { trackToken: referralToken },
+            select: { id: true, status: true, jobPostingId: true },
+          });
+          if (!referral) return false;
+          // Sanity: only attribute if the referral's job matches the job
+          // being applied to (defends against someone reusing a token on
+          // a different job).
+          if (referral.jobPostingId !== jobPostingId) return false;
+
+          // Back-fill candidate details + advance status. We only advance
+          // status if it's still 'pending' so re-applications (idempotency
+          // case above) don't keep re-advancing the referral through the
+          // funnel.
+          const updateData: Record<string, unknown> = {
+            candidateName: String(candidateName).trim(),
+            candidateEmail: String(candidateEmail).toLowerCase().trim(),
+            candidatePhone: candidatePhone ? String(candidatePhone).trim() : null,
+            candidateResume: resumeDataUrl || null,
+            updatedAt: new Date(),
+          };
+          if (referral.status === 'pending') {
+            updateData.status = 'applied';
+          }
+
+          await db.referral.update({
+            where: { id: referral.id },
+            data: updateData,
+          });
+
+          // Best-effort audit log of the attribution.
+          try {
+            await db.auditLog.create({
+              data: {
+                userId: '00000000-0000-0000-0000-000000000000', // system / public apply
+                action: 'REFERRAL_APPLIED',
+                module: 'referrals',
+                details: `Referral ${referral.id} attributed to application for "${job.title}"`,
+              },
+            });
+          } catch {
+            // Audit log is best-effort — ignore.
+          }
+          return true;
+        });
+      } catch (refErr) {
+        // Don't let a referral-attribution failure break the application.
+        console.error('[public/apply] referral attribution error (non-fatal):', refErr);
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
         application,
+        referralAttributed,
         message: `Your application for "${job.title}" has been submitted successfully. We'll be in touch!`,
       },
       { status: 201, headers: corsHeaders }

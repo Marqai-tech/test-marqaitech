@@ -93,6 +93,14 @@ function createFallbackProxy(): PrismaClient {
         'storageQuota', 'legalHold', 'collaborationFeatureFlag',
         'communicationPolicy', 'storageAnalytics',
         'dLPScanLog', 'gDPRAnonymizationRequest', 'watermarkAccessLog',
+        // Wave 2 — Offer / Onboarding / Preboarding cascade models (REQ-OFR-01/03/04, REQ-ONB-01/02/04/05/07/08/09)
+        'offerTemplate', 'offerDeclineSurvey',
+        'onboardingTaskTemplate', 'welcomeSeriesEmail', 'backgroundCheck',
+        'jobBoardPosting',
+        // WAVE2-C — Real resume parser + sentiment + interview feedback (REQ-ATS-01/02, REQ-AI-INT-02/07)
+        'resumeParse', 'candidateSentimentScore', 'interviewFeedback',
+        // WAVE2-E — Recruitment analytics + job boards (REQ-SRC-01/02/03)
+        'requisition', 'referral',
       ]
 
       if (modelNames.includes(prop)) {

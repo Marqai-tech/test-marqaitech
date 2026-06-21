@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import {
   FiUserPlus,
   FiPlus,
@@ -10,6 +11,8 @@ import {
   FiSearch,
   FiFilter,
   FiCheck,
+  FiUserCheck,
+  FiLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -27,6 +30,10 @@ interface OnboardingTask {
   notes: string | null;
   employeeId: string;
   assignedBy: string | null;
+  // ─── REQ-ONB-08/09: cascade wiring ───
+  preboardingCandidateId?: string | null;
+  templateId?: string | null;
+  buddyEmployeeId?: string | null;
   employee?: {
     id: string;
     firstName: string;
@@ -34,6 +41,12 @@ interface OnboardingTask {
     employeeId: string;
     avatar?: string | null;
   };
+}
+
+interface OnboardingTaskTemplate {
+  id: string;
+  name: string;
+  category: string;
 }
 
 interface Employee {
@@ -137,6 +150,7 @@ export default function OnboardingPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<OnboardingTaskTemplate[]>([]);
 
   /* Fetch data */
   const fetchData = useCallback(async () => {
@@ -144,23 +158,36 @@ export default function OnboardingPage() {
       setLoading(true);
       const headers = getAuthHeaders();
 
-      const [tasksRes, empRes] = await Promise.allSettled([
+      const [tasksRes, empRes, tplRes] = await Promise.allSettled([
         fetch('/api/onboarding?limit=100', { headers }),
         fetch('/api/employees?limit=500', { headers }),
+        fetch('/api/onboarding/templates?isActive=true', { headers }),
       ]);
 
       if (tasksRes.status === 'fulfilled' && tasksRes.value.ok) {
         const data = await tasksRes.value.json();
-        setTasks(data.tasks || []);
+        setTasks(Array.isArray(data?.tasks) ? data.tasks : []);
+      } else {
+        setTasks([]);
       }
 
       if (empRes.status === 'fulfilled' && empRes.value.ok) {
         const data = await empRes.value.json();
-        setEmployees(data.employees || []);
+        setEmployees(Array.isArray(data?.employees) ? data.employees : []);
+      } else {
+        setEmployees([]);
+      }
+
+      if (tplRes.status === 'fulfilled' && tplRes.value.ok) {
+        const data = await tplRes.value.json();
+        setTemplates(Array.isArray(data?.templates) ? data.templates : []);
+      } else {
+        setTemplates([]);
       }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load onboarding data');
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -327,10 +354,15 @@ export default function OnboardingPage() {
           <p className="text-nexus-text-secondary mt-1">Manage onboarding tasks for new employees</p>
         </div>
         {isAdmin && (
-          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
-            <FiPlus className="w-4 h-4" />
-            Add Task
-          </button>
+          <div className="flex items-center gap-2">
+            <Link href="/onboarding/templates" className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+              Templates
+            </Link>
+            <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+              <FiPlus className="w-4 h-4" />
+              Add Task
+            </button>
+          </div>
         )}
       </div>
 
@@ -393,6 +425,11 @@ export default function OnboardingPage() {
             <option value="it_setup">IT Setup</option>
             <option value="training">Training</option>
             <option value="compliance">Compliance</option>
+            <option value="hr_docs">HR Docs</option>
+            <option value="introduction">Introduction</option>
+            <option value="buddy_setup">Buddy Setup</option>
+            <option value="payroll_setup">Payroll Setup</option>
+            <option value="project_allocation">Project Allocation</option>
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
             <option value="">All Status</option>
@@ -455,6 +492,11 @@ export default function OnboardingPage() {
                   <option value="it_setup">IT Setup</option>
                   <option value="training">Training</option>
                   <option value="compliance">Compliance</option>
+                  <option value="hr_docs">HR Docs</option>
+                  <option value="introduction">Introduction</option>
+                  <option value="buddy_setup">Buddy Setup</option>
+                  <option value="payroll_setup">Payroll Setup</option>
+                  <option value="project_allocation">Project Allocation</option>
                 </select>
               </div>
               <div>
@@ -565,8 +607,33 @@ export default function OnboardingPage() {
                               {t.employee ? `${t.employee.firstName} ${t.employee.lastName}` : '—'}
                             </p>
                             {t.employee && <p className="text-xs text-nexus-text-muted">{t.employee.employeeId}</p>}
+                            {t.buddyEmployeeId && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded mt-1">
+                                <FiUserCheck className="w-2.5 h-2.5" />
+                                Buddy: {t.buddyEmployeeId.slice(0, 8)}...
+                              </span>
+                            )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-primary">{t.task}</td>
+                          <td className="px-4 py-3 text-sm text-nexus-text-primary">
+                            {t.task}
+                            {t.templateId && (() => {
+                              const tplName = templates.find((tpl) => tpl.id === t.templateId)?.name;
+                              return (
+                                <span
+                                  className="ml-2 inline-flex items-center gap-0.5 text-[9px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded"
+                                  title={`Generated from template ${t.templateId}`}
+                                >
+                                  <FiLink className="w-2.5 h-2.5" />
+                                  {tplName ? `from: ${tplName}` : 'template'}
+                                </span>
+                              );
+                            })()}
+                            {t.preboardingCandidateId && (
+                              <p className="text-[10px] text-nexus-text-muted mt-0.5" title="Originating preboarding candidate">
+                                preboarding: {t.preboardingCandidateId.slice(0, 8)}...
+                              </p>
+                            )}
+                          </td>
                           <td className="px-4 py-3"><span className={categoryBadge.className}>{categoryBadge.label}</span></td>
                           <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(t.dueDate)}</td>
                           <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>

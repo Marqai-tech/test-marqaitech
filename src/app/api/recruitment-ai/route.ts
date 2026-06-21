@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { db } from '@/lib/db';
+import {
+  parseResumeFromDataUrl,
+  detectLanguage,
+  extractStructuredFields,
+  type ParsedResume,
+} from '@/lib/resume-parser';
 
 function corsHeaders() {
   return {
@@ -46,29 +53,192 @@ export async function POST(request: Request) {
     }
 
     if (action === 'parse_resume') {
-      const { fileName } = body;
-      // Simulate resume parsing (real implementation would use file upload + AI)
-      const parsed = {
-        name: 'John Smith',
-        email: 'john.smith@email.com',
-        phone: '+1-555-0123',
-        skills: ['JavaScript', 'React', 'Node.js', 'TypeScript', 'PostgreSQL', 'AWS'],
-        experience: [{ company: 'Tech Corp', role: 'Senior Developer', duration: '3 years', highlights: ['Led frontend team', 'Built microservices architecture'] }, { company: 'StartupXYZ', role: 'Full Stack Developer', duration: '2 years', highlights: ['Developed MVP', 'Implemented CI/CD'] }],
-        education: [{ degree: 'BS Computer Science', institution: 'State University', year: 2018 }],
-        summary: 'Experienced full-stack developer with 5+ years of expertise in modern web technologies. Proven track record of leading development teams and delivering high-quality software solutions.',
-      };
-      return NextResponse.json({ parsed }, { headers: corsHeaders() });
+      // REAL implementation — replaced the WAVE2-C mock.
+      // Accepts either:
+      //   - { resumeDataUrl, jobApplicationId? }   → full pipeline (PDF/DOCX/text)
+      //   - { rawText, jobApplicationId? }          → text-only pipeline
+      const { resumeDataUrl, rawText, jobApplicationId } = body;
+
+      let result;
+      if (resumeDataUrl) {
+        result = await parseResumeFromDataUrl(resumeDataUrl);
+      } else if (rawText && typeof rawText === 'string') {
+        const language = detectLanguage(rawText);
+        const { parsed, confidence } = await extractStructuredFields(rawText, language);
+        result = {
+          rawText,
+          language,
+          parsed,
+          confidence,
+          sourceFormat: 'text' as const,
+          parseError: undefined as string | undefined,
+        };
+      } else {
+        return NextResponse.json(
+          { error: 'Either resumeDataUrl or rawText is required for parse_resume' },
+          { status: 400, headers: corsHeaders() },
+        );
+      }
+
+      // Persist a ResumeParse row if a jobApplicationId was provided
+      let parseId: string | null = null;
+      if (jobApplicationId) {
+        try {
+          const saved = await db.resumeParse.create({
+            data: {
+              jobApplicationId,
+              rawText: result.rawText.slice(0, 100000),
+              language: result.language,
+              parsedData: JSON.stringify(result.parsed),
+              confidence: result.confidence,
+              sourceFormat: result.sourceFormat,
+              parseError: result.parseError || null,
+            },
+          });
+          parseId = saved.id;
+        } catch (e) {
+          console.warn('[recruitment-ai] Failed to persist ResumeParse row:', e);
+        }
+      }
+
+      return NextResponse.json(
+        {
+          parsed: result.parsed,
+          language: result.language,
+          confidence: result.confidence,
+          sourceFormat: result.sourceFormat,
+          parseError: result.parseError || null,
+          parseId,
+        },
+        { headers: corsHeaders() },
+      );
     }
 
     if (action === 'score_candidates') {
+      // REAL implementation — replaced the WAVE2-C mock.
+      // Accepts { jobPostingId } and uses each candidate's latest ResumeParse
+      // + the JobPosting's requirements to call ZAI for an overall match score.
       const { jobPostingId } = body;
-      // Generate mock AI scores for candidates
-      const scores = [
-        { candidateId: '1', name: 'Alice Johnson', skillsMatch: 85, experience: 78, education: 90, overall: 84 },
-        { candidateId: '2', name: 'Bob Williams', skillsMatch: 72, experience: 88, education: 75, overall: 78 },
-        { candidateId: '3', name: 'Carol Davis', skillsMatch: 90, experience: 65, education: 80, overall: 79 },
-        { candidateId: '4', name: 'David Brown', skillsMatch: 60, experience: 92, education: 70, overall: 74 },
-      ];
+      if (!jobPostingId) {
+        return NextResponse.json(
+          { error: 'jobPostingId is required for score_candidates' },
+          { status: 400, headers: corsHeaders() },
+        );
+      }
+
+      const job = await db.jobPosting.findUnique({
+        where: { id: jobPostingId },
+        select: {
+          id: true, title: true, description: true, requirements: true,
+          experience: true,
+          applications: {
+            select: {
+              id: true, candidateName: true, candidateEmail: true,
+              resumeParses: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { parsedData: true, language: true, confidence: true },
+              },
+            },
+            take: 50,
+          },
+        },
+      }).catch(() => null);
+
+      if (!job) {
+        return NextResponse.json(
+          { error: 'Job posting not found' },
+          { status: 404, headers: corsHeaders() },
+        );
+      }
+
+      const jobContext = `Job Title: ${job.title}\nExperience: ${job.experience || 'N/A'}\nRequirements: ${job.requirements || job.description || 'N/A'}`;
+
+      const scores: Array<{
+        candidateId: string;
+        name: string;
+        skillsMatch: number;
+        experience: number;
+        education: number;
+        overall: number;
+        rationale?: string;
+      }> = [];
+
+      for (const app of (job.applications || [])) {
+        const latestParse = app.resumeParses?.[0];
+        let parsed: ParsedResume | null = null;
+        try {
+          parsed = latestParse?.parsedData ? JSON.parse(latestParse.parsedData) : null;
+        } catch { parsed = null; }
+
+        // No parsed resume → emit zeroed scores with rationale
+        if (!parsed) {
+          scores.push({
+            candidateId: app.id,
+            name: app.candidateName,
+            skillsMatch: 0,
+            experience: 0,
+            education: 0,
+            overall: 0,
+            rationale: 'No parsed resume available — run parse_resume first.',
+          });
+          continue;
+        }
+
+        // Ask ZAI to score this candidate against the job
+        let skillsMatch = 0, experience = 0, education = 0, overall = 0;
+        let rationale = '';
+        try {
+          const zai = await ZAI.create();
+          const completion = await zai.chat.completions.create({
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a strict JSON-only candidate scoring engine. Return ONLY a JSON object: {"skillsMatch":0-100,"experience":0-100,"education":0-100,"overall":0-100,"rationale":"..."}',
+              },
+              {
+                role: 'user',
+                content: `Score this candidate against the job.\n\n${jobContext}\n\nCandidate Resume JSON:\n${JSON.stringify(parsed).slice(0, 4000)}`,
+              },
+            ],
+            temperature: 0.2,
+            max_tokens: 300,
+          });
+          const content = completion?.choices?.[0]?.message?.content || '';
+          const m = content.match(/\{[\s\S]*\}/);
+          if (m) {
+            const obj = JSON.parse(m[0]);
+            const clamp = (n: unknown) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+            skillsMatch = clamp(obj.skillsMatch);
+            experience = clamp(obj.experience);
+            education = clamp(obj.education);
+            overall = clamp(obj.overall);
+            rationale = typeof obj.rationale === 'string' ? obj.rationale : '';
+          }
+        } catch (e) {
+          console.warn('[recruitment-ai] ZAI scoring failed for', app.id, e);
+          // crude fallback: skills count + experience length
+          skillsMatch = Math.min(100, (parsed.skills?.length || 0) * 10);
+          experience = Math.min(100, (parsed.experience?.length || 0) * 20);
+          education = Math.min(100, (parsed.education?.length || 0) * 25);
+          overall = Math.round((skillsMatch + experience + education) / 3);
+          rationale = 'Local heuristic fallback (ZAI unavailable).';
+        }
+
+        scores.push({
+          candidateId: app.id,
+          name: app.candidateName,
+          skillsMatch,
+          experience,
+          education,
+          overall,
+          rationale,
+        });
+      }
+
+      // Sort by overall score descending
+      scores.sort((a, b) => b.overall - a.overall);
+
       return NextResponse.json({ scores }, { headers: corsHeaders() });
     }
 

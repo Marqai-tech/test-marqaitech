@@ -1286,6 +1286,77 @@ async function main() {
     `ALTER TABLE "WatermarkAccessLog" ADD CONSTRAINT "WatermarkAccessLog_fileId_fkey" FOREIGN KEY ("fileId") REFERENCES "FileNode"("id") ON DELETE CASCADE`,
     `ALTER TABLE "WatermarkAccessLog" DROP CONSTRAINT IF EXISTS "WatermarkAccessLog_userId_fkey"`,
     `ALTER TABLE "WatermarkAccessLog" ADD CONSTRAINT "WatermarkAccessLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Employee"("id") ON DELETE CASCADE`,
+
+    // ─── REQ-ATS-01/02: Real Resume Parser (added 2026-07-15, WAVE2-C) ───
+    `CREATE TABLE IF NOT EXISTS "ResumeParse" (
+      "id" TEXT NOT NULL,
+      "jobApplicationId" TEXT NOT NULL,
+      "rawText" TEXT NOT NULL,
+      "language" TEXT,
+      "parsedData" TEXT NOT NULL,
+      "confidence" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "sourceFormat" TEXT NOT NULL DEFAULT 'unknown',
+      "parseError" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ResumeParse_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "ResumeParse_jobApplicationId_idx" ON "ResumeParse"("jobApplicationId")`,
+    `ALTER TABLE "ResumeParse" DROP CONSTRAINT IF EXISTS "ResumeParse_jobApplicationId_fkey"`,
+    `ALTER TABLE "ResumeParse" ADD CONSTRAINT "ResumeParse_jobApplicationId_fkey" FOREIGN KEY ("jobApplicationId") REFERENCES "JobApplication"("id") ON DELETE CASCADE`,
+
+    // ─── REQ-ATS-02: Candidate Sentiment Scoring (added 2026-07-15, WAVE2-C) ───
+    `CREATE TABLE IF NOT EXISTS "CandidateSentimentScore" (
+      "id" TEXT NOT NULL,
+      "jobApplicationId" TEXT NOT NULL,
+      "sentiment" TEXT NOT NULL DEFAULT 'neutral',
+      "engagementScore" INTEGER NOT NULL DEFAULT 50,
+      "dropoffRisk" INTEGER NOT NULL DEFAULT 50,
+      "rationale" TEXT,
+      "source" TEXT NOT NULL DEFAULT 'chat_screening',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidateSentimentScore_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "CandidateSentimentScore_jobApplicationId_idx" ON "CandidateSentimentScore"("jobApplicationId")`,
+    `ALTER TABLE "CandidateSentimentScore" DROP CONSTRAINT IF EXISTS "CandidateSentimentScore_jobApplicationId_fkey"`,
+    `ALTER TABLE "CandidateSentimentScore" ADD CONSTRAINT "CandidateSentimentScore_jobApplicationId_fkey" FOREIGN KEY ("jobApplicationId") REFERENCES "JobApplication"("id") ON DELETE CASCADE`,
+
+    // ─── REQ-AI-INT-07: Time-Stamped Interview Feedback (added 2026-07-15, WAVE2-C) ───
+    `CREATE TABLE IF NOT EXISTS "InterviewFeedback" (
+      "id" TEXT NOT NULL,
+      "interviewId" TEXT NOT NULL,
+      "interviewerId" TEXT,
+      "interviewerName" TEXT NOT NULL,
+      "timestampSec" INTEGER,
+      "sentiment" TEXT NOT NULL DEFAULT 'neutral',
+      "body" TEXT NOT NULL,
+      "rating" INTEGER,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "InterviewFeedback_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewId_idx" ON "InterviewFeedback"("interviewId")`,
+    `CREATE INDEX IF NOT EXISTS "InterviewFeedback_interviewerId_idx" ON "InterviewFeedback"("interviewerId")`,
+
+    // ─── REQ-SRC-01/02/03: Job board multi-posting + auto-close on hire (added 2026-07-21, WAVE2-E)
+    `CREATE TABLE IF NOT EXISTS "JobBoardPosting" (
+      "id" TEXT NOT NULL,
+      "jobPostingId" TEXT NOT NULL,
+      "board" TEXT NOT NULL,
+      "externalJobId" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "externalUrl" TEXT,
+      "lastSyncPayload" TEXT,
+      "lastSyncedAt" TIMESTAMP(3),
+      "errorMessage" TEXT,
+      "postedAt" TIMESTAMP(3),
+      "closedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "JobBoardPosting_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "JobBoardPosting_jobPostingId_board_key" ON "JobBoardPosting"("jobPostingId", "board")`,
+    `CREATE INDEX IF NOT EXISTS "JobBoardPosting_board_status_idx" ON "JobBoardPosting"("board", "status")`,
+    `ALTER TABLE "JobBoardPosting" DROP CONSTRAINT IF EXISTS "JobBoardPosting_jobPostingId_fkey"`,
+    `ALTER TABLE "JobBoardPosting" ADD CONSTRAINT "JobBoardPosting_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "JobPosting"("id") ON DELETE CASCADE`,
   ];
 
   let applied = 0;

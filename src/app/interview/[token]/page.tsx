@@ -9,6 +9,10 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+/* REQ-SEC-REC-02 — AI Transparency disclaimer (mirrors /careers page) */
+const AI_TRANSPARENCY_TEXT =
+  'You are interacting with an AI system. Your responses and video are being analyzed algorithmically to assess fit. A human recruiter will review this data.';
+
 /* ── Types ── */
 interface SessionDataType {
   id: string; setId: string; candidateName: string; candidateEmail: string;
@@ -51,6 +55,9 @@ export default function CandidateInterviewPage() {
     currentLocation: '', noticePeriod: '',
   });
   const [preScreenSubmitting, setPreScreenSubmitting] = useState(false);
+
+  // REQ-SEC-REC-02 — AI Transparency acknowledgment (must be checked before the candidate can start)
+  const [aiConsentAck, setAiConsentAck] = useState(false);
 
   // Interview state
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'ai' | 'candidate'; content: string; timestamp: string }>>([]);
@@ -111,9 +118,41 @@ export default function CandidateInterviewPage() {
   /* ── Pre-screening submission ── */
   const handlePreScreenSubmit = async () => {
     if (!invitationData) return;
+    if (!aiConsentAck) {
+      toast.error('Please acknowledge the AI consent notice to start the interview');
+      return;
+    }
     setPreScreenSubmitting(true);
 
     try {
+      // REQ-SEC-REC-04 — record ai_evaluation + video_recording consent before the session starts.
+      // The /api/ats/consent route is idempotent: if a prior active consent exists, this is a no-op.
+      // tenantId is best-effort — we don't have it on the candidate side, so we pass the literal 'unknown'
+      // and rely on the recruiter's tenant-admin tooling to reconcile. If the request fails, we still
+      // allow the interview to proceed (the candidate has clicked through, so we honor their intent).
+      await Promise.allSettled([
+        fetch('/api/ats/consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidateEmail: invitationData.candidateEmail,
+            tenantId: 'unknown',
+            purpose: 'ai_evaluation',
+            source: 'email_link',
+          }),
+        }),
+        fetch('/api/ats/consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidateEmail: invitationData.candidateEmail,
+            tenantId: 'unknown',
+            purpose: 'video_recording',
+            source: 'email_link',
+          }),
+        }),
+      ]);
+
       // Create session from invitation
       const sessionRes = await fetch('/api/ai-interview/sessions', {
         method: 'POST',
@@ -301,6 +340,19 @@ export default function CandidateInterviewPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
         <div className="max-w-lg w-full">
+          {/* REQ-SEC-REC-02 — AI Transparency banner (top of candidate interview page) */}
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+            <div className="flex items-start gap-2.5">
+              <FiAlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <FiCpu className="w-3 h-3" /> AI Transparency Notice
+                </p>
+                <p className="text-xs text-amber-900 mt-1 leading-relaxed">{AI_TRANSPARENCY_TEXT}</p>
+              </div>
+            </div>
+          </div>
+
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25">
               <FiCpu className="w-8 h-8 text-white" />
@@ -347,7 +399,23 @@ export default function CandidateInterviewPage() {
               </label>
             </div>
 
-            <button onClick={handlePreScreenSubmit} disabled={preScreenSubmitting || !preScreen.salaryExpectation || !preScreen.currentLocation}
+            {/* REQ-SEC-REC-04 — AI consent checkbox (required to start) */}
+            <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={aiConsentAck} onChange={e => setAiConsentAck(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">I consent to AI analysis of my video and responses</p>
+                  <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
+                    I understand my chat responses, voice, and video will be processed by an AI evaluation
+                    system and reviewed by a human recruiter. This consent is required to start the interview.
+                    You may withdraw it at any time by contacting the hiring team or via the careers portal.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <button onClick={handlePreScreenSubmit} disabled={preScreenSubmitting || !preScreen.salaryExpectation || !preScreen.currentLocation || !aiConsentAck}
               className="w-full py-3.5 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2">
               {preScreenSubmitting ? 'Starting...' : <>Start Interview <FiArrowRight className="w-4 h-4" /></>}
             </button>
@@ -424,6 +492,16 @@ export default function CandidateInterviewPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      {/* REQ-SEC-REC-02 — AI Transparency banner (top of in-progress interview) */}
+      <div className="bg-amber-50/80 border-b border-amber-200 px-4 py-2.5">
+        <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-amber-900">
+          <FiAlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+          <span>
+            <strong>AI Transparency:</strong> {AI_TRANSPARENCY_TEXT}
+          </span>
+        </div>
+      </div>
+
       {/* Top bar */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
