@@ -30,6 +30,9 @@ import {
   FiChevronUp,
   FiInfo,
   FiPercent,
+  FiGlobe,
+  FiUserCheck,
+  FiCpu,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -50,6 +53,7 @@ interface SubModuleTile {
   gradientBg: string;
   iconColor: string;
   ringColor: string;
+  isNew?: boolean;
 }
 
 const subModules: SubModuleTile[] = [
@@ -268,6 +272,47 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-blue-500/10',
     iconColor: 'text-blue-500',
     ringColor: 'ring-blue-500/20',
+  },
+  // ─── Global Payroll Addendum (REQ-7.2, REQ-AI-PAY-01/02/03, REQ-SEC-PAY-02/03/04, REQ-PAY-19/25) ───
+  {
+    title: 'AI Insights',
+    icon: FiCpu,
+    route: '/payroll/ai-insights',
+    description: 'Anomaly detection, compliance alerts, ghost employee detection',
+    gradientBg: 'bg-violet-500/10',
+    iconColor: 'text-violet-500',
+    ringColor: 'ring-violet-500/20',
+    isNew: true,
+  },
+  {
+    title: 'Payroll Approvals',
+    icon: FiUserCheck,
+    route: '/payroll/approvals',
+    description: 'Approval workflow with Segregation of Duties enforcement',
+    gradientBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-500',
+    ringColor: 'ring-emerald-500/20',
+    isNew: true,
+  },
+  {
+    title: 'Group Dashboard',
+    icon: FiGlobe,
+    route: '/payroll/group-dashboard',
+    description: 'Consolidated group payroll + statutory filing oversight (Red/Amber/Green)',
+    gradientBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-500',
+    ringColor: 'ring-cyan-500/20',
+    isNew: true,
+  },
+  {
+    title: 'Cross-Border Secondment',
+    icon: FiGlobe,
+    route: '/payroll/secondment',
+    description: 'Manage employees seconded across countries with split pay & SS coverage',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
+    isNew: true,
   },
 ];
 
@@ -805,8 +850,9 @@ export default function PayrollManagementPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-sm font-semibold text-nexus-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
                         {tile.title}
+                        {tile.isNew && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-violet-100 text-violet-700 uppercase tracking-wide">New</span>}
                       </h3>
                       <FiArrowRight className="w-4 h-4 text-nexus-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />
                     </div>

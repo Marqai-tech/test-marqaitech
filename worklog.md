@@ -1411,3 +1411,45 @@ Stage Summary:
   * REQ-ONB-03 (multilingual onboarding wizard) — onboarding steps can be localized
   * REQ-PER-03 (multi-language performance reviews) — review forms + 360 feedback support multiple languages
   * REQ-EXIT-05 (digital exit interview forms) — exit interview forms can be presented in the employee's preferred language
+
+---
+Task ID: 12
+Agent: main (Super Z)
+Task: Audit payroll module against Global Integrated Payroll SRS Addendum and implement all missing requirements (REQ-PAY-07/19/25, REQ-7.2, REQ-AI-PAY-01/02/03, REQ-SEC-PAY-02/03/04)
+
+Work Log:
+- Audited existing payroll module: 55 API endpoints + 24 UI pages already in place (components, statutory, tax-slabs, payroll-runs, currency, dimensions, compliance, gl-mappings, definitions, salary-settings, payment-methods, payslips, loans, overtime, F&F, holds, validations, bank-files, gratuity, ctc-calculator, ctc-templates, income-tax, inputs, reports)
+- Confirmed existing schema already covers: REQ-PAY-01/02/03/04/05 (inputs, fnf), REQ-PAY-06 (definitions with multi-frequency), REQ-PAY-08/09 (currency/exchange-rates), REQ-PAY-10/11/12 (components, transaction lines), REQ-PAY-13/14/16/17 (slabs, statutory components with wage ceiling), REQ-PAY-18 (overtime), REQ-PAY-20/21 (compliance filings, payslips), REQ-PAY-22 (bank-files), REQ-PAY-23/24 (gl-mappings + dimensions), REQ-SEC-PAY-01 (payment-methods with masking)
+- Identified GAPS: REQ-PAY-07 (explicit lock/unlock audit), REQ-PAY-19 (minimum wage), REQ-PAY-25 (inter-company JEs), REQ-7.2 (group dashboard, approvals, secondment, filing oversight), REQ-AI-PAY-01/02/03 (anomaly/compliance/ghost), REQ-SEC-PAY-02 (SoD), REQ-SEC-PAY-03 (immutable adjustment log), REQ-SEC-PAY-04 (data residency)
+- Added 9 new Prisma models: PayrollLockRequest, PayrollApproval, PayrollAdjustmentLog, PayrollAnomaly, ComplianceChangeAlert, GhostEmployeeFlag, CrossBorderSecondment, MinimumWageConfig, DataResidencyPolicy — plus back-relation fields on PayrollRun, Company, Employee
+- Extended scripts/schema-sync.js with CREATE TABLE IF NOT EXISTS statements for all 9 new tables + FK constraints for payrollRunId relations (idempotent re-runs)
+- Ran prisma generate — schema validates, client generated cleanly
+- Built 12 new API endpoints (all route.ts):
+  * /api/payroll/ai/anomalies (GET/PATCH + scan=true) — REQ-AI-PAY-01: statistical + rule-based detection of NET_PAY_SPIKE, OT_SPIKE, GROSS_DROP, TAX_ZERO, DUPLICATE_BANK, MIN_WAGE_BREACH
+  * /api/payroll/ai/compliance-alerts (GET/POST/PATCH + seed=true) — REQ-AI-PAY-02: 7 demo alerts seeded (US/GB/CA/IN/AE/DE)
+  * /api/payroll/ai/ghost-employees (GET/PATCH + scan=true) — REQ-AI-PAY-03: cross-references Timesheet + ProjectAllocation, computes 0-100 risk score
+  * /api/payroll/approvals (GET/POST/PATCH) — REQ-7.2 + REQ-SEC-PAY-02: 3-stage workflow (CALCULATION_REVIEW, DISBURSEMENT_APPROVAL, POST_DISBURSEMENT_AUDIT) with runtime SoD check (requester ≠ approver) and role match verification
+  * /api/payroll/lock-requests (GET/POST/PATCH) — REQ-PAY-07: PENDING → APPROVED → EXECUTED workflow, only super_admin/tenant_admin can approve, re-opens run on approve + re-locks on execute
+  * /api/payroll/adjustment-log (GET/POST, NO PATCH/DELETE) — REQ-SEC-PAY-03: immutable audit with mandatory reasonText (≥10 chars), auto-captures IP + User-Agent
+  * /api/payroll/group-dashboard (GET) — REQ-7.2: consolidates all sub-companies to tenant base currency using locked FX rates, counts pending approvals/locks/anomalies
+  * /api/payroll/statutory-filing-oversight (GET) — REQ-7.2: Red/Amber/Green traffic light per company per obligation, parses dueDateRule (D+15, EOM+N)
+  * /api/payroll/secondments (GET/POST/PATCH) — REQ-7.2: cross-border mobility with CoC reference, tax residency status, SS coverage country, home/host pay split (must sum to 100%)
+  * /api/payroll/minimum-wage (GET/POST/PATCH) — REQ-PAY-19: per-country/region minimum wage config consumed by anomaly detector
+  * /api/payroll/intercompany (GET) — REQ-PAY-25: computes inter-company JEs from PayrollTransactionLine.dimensionSplitJson + EmployeeDimensionAllocation, generates Dr Project Cost / Cr Inter-company Payable proposals
+  * /api/payroll/data-residency (GET/POST/PATCH) — REQ-SEC-PAY-04: per-company allowedRegions/primaryRegion policy with GDPR legal basis field; exports checkResidencyCompliance() helper for runtime enforcement
+- Built 4 new UI pages (all client components with nexus-card styling, toast notifications, auth-header pattern matching existing payroll pages):
+  * /payroll/ai-insights — single page with 3 tabs (Anomalies / Compliance Alerts / Ghost Employees), summary cards, scan trigger, status update actions
+  * /payroll/approvals — pending approvals list with SoD notice, approve/reject actions, mandatory rejection reason
+  * /payroll/group-dashboard — consolidated group liability in base currency, per-company table with FX rates, statutory filing oversight Red/Amber/Green panel
+  * /payroll/secondment — secondment list + create modal with home/host company selectors, pay split slider, CoC reference, tax residency + SS coverage dropdowns
+- Updated /payroll/page.tsx: extended SubModuleTile interface with isNew?, added 4 new module cards (AI Insights, Payroll Approvals, Group Dashboard, Cross-Border Secondment) with New badge
+- Verified: npx tsc --noEmit --skipLibCheck passes (no errors in any new file); npx next build succeeds — 12 new API routes + 4 new pages compiled, 0 errors
+
+Stage Summary:
+- ALL missing Global Payroll SRS Addendum requirements now implemented end-to-end
+- Schema additions are ADDITIVE (only CREATE TABLE IF NOT EXISTS + ALTER ADD COLUMN IF NOT EXISTS) — no risk to existing 55 endpoints
+- Production deployment path: Vercel build runs scripts/schema-sync.js automatically (per vercel.json) which will create the 9 new tables on the PostgreSQL database
+- AI detection engine is fully functional without external ML services (uses statistical + rule-based methods); schema supports ML_MODEL/HYBRID for future enhancement
+- SoD enforcement happens at TWO layers: runtime check (API refuses to approve) + audit record (sodConflictFlag + sodCheckedAt captured at approval time)
+- Adjustment log is truly immutable (no PATCH/DELETE route exposed; schema has only createdAt, no updatedAt)
+- All 4 new UI pages follow existing payroll page conventions (auth headers, nexus-card, toast, icon set) for visual consistency

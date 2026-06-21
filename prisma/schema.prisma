@@ -173,6 +173,13 @@ model Company {
   invoices        Invoice[]
   okrs            OKR[]
 
+  // ─── Global Payroll Addendum back-references ───
+  payrollRuns           PayrollRun[]
+  dataResidencyPolicy   DataResidencyPolicy?
+  minimumWageConfigs    MinimumWageConfig[]
+  payrollAnomalies      PayrollAnomaly[]
+  ghostEmployeeFlags    GhostEmployeeFlag[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -373,6 +380,12 @@ model Employee {
   transactionLines  PayrollTransactionLine[]
   payrollInputs     PayrollInput[]
   taxDeclarations   IncomeTaxDeclaration[]
+
+  // ─── Global Payroll Addendum back-references (REQ-AI-PAY-01/03, REQ-7.2) ───
+  payrollAdjustmentLogs  PayrollAdjustmentLog[]
+  payrollAnomalies       PayrollAnomaly[]
+  ghostEmployeeFlags     GhostEmployeeFlag[]
+  crossBorderSecondments CrossBorderSecondment[]
 
   // ─── P0 fix back-references (added 2026-06-20) ───
   exitRequests      ExitRequest[]
@@ -2758,6 +2771,13 @@ model PayrollRun {
   totalNetPay         Float    @default(0)
   totalEmployerContrib Float   @default(0)
 
+  // Lock / approval / audit trail (REQ-PAY-07, REQ-7.2, REQ-SEC-PAY-02/03, REQ-AI-PAY-01/03)
+  lockRequests         PayrollLockRequest[]
+  approvals            PayrollApproval[]
+  anomalies            PayrollAnomaly[]
+  ghostEmployeeFlags   GhostEmployeeFlag[]
+  company              Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
   transactionLines    PayrollTransactionLine[]
   payrollInputs       PayrollInput[]
   complianceFilings   ComplianceFiling[]
@@ -3289,3 +3309,313 @@ model InvoiceLineItem {
   @@index([projectId])
   @@index([employeeId])
 }
+
+// ============ GLOBAL PAYROLL ADDENDUM (REQ-PAY-07, REQ-7.2, REQ-AI-PAY-01/02/03, REQ-SEC-PAY-02/03/04, REQ-PAY-19/25) ============
+//
+// These models implement the "Global Integrated Payroll & Statutory Compliance"
+// addendum. They layer ON TOP of the existing PayrollComponent / StatutoryComponent
+// / PayrollRun / PayrollTransactionLine / ComplianceFiling infrastructure that
+// was already in the schema (Sections 4.x above). They add the missing pieces:
+//   • Payroll approval workflow + Segregation-of-Duties enforcement
+//   • Immutable audit trail for every manual adjustment
+//   • Lock period + formal unlock / re-run requests with audit
+//   • AI anomaly detection, statutory-change tracking, ghost-employee detection
+//   • Group-level consolidated dashboard support
+//   • Cross-border secondment tracking
+//   • Localized minimum-wage validation rules
+//   • Data-residency policy per company (GDPR / data-localization)
+
+// ─── REQ-PAY-07: Payroll lock & formal unlock / re-run requests ───
+// Once a cycle is CLOSED, the underlying transaction lines are immutable.
+// Any change requires a PayrollLockRequest, which must be approved by a
+// Super Admin or Tenant Admin before the cycle is re-opened. The full
+// request + approval trail is retained for audit.
+model PayrollLockRequest {
+  id              String   @id @default(cuid())
+  payrollRunId    String
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  requestType     String   // UNLOCK_FOR_RERUN, UNLOCK_FOR_ADJUSTMENT, CORRECTION_RERUN
+  reasonCategory  String   // DATA_ERROR, SYSTEM_ERROR, STATUTORY_CHANGE, OTHER
+  reasonText      String
+  requestedBy     String
+  requestedAt     DateTime @default(now())
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED, EXECUTED, CANCELLED
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewComments  String?
+  executedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([payrollRunId])
+  @@index([status])
+  @@index([requestedBy])
+}
+
+// ─── REQ-7.2 + REQ-SEC-PAY-02: Payroll approval workflow + SoD ───
+// Sub-companies run their local payroll (runStatus = REVIEW), but the bank
+// disbursement file cannot be released until the Tenant Admin approves.
+// The same user who calculated the run cannot approve it — enforced both
+// in the API and by the SoD check below.
+model PayrollApproval {
+  id              String   @id @default(cuid())
+  payrollRunId    String
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  approvalStage   String   // CALCULATION_REVIEW, DISBURSEMENT_APPROVAL, POST_DISBURSEMENT_AUDIT
+  requestedBy     String
+  requestedAt     DateTime @default(now())
+  approverRole    String   // tenant_admin, super_admin, finance_controller
+  approverUserId  String?
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED, WITHDRAWN
+  approvedAt      DateTime?
+  rejectionReason String?
+  approvalNotes   String?
+
+  // SoD proof — captured at approval time so the audit record cannot be
+  // invalidated by a later role change on the requesting user.
+  sodConflictFlag Boolean  @default(false)
+  sodCheckedAt    DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([payrollRunId])
+  @@index([status])
+  @@index([approverRole])
+}
+
+// ─── REQ-SEC-PAY-03: Immutable audit trail for manual adjustments ───
+// Every manual bonus, tax override, deduction override, etc. writes exactly
+// one row here. reasonText is MANDATORY. beforeValue/afterValue let a
+// reviewer reconstruct the original state. Rows are never updated or
+// deleted (enforced at the API layer — no PATCH/DELETE route is exposed).
+model PayrollAdjustmentLog {
+  id              String   @id @default(cuid())
+  payrollRunId    String?
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  transactionLineId String?
+  componentCode   String
+  adjustmentType  String   // MANUAL_BONUS, TAX_OVERRIDE, DEDUCTION_OVERRIDE, RATE_OVERRIDE, INPUT_ADJUSTMENT, REVERSAL
+  beforeValue     Float?
+  afterValue      Float?
+  delta           Float?
+  currencyCode    String   @default("INR")
+  reasonText      String   // MANDATORY — cannot be empty (API-enforced)
+  reasonCategory  String   @default("MANUAL") // MANUAL, STATUTORY_CORRECTION, GRIEVANCE, AUDIT_FINDING, COURT_ORDER
+  adjustedBy      String
+  adjustedAt      DateTime @default(now())
+  approvedBy      String?  // If adjustment required approval (e.g. above threshold)
+  ipAddress       String?
+  userAgent       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@index([componentCode])
+  @@index([adjustedBy])
+  @@index([adjustedAt])
+}
+
+// ─── REQ-AI-PAY-01: AI anomaly detection ───
+// Produced by the AI payroll monitor (could be a scheduled job, an
+// embedding-based outlier detector, or rule-based heuristics). Each row
+// is one detected anomaly for one employee/run. Status workflow lets
+// the payroll admin acknowledge / dismiss / investigate each flag.
+model PayrollAnomaly {
+  id              String   @id @default(cuid())
+  payrollRunId    String?
+  payrollRun      PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
+  employeeId      String?
+  employee        Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  anomalyType     String   // NET_PAY_SPIKE, OT_SPIKE, GROSS_DROP, TAX_ZERO, DUPLICATE_BANK, COMPONENT_NEW, MIN_WAGE_BREACH
+  severity        String   @default("HIGH") // LOW, MEDIUM, HIGH, CRITICAL
+  metricName      String?  // e.g. "net_pay_pct_change"
+  observedValue   Float?
+  baselineValue   Float?
+  deviationPct    Float?
+  detectionMethod String   @default("STATISTICAL") // STATISTICAL, ML_MODEL, RULE_BASED, HYBRID
+  description     String
+  evidenceJson    String?  // supporting data (prior periods, sibling averages, etc.)
+  status          String   @default("OPEN") // OPEN, ACKNOWLEDGED, INVESTIGATING, RESOLVED, FALSE_POSITIVE
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  resolutionNotes String?
+
+  detectedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@index([anomalyType])
+  @@index([status])
+  @@index([severity])
+  @@index([companyId])
+}
+
+// ─── REQ-AI-PAY-02: Statutory compliance change tracking ───
+// Periodically scraped / ingested from tax authority websites or legal
+// feeds. Surfaces upcoming changes to Tenant Admin so they can update
+// the rules engine before the effective date.
+model ComplianceChangeAlert {
+  id              String   @id @default(cuid())
+  countryCode     String
+  authorityName   String
+  changeType      String   // TAX_SLAB_CHANGE, SS_RATE_CHANGE, WAGE_CAP_CHANGE, FILING_FORMAT_CHANGE, NEW_OBLIGATION, MINIMUM_WAGE_CHANGE
+  title           String
+  description     String
+  sourceUrl       String?
+  sourceName      String?
+  effectiveDate   DateTime
+  announcedDate   DateTime @default(now())
+  impactLevel     String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  affectedComponents String? // JSON array of PayrollComponent codes
+  status          String   @default("NEW") // NEW, ACKNOWLEDGED, IN_REVIEW, APPLIED, IGNORED
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  appliedBy       String?
+  appliedAt       DateTime?
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([countryCode])
+  @@index([effectiveDate])
+  @@index([status])
+  @@index([impactLevel])
+}
+
+// ─── REQ-AI-PAY-03: Ghost employee detection ───
+// Cross-references active payroll against Timesheet + active-directory
+// activity logs. A flag with zero timesheet hours AND zero IT logins
+// during the payroll period is a candidate "ghost employee" (could be
+// fraud, or could be a legitimate bench resource — needs human review).
+model GhostEmployeeFlag {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payrollRunId    String?
+  payrollRun      PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
+  payrollPeriod   String   // e.g. "2026-06"
+  timesheetHours  Float    @default(0)
+  adLoginCount    Int      @default(0)
+  emailSentCount  Int      @default(0)
+  hasProjectAllocation Boolean @default(false)
+  lastActiveDate  DateTime?
+  riskScore       Float    @default(0) // 0..100
+  riskFactors     String?  // JSON array of factor codes
+  status          String   @default("OPEN") // OPEN, INVESTIGATING, CONFIRMED_FRAUD, CONFIRMED_BENCH, FALSE_POSITIVE
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  resolutionNotes String?
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  detectedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([payrollRunId])
+  @@index([status])
+  @@index([riskScore])
+  @@index([companyId])
+}
+
+// ─── REQ-7.2: Cross-border mobility / secondment ───
+// Tracks employees seconded to a host country while keeping their home
+// country social security active (e.g. via a Certificate of Coverage /
+// Totalization Agreement). The payroll engine uses this to decide which
+// statutory components apply in the host vs. home country.
+model CrossBorderSecondment {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  homeCompanyId   String
+  hostCompanyId   String
+  homeCountry     String
+  hostCountry     String
+  startDate       DateTime
+  endDate         DateTime?
+  certificateRef  String?  // e.g. CoC / A1 certificate number
+  taxResidencyStatus String @default("HOME") // HOME, HOST, SPLIT_YEAR, TRC_PENDING
+  ssCoverageCountry String @default("HOME") // HOME, HOST, NONE
+  homePayPct      Float    @default(100) // % of salary paid via home payroll
+  hostPayPct      Float    @default(0)
+  homeCurrency    String
+  hostCurrency    String
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([homeCompanyId])
+  @@index([hostCompanyId])
+  @@index([status])
+}
+
+// ─── REQ-PAY-19: Minimum wage validation rules ───
+// Per-country (and optionally per-state/region) minimum wage config.
+// The payroll validation engine compares the calculated gross against
+// the configured floor and flags breaches via PayrollAnomaly rows.
+model MinimumWageConfig {
+  id              String   @id @default(cuid())
+  countryCode     String
+  regionCode      String?  // e.g. US state code, India state — null = national default
+  wageType        String   @default("MONTHLY") // MONTHLY, DAILY, HOURLY
+  minimumAmount   Float
+  currencyCode    String
+  effectiveFrom   DateTime @default(now())
+  effectiveTo     DateTime?
+  applicability   String   @default("ALL") // ALL, SKILLED, SEMI_SKILLED, UNSKILLED, APPRENTICE
+  sourceName      String?
+  sourceUrl       String?
+  companyId       String?
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([countryCode])
+  @@index([regionCode])
+  @@index([effectiveFrom])
+}
+
+// ─── REQ-SEC-PAY-04: Data residency / localization policy ───
+// Per-company policy that controls where payroll processing logic is
+// permitted to execute. Enforced at the API layer (the payroll run API
+// checks the company's residency policy and refuses to execute if the
+// request originates from a non-compliant region).
+model DataResidencyPolicy {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  allowedRegions  String   // JSON array: e.g. ["eu-west-1", "eu-central-1"]
+  primaryRegion   String   // Region where the payroll batch MUST execute
+  replicationAllowed Boolean @default(false) // If false, data must NOT replicate to other regions
+  piiFieldsMasked Boolean  @default(true)
+  crossBorderTransferApproved Boolean @default(false)
+  legalBasis       String? // e.g. "GDPR Art. 49", "SCCs", "Adequacy decision"
+  policyDocumentUrl String?
+  reviewedAt       DateTime?
+  reviewedBy       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// Add relation back-references onto existing PayrollRun so the new models
+// are queryable from the run side as well. (Prisma already supports the
+// reverse direction implicitly via the FK columns above; this just makes
+// the include() API cleaner.)
