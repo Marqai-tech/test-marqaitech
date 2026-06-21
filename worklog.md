@@ -1928,3 +1928,27 @@ Stage Summary:
 - Multi-country time sync: punch day-bucketing now respects employee timezone (Bangalore 9 AM IST on the 21st is correctly recorded on the 21st, not the 20th in UTC)
 - Auto-approval engine now covers Permission + Overtime + Gatepass; Leave evaluator ready (just needs UI wiring)
 - All Tenant.baseCurrency defaults are INR; runtime API defaults are INR (seed scripts intentionally multi-currency)
+
+---
+Task ID: attendance-fix-final
+Agent: Main (Super Z)
+Task: Fix Vercel build failure + Attendance/Leave/Payroll module errors (user reported all sub-forms throwing errors after prior deploy)
+
+Work Log:
+- Investigated Vercel build error: "npx prisma generate && python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js && npx next build" exited with 1
+- Root cause #1: scripts/gen-missing-tables.py used hardcoded absolute paths (/home/z/my-project/...) that don't exist on Vercel's build environment
+- Fix #1: Replaced with Path(__file__).resolve().parent.parent / ... relative paths (commit 8bdffe5)
+- After first deploy, most attendance/leave/payroll APIs returned 200, but two attendance endpoints (regularize, audit-log) still returned HTTP 500 with Prisma error: "Invalid prisma.X.findMany() invocation: The column (not available) does not exist in the current database"
+- Root cause #2: CREATE TABLE IF NOT EXISTS does not add new columns to existing tables. If a previous Vercel deploy created AttendanceRegularization / AttendanceAuditLog / HourlyPermission / Gatepass / OvertimeRequest / CompOffLeave / BurnoutFlag / LeaveEncashmentRequest with fewer columns than schema.prisma expects, the new schema-sync just skipped those tables, leaving them with the old column set
+- Fix #2: Added explicit ALTER TABLE ADD COLUMN IF NOT EXISTS statements for every column on each affected table (commit 220e7d5)
+- Also verified Sidebar.tsx already has 3 separate top-level menus: Attendance, Leave, Timesheets (was done in prior session, build failure was preventing user from seeing it)
+
+Stage Summary:
+- Two commits pushed to origin/main: 8bdffe5 (relative paths) + 220e7d5 (column backfill) + 24065da (cleanup)
+- Vercel deployment now succeeds — all 40+ sub-pages return HTTP 200
+- All attendance APIs: HTTP 200 (regularize, permission, gatepass, overtime-request, comp-off, geofence, burnout, audit-log)
+- All leave APIs: HTTP 200 (balance, encashment)
+- All payroll APIs: HTTP 200 (approvals, bank-files, compliance-filings, ctc-templates, exchange-rates, fnf, payment-methods, payslips, tax-slabs, gl-mappings, lock-requests, gratuity)
+- Timesheets API: HTTP 200
+- Sidebar: Attendance / Leave / Timesheets are 3 separate menus (verified in src/components/Sidebar.tsx lines 165-197)
+- Production URL: https://nexus-hrms-mu.vercel.app
