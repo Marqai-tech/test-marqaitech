@@ -163,8 +163,8 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    key: 'time-attendance',
-    label: 'Time & Attendance',
+    key: 'attendance',
+    label: 'Attendance',
     items: [
       { label: 'Attendance', href: '/attendance', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-5 h-5" />, moduleKey: 'attendance' },
@@ -173,12 +173,25 @@ const navSections: NavSection[] = [
       { label: 'Overtime Requests', href: '/attendance/overtime', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Comp-Off Balance', href: '/attendance/comp-off', icon: <FiGift className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-5 h-5" />, moduleKey: 'attendance' },
+      { label: 'Biometric Devices', href: '/attendance/biometric', icon: <FiShield className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Burnout Analytics', href: '/attendance/burnout', icon: <FiActivity className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Audit Trail', href: '/attendance/audit-log', icon: <FiLock className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Policy Config', href: '/attendance/policy-config', icon: <FiSettings className="w-5 h-5" />, moduleKey: 'attendance' },
+    ],
+  },
+  {
+    key: 'leave',
+    label: 'Leave',
+    items: [
       { label: 'Leave Management', href: '/leave', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'leave' },
       { label: 'Optional Holidays', href: '/leave/optional-holidays', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'leave' },
+    ],
+  },
+  {
+    key: 'timesheet',
+    label: 'Timesheets',
+    items: [
       { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-5 h-5" />, moduleKey: 'attendance' },
     ],
   },

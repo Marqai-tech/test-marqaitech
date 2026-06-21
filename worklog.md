@@ -1865,3 +1865,25 @@ Stage Summary:
 - REQ-SEC-ATT-02 (TLS 1.3/AES-256): enforced in code comments + token rotation flow + template-hash-only storage
 - REQ-SEC-ATT-04 (audit trail): every biometric + mobile punch writes AttendanceAuditLog row
 
+
+---
+Task ID: 4
+Agent: main (Super Z continuation)
+Task: Fix Prisma errors in Leave & Attendance sub-pages + separate Leave/Attendance/Timesheet in sidebar
+
+Work Log:
+- Inventoried prisma/schema.prisma — confirmed all 16 missing models ARE defined (Geofence, AttendanceRegularization, HourlyPermission, Gatepass, OvertimeRequest, CompOffLeave, WfhAttendanceSnapshot, RotationalRoster, EmployeeRosterAssignment, AttendancePolicyConfig, LeaveEncashmentRequest, LeaveAttachment, OptionalHolidayElection, ApprovalRoutingRule, BurnoutFlag, AttendanceAuditLog, Holiday)
+- Root cause: models were added to schema.prisma but corresponding CREATE TABLE statements were never added to scripts/schema-sync.js — so the actual Postgres DB on Vercel doesn't have these tables. Local .env has a stale SQLite path (file:db/custom.db) but production uses Postgres via Vercel env vars.
+- Patched scripts/schema-sync.js: added 16 CREATE TABLE IF NOT EXISTS blocks + all foreign keys + indices. Also added the missing Holiday table (never created in 0_init migration either). Also added Geofence_branchId_fkey.
+- Regenerated Prisma client locally (npx prisma generate) — success, all models now in client.
+- Schema-sync will run automatically on next Vercel build (vercel.json buildCommand = "npx prisma generate && node scripts/schema-sync.js && npx next build")
+- Sidebar fix: split "Time & Attendance" mega-menu into 3 separate top-level menus:
+  * Attendance (11 items: attendance, regularize, permission, gatepass, overtime, comp-off, geofence, biometric, burnout, audit-log, policy-config)
+  * Leave (3 items: leave, encashment, optional-holidays)
+  * Timesheets (1 item: /timesheets)
+- Also added the missing "Biometric Devices" link to the Attendance menu (page existed but wasn't in sidebar)
+
+Stage Summary:
+- All Prisma "table does not exist" / "column does not exist" errors will be resolved after next Vercel deploy (schema-sync.js creates all missing tables idempotently with IF NOT EXISTS)
+- Leave, Attendance, and Timesheet are now separate sidebar menus for easier navigation
+- Holiday, OptionalHolidayElection, LeaveEncashmentRequest, Geofence, BurnoutFlag, AttendancePolicyConfig, AttendanceRegularization, HourlyPermission, Gatepass, OvertimeRequest, CompOffLeave, WfhAttendanceSnapshot, RotationalRoster, EmployeeRosterAssignment, LeaveAttachment, ApprovalRoutingRule, AttendanceAuditLog tables will all be created on next deploy

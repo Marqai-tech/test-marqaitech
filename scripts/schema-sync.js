@@ -690,6 +690,354 @@ async function main() {
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "AttendanceAiThreshold_pkey" PRIMARY KEY ("id")
     )`,
+
+    // ─── Holiday Calendar (REQ-CFG-04, REQ-CFG-05) ───
+    // NOTE: This table was missing from the 0_init migration and never created.
+    `CREATE TABLE IF NOT EXISTS "Holiday" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "date" TIMESTAMP(3) NOT NULL,
+      "type" TEXT NOT NULL DEFAULT 'public',
+      "country" TEXT,
+      "description" TEXT,
+      "isOptional" BOOLEAN NOT NULL DEFAULT false,
+      "optionalQuota" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Holiday_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "Holiday_date_idx" ON "Holiday"("date")`,
+    `CREATE INDEX IF NOT EXISTS "Holiday_type_idx" ON "Holiday"("type")`,
+    `CREATE INDEX IF NOT EXISTS "Holiday_country_idx" ON "Holiday"("country")`,
+
+    // ─── Geofence (REQ-ATT-04) — dynamic polygon/circle geofences ───
+    `CREATE TABLE IF NOT EXISTS "Geofence" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "branchId" TEXT,
+      "polygon" JSONB NOT NULL,
+      "centerLat" DOUBLE PRECISION NOT NULL,
+      "centerLng" DOUBLE PRECISION NOT NULL,
+      "radiusMeters" INTEGER NOT NULL DEFAULT 200,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Geofence_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "Geofence_branchId_idx" ON "Geofence"("branchId")`,
+    `CREATE INDEX IF NOT EXISTS "Geofence_isActive_idx" ON "Geofence"("isActive")`,
+
+    // ─── Attendance Regularization (REQ-REG-01..03) ───
+    `CREATE TABLE IF NOT EXISTS "AttendanceRegularization" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "date" TIMESTAMP(3) NOT NULL,
+      "punchType" TEXT NOT NULL,
+      "requestedTime" TIMESTAMP(3) NOT NULL,
+      "reason" TEXT NOT NULL,
+      "aiSuggestedTime" TIMESTAMP(3),
+      "aiConfidence" DOUBLE PRECISION,
+      "isWeekend" BOOLEAN NOT NULL DEFAULT false,
+      "isHoliday" BOOLEAN NOT NULL DEFAULT false,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "approvedBy" TEXT,
+      "approvedAt" TIMESTAMP(3),
+      "comments" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AttendanceRegularization_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_employeeId_idx" ON "AttendanceRegularization"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceRegularization_status_idx" ON "AttendanceRegularization"("status")`,
+    `ALTER TABLE "AttendanceRegularization" DROP CONSTRAINT IF EXISTS "AttendanceRegularization_employeeId_fkey"`,
+    `ALTER TABLE "AttendanceRegularization" ADD CONSTRAINT "AttendanceRegularization_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Hourly Permission / Short-Leave (REQ-PERM-01..02) ───
+    `CREATE TABLE IF NOT EXISTS "HourlyPermission" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "date" TIMESTAMP(3) NOT NULL,
+      "startTime" TIMESTAMP(3) NOT NULL,
+      "endTime" TIMESTAMP(3) NOT NULL,
+      "hours" DOUBLE PRECISION NOT NULL,
+      "reason" TEXT NOT NULL,
+      "adjustedCheckOut" TIMESTAMP(3),
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "approvedBy" TEXT,
+      "approvedAt" TIMESTAMP(3),
+      "autoApproved" BOOLEAN NOT NULL DEFAULT false,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "HourlyPermission_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "HourlyPermission_employeeId_idx" ON "HourlyPermission"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "HourlyPermission_status_idx" ON "HourlyPermission"("status")`,
+    `CREATE INDEX IF NOT EXISTS "HourlyPermission_date_idx" ON "HourlyPermission"("date")`,
+    `ALTER TABLE "HourlyPermission" DROP CONSTRAINT IF EXISTS "HourlyPermission_employeeId_fkey"`,
+    `ALTER TABLE "HourlyPermission" ADD CONSTRAINT "HourlyPermission_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Gatepass (REQ-GATE-01..02) ───
+    `CREATE TABLE IF NOT EXISTS "Gatepass" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT,
+      "visitorName" TEXT,
+      "visitorCompany" TEXT,
+      "visitorPhone" TEXT,
+      "projectId" TEXT,
+      "type" TEXT NOT NULL,
+      "requestedAt" TIMESTAMP(3) NOT NULL,
+      "actualOutTime" TIMESTAMP(3),
+      "actualInTime" TIMESTAMP(3),
+      "managerStatus" TEXT NOT NULL DEFAULT 'pending',
+      "managerApprovedBy" TEXT,
+      "managerApprovedAt" TIMESTAMP(3),
+      "securityStatus" TEXT NOT NULL DEFAULT 'pending',
+      "securityApprovedBy" TEXT,
+      "securityApprovedAt" TIMESTAMP(3),
+      "gateOpenedAt" TIMESTAMP(3),
+      "reason" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Gatepass_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "Gatepass_employeeId_idx" ON "Gatepass"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "Gatepass_status_idx" ON "Gatepass"("status")`,
+    `CREATE INDEX IF NOT EXISTS "Gatepass_requestedAt_idx" ON "Gatepass"("requestedAt")`,
+    `ALTER TABLE "Gatepass" DROP CONSTRAINT IF EXISTS "Gatepass_employeeId_fkey"`,
+    `ALTER TABLE "Gatepass" ADD CONSTRAINT "Gatepass_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    // ─── Overtime Request (REQ-OT-02..03) — pre-OT approval ───
+    `CREATE TABLE IF NOT EXISTS "OvertimeRequest" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "date" TIMESTAMP(3) NOT NULL,
+      "startTime" TIMESTAMP(3) NOT NULL,
+      "endTime" TIMESTAMP(3) NOT NULL,
+      "estimatedHours" DOUBLE PRECISION NOT NULL,
+      "reason" TEXT NOT NULL,
+      "projectId" TEXT,
+      "payoutPreference" TEXT NOT NULL DEFAULT 'payout',
+      "compOffCreditedId" TEXT,
+      "compOffCreditedAt" TIMESTAMP(3),
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "approvedBy" TEXT,
+      "approvedAt" TIMESTAMP(3),
+      "comments" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OvertimeRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "OvertimeRequest_employeeId_idx" ON "OvertimeRequest"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "OvertimeRequest_status_idx" ON "OvertimeRequest"("status")`,
+    `CREATE INDEX IF NOT EXISTS "OvertimeRequest_date_idx" ON "OvertimeRequest"("date")`,
+    `ALTER TABLE "OvertimeRequest" DROP CONSTRAINT IF EXISTS "OvertimeRequest_employeeId_fkey"`,
+    `ALTER TABLE "OvertimeRequest" ADD CONSTRAINT "OvertimeRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Comp-Off Leave (REQ-OT-03) ───
+    `CREATE TABLE IF NOT EXISTS "CompOffLeave" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "earnedDate" TIMESTAMP(3) NOT NULL,
+      "hours" DOUBLE PRECISION NOT NULL,
+      "source" TEXT NOT NULL DEFAULT 'overtime',
+      "sourceOvertimeRequestId" TEXT,
+      "expiryDate" TIMESTAMP(3),
+      "used" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CompOffLeave_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "CompOffLeave_employeeId_idx" ON "CompOffLeave"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "CompOffLeave_status_idx" ON "CompOffLeave"("status")`,
+    `ALTER TABLE "CompOffLeave" DROP CONSTRAINT IF EXISTS "CompOffLeave_employeeId_fkey"`,
+    `ALTER TABLE "CompOffLeave" ADD CONSTRAINT "CompOffLeave_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── WFH Attendance Snapshot (REQ-ATT-06, REQ-SEC-ATT-01) ───
+    `CREATE TABLE IF NOT EXISTS "WfhAttendanceSnapshot" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "date" TIMESTAMP(3) NOT NULL,
+      "punchType" TEXT NOT NULL,
+      "punchTime" TIMESTAMP(3) NOT NULL,
+      "latitude" DOUBLE PRECISION NOT NULL,
+      "longitude" DOUBLE PRECISION NOT NULL,
+      "activityChats" INTEGER NOT NULL DEFAULT 0,
+      "activityTimesheets" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "activityEmails" INTEGER NOT NULL DEFAULT 0,
+      "aiBurnoutRisk" DOUBLE PRECISION,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "WfhAttendanceSnapshot_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "WfhAttendanceSnapshot_employeeId_idx" ON "WfhAttendanceSnapshot"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "WfhAttendanceSnapshot_date_idx" ON "WfhAttendanceSnapshot"("date")`,
+    `ALTER TABLE "WfhAttendanceSnapshot" DROP CONSTRAINT IF EXISTS "WfhAttendanceSnapshot_employeeId_fkey"`,
+    `ALTER TABLE "WfhAttendanceSnapshot" ADD CONSTRAINT "WfhAttendanceSnapshot_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Rotational Roster (REQ-CFG-02) ───
+    `CREATE TABLE IF NOT EXISTS "RotationalRoster" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "description" TEXT,
+      "pattern" JSONB NOT NULL,
+      "rotationUnit" TEXT NOT NULL DEFAULT 'week',
+      "startDate" TIMESTAMP(3) NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "RotationalRoster_pkey" PRIMARY KEY ("id")
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS "EmployeeRosterAssignment" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "rosterId" TEXT NOT NULL,
+      "currentOffset" INTEGER NOT NULL DEFAULT 0,
+      "startDate" TIMESTAMP(3) NOT NULL,
+      "endDate" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "EmployeeRosterAssignment_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "EmployeeRosterAssignment_employeeId_rosterId_key" ON "EmployeeRosterAssignment"("employeeId", "rosterId")`,
+    `CREATE INDEX IF NOT EXISTS "EmployeeRosterAssignment_employeeId_idx" ON "EmployeeRosterAssignment"("employeeId")`,
+    `ALTER TABLE "EmployeeRosterAssignment" DROP CONSTRAINT IF EXISTS "EmployeeRosterAssignment_employeeId_fkey"`,
+    `ALTER TABLE "EmployeeRosterAssignment" ADD CONSTRAINT "EmployeeRosterAssignment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "EmployeeRosterAssignment" DROP CONSTRAINT IF EXISTS "EmployeeRosterAssignment_rosterId_fkey"`,
+    `ALTER TABLE "EmployeeRosterAssignment" ADD CONSTRAINT "EmployeeRosterAssignment_rosterId_fkey" FOREIGN KEY ("rosterId") REFERENCES "RotationalRoster"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Attendance Policy Config (REQ-CFG-03, REQ-OT-01, REQ-AI-ATT-04, REQ-ATT-06/07) ───
+    `CREATE TABLE IF NOT EXISTS "AttendancePolicyConfig" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "roundEnabled" BOOLEAN NOT NULL DEFAULT false,
+      "roundMinutes" INTEGER NOT NULL DEFAULT 15,
+      "roundDirection" TEXT NOT NULL DEFAULT 'nearest',
+      "lateGraceMinutes" INTEGER NOT NULL DEFAULT 10,
+      "earlyGraceMinutes" INTEGER NOT NULL DEFAULT 10,
+      "autoOvertimeEnabled" BOOLEAN NOT NULL DEFAULT true,
+      "overtimeThresholdMinutes" INTEGER NOT NULL DEFAULT 480,
+      "autoApprovePermissionMinutes" INTEGER NOT NULL DEFAULT 0,
+      "autoApproveMinAttendancePct" DOUBLE PRECISION NOT NULL DEFAULT 90,
+      "wfhActivityMonitoringEnabled" BOOLEAN NOT NULL DEFAULT false,
+      "wfhInactivityThresholdHours" INTEGER NOT NULL DEFAULT 4,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AttendancePolicyConfig_pkey" PRIMARY KEY ("id")
+    )`,
+
+    // ─── Leave Encashment Request (REQ-LVE-07) ───
+    `CREATE TABLE IF NOT EXISTS "LeaveEncashmentRequest" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "leaveTypeId" TEXT NOT NULL,
+      "days" DOUBLE PRECISION NOT NULL,
+      "basis" TEXT NOT NULL DEFAULT 'basic',
+      "ratePerDay" DOUBLE PRECISION NOT NULL,
+      "amount" DOUBLE PRECISION NOT NULL,
+      "taxImplications" JSONB,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "approvedBy" TEXT,
+      "approvedAt" TIMESTAMP(3),
+      "payrollRunId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "LeaveEncashmentRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "LeaveEncashmentRequest_employeeId_idx" ON "LeaveEncashmentRequest"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "LeaveEncashmentRequest_status_idx" ON "LeaveEncashmentRequest"("status")`,
+    `ALTER TABLE "LeaveEncashmentRequest" DROP CONSTRAINT IF EXISTS "LeaveEncashmentRequest_employeeId_fkey"`,
+    `ALTER TABLE "LeaveEncashmentRequest" ADD CONSTRAINT "LeaveEncashmentRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "LeaveEncashmentRequest" DROP CONSTRAINT IF EXISTS "LeaveEncashmentRequest_leaveTypeId_fkey"`,
+    `ALTER TABLE "LeaveEncashmentRequest" ADD CONSTRAINT "LeaveEncashmentRequest_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+
+    // ─── Leave Attachment (REQ-LVE-02, REQ-SEC-ATT-03) ───
+    `CREATE TABLE IF NOT EXISTS "LeaveAttachment" (
+      "id" TEXT NOT NULL,
+      "leaveRequestId" TEXT NOT NULL,
+      "fileName" TEXT NOT NULL,
+      "fileUrl" TEXT NOT NULL,
+      "fileSize" INTEGER NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "isMedical" BOOLEAN NOT NULL DEFAULT false,
+      "locked" BOOLEAN NOT NULL DEFAULT false,
+      "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "LeaveAttachment_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "LeaveAttachment_leaveRequestId_idx" ON "LeaveAttachment"("leaveRequestId")`,
+    `ALTER TABLE "LeaveAttachment" DROP CONSTRAINT IF EXISTS "LeaveAttachment_leaveRequestId_fkey"`,
+    `ALTER TABLE "LeaveAttachment" ADD CONSTRAINT "LeaveAttachment_leaveRequestId_fkey" FOREIGN KEY ("leaveRequestId") REFERENCES "Leave"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Optional Holiday Election (REQ-CFG-05) ───
+    `CREATE TABLE IF NOT EXISTS "OptionalHolidayElection" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "holidayId" TEXT NOT NULL,
+      "year" INTEGER NOT NULL,
+      "selectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OptionalHolidayElection_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "OptionalHolidayElection_employeeId_holidayId_key" ON "OptionalHolidayElection"("employeeId", "holidayId")`,
+    `CREATE INDEX IF NOT EXISTS "OptionalHolidayElection_employeeId_idx" ON "OptionalHolidayElection"("employeeId")`,
+    `ALTER TABLE "OptionalHolidayElection" DROP CONSTRAINT IF EXISTS "OptionalHolidayElection_employeeId_fkey"`,
+    `ALTER TABLE "OptionalHolidayElection" ADD CONSTRAINT "OptionalHolidayElection_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "OptionalHolidayElection" DROP CONSTRAINT IF EXISTS "OptionalHolidayElection_holidayId_fkey"`,
+    `ALTER TABLE "OptionalHolidayElection" ADD CONSTRAINT "OptionalHolidayElection_holidayId_fkey" FOREIGN KEY ("holidayId") REFERENCES "Holiday"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Approval Routing Rule (REQ-CFG-06) ───
+    `CREATE TABLE IF NOT EXISTS "ApprovalRoutingRule" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "requestType" TEXT NOT NULL,
+      "projectId" TEXT,
+      "alternateManagerId" TEXT,
+      "priority" INTEGER NOT NULL DEFAULT 100,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ApprovalRoutingRule_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "ApprovalRoutingRule_requestType_idx" ON "ApprovalRoutingRule"("requestType")`,
+    `CREATE INDEX IF NOT EXISTS "ApprovalRoutingRule_projectId_idx" ON "ApprovalRoutingRule"("projectId")`,
+
+    // ─── Burnout Flag (REQ-AI-ATT-03) ───
+    `CREATE TABLE IF NOT EXISTS "BurnoutFlag" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "riskScore" DOUBLE PRECISION NOT NULL,
+      "riskLevel" TEXT NOT NULL,
+      "factors" JSONB NOT NULL,
+      "recommendations" TEXT,
+      "notifiedManager" BOOLEAN NOT NULL DEFAULT false,
+      "acknowledgedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BurnoutFlag_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BurnoutFlag_employeeId_idx" ON "BurnoutFlag"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "BurnoutFlag_riskLevel_idx" ON "BurnoutFlag"("riskLevel")`,
+    `ALTER TABLE "BurnoutFlag" DROP CONSTRAINT IF EXISTS "BurnoutFlag_employeeId_fkey"`,
+    `ALTER TABLE "BurnoutFlag" ADD CONSTRAINT "BurnoutFlag_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Attendance Audit Log (REQ-SEC-ATT-04) ───
+    `CREATE TABLE IF NOT EXISTS "AttendanceAuditLog" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "attendanceId" TEXT,
+      "action" TEXT NOT NULL,
+      "beforeData" JSONB,
+      "afterData" JSONB,
+      "changedBy" TEXT NOT NULL,
+      "changedByIp" TEXT,
+      "reason" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AttendanceAuditLog_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceAuditLog_employeeId_idx" ON "AttendanceAuditLog"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceAuditLog_action_idx" ON "AttendanceAuditLog"("action")`,
+    `CREATE INDEX IF NOT EXISTS "AttendanceAuditLog_createdAt_idx" ON "AttendanceAuditLog"("createdAt")`,
+    `ALTER TABLE "AttendanceAuditLog" DROP CONSTRAINT IF EXISTS "AttendanceAuditLog_employeeId_fkey"`,
+    `ALTER TABLE "AttendanceAuditLog" ADD CONSTRAINT "AttendanceAuditLog_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   ];
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -1439,6 +1787,10 @@ async function main() {
     `ALTER TABLE "BiometricDevice" ADD CONSTRAINT "BiometricDevice_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
     `ALTER TABLE "BiometricDevice" DROP CONSTRAINT IF EXISTS "BiometricDevice_geofenceId_fkey"`,
     `ALTER TABLE "BiometricDevice" ADD CONSTRAINT "BiometricDevice_geofenceId_fkey" FOREIGN KEY ("geofenceId") REFERENCES "Geofence"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    // ─── Geofence → Branch FK ───
+    `ALTER TABLE "Geofence" DROP CONSTRAINT IF EXISTS "Geofence_branchId_fkey"`,
+    `ALTER TABLE "Geofence" ADD CONSTRAINT "Geofence_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
     `ALTER TABLE "BiometricEnrollment" DROP CONSTRAINT IF EXISTS "BiometricEnrollment_employeeId_fkey"`,
     `ALTER TABLE "BiometricEnrollment" ADD CONSTRAINT "BiometricEnrollment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
     `ALTER TABLE "BiometricEnrollment" DROP CONSTRAINT IF EXISTS "BiometricEnrollment_deviceId_fkey"`,
