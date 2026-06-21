@@ -56,6 +56,35 @@ async function main() {
     // ─── Company: new SRS column (REQ-TA-02 / REQ-GL-01) ───
     `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "language" TEXT NOT NULL DEFAULT 'en'`,
 
+    // ─── Employee: backfill ALL missing columns (the 0_init migration is older
+    //     than the current schema.prisma — many fields were added later but
+    //     CREATE TABLE IF NOT EXISTS won't add them to the existing table).
+    //     We add IF NOT EXISTS for every column the schema expects.
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+    // Drop the old NOT NULL "designation" text column if it exists (replaced by designationId FK)
+    // — we keep it as nullable to avoid breaking old rows
+    `ALTER TABLE "Employee" ALTER COLUMN "designation" DROP NOT NULL`,
+    // Make joiningDate nullable (renamed to dateOfJoining in new schema)
+    `ALTER TABLE "Employee" ALTER COLUMN "joiningDate" DROP NOT NULL`,
+    // Add the new dateOfJoining column's data by copying joiningDate if empty (best-effort, non-fatal)
+    // Note: skipped — applications should write to dateOfJoining going forward
+
     // ─── FeatureFlag: new table (REQ-SA-05) ───
     `CREATE TABLE IF NOT EXISTS "FeatureFlag" (
       "id" TEXT NOT NULL,
