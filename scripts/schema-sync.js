@@ -696,6 +696,17 @@ async function main() {
       CONSTRAINT "AttendanceAiThreshold_pkey" PRIMARY KEY ("id")
     )`,
 
+    // ─── Patch Attendance table for missing columns (overtime, location) ───
+    // The 0_init migration created Attendance with breakDuration/source but
+    // NOT with overtime/location that the Prisma schema expects. Add them
+    // idempotently so Prisma queries don't fail with "column does not exist".
+    `ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "overtime" DOUBLE PRECISION`,
+    `ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "location" TEXT`,
+    `ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "employeeId" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "Attendance_employeeId_idx" ON "Attendance"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "Attendance_date_idx" ON "Attendance"("date")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Attendance_employeeId_date_key" ON "Attendance"("employeeId", "date")`,
+
     // ─── Holiday Calendar (REQ-CFG-04, REQ-CFG-05) ───
     // NOTE: This table was missing from the 0_init migration and never created.
     `CREATE TABLE IF NOT EXISTS "Holiday" (
