@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { buildContext, evaluateLeaveAutoApproval } from '@/lib/auto-approval-engine';
 
 function corsHeaders() {
   return {
@@ -173,6 +174,52 @@ export async function POST(request: Request) {
       },
     });
 
+    // ─── REQ-AI-ATT-04: AI Auto-Approval for Leave ────────────────────────
+    // After the leave is persisted in 'pending' status, the auto-approval
+    // engine evaluates the request against the AttendancePolicyConfig rules.
+    // If auto-approved, we update the status to 'approved' with approvedBy
+    // = 'ai_auto' and write an audit log entry.
+    let autoApprovalApplied = false;
+    let autoApprovalReason: string | null = null;
+    try {
+      const ctx = await buildContext(employeeId);
+      const days =
+        Math.ceil(
+          (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24),
+        ) + 1;
+      const decision = await evaluateLeaveAutoApproval(ctx, {
+        leaveType: leaveRequest.leaveType?.code || leaveRequest.leaveType?.name || 'unknown',
+        days: halfDay ? 0.5 : days,
+        hasAttachment: false,
+        isMedical: /sick|medical/i.test(leaveRequest.leaveType?.name || ''),
+      });
+      if (decision.autoApproved) {
+        await prisma.leaveRequest.update({
+          where: { id: leaveRequest.id },
+          data: {
+            status: 'approved',
+            approvedBy: 'ai_auto',
+            approvedAt: new Date(),
+            comments: `AI auto-approved: ${decision.reason} (confidence ${(decision.confidence * 100).toFixed(0)}%)`,
+          },
+        });
+        autoApprovalApplied = true;
+        autoApprovalReason = decision.reason;
+
+        // Audit log for the auto-approval
+        await prisma.auditLog.create({
+          data: {
+            userId: decoded.userId as string,
+            action: 'AI_AUTO_APPROVE_LEAVE',
+            module: 'leave',
+            details: `Leave request ${leaveRequest.id} auto-approved for employee ${employeeId}. Reason: ${decision.reason}. Confidence: ${decision.confidence}. Rules: ${decision.rulesEvaluated.join(', ')}`,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn('[leave] Auto-approval evaluation failed (non-fatal):', e);
+    }
+
     // Notify HR admins about the leave request
     const hrAdmins = await prisma.user.findMany({
       where: {
@@ -203,7 +250,12 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { leaveRequest },
+      {
+        leaveRequest,
+        autoApproval: autoApprovalApplied
+          ? { applied: true, reason: autoApprovalReason }
+          : { applied: false },
+      },
       { status: 201, headers: corsHeaders() }
     );
   } catch (error) {
