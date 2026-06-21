@@ -224,6 +224,7 @@ const navSections: NavSection[] = [
     label: 'Operations',
     items: [
       { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
+      { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
       { label: 'Invoices', href: '/invoices', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'invoices', isNew: true },
       { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" />, moduleKey: 'travel' },
       { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'expenses' },
@@ -290,6 +291,8 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-5 h-5" />, moduleKey: 'settings' },
       { label: 'Reports & Analytics', href: '/reports', icon: <FiBarChart2 className="w-5 h-5" />, moduleKey: 'reports' },
+      { label: 'Scheduled Reports', href: '/reports/schedules', icon: <FiBarChart2 className="w-5 h-5" />, isNew: true },
+      { label: 'AI Insights', href: '/insights', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
       { label: 'Settings & Configuration', href: '/settings', icon: <FiSettings className="w-5 h-5" />, moduleKey: 'settings' },
       { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-5 h-5" /> },
     ],

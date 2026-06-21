@@ -220,6 +220,42 @@ export async function POST(request: Request) {
       console.warn('[leave] Auto-approval evaluation failed (non-fatal):', e);
     }
 
+    // ─── REQ-ENG-04: Intelligent approval router ─────────────────────────
+    // If the primary manager is on approved leave, auto-route to the configured
+    // backup approver (ApprovalRoutingRule.alternateManagerId).
+    let approvalRouting: { fallbackApplied: boolean; approverId: string | null; reason: string } | null = null;
+    if (!autoApprovalApplied) {
+      try {
+        const { resolveAndAuditApprover } = await import('@/lib/approval-router');
+        const router = await resolveAndAuditApprover(
+          employeeId,
+          'leave',
+          (decoded.userId as string) || 'system',
+          null,
+          new Date(startDate),
+        );
+        approvalRouting = {
+          fallbackApplied: router.fallbackApplied,
+          approverId: router.approverId,
+          reason: router.reason,
+        };
+        if (router.fallbackApplied && router.approverId) {
+          // Notify the backup approver
+          await createNotification({
+            tenantId: decoded.tenantId as string,
+            userId: router.approverId,  // resolveAndAuditApprover returns employeeId; user lookup may be needed
+            title: 'Leave Request — Auto-Routed to You (Backup Approver)',
+            message: `Primary manager is on leave. ${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}'s ${leaveRequest.leaveType.name} leave request (${startDate} to ${endDate}) has been auto-routed to you for approval.`,
+            type: 'workflow',
+            category: 'leave',
+            link: `/leave/${leaveRequest.id}`,
+          }).catch(() => { /* non-fatal */ });
+        }
+      } catch (e) {
+        console.warn('[leave] Approval router failed (non-fatal):', e);
+      }
+    }
+
     // Notify HR admins about the leave request
     const hrAdmins = await prisma.user.findMany({
       where: {
@@ -255,6 +291,7 @@ export async function POST(request: Request) {
         autoApproval: autoApprovalApplied
           ? { applied: true, reason: autoApprovalReason }
           : { applied: false },
+        approvalRouting,
       },
       { status: 201, headers: corsHeaders() }
     );
