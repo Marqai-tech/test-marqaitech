@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import SeedEcosystemButton from '@/components/SeedEcosystemButton';
 
 export default function InsurancePage() {
   const [policies, setPolicies] = useState<any[]>([]);
@@ -17,9 +18,15 @@ export default function InsurancePage() {
   }
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Insurance Top-Up</h1>
-        <p className="text-sm text-gray-600 mt-1">Group + voluntary · AI claims assistant · Payroll deduction (REQ-INS-01..05)</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Insurance Top-Up</h1>
+          <p className="text-sm text-gray-600 mt-1">Group + voluntary · AI claims assistant · Payroll deduction (REQ-INS-01..05)</p>
+        </div>
+        <SeedEcosystemButton module="wellness" label="Seed Wellness & Insurance Data" />
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+        💡 The wellness seed also populates EWA requests, loan marketplace listings, gifts, reward points, and financial stress flags — all powered by the same module.
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white border rounded-lg p-4">

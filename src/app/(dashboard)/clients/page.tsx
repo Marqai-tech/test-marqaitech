@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import SeedEcosystemButton from '@/components/SeedEcosystemButton';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -153,7 +154,10 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div><h1 className="text-2xl font-bold text-nexus-text-primary">Clients</h1><p className="text-nexus-text-secondary mt-1">Manage client relationships and details</p></div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Client</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <SeedEcosystemButton module="clients" label="Seed Sample Clients" compact />
+          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Client</button>
+        </div>
       </div>
 
       <ModuleTips moduleKey="clients" title="Client Tips" tips={clientTips} userRole={user?.role} />

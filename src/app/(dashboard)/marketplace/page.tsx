@@ -1,8 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import SeedEcosystemButton from '@/components/SeedEcosystemButton';
 
 export default function MarketplaceHub() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const tiles = [
     { href: '/marketplace/wallet', title: 'My Wallet', desc: 'Multi-bucket wallet · Co-pay · Tax-exempt categories', icon: '👛', color: 'from-purple-500 to-pink-500' },
     { href: '/marketplace/catalog', title: 'Corporate Catalog', desc: 'Sodexo · Xoxoday · Amazon Business · Corporate rates', icon: '🛍️', color: 'from-blue-500 to-cyan-500' },
@@ -14,9 +18,15 @@ export default function MarketplaceHub() {
   ];
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Marketplace & Financial Wellness</h1>
-        <p className="text-sm text-gray-600 mt-1">Corporate Super-App · Multi-currency · Multi-tenant · AI-curated</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Marketplace & Financial Wellness</h1>
+          <p className="text-sm text-gray-600 mt-1">Corporate Super-App · Multi-currency · Multi-tenant · AI-curated</p>
+        </div>
+        {mounted && <SeedEcosystemButton module="marketplace" label="Seed Marketplace Data" />}
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+        <b>Admins:</b> Use the <b>Seed Marketplace Data</b> button above to populate sample providers, products, wallets, transactions, orders, fraud flags & budget allocations. To also seed wellness/insurance data, visit the <Link href="/marketplace/insurance" className="underline">Insurance Top-Up</Link> page.
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tiles.map(t => (
