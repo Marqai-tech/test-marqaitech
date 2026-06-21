@@ -49,6 +49,30 @@ export async function POST(request: Request) {
     const product = await prisma.marketplaceProduct.findUnique({ where: { id: productId } });
     if (!product || product.status !== 'active') return NextResponse.json({ error: 'Product unavailable' }, { status: 400, headers: corsHeaders() });
 
+    // REQ-SEC-MKT-05: age verification for restricted products (e.g., wine, tobacco-adjacent, certain insurance)
+    if (product.ageRestricted && product.minAge) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { dateOfBirth: true, firstName: true, lastName: true },
+      });
+      if (!employee?.dateOfBirth) {
+        return NextResponse.json({ error: `Cannot verify age — date of birth missing on employee profile. Required for restricted product: ${product.name}` }, { status: 403, headers: corsHeaders() });
+      }
+      const ageMs = Date.now() - employee.dateOfBirth.getTime();
+      const ageYears = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
+      if (ageYears < product.minAge) {
+        await prisma.auditLog.create({
+          data: {
+            userId: (decoded as any).userId as string,
+            action: 'AGE_GATE_BLOCK',
+            module: 'marketplace',
+            details: `Blocked underage order: employee ${employeeId} (age ${ageYears}) attempted to buy ${product.name} (minAge ${product.minAge})`,
+          },
+        });
+        return NextResponse.json({ error: `Age verification failed. This product requires age ${product.minAge}+. Employee age: ${ageYears}.` }, { status: 403, headers: corsHeaders() });
+      }
+    }
+
     const quantity = qty || 1;
     const totalAmount = product.corporatePrice * quantity;
 
@@ -86,13 +110,19 @@ export async function POST(request: Request) {
     const employeePaid = totalAmount - employerPaid;
 
     // Create order + debit wallet + record transaction atomically
-    const [order, ,] = await prisma.$transaction([
-      prisma.marketplaceOrder.create({
-        data: { employeeId, productId, qty: quantity, unitPrice: product.corporatePrice, totalAmount, currency: product.currency, walletBucketId: bucket.id!, employerCoPayPct: employerPct, employerPaidAmount: employerPaid, employeePaidAmount: employeePaid, fulfillmentStatus: 'fulfilled', fulfillmentRef: `CODE-${Date.now()}`, status: 'completed' },
-      }),
-      prisma.walletBucket.update({ where: { id: bucket.id }, data: { balance: { decrement: totalAmount } } }),
-      prisma.walletTransaction.create({ data: { walletId: bucket.walletId, bucketId: bucket.id, type: 'debit', amount: totalAmount, currency: product.currency, baseAmount: totalAmount, description: `Order: ${product.name} x${quantity}` } }),
-    ]);
+    // REQ-SEC-MKT-03: append to wallet hash chain for immutability
+    const now = new Date();
+    const order = await prisma.marketplaceOrder.create({
+      data: { employeeId, productId, qty: quantity, unitPrice: product.corporatePrice, totalAmount, currency: product.currency, walletBucketId: bucket.id!, employerCoPayPct: employerPct, employerPaidAmount: employerPaid, employeePaidAmount: employeePaid, fulfillmentStatus: 'fulfilled', fulfillmentRef: `CODE-${Date.now()}`, status: 'completed' },
+    });
+    const txRecord = await prisma.walletTransaction.create({
+      data: { walletId: bucket.walletId, bucketId: bucket.id, type: 'debit', amount: totalAmount, currency: product.currency, baseAmount: totalAmount, description: `Order: ${product.name} x${quantity}`, createdAt: now },
+    });
+    // Append hash chain (separate update because we need the row id + createdAt)
+    const { appendHashChain } = await import('@/lib/wallet-ledger');
+    const { previousHash, chainHash } = await appendHashChain(prisma, bucket.walletId, { id: txRecord.id, amount: totalAmount, type: 'debit', createdAt: now });
+    await prisma.walletTransaction.update({ where: { id: txRecord.id }, data: { previousHash, chainHash } });
+    await prisma.walletBucket.update({ where: { id: bucket.id }, data: { balance: { decrement: totalAmount } } });
     return NextResponse.json({ order }, { status: 201, headers: corsHeaders() });
   } catch (error) { console.error('Place order error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }

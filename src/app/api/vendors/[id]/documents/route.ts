@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
 
 function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
+  return CORS;
 }
 
 export async function OPTIONS() {
@@ -16,12 +12,11 @@ export async function OPTIONS() {
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-
     const { id } = await params;
+    // REQ-SEC-CV-01: IDOR protection — verify caller's tenant owns this vendor
+    const guard = await assertEcosystemAccess(request, 'vendor', id);
+    if (guard.deny) return guard.response;
+
     const documents = await prisma.vendorDocument.findMany({ where: { vendorId: id }, orderBy: { createdAt: 'desc' } });
     // Compute current expiry status
     const now = new Date();
@@ -41,12 +36,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-
     const { id } = await params;
+    // REQ-SEC-CV-01: IDOR protection
+    const guard = await assertEcosystemAccess(request, 'vendor', id);
+    if (guard.deny) return guard.response;
+    const decoded = guard.decoded;
+
     const body = await request.json();
     const { name, type, fileUrl, issuedAt, expiryDate } = body;
     if (!name || !type) return NextResponse.json({ error: 'Missing name or type' }, { status: 400, headers: corsHeaders() });

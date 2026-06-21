@@ -186,6 +186,7 @@ model Company {
 
   // ─── Marketplace Addendum back-references ───
   walletBudgetAllocations WalletBudgetAllocation[] @relation("WalletBudgetCompany")
+  reportSchedules         ReportSchedule[]       @relation("ReportScheduleCompany")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -294,6 +295,7 @@ model User {
   auditLogs          AuditLog[]
   loginActivities    LoginActivity[]
   roleAssignments    UserRoleAssignment[]
+  contractorAccounts Contractor[] @relation("ContractorUser")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -432,6 +434,9 @@ model Employee {
   marketplaceFraudFlags     MarketplaceFraudFlag[] @relation("FraudEmployee")
   financialStressFlags      FinancialStressFlag[] @relation("StressEmployee")
   walletBudgetAllocations   WalletBudgetAllocation[] @relation("WalletBudgetEmployee")
+  clientFeedbacks           ClientFeedback[]      @relation("ClientFeedbackEmployee")
+  personalizedCatalogCaches PersonalizedCatalogCache[] @relation("PersonalizedCatalogEmployee")
+  utilizationSnapshots      ProjectUtilizationSnapshot[] @relation("UtilizationEmployee")
 
   // ─── AI Recruitment back-references ───
   referrals              Referral[]
@@ -1418,6 +1423,7 @@ model Client {
   timesheetApprovals ClientTimesheetApproval[]
   churnRisks      ClientChurnRisk[]
   marginSnapshots ClientMarginSnapshot[]
+  clientFeedbacks ClientFeedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1462,6 +1468,7 @@ model Vendor {
   contractorRequests ContractorRequest[]
   purchaseOrders   PurchaseOrder[]
   vendorInvoices   VendorInvoice[]
+  contractors      Contractor[]
   piiPurgedAt      DateTime?
 
   createdAt DateTime @default(now())
@@ -1515,6 +1522,8 @@ model Project {
   contractorRequests ContractorRequest[]
   purchaseOrders PurchaseOrder[] @relation("POProject")
   marginSnapshots ClientMarginSnapshot[]
+  contractors        Contractor[]      @relation("ContractorProject")
+  utilizationSnapshots ProjectUtilizationSnapshot[] @relation("UtilizationProject")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5615,6 +5624,10 @@ model WalletTransaction {
   reference     String?  // order id, gift id, payroll run id
   description   String?
   initiatedById String?
+  // REQ-SEC-MKT-03: immutable audit ledger — hash chain
+  previousHash  String?  // SHA-256 of the previous transaction's chainHash
+  chainHash     String?  // SHA-256(this.id + previousHash + walletId + amount + type + createdAt)
+  tamperFlagged Boolean @default(false)  // set true if any recomputation detects a mismatch
   createdAt     DateTime @default(now())
   @@index([walletId])
   @@index([bucketId])
@@ -5635,6 +5648,9 @@ model MarketplaceProduct {
   imageUrl        String?
   fulfillmentMode String @default("digital") // digital, physical, api_redirect
   quantityLimitPerQuarter Int @default(0)  // 0 = unlimited
+  // REQ-SEC-MKT-05: age verification for family perks (e.g., wine, tobacco-adjacent, certain insurance)
+  ageRestricted   Boolean @default(false)
+  minAge          Int?     // 18, 21, etc. — enforced at order placement using employee.dateOfBirth
   status          String @default("active")
   orders          MarketplaceOrder[]
   gifts           Gift[]
@@ -5840,4 +5856,165 @@ model WalletBudgetAllocation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   @@index([companyId])
+}
+
+// ============ SRS GAP CLOSURE — ADDENDUM 2 ============
+// Models added to close gaps surfaced by the consolidated SRS audit:
+//   REQ-CLT-09  — Client feedback into Performance (360°)
+//   REQ-ENG-04  — Intelligent approval router (manager on leave → backup)
+//   REQ-ENG-08  — Scheduled report distribution
+//   REQ-VEN-06  — Contractor limited onboarding (Collab/PM access, no HRIS/Payroll)
+//   REQ-AI-MKT-01 — Hyper-personalized catalog signals cache
+//   REQ-ENG-07  — Cross-module anomaly insights cache
+//   REQ-ENG-03  — Workflow trigger registry (data events / cron / webhooks)
+//   REQ-PM-05   — Utilization daily snapshot
+
+model ClientFeedback {
+  id              String @id @default(cuid())
+  clientId        String
+  client          Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientPortalUserId String?  // which client portal user submitted
+  projectId       String?
+  employeeId      String  // the resource being rated
+  employee        Employee @relation("ClientFeedbackEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  rating          Int    // 1..5
+  communication   Int?   // 1..5 sub-scores
+  quality         Int?
+  timeliness      Int?
+  comments        String?  @db.Text
+  wouldReengage   Boolean @default(true)
+  // Promote into Performance module:
+  feedbackId      String?  // linked Feedback.id once mirrored
+  status          String @default("submitted") // submitted, mirrored_to_performance, archived
+  submittedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([clientId])
+  @@index([employeeId])
+  @@index([projectId])
+}
+
+model ReportSchedule {
+  id              String @id @default(cuid())
+  name            String
+  reportType      String  // e.g., 'payroll', 'utilization', 'attendance', 'custom_report_id'
+  filtersJson     Json?   // saved filter payload passed to the report API
+  frequency       String  // daily, weekly, bi_weekly, monthly
+  dayOfWeek       Int?    // 0..6 (for weekly)
+  dayOfMonth      Int?    // 1..31 (for monthly)
+  hour            Int     // 0..23
+  minute          Int     @default(0)
+  timezone        String  @default("Asia/Kolkata")
+  recipientsJson  Json    // [{ type: 'email', value: 'a@b.com' }, { type: 'collab_user', value: userId }]
+  outputFormat    String  @default("pdf")  // pdf, xlsx, csv, html
+  companyId       String?
+  company         Company? @relation("ReportScheduleCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  createdById     String?
+  isActive        Boolean @default(true)
+  lastRunAt       DateTime?
+  lastRunStatus   String? // success, failed
+  lastRunError    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([companyId])
+  @@index([frequency])
+}
+
+model Contractor {
+  id              String @id @default(cuid())
+  userId          String? @unique  // scoped User account (role='contractor')
+  user            User?   @relation("ContractorUser", fields: [userId], references: [id], onDelete: SetNull)
+  vendorId        String
+  vendor          Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorStaffId   String?  // link to VendorStaff if same person
+  projectId       String?
+  project         Project? @relation("ContractorProject", fields: [projectId], references: [id], onDelete: SetNull)
+  role            String
+  billRate        Float
+  costRate        Float
+  currency        String @default("INR")
+  startDate       DateTime
+  endDate         DateTime?
+  // REQ-VEN-06: limited scope — only Collaboration + PM access; no HRIS/Payroll
+  scopeFlags      String  @default("collaboration,projects,timesheets")
+  ndaSigned       Boolean @default(false)
+  ndaSignedAt     DateTime?
+  bgvStatus       String  @default("pending") // pending, in_progress, cleared, failed
+  status          String  @default("onboarding") // onboarding, active, offboarded, terminated
+  offboardedAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([vendorId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model PersonalizedCatalogCache {
+  id              String @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation("PersonalizedCatalogEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  lifeStage       String  // single, married, new_parent, mid_career, pre_retirement
+  signalsJson     Json    // { tenureYears, maritalStatus, hasChildren, ageBracket, recentCategoryPurchases }
+  rankedProductIds String @db.Text  // comma-separated product IDs in ranked order
+  reason          String?  @db.Text  // human-readable explanation
+  evaluatedAt     DateTime @default(now())
+  expiresAt       DateTime  // short TTL (e.g., 24h)
+  @@index([employeeId])
+}
+
+model AnomalyInsight {
+  id              String @id @default(cuid())
+  module          String  // payroll, attendance, recruitment, marketplace, projects
+  severity        String  // low, medium, high, critical
+  title           String
+  description     String  @db.Text
+  metric          String?  // e.g., 'ot_cost', 'attrition_rate'
+  metricValue     Float?
+  baselineValue   Float?
+  dimensionsJson  Json?   // { sub_company: 'NEXSTAFF', quarter: 'Q3' }
+  recommendedAction String?  @db.Text
+  acknowledgedById String?
+  acknowledgedAt  DateTime?
+  generatedAt     DateTime @default(now())
+  @@index([module])
+  @@index([severity])
+  @@index([generatedAt])
+}
+
+model WorkflowTrigger {
+  id              String @id @default(cuid())
+  workflowId      String  // FK to WorkflowDefinition.id (string, no relation to keep it loose)
+  name            String
+  triggerType     String  // data_event, schedule, webhook
+  // data_event: { model: 'LeaveRequest', action: 'created' }
+  // schedule:    cron expression in `cronExpr`
+  // webhook:     `triggerKey` is the URL fragment for POST /api/webhooks/inbound/[triggerKey]
+  configJson      Json
+  cronExpr        String?  // for schedule type — e.g., '0 9 * * 1' (every Monday 9 AM)
+  triggerKey      String?  @unique  // for webhook type
+  isActive        Boolean @default(true)
+  lastFiredAt     DateTime?
+  fireCount       Int     @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([workflowId])
+  @@index([triggerType])
+}
+
+model ProjectUtilizationSnapshot {
+  id              String @id @default(cuid())
+  projectId       String
+  project         Project @relation("UtilizationProject", fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee @relation("UtilizationEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  weekStart       DateTime  // Monday 00:00 of the week
+  billableHours   Float @default(0)
+  nonBillableHours Float @default(0)
+  totalHours      Float @default(0)
+  utilizationPct  Float @default(0)  // billableHours / (billable+nonBillable)
+  snapshotAt      DateTime @default(now())
+  @@unique([projectId, employeeId, weekStart])
+  @@index([projectId])
+  @@index([employeeId])
+  @@index([weekStart])
 }

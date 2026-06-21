@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
 
 function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
+  return CORS;
 }
 
 export async function OPTIONS() {
@@ -19,17 +16,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    }
-
     const { id } = await params;
+
+    // REQ-SEC-CV-01: IDOR protection — verify caller's tenant owns this vendor
+    const guard = await assertEcosystemAccess(request, 'vendor', id);
+    if (guard.deny) return guard.response;
 
     const vendor = await prisma.vendor.findUnique({
       where: { id },
@@ -58,17 +49,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    }
-
     const { id } = await params;
+
+    // REQ-SEC-CV-01: IDOR protection
+    const guard = await assertEcosystemAccess(request, 'vendor', id);
+    if (guard.deny) return guard.response;
+    const decoded = guard.decoded;
+
     const body = await request.json();
 
     const existing = await prisma.vendor.findUnique({ where: { id } });
@@ -116,22 +103,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    }
-
     const { id } = await params;
 
-    const existing = await prisma.vendor.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: 'Vendor not found' }, { status: 404, headers: corsHeaders() });
-    }
+    // REQ-SEC-CV-01: IDOR protection
+    const guard = await assertEcosystemAccess(request, 'vendor', id);
+    if (guard.deny) return guard.response;
+    const decoded = guard.decoded;
+
+    const existing = guard.record;
 
     // Soft delete
     const vendor = await prisma.vendor.update({

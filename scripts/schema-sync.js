@@ -2086,6 +2086,39 @@ async function main() {
     `ALTER TABLE "BiometricPunch" ADD CONSTRAINT "BiometricPunch_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "BiometricDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
     `ALTER TABLE "BiometricPunch" DROP CONSTRAINT IF EXISTS "BiometricPunch_employeeId_fkey"`,
     `ALTER TABLE "BiometricPunch" ADD CONSTRAINT "BiometricPunch_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    // ─── SRS GAP CLOSURE — ADDENDUM 2 (REQ-SEC-MKT-05, REQ-SEC-MKT-03) ───
+    // REQ-SEC-MKT-05: age verification columns on MarketplaceProduct
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "ageRestricted" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "minAge" INTEGER`,
+
+    // REQ-SEC-MKT-03: immutable wallet audit ledger — hash chain columns
+    `ALTER TABLE "WalletTransaction" ADD COLUMN IF NOT EXISTS "previousHash" TEXT`,
+    `ALTER TABLE "WalletTransaction" ADD COLUMN IF NOT EXISTS "chainHash" TEXT`,
+    `ALTER TABLE "WalletTransaction" ADD COLUMN IF NOT EXISTS "tamperFlagged" BOOLEAN NOT NULL DEFAULT false`,
+
+    // FKs for the new SRS gap-closure tables (CREATE TABLE statements come from
+    // _generated-tables.js, but FK constraints need to be added here)
+    `ALTER TABLE "ClientFeedback" DROP CONSTRAINT IF EXISTS "ClientFeedback_clientId_fkey"`,
+    `ALTER TABLE "ClientFeedback" ADD CONSTRAINT "ClientFeedback_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "ClientFeedback" DROP CONSTRAINT IF EXISTS "ClientFeedback_employeeId_fkey"`,
+    `ALTER TABLE "ClientFeedback" ADD CONSTRAINT "ClientFeedback_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "ReportSchedule" DROP CONSTRAINT IF EXISTS "ReportSchedule_companyId_fkey"`,
+    `ALTER TABLE "ReportSchedule" ADD CONSTRAINT "ReportSchedule_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "Contractor" DROP CONSTRAINT IF EXISTS "Contractor_vendorId_fkey"`,
+    `ALTER TABLE "Contractor" ADD CONSTRAINT "Contractor_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "Contractor" DROP CONSTRAINT IF EXISTS "Contractor_projectId_fkey"`,
+    `ALTER TABLE "Contractor" ADD CONSTRAINT "Contractor_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    `ALTER TABLE "PersonalizedCatalogCache" DROP CONSTRAINT IF EXISTS "PersonalizedCatalogCache_employeeId_fkey"`,
+    `ALTER TABLE "PersonalizedCatalogCache" ADD CONSTRAINT "PersonalizedCatalogCache_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "ProjectUtilizationSnapshot" DROP CONSTRAINT IF EXISTS "ProjectUtilizationSnapshot_projectId_fkey"`,
+    `ALTER TABLE "ProjectUtilizationSnapshot" ADD CONSTRAINT "ProjectUtilizationSnapshot_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "ProjectUtilizationSnapshot" DROP CONSTRAINT IF EXISTS "ProjectUtilizationSnapshot_employeeId_fkey"`,
+    `ALTER TABLE "ProjectUtilizationSnapshot" ADD CONSTRAINT "ProjectUtilizationSnapshot_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   ];
 
   let applied = 0;
