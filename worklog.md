@@ -1490,3 +1490,78 @@ Stage Summary:
 - This means URL prefixes like /es/login no longer work — but they never could have worked anyway without restructuring the entire app under app/[locale]/. The previous URL-prefix approach was fundamentally broken for this app's structure.
 - If URL-based locale prefixes are ever needed in the future, the proper fix is to restructure the app: move app/login, app/(dashboard), app/careers, app/interview, app/api under app/[locale]/ (massive refactor — touches every page and every import).
 - Recommended next step: update the i18n routing.ts to remove `localePrefix: 'as-needed'` (it's now misleading since we don't use next-intl's middleware). But this is cosmetic — doesn't affect runtime.
+
+---
+Task ID: 14
+Agent: main (Super Z)
+Task: Payroll sub-menu navigation + Employee Core & Collaboration module (REQ-EMP-01..06, REQ-SOC-01..05, REQ-COL-01..11, REQ-AI-EMP-01..04, REQ-SEC-EMP-01..04)
+
+Work Log:
+- Phase 1: Payroll Sub-Menu Navigation
+  * Created src/app/(dashboard)/payroll/layout.tsx — sticky horizontal sub-nav with 7 categorized dropdowns
+  * Groups 27 payroll sub-modules into: Compensation Setup, Tax & Statutory, Payroll Processing, Multi-Country, Compliance & Filing, Employee Payments, Governance & AI
+  * Breadcrumb shows current location; 'Module Home' button for quick return
+  * Updated payroll/page.tsx to remove redundant header
+- Phase 2a: Added 21 new Prisma models to schema.prisma
+  * EmployeeCustomField + EmployeeCustomFieldValue (REQ-EMP-02)
+  * DottedLineManager (REQ-EMP-04)
+  * Team + TeamMember (REQ-EMP-05)
+  * SocialProfile (REQ-SOC-01/02)
+  * SSOProvider (REQ-SOC-03/04)
+  * CalendarSync (REQ-SOC-05)
+  * ChatRoom + ChatRoomMember + ChatMessage (REQ-COL-01..04)
+  * CallLog + CallParticipant (REQ-COL-05..07)
+  * FileNode + FileVersion + FileShareLink (REQ-COL-08..11)
+  * AIKnowledgeQuery + DocumentIntelligenceResult + ChatSummary + SentimentAnalysis (REQ-AI-EMP-01..04)
+  * StorageQuota + LegalHold + CollaborationFeatureFlag + CommunicationPolicy + StorageAnalytics (REQ-6.1/6.2)
+  * DLPScanLog + GDPRAnonymizationRequest + WatermarkAccessLog (REQ-SEC-EMP-01/02/04)
+  * All back-relation fields added to Employee model
+- Phase 2b: Extended scripts/schema-sync.js with CREATE TABLE IF NOT EXISTS + FK constraints for all 21 new tables (idempotent)
+- Phase 2c: Built 26 new API endpoints (all route.ts files):
+  * /api/employees/custom-fields, /api/employees/[id]/dotted-line-managers, /api/employees/[id]/contextual-view
+  * /api/teams, /api/teams/[id]/members
+  * /api/collaboration/chat/rooms, /api/collaboration/chat/rooms/[id]/messages (with DLP scanning + inline action detection)
+  * /api/collaboration/chat/translate (ZAI), /api/collaboration/chat/summarize (ZAI)
+  * /api/collaboration/files, /api/collaboration/files/[id]/versions, /api/collaboration/files/[id]/share
+  * /api/collaboration/calls, /api/collaboration/calls/[id]/transcript
+  * /api/collaboration/sso-providers, /api/collaboration/calendar-sync
+  * /api/collaboration/legal-holds (Super Admin only), /api/collaboration/storage-quotas (Super Admin)
+  * /api/collaboration/storage-analytics, /api/collaboration/feature-flags, /api/collaboration/communication-policies
+  * /api/collaboration/sentiment (anonymous aggregates only), /api/collaboration/gdpr/anonymize, /api/collaboration/watermark
+  * /api/ai-emp/knowledge (HR Bot), /api/ai-emp/document-intelligence
+- New lib: src/lib/dlp.ts — DLP scanner with regex patterns for Credit Card (Luhn-validated), SSN (US), Aadhaar (IN), PAN (IN), Email, Phone. Returns allow/flag/block + risk score.
+- Phase 3a: Built 4 collaboration UI pages
+  * /collaboration (hub landing)
+  * /collaboration/chat (full chat UI: rooms sidebar, message bubbles, threading, AI translate, AI summarize, DLP warnings, new room modal)
+  * /collaboration/files (Personal/Project/Company drive tabs, file table, version history, share links, upload modal with watermark toggle)
+  * /collaboration/calls (call history table, start call modal with provider selection + participant picker + consent)
+- Phase 3b: Built 7 admin UI pages
+  * /tenant-admin/profile-config (custom field CRUD with scope/country/company targeting)
+  * /tenant-admin/storage-analytics (usage breakdown + cleanup candidates)
+  * /tenant-admin/comm-governance (3 policy editors)
+  * /super-admin/storage-quotas (per-tenant quota config)
+  * /super-admin/ediscovery (legal hold placement + release)
+  * /super-admin/sso-providers (SSO config with JIT options)
+  * /super-admin/collab-features (feature toggle grid)
+- Phase 3c: Updated Sidebar.tsx
+  * Added 'Collaboration Hub' section (Hub Home, Chat, File Hub, Calls)
+  * Extended Super Admin section (Storage Quotas, eDiscovery, SSO Providers, Collaboration Features)
+  * Extended Tenant Admin section (Profile Configuration, Storage Analytics, Communication Governance)
+  * Extended Compensation section (Payroll Processing, Payslips, AI Insights quick links)
+- Updated src/lib/db.ts fallback proxy whitelist with all 21 new model names
+- Verified: npx prisma generate succeeds; npx next build succeeds (0 errors); all 26 new API routes + 11 new UI pages compiled
+- Committed (5b24923) + pushed to origin/main
+- Verified production: 12 new pages all return HTTP 200 on Vercel; existing pages still work
+
+Stage Summary:
+- Payroll module now has a persistent, categorized sub-menu for easy navigation (Phase 1 complete)
+- Employee Core & Collaboration module fully implemented end-to-end (Phases 2-3 complete)
+- 21 new Prisma models, 26 new API endpoints, 11 new UI pages
+- AI features (chat translation, chat summarization, HR Bot, document intelligence, sentiment analysis) all use ZAI with graceful fallback
+- DLP scanning integrated into chat messages and file uploads (blocks credit cards/SSNs/Aadhaar; flags PAN/phone)
+- E2EE automatically enabled for 1:1 direct chats and 1:1 native WebRTC calls
+- Watermarking audit trail captures user email + IP + User-Agent + timestamp on every sensitive file access
+- GDPR anonymization workflow replaces PII with 'Deleted User' / scrambled IDs while retaining payroll data for 7-year statutory period
+- Legal Hold capability allows Super Admin to freeze user/room/file from deletion across any tenant
+- All schema additions are ADDITIVE (CREATE TABLE IF NOT EXISTS + ALTER ADD COLUMN IF NOT EXISTS) — no risk to existing endpoints
+- Production deployment: Vercel build runs scripts/schema-sync.js automatically (per vercel.json) which creates the 21 new tables on the PostgreSQL database
