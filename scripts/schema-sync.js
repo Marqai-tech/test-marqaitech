@@ -2097,6 +2097,151 @@ async function main() {
     `ALTER TABLE "WalletTransaction" ADD COLUMN IF NOT EXISTS "chainHash" TEXT`,
     `ALTER TABLE "WalletTransaction" ADD COLUMN IF NOT EXISTS "tamperFlagged" BOOLEAN NOT NULL DEFAULT false`,
 
+    // Backfill missing columns on Vendor table (added during vendor purge / GDPR work
+    // but never ALTER-TABLE'd into the production DB).
+    `ALTER TABLE "Vendor" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'vendor'`,
+    `ALTER TABLE "Vendor" ADD COLUMN IF NOT EXISTS "parentVendorId" TEXT`,
+    `ALTER TABLE "Vendor" ADD COLUMN IF NOT EXISTS "specialization" TEXT`,
+    `ALTER TABLE "Vendor" ADD COLUMN IF NOT EXISTS "candidateCount" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "Vendor" ADD COLUMN IF NOT EXISTS "rating" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "Vendor" ADD COLUMN IF NOT EXISTS "piiPurgedAt" TIMESTAMP(3)`,
+
+    // VendorStaff — piiMasked column was added without ALTER TABLE
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "skillTags" TEXT`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "billRate" DOUBLE PRECISION`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "costRate" DOUBLE PRECISION`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'INR'`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "candidateApplicationId" TEXT`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "onboardedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "offboardedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "VendorStaff" ADD COLUMN IF NOT EXISTS "piiMasked" BOOLEAN NOT NULL DEFAULT false`,
+
+    // VendorDocument — reminder / status columns
+    `ALTER TABLE "VendorDocument" ADD COLUMN IF NOT EXISTS "reminderSent30" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "VendorDocument" ADD COLUMN IF NOT EXISTS "reminderSent15" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "VendorDocument" ADD COLUMN IF NOT EXISTS "reminderSent7" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "VendorDocument" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'valid'`,
+    `ALTER TABLE "VendorDocument" ADD COLUMN IF NOT EXISTS "uploadedById" TEXT`,
+
+    // VendorPortalUser — canSubmitCandidates column
+    `ALTER TABLE "VendorPortalUser" ADD COLUMN IF NOT EXISTS "canSubmitCandidates" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "VendorPortalUser" ADD COLUMN IF NOT EXISTS "mfaEnabled" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "VendorPortalUser" ADD COLUMN IF NOT EXISTS "otpSecret" TEXT`,
+    `ALTER TABLE "VendorPortalUser" ADD COLUMN IF NOT EXISTS "lastLoginAt" TIMESTAMP(3)`,
+    `ALTER TABLE "VendorPortalUser" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+
+    // Client — billingCurrency / paymentTerms / contract fields
+    `ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "billingCurrency" TEXT NOT NULL DEFAULT 'INR'`,
+    `ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "paymentTerms" TEXT NOT NULL DEFAULT 'net_30'`,
+    `ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "contractStart" TIMESTAMP(3)`,
+    `ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "contractEnd" TIMESTAMP(3)`,
+    `ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "contractValue" DOUBLE PRECISION`,
+
+    // PurchaseOrder — base currency + exchange rate fields
+    `ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "baseCurrency" TEXT NOT NULL DEFAULT 'INR'`,
+    `ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "exchangeRate" DOUBLE PRECISION NOT NULL DEFAULT 1`,
+    `ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "baseAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "contractorRequestId" TEXT`,
+    `ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "expectedBy" TIMESTAMP(3)`,
+    `ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "issuedAt" TIMESTAMP(3)`,
+
+    // PurchaseOrderLineItem — matchedQty for 3-way matching
+    `ALTER TABLE "PurchaseOrderLineItem" ADD COLUMN IF NOT EXISTS "matchedQty" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+
+    // VendorInvoice — base currency / matched JSON / paidAt
+    `ALTER TABLE "VendorInvoice" ADD COLUMN IF NOT EXISTS "baseCurrency" TEXT NOT NULL DEFAULT 'INR'`,
+    `ALTER TABLE "VendorInvoice" ADD COLUMN IF NOT EXISTS "exchangeRate" DOUBLE PRECISION NOT NULL DEFAULT 1`,
+    `ALTER TABLE "VendorInvoice" ADD COLUMN IF NOT EXISTS "baseAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "VendorInvoice" ADD COLUMN IF NOT EXISTS "matchedJson" JSONB`,
+    `ALTER TABLE "VendorInvoice" ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMP(3)`,
+
+    // SOW — bill rates / milestones JSON + AI confidence
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "maxHeadcount" INTEGER`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "billRatesJson" JSONB`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "milestonesJson" JSONB`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "totalValue" DOUBLE PRECISION`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'INR'`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "aiConfidence" DOUBLE PRECISION`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "approvedById" TEXT`,
+    `ALTER TABLE "SOW" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3)`,
+
+    // ClientPortalUser — MFA + lastLogin
+    `ALTER TABLE "ClientPortalUser" ADD COLUMN IF NOT EXISTS "mfaEnabled" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "ClientPortalUser" ADD COLUMN IF NOT EXISTS "otpSecret" TEXT`,
+    `ALTER TABLE "ClientPortalUser" ADD COLUMN IF NOT EXISTS "lastLoginAt" TIMESTAMP(3)`,
+    `ALTER TABLE "ClientPortalUser" ADD COLUMN IF NOT EXISTS "preferredLanguage" TEXT NOT NULL DEFAULT 'en'`,
+    `ALTER TABLE "ClientPortalUser" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+
+    // WalletBucket — taxExemptLimit + employerCoPayPct
+    `ALTER TABLE "WalletBucket" ADD COLUMN IF NOT EXISTS "employerCoPayPct" DOUBLE PRECISION NOT NULL DEFAULT 100`,
+    `ALTER TABLE "WalletBucket" ADD COLUMN IF NOT EXISTS "taxExemptLimit" DOUBLE PRECISION`,
+    `ALTER TABLE "WalletBucket" ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP(3)`,
+
+    // MarketplaceProduct — allowedBuckets + fulfillmentMode + quantityLimitPerQuarter
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "allowedBuckets" TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "fulfillmentMode" TEXT NOT NULL DEFAULT 'digital'`,
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "quantityLimitPerQuarter" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "providerSku" TEXT`,
+    `ALTER TABLE "MarketplaceProduct" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT`,
+
+    // MarketplaceOrder — co-pay + fraud + fulfillmentRef
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "employerCoPayPct" DOUBLE PRECISION NOT NULL DEFAULT 100`,
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "employerPaidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "employeePaidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "fulfillmentRef" TEXT`,
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "blockedByFraud" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "fraudReason" TEXT`,
+    `ALTER TABLE "MarketplaceOrder" ADD COLUMN IF NOT EXISTS "fulfillmentStatus" TEXT NOT NULL DEFAULT 'pending'`,
+
+    // MarketplaceProvider — superAdminApproved
+    `ALTER TABLE "MarketplaceProvider" ADD COLUMN IF NOT EXISTS "superAdminApproved" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "MarketplaceProvider" ADD COLUMN IF NOT EXISTS "webhookSecret" TEXT`,
+
+    // InsurancePolicy — paymentMode + deductionFrequency + dependentsJson
+    `ALTER TABLE "InsurancePolicy" ADD COLUMN IF NOT EXISTS "paymentMode" TEXT NOT NULL DEFAULT 'payroll_deduction'`,
+    `ALTER TABLE "InsurancePolicy" ADD COLUMN IF NOT EXISTS "deductionFrequency" TEXT NOT NULL DEFAULT 'monthly'`,
+    `ALTER TABLE "InsurancePolicy" ADD COLUMN IF NOT EXISTS "dependentsJson" JSONB`,
+    `ALTER TABLE "InsurancePolicy" ADD COLUMN IF NOT EXISTS "endDate" TIMESTAMP(3)`,
+
+    // InsuranceClaim — AI parsed JSON + confidence
+    `ALTER TABLE "InsuranceClaim" ADD COLUMN IF NOT EXISTS "aiParsedJson" JSONB`,
+    `ALTER TABLE "InsuranceClaim" ADD COLUMN IF NOT EXISTS "aiConfidence" DOUBLE PRECISION`,
+    `ALTER TABLE "InsuranceClaim" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "InsuranceClaim" ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMP(3)`,
+
+    // EWARequest — feeAmount + payrollRunId + externalRef
+    `ALTER TABLE "EWARequest" ADD COLUMN IF NOT EXISTS "feeAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "EWARequest" ADD COLUMN IF NOT EXISTS "payrollRunId" TEXT`,
+    `ALTER TABLE "EWARequest" ADD COLUMN IF NOT EXISTS "externalRef" TEXT`,
+    `ALTER TABLE "EWARequest" ADD COLUMN IF NOT EXISTS "transferredAt" TIMESTAMP(3)`,
+    `ALTER TABLE "EWARequest" ADD COLUMN IF NOT EXISTS "settledAt" TIMESTAMP(3)`,
+
+    // LoanMarketplaceListing — consent + garnishment + deepLink
+    `ALTER TABLE "LoanMarketplaceListing" ADD COLUMN IF NOT EXISTS "consentGiven" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "LoanMarketplaceListing" ADD COLUMN IF NOT EXISTS "consentAt" TIMESTAMP(3)`,
+    `ALTER TABLE "LoanMarketplaceListing" ADD COLUMN IF NOT EXISTS "deepLinkSentAt" TIMESTAMP(3)`,
+    `ALTER TABLE "LoanMarketplaceListing" ADD COLUMN IF NOT EXISTS "garnishmentActive" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "LoanMarketplaceListing" ADD COLUMN IF NOT EXISTS "applicationStatus" TEXT NOT NULL DEFAULT 'pre_approved'`,
+
+    // Gift — voucherCode + productId
+    `ALTER TABLE "Gift" ADD COLUMN IF NOT EXISTS "productId" TEXT`,
+    `ALTER TABLE "Gift" ADD COLUMN IF NOT EXISTS "voucherCode" TEXT`,
+
+    // RewardPointsLedger — balanceAfter + referenceId
+    `ALTER TABLE "RewardPointsLedger" ADD COLUMN IF NOT EXISTS "balanceAfter" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "RewardPointsLedger" ADD COLUMN IF NOT EXISTS "referenceId" TEXT`,
+
+    // MarketplaceFraudFlag — mfaTriggered
+    `ALTER TABLE "MarketplaceFraudFlag" ADD COLUMN IF NOT EXISTS "mfaTriggered" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "MarketplaceFraudFlag" ADD COLUMN IF NOT EXISTS "orderId" TEXT`,
+    `ALTER TABLE "MarketplaceFraudFlag" ADD COLUMN IF NOT EXISTS "riskScore" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+    `ALTER TABLE "MarketplaceFraudFlag" ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMP(3)`,
+
+    // FinancialStressFlag — anonymized + recommendedAction
+    `ALTER TABLE "FinancialStressFlag" ADD COLUMN IF NOT EXISTS "anonymized" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "FinancialStressFlag" ADD COLUMN IF NOT EXISTS "recommendedAction" TEXT`,
+    `ALTER TABLE "FinancialStressFlag" ADD COLUMN IF NOT EXISTS "notifiedHR" BOOLEAN NOT NULL DEFAULT false`,
+
     // FKs for the new SRS gap-closure tables (CREATE TABLE statements come from
     // _generated-tables.js, but FK constraints need to be added here)
     `ALTER TABLE "ClientFeedback" DROP CONSTRAINT IF EXISTS "ClientFeedback_clientId_fkey"`,
