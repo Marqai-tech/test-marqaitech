@@ -3324,7 +3324,7 @@ model Invoice {
 
   // Currency — invoice currency is what the client pays in; base currency
   // is the company's reporting currency (for FX gain/loss + profitability).
-  currency        String   @default("USD")
+  currency        String   @default("INR")
   baseCurrency    String?
 
   // FX — exchange rate is recorded at invoice creation time so the totals

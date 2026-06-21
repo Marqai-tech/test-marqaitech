@@ -17,7 +17,24 @@ export async function GET(request: Request) {
     const q = getQuery(request);
     const year = Number(q.year) || new Date().getFullYear();
     const emp = await findEmployeeByEmail(user.email);
-    if (!emp) return ok({ elections: [], quota: 0, used: 0 });
+    if (!emp) {
+      // Admin users without an employee record still need the full payload shape
+      // so the frontend doesn't crash on undefined.optionalHolidays.length
+      const optionalHolidays = await prisma.holiday.findMany({
+        where: { isOptional: true, date: { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) } },
+        orderBy: { date: 'asc' },
+      });
+      const quota = optionalHolidays.length > 0
+        ? Math.min(...optionalHolidays.map(h => h.optionalQuota || 2))
+        : 0;
+      return ok({
+        optionalHolidays,
+        elections: [],
+        quota,
+        used: 0,
+        remaining: quota,
+      });
+    }
 
     // List all optional holidays for the year
     const optionalHolidays = await prisma.holiday.findMany({

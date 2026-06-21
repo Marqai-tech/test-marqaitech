@@ -43,7 +43,14 @@ export default function OptionalHolidaysPage() {
       const r = await fetch('/api/holiday-elections', { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
-      setData(d);
+      // Defensive: ensure all expected fields exist (older API versions may omit them)
+      setData({
+        optionalHolidays: d.optionalHolidays ?? [],
+        elections: d.elections ?? [],
+        quota: d.quota ?? 0,
+        used: d.used ?? 0,
+        remaining: d.remaining ?? 0,
+      });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load');
     } finally {
