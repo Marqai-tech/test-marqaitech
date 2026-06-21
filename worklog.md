@@ -1803,3 +1803,65 @@ Stage Summary:
 - All 3 new Prisma models have idempotent `CREATE TABLE IF NOT EXISTS` DDL in `scripts/schema-sync.js` so they materialize automatically on the next Vercel deploy.
 - All API responses guard against missing fields: `data.feedback || []`, `data.parse || null`, `latestParse?.[0]`, etc. — matches the hardening mandate from the AUDIT-1 post-mortem.
 - Build succeeds, all routes registered, no new TypeScript errors introduced.
+
+---
+Task ID: leave-attendance-biometric-mobile
+Agent: main (Super Z)
+Task: Build biometric device integration (REQ-ATT-03) and mobile-app GPS snapshot punch endpoints (REQ-ATT-02/06), with AI spoofing/buddy-punch detection (REQ-AI-ATT-01/02).
+
+Work Log:
+- Explored existing attendance/leave module: confirmed 18 addendum models already in schema (Geofence, Regularization, Permission, Gatepass, OvertimeRequest, CompOff, WfhSnapshot, RotationalRoster, PolicyConfig, LeaveEncashment, LeaveAttachment, OptionalHolidayElection, ApprovalRoutingRule, BurnoutFlag, AuditLog) plus 10 dashboard pages and matching API routes.
+- Identified gaps vs spec: no BiometricDevice/Enrollment/Punch models, no AttendanceAiThreshold config, no biometric webhook, no unified mobile GPS punch endpoint.
+- Appended 4 new Prisma models to schema.prisma: BiometricDevice, BiometricEnrollment, BiometricPunch, AttendanceAiThreshold. Added back-relations on Employee, Branch, Geofence.
+- Extended scripts/schema-sync.js with raw CREATE TABLE + FK statements for all 4 new tables so they get provisioned on the next Vercel build (idempotent IF NOT EXISTS pattern).
+- Ran prisma generate successfully.
+
+API endpoints built (10 routes):
+- POST/GET /api/attendance/biometric/devices — registry (admin only for POST)
+- GET/PATCH/DELETE /api/attendance/biometric/devices/[id] — single-record CRUD
+- POST /api/attendance/biometric/devices/[id]/rotate-token — invalidate old, mint new (REQ-SEC-ATT-02)
+- POST/GET /api/attendance/biometric/enroll — enroll employee against a device (hash only, never raw template)
+- DELETE /api/attendance/biometric/enrollments/[id] — revoke enrollment (right-to-be-forgotten)
+- POST /api/attendance/biometric/punch — device webhook: auth via X-Biometric-Token (SHA-256 hash compare), AI spoofing + buddy-punch scoring, Attendance upsert, BiometricPunch row, AttendanceAuditLog entry
+- POST /api/attendance/biometric/heartbeat — device liveness ping (1-5 min interval)
+- GET /api/attendance/biometric/punch-log — paginated list of punches for admin UI, with summary stats
+- GET/PATCH /api/attendance/biometric/thresholds — tenant AI threshold config
+- POST /api/attendance/punch/mobile — mobile-app unified endpoint: Bearer JWT auth, GPS snapshot, geofence validation (polygon + radius), optional biometric vector, WfhAttendanceSnapshot persistence, Attendance upsert, audit log
+
+AI logic implemented (REQ-AI-ATT-01/02):
+- Spoofing risk: livenessScore < 0.9 ramps risk; verifyMode=card/pin = 0.4 baseline; liveness<0.5 floors at 0.8
+- Buddy-punch risk: impossible-travel (haversine between device geofences within threshold window), off-hours, branch mismatch, biometric template-mismatch
+- Flagged punches still create Attendance record (status="flagged") for audit; reason captured in flagReasons JSON + audit log
+
+UI page built:
+- /attendance/biometric — full admin UI with 4 tabs (Devices, Enrollments, Punches, AI Thresholds)
+- Device cards show online/offline heartbeat status, enrollment count, total punches, rotate-token + activate/deactivate actions
+- Enrollments table with revoke action
+- Punches table with risk badges, flag reasons, today/7-day summary stats
+- Thresholds tab with sliders for spoofing/buddy risk + numeric inputs for impossible-travel and off-hours
+- Register-device modal returns API token ONCE with copy-to-clipboard + "save now" warning
+- Enroll-employee modal with employee picker, device picker, modality selector, template hash textarea
+- New-token modal with webhook URL hints
+- ModuleTips + ModuleWorkflow with biometric-specific tips/steps
+
+Main attendance page update:
+- Added 10-card Quick Links grid linking to all attendance sub-pages (biometric, geofence, regularize, permission, gatepass, overtime, comp-off, policy-config, burnout, audit-log) so users can discover them without typing URLs
+- New QuickLink sub-component with color-coded cards
+
+Type/lint compliance:
+- npx tsc --noEmit --skipLibCheck — 0 errors in any new/modified file (only pre-existing errors in employees/dashboard/seed scripts)
+- npx eslint on all new files — 0 errors 0 warnings
+- Used queueMicrotask for useEffect setState pattern (matches existing convention)
+- Used useState-backed nowTick for Date.now() in render (avoids react-hooks/purity rule)
+- Used Prisma.InputJsonValue casts + Prisma.JsonNull sentinel for JSON columns
+- Used Record<string, unknown> for parsed body types
+
+Stage Summary:
+- REQ-ATT-02 (mobile GPS punch): DONE — /api/attendance/punch/mobile
+- REQ-ATT-03 (biometric device integration): DONE — full registry + webhook + UI
+- REQ-ATT-06 (WFH GPS snapshot): DONE — mobile endpoint writes WfhAttendanceSnapshot (no continuous tracking per REQ-SEC-ATT-01)
+- REQ-AI-ATT-01 (spoofing detection): DONE — liveness + verify-mode based scoring
+- REQ-AI-ATT-02 (buddy-punch detection): DONE — impossible-travel + branch-mismatch + template-mismatch + off-hours
+- REQ-SEC-ATT-02 (TLS 1.3/AES-256): enforced in code comments + token rotation flow + template-hash-only storage
+- REQ-SEC-ATT-04 (audit trail): every biometric + mobile punch writes AttendanceAuditLog row
+

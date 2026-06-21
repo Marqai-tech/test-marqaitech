@@ -9,7 +9,13 @@ import {
   FiMapPin,
   FiChevronLeft,
   FiChevronRight,
+  FiCpu,
+  FiMap,
+  FiAlertTriangle,
+  FiShield,
+  FiList,
 } from 'react-icons/fi';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
@@ -318,6 +324,20 @@ export default function AttendancePage() {
         userRole={user?.role}
       />
 
+      {/* Quick Links to Sub-modules */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <QuickLink href="/attendance/biometric" icon={<FiCpu className="w-4 h-4" />} label="Biometric" sub="Devices & enrollments" color="violet" />
+        <QuickLink href="/attendance/geofence" icon={<FiMap className="w-4 h-4" />} label="Geofencing" sub="Office perimeters" color="emerald" />
+        <QuickLink href="/attendance/regularize" icon={<FiAlertTriangle className="w-4 h-4" />} label="Regularize" sub="Missed punch fix" color="amber" />
+        <QuickLink href="/attendance/permission" icon={<FiClock className="w-4 h-4" />} label="Permission" sub="Short-leave" color="blue" />
+        <QuickLink href="/attendance/gatepass" icon={<FiList className="w-4 h-4" />} label="Gatepass" sub="Physical movement" color="cyan" />
+        <QuickLink href="/attendance/overtime" icon={<FiClock className="w-4 h-4" />} label="Overtime" sub="OT + comp-off" color="rose" />
+        <QuickLink href="/attendance/comp-off" icon={<FiCalendar className="w-4 h-4" />} label="Comp-Off" sub="Earned leave" color="emerald" />
+        <QuickLink href="/attendance/policy-config" icon={<FiShield className="w-4 h-4" />} label="Policy Config" sub="Rounding + grace" color="violet" />
+        <QuickLink href="/attendance/burnout" icon={<FiAlertTriangle className="w-4 h-4" />} label="Burnout AI" sub="Risk flags" color="rose" />
+        <QuickLink href="/attendance/audit-log" icon={<FiList className="w-4 h-4" />} label="Audit Log" sub="Trail (REQ-SEC-ATT-04)" color="blue" />
+      </div>
+
       {/* Today's Status Card */}
       <div className="nexus-card p-6">
         <h2 className="text-sm font-semibold text-nexus-text-primary mb-4">Today&apos;s Status</h2>
@@ -500,5 +520,31 @@ export default function AttendancePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Quick Link Card ── */
+function QuickLink({ href, icon, label, sub, color }: {
+  href: string; icon: React.ReactNode; label: string; sub: string; color: string;
+}) {
+  const colorMap: Record<string, string> = {
+    violet: 'border-violet-200 hover:border-violet-300 hover:bg-violet-50 text-violet-600',
+    emerald: 'border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-600',
+    amber: 'border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600',
+    blue: 'border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600',
+    cyan: 'border-cyan-200 hover:border-cyan-300 hover:bg-cyan-50 text-cyan-600',
+    rose: 'border-rose-200 hover:border-rose-300 hover:bg-rose-50 text-rose-600',
+  };
+  return (
+    <Link
+      href={href}
+      className={`flex flex-col gap-1 p-3 rounded-xl border ${colorMap[color] || colorMap.violet} transition-colors group`}
+    >
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-sm font-medium text-nexus-text-primary">{label}</span>
+      </div>
+      <span className="text-[10px] text-nexus-text-muted">{sub}</span>
+    </Link>
   );
 }

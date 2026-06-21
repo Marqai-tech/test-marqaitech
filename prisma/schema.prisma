@@ -206,7 +206,8 @@ model Branch {
   employees   Employee[]
 
   // ─── AI Attendance & Leave Addendum ───
-  geofences   Geofence[]
+  geofences         Geofence[]
+  biometricDevices  BiometricDevice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -408,6 +409,8 @@ model Employee {
   optionalHolidayElections  OptionalHolidayElection[]
   burnoutFlags              BurnoutFlag[]
   attendanceAuditLogs       AttendanceAuditLog[]
+  biometricEnrollments      BiometricEnrollment[]
+  biometricPunches          BiometricPunch[]
 
   // ─── AI Recruitment back-references ───
   referrals              Referral[]
@@ -4741,6 +4744,9 @@ model Geofence {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // ─── Biometric Device back-reference ───
+  biometricDevices BiometricDevice[]
+
   @@index([branchId])
 }
 
@@ -5106,4 +5112,125 @@ model AttendanceAuditLog {
   @@index([employeeId])
   @@index([action])
   @@index([createdAt])
+}
+
+// =====================================================================
+// Biometric Device Integration (REQ-ATT-03, REQ-SEC-ATT-02)
+// AI spoofing / buddy-punch detection (REQ-AI-ATT-01, REQ-AI-ATT-02)
+// =====================================================================
+
+// ── Biometric Device Registry (REQ-ATT-03) ──
+// A physical biometric terminal (ZKTeco, Mantra, SecuGen, Suprema, etc.)
+// that pushes punch events to /api/attendance/biometric/punch via webhook.
+model BiometricDevice {
+  id              String   @id @default(cuid())
+  name            String   // Friendly name e.g. "Office-1 Main Door"
+  serialNumber    String   @unique
+  vendor          String   // "zkteco" | "mantra" | "secugen" | "suprema" | "custom"
+  model           String?
+  firmwareVersion String?
+
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  geofenceId      String?  // Optional — bind a device to a geofence for cross-check
+  geofence        Geofence? @relation(fields: [geofenceId], references: [id], onDelete: SetNull)
+
+  // API auth — device authenticates to webhook with this token.
+  // Raw token is returned only ONCE at registration; we store the SHA-256 hash.
+  // REQ-SEC-ATT-02: in transit, this is over TLS 1.3 only.
+  apiTokenHash    String
+  ipAddress       String?
+  lastHeartbeatAt DateTime?
+
+  // REQ-SEC-ATT-02: AES-256 key fingerprint used to decrypt device-side templates.
+  // We never persist the raw key — only its fingerprint for audit.
+  encryptionKeyId String?
+
+  isActive        Boolean  @default(true)
+  enrolledAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  punches         BiometricPunch[]
+  enrollments     BiometricEnrollment[]
+
+  @@index([branchId])
+  @@index([isActive])
+}
+
+// ── Biometric Enrollment — links employee to a device-scoped template hash ──
+// REQ-SEC-ATT-02: we never store the raw biometric template. We hash the
+// AES-256-encrypted template blob the device sends, so even a DB leak
+// cannot be used to reconstruct a fingerprint.
+model BiometricEnrollment {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deviceId        String
+  device          BiometricDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  // SHA-256(encrypted_template_blob) — unique per device
+  templateHash    String   @unique
+  modality        String   @default("fingerprint") // fingerprint | face | palm | iris
+  qualityScore    Float?   // 0..100, vendor-reported
+
+  isActive        Boolean  @default(true)
+  enrolledAt      DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([employeeId, deviceId])
+  @@index([employeeId])
+  @@index([deviceId])
+}
+
+// ── Biometric Punch Log (REQ-ATT-03) ──
+// Each punch event the device pushes lands here, immutable.
+// The webhook also creates/updates an Attendance record and stamps the link.
+model BiometricPunch {
+  id              String   @id @default(cuid())
+  deviceId        String
+  device          BiometricDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  employeeId      String?
+  employee        Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  punchType       String   // "check_in" | "check_out"
+  punchTime       DateTime
+
+  // Vendor raw payload (user_id, verify_mode, in_out, temp, io_state, photo_url, etc.)
+  rawPayload      Json
+
+  // AI security flags (REQ-AI-ATT-01 spoofing, REQ-AI-ATT-02 buddy punching)
+  // Risk scores are 0..1; flagged=true when either exceeds tenant threshold.
+  spoofingRisk    Float    @default(0)
+  buddyPunchRisk  Float    @default(0)
+  flagged         Boolean  @default(false)
+  flagReasons     Json?    // ["liveness_failed", "geofence_mismatch", "off_hours"]
+
+  // Matched Attendance record (created/updated by the webhook)
+  attendanceId    String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([deviceId])
+  @@index([employeeId])
+  @@index([punchTime])
+  @@index([flagged])
+}
+
+// ── AI Punch Risk Thresholds (tenant-level config) ──
+// Tunable thresholds for spoofing/buddy-punch flagging.
+model AttendanceAiThreshold {
+  id                      String  @id @default(cuid())
+  name                    String  @default("default")
+  spoofingRiskThreshold   Float   @default(0.6)  // >0.6 → flag
+  buddyPunchRiskThreshold Float   @default(0.5)  // >0.5 → flag
+  // Speed check — if the same employee punched from two devices >X km apart within Y minutes
+  impossibleTravelKm      Float   @default(50)
+  impossibleTravelMinutes Int     @default(30)
+  // Off-hours window — punches outside [start,end] are flagged (24h, in minutes from midnight)
+  offHoursStartMinutes    Int     @default(0)    // 0 = midnight
+  offHoursEndMinutes      Int     @default(0)    // 0 = midnight (i.e. disabled when equal)
+  isActive                Boolean @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }

@@ -614,6 +614,82 @@ async function main() {
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE INDEX IF NOT EXISTS "DataResidencyPolicy_companyId_idx" ON "DataResidencyPolicy"("companyId")`,
+
+    // ─── Biometric Device Integration (REQ-ATT-03, REQ-SEC-ATT-02) ───
+    `CREATE TABLE IF NOT EXISTS "BiometricDevice" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "serialNumber" TEXT NOT NULL,
+      "vendor" TEXT NOT NULL,
+      "model" TEXT,
+      "firmwareVersion" TEXT,
+      "branchId" TEXT,
+      "geofenceId" TEXT,
+      "apiTokenHash" TEXT NOT NULL,
+      "ipAddress" TEXT,
+      "lastHeartbeatAt" TIMESTAMP(3),
+      "encryptionKeyId" TEXT,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "enrolledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BiometricDevice_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "BiometricDevice_serialNumber_key" ON "BiometricDevice"("serialNumber")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricDevice_branchId_idx" ON "BiometricDevice"("branchId")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricDevice_isActive_idx" ON "BiometricDevice"("isActive")`,
+
+    `CREATE TABLE IF NOT EXISTS "BiometricEnrollment" (
+      "id" TEXT NOT NULL,
+      "employeeId" TEXT NOT NULL,
+      "deviceId" TEXT NOT NULL,
+      "templateHash" TEXT NOT NULL,
+      "modality" TEXT NOT NULL DEFAULT 'fingerprint',
+      "qualityScore" DOUBLE PRECISION,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "enrolledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BiometricEnrollment_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "BiometricEnrollment_templateHash_key" ON "BiometricEnrollment"("templateHash")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "BiometricEnrollment_employeeId_deviceId_key" ON "BiometricEnrollment"("employeeId", "deviceId")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricEnrollment_employeeId_idx" ON "BiometricEnrollment"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricEnrollment_deviceId_idx" ON "BiometricEnrollment"("deviceId")`,
+
+    `CREATE TABLE IF NOT EXISTS "BiometricPunch" (
+      "id" TEXT NOT NULL,
+      "deviceId" TEXT NOT NULL,
+      "employeeId" TEXT,
+      "punchType" TEXT NOT NULL,
+      "punchTime" TIMESTAMP(3) NOT NULL,
+      "rawPayload" JSONB NOT NULL,
+      "spoofingRisk" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "buddyPunchRisk" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "flagged" BOOLEAN NOT NULL DEFAULT false,
+      "flagReasons" JSONB,
+      "attendanceId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "BiometricPunch_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "BiometricPunch_deviceId_idx" ON "BiometricPunch"("deviceId")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricPunch_employeeId_idx" ON "BiometricPunch"("employeeId")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricPunch_punchTime_idx" ON "BiometricPunch"("punchTime")`,
+    `CREATE INDEX IF NOT EXISTS "BiometricPunch_flagged_idx" ON "BiometricPunch"("flagged")`,
+
+    `CREATE TABLE IF NOT EXISTS "AttendanceAiThreshold" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL DEFAULT 'default',
+      "spoofingRiskThreshold" DOUBLE PRECISION NOT NULL DEFAULT 0.6,
+      "buddyPunchRiskThreshold" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+      "impossibleTravelKm" DOUBLE PRECISION NOT NULL DEFAULT 50,
+      "impossibleTravelMinutes" INTEGER NOT NULL DEFAULT 30,
+      "offHoursStartMinutes" INTEGER NOT NULL DEFAULT 0,
+      "offHoursEndMinutes" INTEGER NOT NULL DEFAULT 0,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AttendanceAiThreshold_pkey" PRIMARY KEY ("id")
+    )`,
   ];
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
@@ -1357,6 +1433,20 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "JobBoardPosting_board_status_idx" ON "JobBoardPosting"("board", "status")`,
     `ALTER TABLE "JobBoardPosting" DROP CONSTRAINT IF EXISTS "JobBoardPosting_jobPostingId_fkey"`,
     `ALTER TABLE "JobBoardPosting" ADD CONSTRAINT "JobBoardPosting_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "JobPosting"("id") ON DELETE CASCADE`,
+
+    // ─── Biometric Device Integration FKs (REQ-ATT-03) ───
+    `ALTER TABLE "BiometricDevice" DROP CONSTRAINT IF EXISTS "BiometricDevice_branchId_fkey"`,
+    `ALTER TABLE "BiometricDevice" ADD CONSTRAINT "BiometricDevice_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    `ALTER TABLE "BiometricDevice" DROP CONSTRAINT IF EXISTS "BiometricDevice_geofenceId_fkey"`,
+    `ALTER TABLE "BiometricDevice" ADD CONSTRAINT "BiometricDevice_geofenceId_fkey" FOREIGN KEY ("geofenceId") REFERENCES "Geofence"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    `ALTER TABLE "BiometricEnrollment" DROP CONSTRAINT IF EXISTS "BiometricEnrollment_employeeId_fkey"`,
+    `ALTER TABLE "BiometricEnrollment" ADD CONSTRAINT "BiometricEnrollment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "BiometricEnrollment" DROP CONSTRAINT IF EXISTS "BiometricEnrollment_deviceId_fkey"`,
+    `ALTER TABLE "BiometricEnrollment" ADD CONSTRAINT "BiometricEnrollment_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "BiometricDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "BiometricPunch" DROP CONSTRAINT IF EXISTS "BiometricPunch_deviceId_fkey"`,
+    `ALTER TABLE "BiometricPunch" ADD CONSTRAINT "BiometricPunch_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "BiometricDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "BiometricPunch" DROP CONSTRAINT IF EXISTS "BiometricPunch_employeeId_fkey"`,
+    `ALTER TABLE "BiometricPunch" ADD CONSTRAINT "BiometricPunch_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
   ];
 
   let applied = 0;
