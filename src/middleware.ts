@@ -1,71 +1,118 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import createMiddleware from 'next-intl/middleware'
-import { routing } from '@/i18n/routing'
 
 /**
- * Combined middleware: i18n locale routing + tenant detection.
+ * Combined middleware: i18n locale detection + tenant detection.
  *
- * 1. next-intl middleware runs first — detects locale from Accept-Language
- *    header or URL prefix, rewrites /es/login → /login with locale='es' in
- *    the request, and sets the `x-next-intl-locale` header.
+ * IMPORTANT: We intentionally do NOT use next-intl's createMiddleware here.
  *
- * 2. Our tenant-detection logic runs on the (possibly rewritten) request —
- *    extracts the tenant slug from subdomain or ?tenant= query param, sets
- *    `x-tenant-slug` and `x-tenant-domain` headers for downstream use.
+ * Why: next-intl's middleware expects the app to be structured under
+ * `app/[locale]/`. With `localePrefix: 'as-needed'`, it rewrites
+ * `/login` → `/en/login` INTERNALLY (server-side). Since our app uses
+ * `app/login/`, `app/(dashboard)/`, etc. — with NO `[locale]` segment —
+ * the rewritten path `/en/login` doesn't match any route, and Next.js
+ * returns 404 for EVERY page. This was the root cause of the
+ * 2026-06-21 production outage on nexus-hrms-mu.vercel.app.
  *
- * 3. The combined response is returned with both locale + tenant context.
+ * Fix: implement locale detection OURSELVES. We:
+ *   1. Read NEXT_LOCALE cookie (set when user explicitly switches locale)
+ *   2. Fall back to Accept-Language header
+ *   3. Fall back to default locale ('en')
+ *   4. Set the `x-next-intl-locale` request header so next-intl's
+ *      `getLocale()` and `getMessages()` in layout.tsx work correctly.
+ *   5. Set the NEXT_LOCALE cookie if not already set (so future requests
+ *      remember the user's locale).
+ *
+ * We ALSO keep the existing tenant-detection logic (subdomain / ?tenant= query).
+ *
+ * No URL rewriting happens — `/login` stays `/login`, `/dashboard` stays
+ * `/dashboard`. Locale is a runtime concept, not a URL structure.
  */
 
-const intlMiddleware = createMiddleware(routing)
+const LOCALES = ['en', 'es', 'fr', 'de', 'hi', 'ar'] as const;
+const DEFAULT_LOCALE = 'en';
+
+function isSupportedLocale(loc: string | undefined | null): loc is typeof LOCALES[number] {
+  return !!loc && (LOCALES as readonly string[]).includes(loc);
+}
+
+function detectLocale(request: NextRequest): string {
+  // 1. NEXT_LOCALE cookie (user has explicitly chosen a locale)
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  if (isSupportedLocale(cookieLocale)) {
+    return cookieLocale;
+  }
+
+  // 2. Accept-Language header (browser preference)
+  const acceptLang = request.headers.get('accept-language') || '';
+  const candidates = acceptLang
+    .split(',')
+    .map((part) => part.trim().split(';')[0].toLowerCase())
+    .map((tag) => tag.split('-')[0]); // 'en-US' → 'en'
+  for (const lang of candidates) {
+    if (isSupportedLocale(lang)) {
+      return lang;
+    }
+  }
+
+  // 3. Default
+  return DEFAULT_LOCALE;
+}
 
 function extractTenantSlug(request: NextRequest): string {
   // 1. ?tenant=xxx query param (explicit override — useful for testing)
-  const fromQuery = request.nextUrl.searchParams.get('tenant')
-  if (fromQuery) return fromQuery
+  const fromQuery = request.nextUrl.searchParams.get('tenant');
+  if (fromQuery) return fromQuery;
 
   // 2. Subdomain extraction: <slug>.<root-domain>
-  const host = request.headers.get('host') || ''
-  const hostname = host.split(':')[0]
-  const parts = hostname.split('.')
+  const host = request.headers.get('host') || '';
+  const hostname = host.split(':')[0];
+  const parts = hostname.split('.');
   if (parts.length >= 3) {
-    const sub = parts[0].toLowerCase()
+    const sub = parts[0].toLowerCase();
     if (sub && !['www', 'api', 'app', 'admin', 'mail', 'ftp'].includes(sub)) {
-      return sub
+      return sub;
     }
   }
-  return ''
+  return '';
 }
 
-export default function middleware(request: NextRequest) {
-  // 1. Run next-intl middleware first (handles locale detection + URL rewriting)
-  const response = intlMiddleware(request)
+export function middleware(request: NextRequest) {
+  // 1. Detect locale (cookie → Accept-Language → default)
+  const locale = detectLocale(request);
 
-  // 2. Add tenant headers to the response's request headers
-  const tenantSlug = extractTenantSlug(request)
-  const host = request.headers.get('host') || ''
+  // 2. Extract tenant slug (subdomain or ?tenant=)
+  const tenantSlug = extractTenantSlug(request);
+  const host = request.headers.get('host') || '';
 
-  const requestHeaders = new Headers(request.headers)
+  // 3. Build augmented request headers
+  const requestHeaders = new Headers(request.headers);
+  // next-intl's getLocale() reads this header (set by next-intl middleware
+  // normally; we set it ourselves since we're not using their middleware).
+  requestHeaders.set('x-next-intl-locale', locale);
   if (tenantSlug) {
-    requestHeaders.set('x-tenant-slug', tenantSlug)
+    requestHeaders.set('x-tenant-slug', tenantSlug);
   }
-  requestHeaders.set('x-tenant-domain', host)
+  requestHeaders.set('x-tenant-domain', host);
 
-  // If intl middleware returned a NextResponse.next(), we can augment it
-  // with our tenant headers. If it returned a rewrite/redirect, we still
-  // want to add the tenant headers to the underlying request.
-  if (response.headers) {
-    // The response from intl middleware may include headers we want to keep
-    // (e.g., Set-Cookie for locale preference). We just augment the request.
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-      headers: response.headers,
-    })
+  // 4. Continue with the SAME URL (no rewriting!) + augmented headers
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  // 5. Persist locale as a cookie so future requests remember it
+  const existingCookie = request.cookies.get('NEXT_LOCALE')?.value;
+  if (existingCookie !== locale) {
+    response.cookies.set('NEXT_LOCALE', locale, {
+      path: '/',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+    });
   }
 
-  return response
+  return response;
 }
 
 export const config = {

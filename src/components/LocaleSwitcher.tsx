@@ -2,23 +2,30 @@
 
 /**
  * Locale switcher — dropdown to switch between supported locales.
- * Uses next-intl's useRouter + usePathname to redirect to the same page
- * in the new locale. With localePrefix='as-needed', the default locale (en)
- * has no URL prefix; other locales get /es/, /fr/, etc.
+ *
+ * Uses COOKIE-BASED locale switching (not URL-based) because our app
+ * is not structured under app/[locale]/. When the user picks a new locale:
+ *   1. POST to /api/i18n/set-locale with the new locale
+ *   2. The API sets the NEXT_LOCALE cookie
+ *   3. We reload the current page — middleware reads the cookie and sets
+ *      x-next-intl-locale header → layout.tsx's getLocale() picks it up
+ *      → correct translation bundle is loaded
+ *
+ * URL stays unchanged (/login, /dashboard, etc.) in all locales.
  */
 
 import { useState, useRef, useEffect } from 'react';
 import { FiGlobe, FiChevronDown } from 'react-icons/fi';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter, usePathname } from '@/i18n/navigation';
+import { useRouter } from 'next/navigation';
 import { locales, localeNames, type Locale } from '@/i18n/routing';
 
 export default function LocaleSwitcher() {
   const locale = useLocale() as Locale;
   const router = useRouter();
-  const pathname = usePathname();
   const t = useTranslations('locale');
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,18 +38,34 @@ export default function LocaleSwitcher() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const handleChange = (newLocale: Locale) => {
+  const handleChange = async (newLocale: Locale) => {
     setOpen(false);
     if (newLocale === locale) return;
-    // useRouter from next-intl/navigation will handle the prefix logic
-    router.replace(pathname, { locale: newLocale });
+
+    setSwitching(true);
+    try {
+      // Set the NEXT_LOCALE cookie via API so the middleware picks it up
+      // on the next request.
+      await fetch('/api/i18n/set-locale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: newLocale }),
+      });
+      // Reload the current page so server components re-render with the
+      // new locale's message bundle.
+      router.refresh();
+    } catch (err) {
+      console.error('Failed to switch locale:', err);
+      setSwitching(false);
+    }
   };
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+        disabled={switching}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors disabled:opacity-50"
         title={t('switchLanguage')}
         aria-label={t('switchLanguage')}
         aria-expanded={open}
@@ -59,7 +82,8 @@ export default function LocaleSwitcher() {
             <button
               key={l}
               onClick={() => handleChange(l)}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 ${
+              disabled={switching}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 disabled:opacity-50 ${
                 l === locale ? 'bg-violet-50 text-violet-700 font-medium' : 'text-slate-700'
               }`}
             >
