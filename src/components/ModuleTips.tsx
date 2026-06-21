@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useSyncExternalStore, useMemo } from 'react';
+import { useState, useCallback, useSyncExternalStore, useMemo, type ReactNode } from 'react';
 import { FiZap, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { getTipsForRole } from '@/lib/roleTips';
 
@@ -11,9 +11,15 @@ interface Tip {
 
 interface ModuleTipsProps {
   moduleKey: string;
-  title: string;
-  tips: Tip[];
+  title?: string;
+  tips?: Tip[];
   userRole?: string; // NEW: optional role for filtering
+  /**
+   * Optional inline content. Rendered as a fallback when no `tips` prop is
+   * supplied AND no role-tips are available. Used by OKRs / Invoices pages
+   * to inject a single descriptive paragraph instead of a tip list.
+   */
+  children?: ReactNode;
 }
 
 const emptySubscribe = () => () => {};
@@ -27,7 +33,7 @@ function getStoredDismissed(key: string): boolean {
   }
 }
 
-export default function ModuleTips({ moduleKey, title, tips, userRole }: ModuleTipsProps) {
+export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, children }: ModuleTipsProps) {
   const storageKey = `nexus_tips_dismissed_${moduleKey}`;
   const [collapsed, setCollapsed] = useState(false);
 
@@ -41,16 +47,22 @@ export default function ModuleTips({ moduleKey, title, tips, userRole }: ModuleT
   const [dismissed, setDismissed] = useState(() => getStoredDismissed(storageKey));
 
   // Compute the effective tips based on role filtering
-  const effectiveTips = useMemo(() => {
+  // HARDENED: never return undefined — both `tips` prop and `getTipsForRole` result
+  // can be undefined when callers omit the `tips` prop and moduleKey is not in
+  // roleTipsConfig (e.g. 'okrs', 'invoices'). Previously crashed with
+  // 'Cannot read properties of undefined (reading "length")' on those pages.
+  const effectiveTips = useMemo<Tip[]>(() => {
     if (userRole) {
-      const roleTips = getTipsForRole(moduleKey, userRole);
-      // Prefer role-filtered tips if they return items; otherwise fall back to tips prop
-      if (roleTips.length > 0) {
-        return roleTips;
+      try {
+        const roleTips = getTipsForRole(moduleKey, userRole);
+        if (Array.isArray(roleTips) && roleTips.length > 0) {
+          return roleTips;
+        }
+      } catch {
+        /* ignore — fall through to tips prop */
       }
     }
-    // No userRole provided, or role filtering returned nothing — fall back to tips prop
-    return tips;
+    return Array.isArray(tips) ? tips : [];
   }, [moduleKey, userRole, tips]);
 
   const handleDismiss = useCallback(() => {
@@ -88,7 +100,7 @@ export default function ModuleTips({ moduleKey, title, tips, userRole }: ModuleT
           </div>
           <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
           <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-            {effectiveTips.length} tips
+            {effectiveTips.length > 0 ? `${effectiveTips.length} tips` : 'Info'}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -112,19 +124,25 @@ export default function ModuleTips({ moduleKey, title, tips, userRole }: ModuleT
       {/* Tips Content */}
       {!collapsed && (
         <div className="p-4 bg-gradient-to-b from-blue-50/50 to-indigo-50/30">
-          <div className="space-y-3">
-            {effectiveTips.map((tip, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mt-0.5">
-                  {index + 1}
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
-                  <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
+          {effectiveTips.length > 0 ? (
+            <div className="space-y-3">
+              {effectiveTips.map((tip, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mt-0.5">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
+                    <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : children ? (
+            <div className="text-sm text-nexus-text-secondary leading-relaxed">
+              {children}
+            </div>
+          ) : null}
         </div>
       )}
     </div>

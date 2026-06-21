@@ -1565,3 +1565,97 @@ Stage Summary:
 - Legal Hold capability allows Super Admin to freeze user/room/file from deletion across any tenant
 - All schema additions are ADDITIVE (CREATE TABLE IF NOT EXISTS + ALTER ADD COLUMN IF NOT EXISTS) — no risk to existing endpoints
 - Production deployment: Vercel build runs scripts/schema-sync.js automatically (per vercel.json) which creates the 21 new tables on the PostgreSQL database
+
+---
+Task ID: AUDIT-1
+Agent: Code Auditor (general-purpose sub-agent)
+Task: Audit OKR Cascade + Invoices dashboard pages for unguarded `.length` (Vercel still shows "Cannot read properties of undefined (reading 'length')" after commit ba14183)
+
+Work Log:
+- Read worklog.md (first 100 + last 200 lines): no prior Task ID covers the OKR/Invoices `.length` runtime error; ba14183 is not logged here. Nearest prior entries are Task 13 (i18n 404 fix) and Task 14 (payroll sub-menu + collaboration module).
+- Read completely:
+  * src/app/(dashboard)/okrs/page.tsx (831 lines)
+  * src/app/(dashboard)/invoices/page.tsx (706 lines)
+  * src/app/(dashboard)/invoices/[id]/page.tsx (781 lines)
+- Read API routes feeding those pages:
+  * src/app/api/okrs/route.ts — GET returns `{ okrs: [...] | tree, flatCount|count }`; Prisma `include` nests childOkrs 4 levels deep, keyResults included at all 4 levels; company/project/childOkrs NOT included at level 4 (so `okr.company`/`okr.project`/`okr.childOkrs` are undefined for deepest nodes)
+  * src/app/api/okrs/[id]/route.ts — returns `{ okr }` with keyResults + one level of childOkrs
+  * src/app/api/invoices/route.ts — returns `{ invoices, pagination }`; `invoices` is always a Prisma array; uses `_count: { select: { lineItems: true } }` (no lineItems array on list items)
+  * src/app/api/invoices/[id]/route.ts — returns `{ invoice }` with `lineItems: true` include (always an array); 404 → `{ error }`
+- Grepped all `.length`, `.map(`, `.filter(`, `.find(`, `.forEach(`, `.reduce(` in the three page files. Result: EVERY array access in the three page files is already guarded after ba14183 (Array.isArray checks, `?.`, `|| []` defaults, or upstream state initialized to `[]`). Details in Section C/D below.
+- Because the page files themselves are fully guarded yet the error persists, traced the shared components each page renders. Both `okrs/page.tsx` (line 504) and `invoices/page.tsx` (line 264) render `<ModuleTips moduleKey="okrs">` / `<ModuleTips moduleKey="invoices">` passing ONLY `moduleKey` + JSX children — they OMIT the required `tips` and `title` props and omit `userRole`.
+- Inspected src/components/ModuleTips.tsx: `tips` is declared required (`tips: Tip[]`) but never defaulted. In the `effectiveTips` useMemo, when `userRole` is falsy the code falls through to `return tips;` → returns `undefined`. Line 91 then renders `{effectiveTips.length}` → `undefined.length` → throws EXACTLY "Cannot read properties of undefined (reading 'length')". Line 116 `{effectiveTips.map(...)}` would throw the same way if execution ever reached it.
+- Cross-checked the contract: 8 other pages (workflows, grievances, succession, job-portal, attendance, leave, settings, reports) all pass `tips={...}` + `title={...}` + `userRole={user?.role}` to ModuleTips — those pages do NOT crash. The two crashing pages are exactly the two that omit these props. `invoices/[id]/page.tsx` does not render ModuleTips at all → not reported broken. This pattern perfectly matches the user's report.
+- Verified getTipsForRole (src/lib/roleTips.ts:2239) always returns an array (`[]` for unknown moduleKey; filtered array otherwise), and that `okrs`/`invoices` are NOT keys in roleTipsConfig — so even if `userRole` were passed, these two modules would resolve `effectiveTips` to the raw `tips` prop (undefined) and still crash. This makes the ModuleTips hardening the correct fix rather than just passing `userRole`.
+- Did NOT modify any files (audit-only per instructions).
+
+Findings (condensed — full report returned to caller):
+- Section C (unguarded `.length` in the 3 page files): NONE. All 16 `.length` accesses across the 3 files are guarded. Only stylistic fragility: okrs/page.tsx:236 `okr.childOkrs!.map(...)` uses TS non-null assertion instead of `?.` (logically guarded by `hasChildren` on line 118/234, but fragile).
+- Section D (unguarded `.map/.filter/.find/.forEach/.reduce` in the 3 page files): NONE. All 30+ array-method calls are guarded.
+- ROOT CAUSE (outside the 3 page files but triggered BY them): src/components/ModuleTips.tsx:91 `{effectiveTips.length}` crashes when `tips` prop is omitted. Triggered by okrs/page.tsx:504 and invoices/page.tsx:264.
+
+Recommended priority fixes (Section E):
+1. [CRITICAL — root cause] Harden src/components/ModuleTips.tsx: default `tips` to `[]`, default `title`, guard `effectiveTips` (`Array.isArray(tips) ? tips : []`), guard line 91 (`effectiveTips?.length ?? 0`) and line 116 (`(effectiveTips || []).map(...)`). Optionally render `children` as a fallback so the descriptive `<p>` in the two pages actually shows.
+2. [LOW / defense-in-depth] okrs/page.tsx:236 — change `okr.childOkrs!.map(...)` → `okr.childOkrs?.map(...)` (keep the `hasChildren` guard; drop the `!`).
+3. [VERIFY] Confirm ba14183 is actually deployed to Vercel (check deployment commit SHA / trigger a fresh redeploy + hard-refresh) — the page files are already correct, so if ModuleTips is fixed and the error still shows, it is a stale-build/cache issue.
+
+
+---
+Task ID: AUDIT-2
+Agent: code-archaeologist (sub agent)
+Task: Gap analysis of Recruitment / ATS / Preboarding / Onboarding / Offers / AI Interview / Job Portal modules against the comprehensive requirements spec
+
+Work Log:
+- Read worklog.md head (Tasks 1-14 context) + tail (Tasks 12-14 payroll/employee/collaboration/i18n details)
+- Inventoried 9 dashboard pages (recruitment, requisitions, offers, ai-interview, job-portal, preboarding, onboarding) + 3 public/candidate pages (/careers, /careers/[tenantSlug], /interview/[token]) + 4 HRMS components — read each in full
+- Inventoried 21 recruitment-related API routes by reading route.ts files in full: /api/recruitment, /api/requisitions, /api/offers, /api/preboarding, /api/onboarding, /api/ai-interview/{sets,sessions,chat,evaluate,proctoring,invitations,mcq}, /api/public/{jobs,apply}, /api/recruitment-ai, /api/jobs, /api/candidates, /api/interviews, /api/referrals
+- Mapped 13 Prisma models in schema.prisma: JobPosting, JobApplication, Interview, OnboardingTask, Requisition, Offer, PreboardingCandidate, InterviewSet, InterviewSetQuestion, InterviewSession, InterviewResponse, ProctoringLog, InterviewInvitation
+- Confirmed via grep that the Referral model DOES NOT exist in schema.prisma — /api/referrals/route.ts would silently fall through to the createFallbackProxy() at runtime
+- Confirmed that src/components/hrms/{recruitment,job-portal,ai-interview,onboarding}.tsx use a different data path (@/lib/api + react-query + /api/jobs + /api/candidates) than the dashboard pages — they reference Job/Candidate models that also don't exist in the Prisma schema
+- Confirmed /preboarding/page.tsx runs off a hard-coded demoCandidates constant (lines 140-147) even though /api/preboarding and PreboardingCandidate model exist
+- Confirmed /api/recruitment-ai/route.ts parse_resume and score_candidates actions return MOCK DATA (lines 48-72)
+- Confirmed no schema.org JSON-LD markup on /careers page; no e-signature integration (only a cosmetic DocuSign tile in settings.tsx); no WhatsApp/SMS outreach; no candidate portal/dashboard; no consent management for candidates
+- Verified AI Interview subsystem is genuinely advanced: 8-dimension scoring via ZAI, 7-event-type proctoring with auto-disqualify at 3 critical events, async interview invitations with 32-byte tokens, MCQ support, 5 interview modes (text/voice/video/mcq/coding)
+
+Stage Summary:
+- 48 requirements audited across 9 sections
+- 4 EXISTS (8%) — REQ-PORT-01, REQ-ATS-05, REQ-AI-INT-04, REQ-AI-INT-05
+- 17 PARTIAL (35%) — mostly foundational plumbing without the differentiating capability
+- 26 MISSING (54%) — concentrated in sourcing/job boards (5 of 6), offer management (3 of 4), day-1 onboarding integrations (4 of 5), security/compliance (3 of 4)
+- Full report saved to /home/z/my-project/agent-ctx/AUDIT-2-recruitment-gap-analysis.md
+
+Top 20 Missing Requirements (prioritized):
+1. REQ-SEC-REC-04 — Consent management (GDPR/CCPA blocker for EU/CA applicants)
+2. REQ-SEC-REC-01 — Right to be Forgotten for candidates (existing GDPR flow is employee-only)
+3. REQ-SEC-REC-02 — AI Transparency disclaimers (EU AI Act Art. 13)
+4. REQ-SEC-REC-03 — PII Masking for panel (bias-mitigation, fair-hiring compliance)
+5. REQ-ONB-01 — Trigger preboarding on offer acceptance (high-value automation)
+6. REQ-ONB-05 — Auto-create Employee record on hire (critical day-1 unblocker)
+7. REQ-OFR-03 — E-signatures via DocuSign/Adobe Sign (paperless offers)
+8. REQ-ATS-01 — Real multi-format resume parsing (replacing the mock in /api/recruitment-ai)
+9. REQ-PORT-04 — SEO schema.org JobPosting markup (free organic traffic)
+10. REQ-AI-INT-08 — Collaboration Hub integration for interview panels
+11. REQ-AI-INT-01 — WhatsApp/SMS outreach (high-impact in IN/LATAM/MEA markets)
+12. REQ-ATS-04 — Candidate dashboard (zero candidate visibility today)
+13. REQ-ONB-02 — Wire preboarding document collection UI to real API (currently demo data)
+14. REQ-OFR-04 — Decline analysis micro-survey (recruiting intel)
+15. REQ-OFR-01 — Dynamic country-specific offer letter templates
+16. REQ-SRC-05 — Fix Referral model + trackable social links (existing API is broken)
+17. REQ-SRC-01 + 02 — Job board integrations + multi-posting (LinkedIn/Indeed/Glassdoor/StepStone/Naukri)
+18. REQ-PORT-03 — WCAG 2.1 accessibility (ADA/EAA legal requirement)
+19. TENANT-ADMIN — Recruitment Analytics (Cost per Hire, Time to Fill, Source Quality)
+20. REQ-AI-INT-03 — Async video interview UI (backend ready, only capture UI missing)
+
+5 Highest-Priority Builds:
+1. Candidate Consent & PII Masking Bundle (REQ-SEC-REC-03 + 04) — 2 days, low risk, additive; unblocks EU/CA applicant flow. Adds CandidateConsent + CandidatePiiPolicy Prisma models, /api/ats/consent + /api/ats/pii-policy routes, src/lib/pii-mask.ts helper, consent checkboxes in /careers ApplyModal, role-based field masking in /recruitment applications tab.
+2. Offer Acceptance → Preboarding → Employee → Onboarding Tasks Cascade (REQ-ONB-01 + 05 + 08) — 3 days, medium risk; touches Offer PATCH + Preboarding PATCH to auto-cascade. Adds OnboardingTaskTemplate model + /api/onboarding/templates CRUD. Auto-creates Employee + default task list when PreboardingCandidate.status → 'joined'.
+3. Real Resume Parser replacing mock (REQ-ATS-01 + 02) — 3 days, low risk, additive. Adds /api/ats/parse-resume endpoint, src/lib/resume-parser.ts (pdf-parse + mammoth + ZAI extraction in detected language), resumeParsed Json? + resumeLanguage String? on JobApplication. Replaces mock parse_resume action in /api/recruitment-ai.
+4. Offer Letter Template Engine + E-Signature (REQ-OFR-01 + 03) — 5 days, medium risk (DocuSign OAuth). Adds OfferTemplate model + 6 new fields on Offer (esignProvider, esignEnvelopeId, signedPdfUrl, signedAt, signedById, generatedPdfUrl, templateId). New routes: /api/offers/templates CRUD, /api/offers/[id]/generate-pdf, /api/offers/[id]/send-for-esign, /api/offers/webhooks/docusign. Pre-seeds 5 country templates.
+5. Fix Referral Model + Trackable Social Links (REQ-SRC-05) — 2 days, low risk, fixes broken existing route. Adds Referral model to schema.prisma (currently /api/referrals calls prisma.referral which doesn't exist). New routes /api/referrals/track/[token] (click redirect) + /api/referrals/trackable-link (mint token). New /referrals employee-facing page. Wire /careers to read ?ref= param and pass to /api/public/apply.
+
+Additional Recommendations:
+- Consolidate dual-implementation pattern: src/components/hrms/{recruitment,job-portal,ai-interview,onboarding}.tsx use demo-data fallback path while src/app/(dashboard)/*/page.tsx use real APIs — pick one and delete the other
+- Wire /preboarding/page.tsx to /api/preboarding instead of hard-coded demoCandidates constant
+- Add recruitment seed data to prisma/seed.ts (currently empty for recruitment models)
+- Add a /recruitment/[jobId] detail page with funnel visualization
+- Move offer-form currency dropdown to use CurrencyConfig model instead of hard-coded INR/USD/EUR list
