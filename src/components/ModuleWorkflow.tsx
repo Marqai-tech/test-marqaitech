@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import {
   FiInfo,
   FiChevronDown,
-  FiChevronUp,
+  FiChevronRight,
   FiX,
   FiCheck,
   FiArrowRight,
+  FiEye,
 } from 'react-icons/fi';
 import { getWorkflowForRole } from '@/lib/roleTips';
 
@@ -45,6 +46,8 @@ const accentColorMap = {
     completeText: 'text-emerald-600',
     arrowColor: 'text-emerald-400',
     lineColor: 'bg-emerald-300',
+    previewBorder: 'border-emerald-200',
+    previewHeader: 'from-emerald-100 to-teal-100 text-emerald-700',
   },
   blue: {
     headerBg: 'bg-gradient-to-r from-blue-50 to-indigo-50',
@@ -59,6 +62,8 @@ const accentColorMap = {
     completeText: 'text-blue-600',
     arrowColor: 'text-blue-400',
     lineColor: 'bg-blue-300',
+    previewBorder: 'border-blue-200',
+    previewHeader: 'from-blue-100 to-indigo-100 text-blue-700',
   },
   violet: {
     headerBg: 'bg-gradient-to-r from-violet-50 to-purple-50',
@@ -73,6 +78,8 @@ const accentColorMap = {
     completeText: 'text-violet-600',
     arrowColor: 'text-violet-400',
     lineColor: 'bg-violet-300',
+    previewBorder: 'border-violet-200',
+    previewHeader: 'from-violet-100 to-purple-100 text-violet-700',
   },
   amber: {
     headerBg: 'bg-gradient-to-r from-amber-50 to-orange-50',
@@ -87,6 +94,8 @@ const accentColorMap = {
     completeText: 'text-amber-600',
     arrowColor: 'text-amber-400',
     lineColor: 'bg-amber-300',
+    previewBorder: 'border-amber-200',
+    previewHeader: 'from-amber-100 to-orange-100 text-amber-700',
   },
   rose: {
     headerBg: 'bg-gradient-to-r from-rose-50 to-pink-50',
@@ -101,6 +110,8 @@ const accentColorMap = {
     completeText: 'text-rose-600',
     arrowColor: 'text-rose-400',
     lineColor: 'bg-rose-300',
+    previewBorder: 'border-rose-200',
+    previewHeader: 'from-rose-100 to-pink-100 text-rose-700',
   },
   cyan: {
     headerBg: 'bg-gradient-to-r from-cyan-50 to-sky-50',
@@ -115,9 +126,24 @@ const accentColorMap = {
     completeText: 'text-cyan-600',
     arrowColor: 'text-cyan-400',
     lineColor: 'bg-cyan-300',
+    previewBorder: 'border-cyan-200',
+    previewHeader: 'from-cyan-100 to-sky-100 text-cyan-700',
   },
 };
 
+/**
+ * ModuleWorkflow — always starts in a MINIMIZED state.
+ *
+ * UX contract (per user request):
+ *  1. The workflow panel is collapsed by default on every page load.
+ *  2. Hovering over the collapsed bar reveals a floating preview popover
+ *     with the step contents — no click required. The preview disappears
+ *     when the cursor leaves.
+ *  3. Clicking the expand toggle pins the panel open so the content stays
+ *     visible persistently. Clicking again collapses it back.
+ *  4. The dismiss (X) button hides the panel entirely until the user
+ *     clicks "Show Workflow" to bring it back.
+ */
 export default function ModuleWorkflow({
   moduleKey,
   title,
@@ -130,10 +156,9 @@ export default function ModuleWorkflow({
   const router = useRouter();
 
   // Determine which steps to display based on userRole
-  const roleFilteredSteps = userRole ? getWorkflowForRole(moduleKey, userRole) : [];
-  const activeSteps = roleFilteredSteps.length > 0 ? roleFilteredSteps : steps;
+  const roleFilteredSteps = userRole ? (getWorkflowForRole(moduleKey, userRole) || []) : [];
+  const activeSteps = roleFilteredSteps.length > 0 ? roleFilteredSteps : (Array.isArray(steps) ? steps : []);
 
-  const storageKey = `nexus_workflow_collapsed_${moduleKey}`;
   const dismissKey = `nexus_workflow_dismissed_${moduleKey}`;
 
   const mounted = useSyncExternalStore(
@@ -142,10 +167,9 @@ export default function ModuleWorkflow({
     () => false
   );
 
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try { return localStorage.getItem(storageKey) === 'true'; } catch { return false; }
-  });
+  // Always start minimized per global UX contract.
+  const [collapsed, setCollapsed] = useState(true);
+  const [hovered, setHovered] = useState(false);
 
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -153,10 +177,8 @@ export default function ModuleWorkflow({
   });
 
   const handleToggleCollapse = useCallback(() => {
-    const next = !collapsed;
-    setCollapsed(next);
-    try { localStorage.setItem(storageKey, String(next)); } catch { /* ignore */ }
-  }, [collapsed, storageKey]);
+    setCollapsed(prev => !prev);
+  }, []);
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);
@@ -165,7 +187,8 @@ export default function ModuleWorkflow({
 
   const handleShowWorkflow = useCallback(() => {
     setDismissed(false);
-    setCollapsed(false);
+    // Restored from dismissed → start minimized.
+    setCollapsed(true);
     try { localStorage.setItem(dismissKey, 'false'); } catch { /* ignore */ }
   }, [dismissKey]);
 
@@ -174,6 +197,9 @@ export default function ModuleWorkflow({
   }, [router]);
 
   if (!mounted) return null;
+
+  // Nothing to render — bail silently.
+  if (!activeSteps || activeSteps.length === 0) return null;
 
   const colors = accentColorMap[accentColor];
   const completedCount = activeSteps.filter(s => completedSteps.has(s.step)).length;
@@ -197,194 +223,283 @@ export default function ModuleWorkflow({
     );
   }
 
+  const showPreview = collapsed && hovered;
+
   return (
-    <div className="nexus-card overflow-hidden border border-slate-100">
-      {/* Header */}
-      <div className={`flex items-center justify-between px-5 py-4 ${colors.headerBg} border-b ${colors.headerBorder}`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-lg ${colors.headerIconBg} flex items-center justify-center`}>
-            <FiInfo className={`w-4 h-4 ${colors.headerIconColor}`} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
-            {subtitle && (
-              <p className="text-xs text-nexus-text-secondary mt-0.5">{subtitle}</p>
-            )}
-          </div>
-          <span className={`text-[10px] font-medium ${colors.badgeBg} px-2 py-0.5 rounded-full ml-2`}>
-            {completedCount}/{activeSteps.length} complete
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="nexus-card overflow-hidden border border-slate-100">
+        {/* Header */}
+        <div className={`flex items-center justify-between px-5 py-4 ${colors.headerBg} border-b ${colors.headerBorder}`}>
           <button
+            type="button"
             onClick={handleToggleCollapse}
-            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
-            title={collapsed ? 'Expand' : 'Collapse'}
+            className="flex items-center gap-3 text-left flex-1 min-w-0 group"
+            title={collapsed ? 'Click to expand · hover to preview' : 'Click to collapse'}
           >
-            {collapsed ? <FiChevronDown className="w-4 h-4" /> : <FiChevronUp className="w-4 h-4" />}
+            <div className={`w-8 h-8 rounded-lg ${colors.headerIconBg} flex items-center justify-center flex-shrink-0`}>
+              <FiInfo className={`w-4 h-4 ${colors.headerIconColor}`} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-nexus-text-primary truncate">{title}</h3>
+              {subtitle && (
+                <p className="text-xs text-nexus-text-secondary mt-0.5 truncate">{subtitle}</p>
+              )}
+            </div>
+            <span className={`text-[10px] font-medium ${colors.badgeBg} px-2 py-0.5 rounded-full ml-2 whitespace-nowrap`}>
+              {completedCount}/{activeSteps.length} complete
+            </span>
+            {collapsed && (
+              <span className="hidden lg:inline-flex items-center gap-1 text-[10px] text-slate-400 ml-1">
+                <FiEye className="w-3 h-3" /> hover to preview · click to expand
+              </span>
+            )}
           </button>
-          <button
-            onClick={handleDismiss}
-            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-            title="Dismiss workflow"
-          >
-            <FiX className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={handleToggleCollapse}
+              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+              title={collapsed ? 'Expand' : 'Collapse'}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4 rotate-90" />}
+            </button>
+            <button
+              onClick={handleDismiss}
+              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+              title="Dismiss workflow"
+            >
+              <FiX className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Info Banner */}
-      {!collapsed && completedCount < activeSteps.length && (
-        <div className={`mx-5 mt-4 px-4 py-3 rounded-lg ${colors.infoBannerBg} border flex items-center gap-3`}>
-          <FiInfo className={`w-4 h-4 ${colors.infoBannerText} flex-shrink-0`} />
-          <p className={`text-xs ${colors.infoBannerText}`}>
-            <span className="font-medium">Getting started?</span> Follow this step-by-step workflow to complete the process. Each step links to the relevant section.
-          </p>
-        </div>
-      )}
+        {/* Expanded body — persistent when pinned open */}
+        {!collapsed && (
+          <>
+            {/* Info Banner */}
+            {completedCount < activeSteps.length && (
+              <div className={`mx-5 mt-4 px-4 py-3 rounded-lg ${colors.infoBannerBg} border flex items-center gap-3`}>
+                <FiInfo className={`w-4 h-4 ${colors.infoBannerText} flex-shrink-0`} />
+                <p className={`text-xs ${colors.infoBannerText}`}>
+                  <span className="font-medium">Getting started?</span> Follow this step-by-step workflow to complete the process. Each step links to the relevant section.
+                </p>
+              </div>
+            )}
 
-      {/* Steps Content */}
-      {!collapsed && (
-        <div className="p-5">
-          {/* Desktop: Horizontal scrollable */}
-          <div className="hidden md:block">
-            <div className="flex items-start gap-0 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-slate-50">
-              {activeSteps.map((step, index) => {
-                const status = getStepStatus(step);
-                const isClickable = !!step.route;
-                return (
-                  <div key={step.step} className="flex items-start flex-shrink-0">
-                    <button
-                      onClick={() => isClickable && handleNavigate(step.route!)}
-                      className={`flex flex-col items-center text-center w-28 group ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
-                      title={`Step ${step.step}: ${step.title}`}
-                      disabled={!isClickable}
-                    >
-                      {/* Step Circle */}
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200 group-hover:scale-110 ${
-                          status === 'complete'
-                            ? `${colors.completeBg} text-white shadow-md ${colors.completeShadow}`
-                            : status === 'current'
-                            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25 ring-4 ring-blue-100'
-                            : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                        }`}
-                      >
-                        {status === 'complete' ? (
-                          <FiCheck className="w-5 h-5" />
-                        ) : (
-                          step.step
+            <div className="p-5">
+              {/* Desktop: Horizontal scrollable */}
+              <div className="hidden md:block">
+                <div className="flex items-start gap-0 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-slate-50">
+                  {activeSteps.map((step, index) => {
+                    const status = getStepStatus(step);
+                    const isClickable = !!step.route;
+                    return (
+                      <div key={step.step} className="flex items-start flex-shrink-0">
+                        <button
+                          onClick={() => isClickable && handleNavigate(step.route!)}
+                          className={`flex flex-col items-center text-center w-28 group ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                          title={`Step ${step.step}: ${step.title}`}
+                          disabled={!isClickable}
+                        >
+                          {/* Step Circle */}
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200 group-hover:scale-110 ${
+                              status === 'complete'
+                                ? `${colors.completeBg} text-white shadow-md ${colors.completeShadow}`
+                                : status === 'current'
+                                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25 ring-4 ring-blue-100'
+                                : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                            }`}
+                          >
+                            {status === 'complete' ? (
+                              <FiCheck className="w-5 h-5" />
+                            ) : (
+                              step.step
+                            )}
+                          </div>
+                          {/* Title */}
+                          <p
+                            className={`text-[11px] font-medium mt-2 leading-tight ${
+                              status === 'complete'
+                                ? colors.completeText
+                                : status === 'current'
+                                ? 'text-blue-600'
+                                : 'text-slate-400 group-hover:text-slate-500'
+                            }`}
+                          >
+                            {step.title}
+                          </p>
+                          {/* Description */}
+                          <p className="text-[9px] text-slate-400 mt-0.5 leading-tight line-clamp-2">
+                            {step.description}
+                          </p>
+                        </button>
+                        {/* Arrow connector */}
+                        {index < activeSteps.length - 1 && (
+                          <div className="flex items-center pt-3 px-1">
+                            <FiArrowRight className={`w-4 h-4 flex-shrink-0 ${
+                              status === 'complete' ? colors.arrowColor : 'text-slate-200'
+                            }`} />
+                          </div>
                         )}
                       </div>
-                      {/* Title */}
-                      <p
-                        className={`text-[11px] font-medium mt-2 leading-tight ${
-                          status === 'complete'
-                            ? colors.completeText
-                            : status === 'current'
-                            ? 'text-blue-600'
-                            : 'text-slate-400 group-hover:text-slate-500'
-                        }`}
-                      >
-                        {step.title}
-                      </p>
-                      {/* Description */}
-                      <p className="text-[9px] text-slate-400 mt-0.5 leading-tight line-clamp-2">
-                        {step.description}
-                      </p>
-                    </button>
-                    {/* Arrow connector */}
-                    {index < activeSteps.length - 1 && (
-                      <div className="flex items-center pt-3 px-1">
-                        <FiArrowRight className={`w-4 h-4 flex-shrink-0 ${
-                          status === 'complete' ? colors.arrowColor : 'text-slate-200'
-                        }`} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mobile: Vertical layout */}
-          <div className="md:hidden space-y-0">
-            {activeSteps.map((step, index) => {
-              const status = getStepStatus(step);
-              const isClickable = !!step.route;
-              return (
-                <div key={step.step} className="flex items-start">
-                  {/* Timeline connector */}
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <button
-                      onClick={() => isClickable && handleNavigate(step.route!)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                        status === 'complete'
-                          ? `${colors.completeBg} text-white shadow-sm`
-                          : status === 'current'
-                          ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-100'
-                          : 'bg-slate-100 text-slate-400'
-                      }`}
-                      disabled={!isClickable}
-                    >
-                      {status === 'complete' ? <FiCheck className="w-4 h-4" /> : step.step}
-                    </button>
-                    {index < activeSteps.length - 1 && (
-                      <div className={`w-0.5 h-8 ${
-                        status === 'complete' ? colors.lineColor : 'bg-slate-200'
-                      }`} />
-                    )}
-                  </div>
-                  {/* Step content */}
-                  <button
-                    onClick={() => isClickable && handleNavigate(step.route!)}
-                    className="flex-1 ml-3 pb-3 text-left group"
-                    disabled={!isClickable}
-                  >
-                    <div className="flex items-center gap-2">
-                      <p
-                        className={`text-xs font-semibold ${
-                          status === 'complete'
-                            ? colors.completeText
-                            : status === 'current'
-                            ? 'text-blue-600'
-                            : 'text-slate-400'
-                        }`}
-                      >
-                        {step.title}
-                      </p>
-                      {status === 'current' && (
-                        <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
-                          Next Step
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed">
-                      {step.description}
-                    </p>
-                  </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <span className={`w-4 h-4 rounded-full ${colors.completeBg} flex items-center justify-center`}>
-                <FiCheck className="w-2.5 h-2.5 text-white" />
-              </span>
-              <span className="text-[10px] text-nexus-text-muted">Complete</span>
+              {/* Mobile: Vertical layout */}
+              <div className="md:hidden space-y-0">
+                {activeSteps.map((step, index) => {
+                  const status = getStepStatus(step);
+                  const isClickable = !!step.route;
+                  return (
+                    <div key={step.step} className="flex items-start">
+                      {/* Timeline connector */}
+                      <div className="flex flex-col items-center flex-shrink-0">
+                        <button
+                          onClick={() => isClickable && handleNavigate(step.route!)}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                            status === 'complete'
+                              ? `${colors.completeBg} text-white shadow-sm`
+                              : status === 'current'
+                              ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-100'
+                              : 'bg-slate-100 text-slate-400'
+                          }`}
+                          disabled={!isClickable}
+                        >
+                          {status === 'complete' ? <FiCheck className="w-4 h-4" /> : step.step}
+                        </button>
+                        {index < activeSteps.length - 1 && (
+                          <div className={`w-0.5 h-8 ${
+                            status === 'complete' ? colors.lineColor : 'bg-slate-200'
+                          }`} />
+                        )}
+                      </div>
+                      {/* Step content */}
+                      <button
+                        onClick={() => isClickable && handleNavigate(step.route!)}
+                        className="flex-1 ml-3 pb-3 text-left group"
+                        disabled={!isClickable}
+                      >
+                        <div className="flex items-center gap-2">
+                          <p
+                            className={`text-xs font-semibold ${
+                              status === 'complete'
+                                ? colors.completeText
+                                : status === 'current'
+                                ? 'text-blue-600'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {step.title}
+                          </p>
+                          {status === 'current' && (
+                            <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              Next Step
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed">
+                          {step.description}
+                        </p>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-4 h-4 rounded-full ${colors.completeBg} flex items-center justify-center`}>
+                    <FiCheck className="w-2.5 h-2.5 text-white" />
+                  </span>
+                  <span className="text-[10px] text-nexus-text-muted">Complete</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                    <span className="text-[8px] text-white font-bold">•</span>
+                  </span>
+                  <span className="text-[10px] text-nexus-text-muted">Current Step</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-100" />
+                  <span className="text-[10px] text-nexus-text-muted">Pending</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-[8px] text-white font-bold">•</span>
-              </span>
-              <span className="text-[10px] text-nexus-text-muted">Current Step</span>
+          </>
+        )}
+      </div>
+
+      {/* Hover preview popover — only when minimized and hovered */}
+      {showPreview && (
+        <div
+          className="absolute left-0 right-0 top-full z-40 mt-1"
+          role="tooltip"
+        >
+          <div className={`nexus-card border ${colors.previewBorder} shadow-xl rounded-xl overflow-hidden`}>
+            <div className={`px-4 py-2 bg-gradient-to-r ${colors.previewHeader} border-b ${colors.previewBorder} flex items-center gap-2`}>
+              <FiEye className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider">Preview · click to pin open</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full bg-slate-100" />
-              <span className="text-[10px] text-nexus-text-muted">Pending</span>
+            <div className="p-4 max-h-[60vh] overflow-y-auto bg-white">
+              {/* Vertical compact preview */}
+              <div className="space-y-0">
+                {activeSteps.map((step, index) => {
+                  const status = getStepStatus(step);
+                  const isClickable = !!step.route;
+                  return (
+                    <div key={step.step} className="flex items-start">
+                      <div className="flex flex-col items-center flex-shrink-0">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            status === 'complete'
+                              ? `${colors.completeBg} text-white`
+                              : status === 'current'
+                              ? 'bg-blue-500 text-white ring-2 ring-blue-100'
+                              : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
+                          {status === 'complete' ? <FiCheck className="w-3 h-3" /> : step.step}
+                        </div>
+                        {index < activeSteps.length - 1 && (
+                          <div className={`w-0.5 h-6 ${status === 'complete' ? colors.lineColor : 'bg-slate-200'}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 ml-3 pb-2">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-xs font-semibold ${
+                            status === 'complete'
+                              ? colors.completeText
+                              : status === 'current'
+                              ? 'text-blue-600'
+                              : 'text-slate-600'
+                          }`}>
+                            {step.title}
+                          </p>
+                          {status === 'current' && (
+                            <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              Next
+                            </span>
+                          )}
+                          {isClickable && (
+                            <span className="text-[9px] text-slate-400">→ click to open</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed line-clamp-2">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

@@ -262,7 +262,7 @@ export default function InvoicesPage() {
       </div>
 
       <ModuleTips moduleKey="invoices">
-        <p><strong>Multi-Currency Invoicing (REQ-PM-09):</strong> Generate client invoices from approved timesheets with automatic FX conversion via the ExchangeRate table. Invoices can be in any currency; totals are also computed in your company's base currency for profitability reporting.</p>
+        <p><strong>Multi-Currency Invoicing (REQ-PM-09):</strong> Generate client invoices from approved timesheets with automatic FX conversion via the ExchangeRate table. Invoices can be in any currency; totals are also computed in your company&apos;s base currency for profitability reporting.</p>
       </ModuleTips>
 
       {/* Summary cards — INR is the platform default currency */}
@@ -477,8 +477,13 @@ export default function InvoicesPage() {
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-800">Create New Invoice</h2>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">Create New Invoice</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Fields marked <span className="text-red-500">*</span> are required. Currency defaults to INR.
+                </p>
+              </div>
               <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-slate-100 rounded">
                 <FiX className="w-5 h-5" />
               </button>
@@ -588,13 +593,13 @@ export default function InvoicesPage() {
                     onChange={e => setCreateForm({ ...createForm, currency: e.target.value })}
                     className="nexus-input w-full"
                   >
-                    <option value="">Auto (from client/project)</option>
-                    <option value="INR">INR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="SGD">SGD</option>
-                    <option value="AED">AED</option>
+                    <option value="">Auto (INR default)</option>
+                    <option value="INR">INR (₹) — Default</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="SGD">SGD (S$)</option>
+                    <option value="AED">AED (د.إ)</option>
                   </select>
                 </div>
                 <div>
@@ -604,11 +609,11 @@ export default function InvoicesPage() {
                     onChange={e => setCreateForm({ ...createForm, baseCurrency: e.target.value })}
                     className="nexus-input w-full"
                   >
-                    <option value="">Auto (from company)</option>
-                    <option value="INR">INR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
+                    <option value="">Auto (INR default)</option>
+                    <option value="INR">INR (₹) — Default</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
                   </select>
                 </div>
               </div>
@@ -688,7 +693,7 @@ export default function InvoicesPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
               <button onClick={() => setShowCreate(false)} className="nexus-btn-secondary">
                 Cancel
               </button>

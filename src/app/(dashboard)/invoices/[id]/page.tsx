@@ -588,8 +588,8 @@ export default function InvoiceDetailPage() {
       {/* Generate-from-timesheets modal */}
       {showGen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 sticky top-0 bg-white z-10">
               <h2 className="text-lg font-semibold text-slate-800">Generate from Approved Timesheets</h2>
               <button onClick={() => setShowGen(false)} className="p-1 hover:bg-slate-100 rounded">
                 <FiX className="w-5 h-5" />
@@ -648,7 +648,7 @@ export default function InvoiceDetailPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
               <button onClick={() => setShowGen(false)} className="nexus-btn-secondary">Cancel</button>
               <button onClick={handleGenerate} disabled={generating} className="nexus-btn-primary flex items-center gap-2">
                 {generating ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiRefreshCw className="w-4 h-4" />}
@@ -662,8 +662,8 @@ export default function InvoiceDetailPage() {
       {/* Add manual line modal */}
       {showAddLine && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 sticky top-0 bg-white z-10">
               <h2 className="text-lg font-semibold text-slate-800">Add Manual Line Item</h2>
               <button onClick={() => setShowAddLine(false)} className="p-1 hover:bg-slate-100 rounded">
                 <FiX className="w-5 h-5" />
@@ -765,7 +765,7 @@ export default function InvoiceDetailPage() {
                 Taxable
               </label>
             </div>
-            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
               <button onClick={() => setShowAddLine(false)} className="nexus-btn-secondary">Cancel</button>
               <button onClick={handleAddLine} disabled={addingLine} className="nexus-btn-primary flex items-center gap-2">
                 {addingLine ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}

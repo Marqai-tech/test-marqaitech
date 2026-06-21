@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useSyncExternalStore, useMemo, type ReactNode } from 'react';
-import { FiZap, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiZap, FiX, FiChevronDown, FiChevronRight, FiEye } from 'react-icons/fi';
 import { getTipsForRole } from '@/lib/roleTips';
 
 interface Tip {
@@ -13,7 +13,7 @@ interface ModuleTipsProps {
   moduleKey: string;
   title?: string;
   tips?: Tip[];
-  userRole?: string; // NEW: optional role for filtering
+  userRole?: string; // optional role for filtering
   /**
    * Optional inline content. Rendered as a fallback when no `tips` prop is
    * supplied AND no role-tips are available. Used by OKRs / Invoices pages
@@ -33,9 +33,24 @@ function getStoredDismissed(key: string): boolean {
   }
 }
 
+/**
+ * ModuleTips — always starts in a MINIMIZED state.
+ *
+ * UX contract (per user request):
+ *  1. The panel is collapsed by default on every page load.
+ *  2. Hovering over the collapsed bar reveals a floating preview popover
+ *     with the tip contents — no click required. The preview disappears
+ *     when the cursor leaves.
+ *  3. Clicking the expand toggle pins the panel open so the content stays
+ *     visible persistently. Clicking again collapses it back.
+ *  4. The dismiss (X) button hides the panel entirely until the user
+ *     clicks "Show Tips" to bring it back.
+ */
 export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, children }: ModuleTipsProps) {
   const storageKey = `nexus_tips_dismissed_${moduleKey}`;
-  const [collapsed, setCollapsed] = useState(false);
+  // Always default to collapsed (minimized) per global UX requirement.
+  const [collapsed, setCollapsed] = useState(true);
+  const [hovered, setHovered] = useState(false);
 
   // Use useSyncExternalStore for mounted state to avoid useEffect setState
   const mounted = useSyncExternalStore(
@@ -72,11 +87,19 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
 
   const handleShowTips = useCallback(() => {
     setDismissed(false);
-    setCollapsed(false);
+    // Restored from dismissed → start minimized as per UX contract.
+    setCollapsed(true);
     try { localStorage.setItem(storageKey, 'false'); } catch { /* ignore */ }
   }, [storageKey]);
 
+  const handleToggleCollapse = useCallback(() => {
+    setCollapsed(prev => !prev);
+  }, []);
+
   if (!mounted) return null;
+
+  // Nothing to show at all — bail out silently.
+  if (effectiveTips.length === 0 && !children) return null;
 
   if (dismissed) {
     return (
@@ -90,59 +113,114 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
     );
   }
 
+  const showPreview = collapsed && hovered;
+
   return (
-    <div className="nexus-card overflow-hidden border border-blue-100 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-            <FiZap className="w-4 h-4 text-amber-600" />
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="nexus-card overflow-hidden border border-blue-100 shadow-sm">
+        {/* Header — always visible. Acts as the minimized bar AND the expanded header. */}
+        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+          <button
+            type="button"
+            onClick={handleToggleCollapse}
+            className="flex items-center gap-2 text-left flex-1 min-w-0 group"
+            title={collapsed ? 'Click to expand · hover to preview' : 'Click to collapse'}
+          >
+            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <FiZap className="w-4 h-4 text-amber-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-nexus-text-primary truncate">{title}</h3>
+            <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+              {effectiveTips.length > 0 ? `${effectiveTips.length} tips` : 'Info'}
+            </span>
+            {collapsed && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-slate-400 ml-1">
+                <FiEye className="w-3 h-3" /> hover to preview · click to expand
+              </span>
+            )}
+          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={handleToggleCollapse}
+              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+              title={collapsed ? 'Expand' : 'Collapse'}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4 rotate-90" />}
+            </button>
+            <button
+              onClick={handleDismiss}
+              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+              title="Dismiss tips"
+            >
+              <FiX className="w-4 h-4" />
+            </button>
           </div>
-          <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
-          <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-            {effectiveTips.length > 0 ? `${effectiveTips.length} tips` : 'Info'}
-          </span>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
-            title={collapsed ? 'Expand' : 'Collapse'}
-          >
-            {collapsed ? <FiChevronDown className="w-4 h-4" /> : <FiChevronUp className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={handleDismiss}
-            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-            title="Dismiss tips"
-          >
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
+
+        {/* Expanded content — persistent when user clicks to expand */}
+        {!collapsed && (
+          <div className="p-4 bg-gradient-to-b from-blue-50/50 to-indigo-50/30">
+            {effectiveTips.length > 0 ? (
+              <div className="space-y-3">
+                {effectiveTips.map((tip, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mt-0.5">
+                      {index + 1}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
+                      <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : children ? (
+              <div className="text-sm text-nexus-text-secondary leading-relaxed">
+                {children}
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
-      {/* Tips Content */}
-      {!collapsed && (
-        <div className="p-4 bg-gradient-to-b from-blue-50/50 to-indigo-50/30">
-          {effectiveTips.length > 0 ? (
-            <div className="space-y-3">
-              {effectiveTips.map((tip, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mt-0.5">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
-                    <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
-                  </div>
+      {/* Hover preview popover — only when minimized and hovered */}
+      {showPreview && (
+        <div
+          className="absolute left-0 right-0 top-full z-40 mt-1"
+          role="tooltip"
+        >
+          <div className="nexus-card border border-blue-200 shadow-xl rounded-xl overflow-hidden">
+            <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 border-b border-blue-200 flex items-center gap-2">
+              <FiEye className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">Preview · click to pin open</span>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto bg-gradient-to-b from-blue-50/60 to-indigo-50/40">
+              {effectiveTips.length > 0 ? (
+                <div className="space-y-3">
+                  {effectiveTips.map((tip, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold mt-0.5">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
+                        <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : children ? (
+                <div className="text-sm text-nexus-text-secondary leading-relaxed">
+                  {children}
+                </div>
+              ) : null}
             </div>
-          ) : children ? (
-            <div className="text-sm text-nexus-text-secondary leading-relaxed">
-              {children}
-            </div>
-          ) : null}
+          </div>
         </div>
       )}
     </div>

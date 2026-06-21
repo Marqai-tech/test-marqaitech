@@ -736,6 +736,13 @@ export default function OKRCascadePage() {
                   <p className="text-xs text-slate-400 italic">No key results yet. Add at least one to track progress.</p>
                 ) : (
                   <div className="space-y-2">
+                    {/* Column headers — only on sm+ screens */}
+                    <div className="hidden sm:grid grid-cols-12 gap-2 px-1 pb-1">
+                      <p className="col-span-6 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Title</p>
+                      <p className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Target</p>
+                      <p className="col-span-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Unit</p>
+                      <p className="col-span-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 text-center">—</p>
+                    </div>
                     {form.keyResults.map((kr, idx) => (
                       <div key={idx} className="grid grid-cols-12 gap-2 items-center">
                         <input
@@ -746,8 +753,8 @@ export default function OKRCascadePage() {
                             krs[idx] = { ...kr, title: e.target.value };
                             setForm({ ...form, keyResults: krs });
                           }}
-                          className="nexus-input col-span-6"
-                          placeholder="e.g. Increase ARR by 20%"
+                          className="nexus-input col-span-12 sm:col-span-6"
+                          placeholder="e.g. Increase revenue by 20%"
                         />
                         <input
                           type="number"
@@ -757,8 +764,8 @@ export default function OKRCascadePage() {
                             krs[idx] = { ...kr, targetValue: Number(e.target.value) };
                             setForm({ ...form, keyResults: krs });
                           }}
-                          className="nexus-input col-span-2"
-                          placeholder="Target"
+                          className="nexus-input col-span-6 sm:col-span-2"
+                          placeholder="100"
                         />
                         <input
                           type="text"
@@ -768,18 +775,22 @@ export default function OKRCascadePage() {
                             krs[idx] = { ...kr, unit: e.target.value };
                             setForm({ ...form, keyResults: krs });
                           }}
-                          className="nexus-input col-span-3"
-                          placeholder="unit (%, USD, ...)"
+                          className="nexus-input col-span-5 sm:col-span-3"
+                          placeholder="%, INR, hrs..."
                         />
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, keyResults: form.keyResults.filter((_, i) => i !== idx) })}
-                          className="col-span-1 p-1.5 text-slate-400 hover:text-red-600 rounded"
+                          className="col-span-1 p-1.5 text-slate-400 hover:text-red-600 rounded flex items-center justify-center"
+                          title="Remove this key result"
                         >
                           <FiX className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
+                    <p className="text-[10px] text-slate-400 pt-1">
+                      Tip: Use <code className="px-1 py-0.5 bg-slate-100 rounded">%</code> for percentage KRs, or a currency/unit like <code className="px-1 py-0.5 bg-slate-100 rounded">INR</code> for absolute targets.
+                    </p>
                   </div>
                 )}
               </div>
