@@ -45,16 +45,20 @@ export async function POST(request: Request) {
     }
 
     // Verify the application exists AND belongs to the caller's tenant
+    // (super_admin bypasses the tenant filter so they can manage any application)
+    const tenantFilter = decodedRec.role === 'super_admin' ? {} : {
+      jobPosting: {
+        department: {
+          company: {
+            companyGroup: { tenantId: decodedRec.tenantId as string },
+          },
+        },
+      },
+    };
     const application = await prisma.jobApplication.findFirst({
       where: {
         id: applicationId,
-        jobPosting: {
-          department: {
-            company: {
-              companyGroup: { tenantId: decodedRec.tenantId as string },
-            },
-          },
-        },
+        ...tenantFilter,
       },
       include: {
         jobPosting: {

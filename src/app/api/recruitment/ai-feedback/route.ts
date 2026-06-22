@@ -53,13 +53,16 @@ export async function GET(request: Request) {
     const applicationId = url.searchParams.get('applicationId');
     if (!applicationId) return NextResponse.json({ error: 'applicationId is required' }, { status: 400, headers: CORS });
 
-    // Verify tenant ownership
+    // Verify tenant ownership (super_admin bypasses)
+    const tenantFilter = decodedRec.role === 'super_admin' ? {} : {
+      jobPosting: {
+        department: { company: { companyGroup: { tenantId: decodedRec.tenantId as string } } },
+      },
+    };
     const application = await prisma.jobApplication.findFirst({
       where: {
         id: applicationId,
-        jobPosting: {
-          department: { company: { companyGroup: { tenantId: decodedRec.tenantId as string } } },
-        },
+        ...tenantFilter,
       },
     });
     if (!application) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: CORS });
@@ -93,12 +96,16 @@ export async function POST(request: Request) {
     }
 
     // Verify the application exists and belongs to the caller's tenant
+    // (super_admin bypasses the tenant filter so they can manage any application)
+    const tenantFilter = decodedRec.role === 'super_admin' ? {} : {
+      jobPosting: {
+        department: { company: { companyGroup: { tenantId: decodedRec.tenantId as string } } },
+      },
+    };
     const application = await prisma.jobApplication.findFirst({
       where: {
         id: applicationId,
-        jobPosting: {
-          department: { company: { companyGroup: { tenantId: decodedRec.tenantId as string } } },
-        },
+        ...tenantFilter,
       },
       include: {
         jobPosting: {
