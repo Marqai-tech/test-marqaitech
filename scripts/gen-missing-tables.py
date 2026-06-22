@@ -158,7 +158,14 @@ def is_unique(mods: str) -> bool:
 def is_relation(ftype: str) -> bool:
     """Relation fields like `user User @relation(...)` — the FK column is a separate scalar field."""
     # A relation field's type is a model name (capitalized), not a Prisma primitive.
-    return ftype not in PRISMA_TO_PG and not ftype.startswith("Unsupported(") and not ftype.endswith("[]")
+    # Strip the optional "?" suffix before checking — "DateTime?" must NOT be
+    # treated as a relation (it's an optional DateTime scalar).
+    base = ftype.rstrip("?")
+    if base.endswith("[]"):
+        return False
+    if base.startswith("Unsupported("):
+        return False
+    return base not in PRISMA_TO_PG
 
 
 def render_model_ddl(name: str, fields, block_attrs) -> tuple[list[str], list[str]]:
