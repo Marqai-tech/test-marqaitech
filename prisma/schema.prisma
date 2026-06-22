@@ -48,6 +48,24 @@ model Tenant {
   // the API rejects the request.
   maxCompaniesAllowed Int @default(0)
 
+  // ─── Candidate Portal settings (REQ-CAND / REQ-STAT / REQ-AI-RES) ───
+  // Tenant-admin toggles for the candidate-facing portal. All default off so
+  // the tenant opts in to each AI-driven candidate experience explicitly.
+  // Whether AI-generated rejection feedback is shown to candidates (REQ-STAT-05).
+  // When true, HR can draft AI feedback, review it, then publish to the candidate (REQ-STAT-06).
+  aiFeedbackEnabled        Boolean  @default(false)
+  // Minimum AI Match Score (0-100) required for a candidate to bypass the
+  // initial HR screen and go straight to a hiring manager (REQ-AI-RES-03 / tenant config).
+  // 0 = no auto-bypass (every application is reviewed by HR).
+  resumeScoreThreshold     Int      @default(0)
+  // Whether candidates in this tenant's talent pool can be searched across
+  // sub-companies within the same parent group (REQ-STAT-01 / tenant config).
+  talentPoolCrossCompanyEnabled Boolean @default(false)
+  // Configurable retake limit per interview question (REQ-INT-07). 0 = no retakes.
+  videoInterviewRetakeLimit Int     @default(0)
+  // Auto-delete video interview recordings after N days (REQ-SEC-CAND-03). 0 = keep forever.
+  videoRetentionDays       Int      @default(90)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -172,6 +190,8 @@ model Company {
   bankPaymentFiles BankPaymentFile[]
   invoices        Invoice[]
   okrs            OKR[]
+  // Candidate Portal addendum: talent pool back-relation
+  talentPoolCandidates CandidateTalentPool[]
 
   // ─── Global Payroll Addendum back-references ───
   payrollRuns           PayrollRun[]
@@ -559,6 +579,9 @@ model JobPosting {
   applications JobApplication[]
   referrals    Referral[]
   boardPostings JobBoardPosting[]
+  // Candidate Portal addendum back-relations
+  savedByCandidates CandidateSavedJob[]
+  jobAlerts          CandidateJobAlert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -588,6 +611,9 @@ model JobApplication {
   interviews    Interview[]
   resumeParses  ResumeParse[]
   sentimentScores CandidateSentimentScore[]
+  // Candidate Portal addendum back-relations
+  resumeOptimization CandidateResumeOptimization?
+  aiFeedback         CandidateAiFeedback?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6017,4 +6043,171 @@ model ProjectUtilizationSnapshot {
   @@index([projectId])
   @@index([employeeId])
   @@index([weekStart])
+}
+
+// ========================================================================
+// CANDIDATE PORTAL — AI Profile Evaluation & Resume Optimization Addendum
+// ========================================================================
+
+// REQ-CAND-07: Saved Jobs — candidates bookmark roles they haven't applied to yet
+model CandidateSavedJob {
+  id              String   @id @default(cuid())
+  candidateEmail  String
+  jobPostingId    String
+  jobPosting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  // Snapshot of the AI match score at the time of saving (REQ-CAND-07: AI Match Score for saved jobs)
+  matchScore      Int?
+  // When the candidate last viewed this saved job
+  lastViewedAt    DateTime?
+  createdAt       DateTime @default(now())
+
+  @@unique([candidateEmail, jobPostingId])
+  @@index([candidateEmail])
+  @@index([jobPostingId])
+}
+
+// REQ-STAT-01: Talent Pool — candidates marked "on hold" by a specific sub-company
+model CandidateTalentPool {
+  id              String   @id @default(cuid())
+  candidateEmail  String
+  candidateName   String
+  // The sub-company that placed this candidate in its talent pool
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Original application that led to the talent-pool placement
+  jobApplicationId String?
+  // Skills snapshot at time of placement — used by REQ-STAT-03 job-alert matching
+  skillsSnapshot  String?
+  // HR notes about why the candidate is in the talent pool
+  notes           String?
+  // When the candidate was placed in the pool
+  placedAt        DateTime @default(now())
+  // When the candidate was removed (hired elsewhere, requested erasure, etc.)
+  removedAt       DateTime?
+  // Auto-purge date for GDPR compliance (configurable per tenant)
+  expiresAt       DateTime?
+
+  @@unique([candidateEmail, companyId])
+  @@index([candidateEmail])
+  @@index([companyId])
+}
+
+// REQ-CAND-06: Password reset / magic-link tokens for candidates
+model CandidatePasswordReset {
+  id              String   @id @default(cuid())
+  candidateEmail  String
+  // bcrypt-hashed token — the raw token is sent in the email link, never stored
+  tokenHash       String   @unique
+  // IP + User-Agent of the requester for audit
+  requestedFromIp String?
+  requestedFromUa String?
+  // 30-minute expiry (per spec: "time-bound token expiration")
+  expiresAt       DateTime
+  // When the token was consumed (used to log in)
+  usedAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([candidateEmail])
+  @@index([expiresAt])
+}
+
+// REQ-SEC-CAND-02: Right to Erasure — candidate-initiated hard-delete requests
+model CandidateErasureRequest {
+  id              String   @id @default(cuid())
+  candidateEmail  String
+  // Which sub-company the erasure is scoped to (null = all companies in this tenant)
+  companyId       String?
+  // 'pending' | 'processing' | 'completed' | 'cancelled'
+  status          String   @default("pending")
+  // What was deleted (JSON log: { resumes: N, applications: N, videos: N, chats: N })
+  deletionLog     String?
+  // The candidate can provide a reason (optional)
+  reason          String?
+  // IP for audit
+  requestedFromIp String?
+  requestedFromUa String?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([candidateEmail])
+  @@index([status])
+}
+
+// REQ-AI-RES-03..09: AI resume optimization artifacts
+// Stored per (candidate × jobApplication) so the candidate can iteratively
+// refine their resume for each specific role.
+model CandidateResumeOptimization {
+  id              String   @id @default(cuid())
+  jobApplicationId String
+  jobApplication  JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  candidateEmail  String
+  // The current match score (0-100) — updates dynamically as the candidate iterates (REQ-AI-RES-09)
+  matchScore      Int      @default(0)
+  // Visual gap analysis: { matched: [...], missing: [...], implied: [...] } (REQ-AI-RES-04)
+  gapAnalysis     String?
+  // AI rewrite suggestions: [{ original, suggested, type, accepted }] (REQ-AI-RES-05)
+  rewriteSuggestions String?
+  // ATS keywords missing from the resume that the AI suggests injecting (REQ-AI-RES-06)
+  suggestedKeywords String?
+  // Format/structure feedback: [{ issue, suggestion, severity }] (REQ-AI-RES-07)
+  formatFeedback  String?
+  // 3 AI-generated summary options for the candidate to pick from (REQ-AI-RES-08)
+  summaryOptions  String?
+  // The candidate's currently-selected summary (one of summaryOptions, edited or as-is)
+  selectedSummary String?
+  // The candidate's edited resume text (their current optimized version)
+  optimizedResume String?
+  // Version counter — increments on every optimization iteration
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([jobApplicationId])
+  @@index([candidateEmail])
+}
+
+// REQ-STAT-05/06: AI-generated rejection feedback, with HR review workflow
+model CandidateAiFeedback {
+  id              String   @id @default(cuid())
+  jobApplicationId String
+  jobApplication  JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  candidateEmail  String
+  // The AI-drafted feedback (visible to HR, not yet to candidate)
+  aiDraft         String?
+  // HR-edited version of the AI draft (what gets sent to the candidate)
+  hrEditedVersion String?
+  // 'draft' | 'in_review' | 'approved' | 'rejected' | 'published'
+  reviewStatus    String   @default("draft")
+  // HR user who reviewed/edited
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([jobApplicationId])
+  @@index([candidateEmail])
+  @@index([reviewStatus])
+}
+
+// REQ-STAT-03: Job-alert subscription for talent-pool candidates
+// When a new job is posted, a background job compares skillsSnapshot against
+// the job requirements and notifies matching talent-pool candidates.
+model CandidateJobAlert {
+  id              String   @id @default(cuid())
+  candidateEmail  String
+  companyId       String
+  // The job posting that triggered this alert
+  jobPostingId    String
+  jobPosting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  // The match score at the time of the alert
+  matchScore      Int
+  // Whether the candidate has opened/viewed the alert
+  seenAt          DateTime?
+  // Whether the candidate applied via this alert
+  appliedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([candidateEmail])
+  @@index([jobPostingId])
 }

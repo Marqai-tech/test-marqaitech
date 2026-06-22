@@ -42,10 +42,11 @@ function getAppStatusBadge(status: string) {
     offered: 'nexus-badge nexus-badge-purple',
     hired: 'nexus-badge nexus-badge-success',
     rejected: 'nexus-badge nexus-badge-error',
+    talent_pool: 'bg-indigo-50 text-indigo-700 nexus-badge',
   };
   const labels: Record<string, string> = {
     applied: 'Applied', screening: 'Screening', interview: 'Interview',
-    offered: 'Offered', hired: 'Hired', rejected: 'Rejected',
+    offered: 'Offered', hired: 'Hired', rejected: 'Rejected', talent_pool: 'Talent Pool',
   };
   return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
 }
@@ -532,6 +533,7 @@ export default function JobDetailPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Applied</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Expected Salary</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Rating</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -569,6 +571,100 @@ export default function JobDetailPage() {
                             <span className="text-sm font-medium">{app.rating}</span>
                           </span>
                         ) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {app.status !== 'talent_pool' && app.status !== 'rejected' && app.status !== 'hired' && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Move ${app.candidateName} to talent pool? They'll receive a positive message.`)) return;
+                                try {
+                                  const r = await fetch('/api/recruitment/talent-pool', {
+                                    method: 'POST',
+                                    headers: getAuthHeaders(),
+                                    body: JSON.stringify({ applicationId: app.id }),
+                                  });
+                                  const d = await r.json();
+                                  if (!r.ok) throw new Error(d.error || 'Failed');
+                                  toast.success('Moved to talent pool');
+                                  fetchJob();
+                                } catch (e: unknown) {
+                                  toast.error(e instanceof Error ? e.message : 'Failed');
+                                }
+                              }}
+                              className="text-[10px] px-2 py-1 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                              title="Move to Talent Pool (REQ-STAT-01)"
+                            >
+                              Talent Pool
+                            </button>
+                          )}
+                          {app.status !== 'rejected' && app.status !== 'hired' && (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const r = await fetch('/api/recruitment/ai-feedback', {
+                                      method: 'POST',
+                                      headers: getAuthHeaders(),
+                                      body: JSON.stringify({ applicationId: app.id, action: 'draft' }),
+                                    });
+                                    const d = await r.json();
+                                    if (!r.ok) throw new Error(d.error || 'Failed');
+                                    const draft = d.feedback?.aiDraft || '';
+                                    const edited = prompt('Review and edit the AI feedback before publishing:', draft);
+                                    if (edited === null) return; // cancelled
+                                    const r2 = await fetch('/api/recruitment/ai-feedback', {
+                                      method: 'POST',
+                                      headers: getAuthHeaders(),
+                                      body: JSON.stringify({ applicationId: app.id, action: 'approve', hrEditedVersion: edited }),
+                                    });
+                                    if (!r2.ok) throw new Error('Approve failed');
+                                    if (confirm('Publish this feedback to the candidate now?')) {
+                                      const r3 = await fetch('/api/recruitment/ai-feedback', {
+                                        method: 'POST',
+                                        headers: getAuthHeaders(),
+                                        body: JSON.stringify({ applicationId: app.id, action: 'publish' }),
+                                      });
+                                      if (!r3.ok) throw new Error('Publish failed');
+                                      toast.success('AI feedback published to candidate');
+                                    } else {
+                                      toast.success('Feedback saved as approved (not published yet)');
+                                    }
+                                    fetchJob();
+                                  } catch (e: unknown) {
+                                    toast.error(e instanceof Error ? e.message : 'Failed');
+                                  }
+                                }}
+                                className="text-[10px] px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                title="AI Feedback (REQ-STAT-05/06)"
+                              >
+                                AI Feedback
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Reject ${app.candidateName} without AI feedback?`)) return;
+                                  try {
+                                    const r = await fetch('/api/recruitment/ai-feedback', {
+                                      method: 'POST',
+                                      headers: getAuthHeaders(),
+                                      body: JSON.stringify({ applicationId: app.id, action: 'reject' }),
+                                    });
+                                    const d = await r.json();
+                                    if (!r.ok) throw new Error(d.error || 'Failed');
+                                    toast.success('Application rejected');
+                                    fetchJob();
+                                  } catch (e: unknown) {
+                                    toast.error(e instanceof Error ? e.message : 'Failed');
+                                  }
+                                }}
+                                className="text-[10px] px-2 py-1 rounded bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                title="Reject (REQ-STAT-04)"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

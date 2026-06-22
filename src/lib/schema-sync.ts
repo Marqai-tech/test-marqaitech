@@ -648,6 +648,279 @@ const SYNC_STATEMENTS: string[] = [
 
   // 18) PreboardingCandidate.currency default fix (already INR in schema, fix legacy rows)
   `ALTER TABLE "PreboardingCandidate" ALTER COLUMN "currency" SET DEFAULT 'INR'`,
+
+  // ─── 19) AI Interview tables (REQ-INT-01..09) ───
+  // These 5 tables back the entire AI interview pipeline. They were previously
+  // only created by a one-off POST /api/seed/migrate call, which means a fresh
+  // production DB would crash on every AI interview route. Adding them here
+  // makes them auto-create on first request.
+
+  // InterviewSet
+  `CREATE TABLE IF NOT EXISTS "InterviewSet" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "roleTitle" TEXT NOT NULL,
+    "jobDescription" TEXT,
+    "tenantId" TEXT NOT NULL,
+    "interviewMode" TEXT NOT NULL DEFAULT 'text',
+    "language" TEXT NOT NULL DEFAULT 'en',
+    "timeLimit" INTEGER NOT NULL DEFAULT 30,
+    "cvProbeDuration" INTEGER NOT NULL DEFAULT 10,
+    "enablePreScreening" BOOLEAN NOT NULL DEFAULT true,
+    "enableProctoring" BOOLEAN NOT NULL DEFAULT true,
+    "enableDynamicFollowUp" BOOLEAN NOT NULL DEFAULT true,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "preScreenFilters" TEXT,
+    "evaluationConfig" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InterviewSet_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "InterviewSet_tenantId_idx" ON "InterviewSet"("tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewSet_status_idx" ON "InterviewSet"("status")`,
+
+  // InterviewSetQuestion
+  `CREATE TABLE IF NOT EXISTS "InterviewSetQuestion" (
+    "id" TEXT NOT NULL,
+    "setId" TEXT NOT NULL,
+    "order" INTEGER NOT NULL,
+    "category" TEXT NOT NULL,
+    "question" TEXT NOT NULL,
+    "expectedPoints" TEXT,
+    "followUpPrompts" TEXT,
+    "duration" INTEGER,
+    "isMandatory" BOOLEAN NOT NULL DEFAULT true,
+    "difficulty" TEXT NOT NULL DEFAULT 'medium',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InterviewSetQuestion_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "InterviewSetQuestion_setId_idx" ON "InterviewSetQuestion"("setId")`,
+
+  // InterviewSession
+  `CREATE TABLE IF NOT EXISTS "InterviewSession" (
+    "id" TEXT NOT NULL,
+    "setId" TEXT NOT NULL,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "candidatePhone" TEXT,
+    "resumeUrl" TEXT,
+    "resumeParsed" TEXT,
+    "language" TEXT NOT NULL DEFAULT 'en',
+    "status" TEXT NOT NULL DEFAULT 'invited',
+    "preScreenResult" TEXT,
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "videoUrl" TEXT,
+    "audioUrl" TEXT,
+    "transcriptUrl" TEXT,
+    "fullTranscript" TEXT,
+    "overallScore" INTEGER,
+    "communicationScore" INTEGER,
+    "grammarScore" INTEGER,
+    "fluencyScore" INTEGER,
+    "comprehensionScore" INTEGER,
+    "vocabularyScore" INTEGER,
+    "cognitiveScore" INTEGER,
+    "skillMatchScore" INTEGER,
+    "aiSummary" TEXT,
+    "aiRecommendation" TEXT,
+    "durationSeconds" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InterviewSession_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "InterviewSession_setId_idx" ON "InterviewSession"("setId")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewSession_status_idx" ON "InterviewSession"("status")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewSession_candidateEmail_idx" ON "InterviewSession"("candidateEmail")`,
+
+  // InterviewResponse
+  `CREATE TABLE IF NOT EXISTS "InterviewResponse" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "questionId" TEXT,
+    "order" INTEGER NOT NULL,
+    "question" TEXT,
+    "responseText" TEXT,
+    "responseAudioUrl" TEXT,
+    "responseVideoUrl" TEXT,
+    "responseDuration" INTEGER,
+    "aiScore" INTEGER,
+    "aiFeedback" TEXT,
+    "followUpFromId" TEXT,
+    "isFollowUp" BOOLEAN NOT NULL DEFAULT false,
+    "isCvBased" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InterviewResponse_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "InterviewResponse_sessionId_idx" ON "InterviewResponse"("sessionId")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewResponse_followUpFromId_idx" ON "InterviewResponse"("followUpFromId")`,
+
+  // ProctoringLog
+  `CREATE TABLE IF NOT EXISTS "ProctoringLog" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    "severity" TEXT NOT NULL DEFAULT 'low',
+    "details" TEXT,
+    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "screenshotUrl" TEXT,
+    CONSTRAINT "ProctoringLog_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ProctoringLog_sessionId_idx" ON "ProctoringLog"("sessionId")`,
+  `CREATE INDEX IF NOT EXISTS "ProctoringLog_severity_idx" ON "ProctoringLog"("severity")`,
+
+  // InterviewInvitation
+  `CREATE TABLE IF NOT EXISTS "InterviewInvitation" (
+    "id" TEXT NOT NULL,
+    "setId" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "candidateName" TEXT NOT NULL,
+    "invitationToken" TEXT NOT NULL,
+    "invitationUrl" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "sentAt" TIMESTAMP(3),
+    "openedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "emailDeliveryStatus" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InterviewInvitation_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "InterviewInvitation_invitationToken_key" ON "InterviewInvitation"("invitationToken")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewInvitation_setId_idx" ON "InterviewInvitation"("setId")`,
+  `CREATE INDEX IF NOT EXISTS "InterviewInvitation_status_idx" ON "InterviewInvitation"("status")`,
+
+  // ─── 20) Candidate Portal addendum tables (REQ-CAND / REQ-AI-RES / REQ-STAT / REQ-SEC-CAND) ───
+
+  // Tenant: candidate-portal config columns
+  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "aiFeedbackEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "resumeScoreThreshold" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "talentPoolCrossCompanyEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "videoInterviewRetakeLimit" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "videoRetentionDays" INTEGER NOT NULL DEFAULT 90`,
+
+  // CandidateSavedJob (REQ-CAND-07)
+  `CREATE TABLE IF NOT EXISTS "CandidateSavedJob" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "jobPostingId" TEXT NOT NULL,
+    "matchScore" INTEGER,
+    "lastViewedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateSavedJob_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateSavedJob_candidateEmail_jobPostingId_key" ON "CandidateSavedJob"("candidateEmail", "jobPostingId")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateSavedJob_candidateEmail_idx" ON "CandidateSavedJob"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateSavedJob_jobPostingId_idx" ON "CandidateSavedJob"("jobPostingId")`,
+
+  // CandidateTalentPool (REQ-STAT-01)
+  `CREATE TABLE IF NOT EXISTS "CandidateTalentPool" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "candidateName" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "jobApplicationId" TEXT,
+    "skillsSnapshot" TEXT,
+    "notes" TEXT,
+    "placedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "removedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    CONSTRAINT "CandidateTalentPool_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateTalentPool_candidateEmail_companyId_key" ON "CandidateTalentPool"("candidateEmail", "companyId")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateTalentPool_candidateEmail_idx" ON "CandidateTalentPool"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateTalentPool_companyId_idx" ON "CandidateTalentPool"("companyId")`,
+
+  // CandidatePasswordReset (REQ-CAND-06)
+  `CREATE TABLE IF NOT EXISTS "CandidatePasswordReset" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "requestedFromIp" TEXT,
+    "requestedFromUa" TEXT,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidatePasswordReset_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidatePasswordReset_tokenHash_key" ON "CandidatePasswordReset"("tokenHash")`,
+  `CREATE INDEX IF NOT EXISTS "CandidatePasswordReset_candidateEmail_idx" ON "CandidatePasswordReset"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidatePasswordReset_expiresAt_idx" ON "CandidatePasswordReset"("expiresAt")`,
+
+  // CandidateErasureRequest (REQ-SEC-CAND-02)
+  `CREATE TABLE IF NOT EXISTS "CandidateErasureRequest" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "companyId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "deletionLog" TEXT,
+    "reason" TEXT,
+    "requestedFromIp" TEXT,
+    "requestedFromUa" TEXT,
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateErasureRequest_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CandidateErasureRequest_candidateEmail_idx" ON "CandidateErasureRequest"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateErasureRequest_status_idx" ON "CandidateErasureRequest"("status")`,
+
+  // CandidateResumeOptimization (REQ-AI-RES-03..09)
+  `CREATE TABLE IF NOT EXISTS "CandidateResumeOptimization" (
+    "id" TEXT NOT NULL,
+    "jobApplicationId" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "matchScore" INTEGER NOT NULL DEFAULT 0,
+    "gapAnalysis" TEXT,
+    "rewriteSuggestions" TEXT,
+    "suggestedKeywords" TEXT,
+    "formatFeedback" TEXT,
+    "summaryOptions" TEXT,
+    "selectedSummary" TEXT,
+    "optimizedResume" TEXT,
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateResumeOptimization_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateResumeOptimization_jobApplicationId_key" ON "CandidateResumeOptimization"("jobApplicationId")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateResumeOptimization_candidateEmail_idx" ON "CandidateResumeOptimization"("candidateEmail")`,
+
+  // CandidateAiFeedback (REQ-STAT-05/06)
+  `CREATE TABLE IF NOT EXISTS "CandidateAiFeedback" (
+    "id" TEXT NOT NULL,
+    "jobApplicationId" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "aiDraft" TEXT,
+    "hrEditedVersion" TEXT,
+    "reviewStatus" TEXT NOT NULL DEFAULT 'draft',
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "publishedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateAiFeedback_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateAiFeedback_jobApplicationId_key" ON "CandidateAiFeedback"("jobApplicationId")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateAiFeedback_candidateEmail_idx" ON "CandidateAiFeedback"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateAiFeedback_reviewStatus_idx" ON "CandidateAiFeedback"("reviewStatus")`,
+
+  // CandidateJobAlert (REQ-STAT-03)
+  `CREATE TABLE IF NOT EXISTS "CandidateJobAlert" (
+    "id" TEXT NOT NULL,
+    "candidateEmail" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "jobPostingId" TEXT NOT NULL,
+    "matchScore" INTEGER NOT NULL,
+    "seenAt" TIMESTAMP(3),
+    "appliedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CandidateJobAlert_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CandidateJobAlert_candidateEmail_idx" ON "CandidateJobAlert"("candidateEmail")`,
+  `CREATE INDEX IF NOT EXISTS "CandidateJobAlert_jobPostingId_idx" ON "CandidateJobAlert"("jobPostingId")`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.

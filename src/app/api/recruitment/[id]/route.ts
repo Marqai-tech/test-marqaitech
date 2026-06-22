@@ -10,6 +10,40 @@ function corsHeaders() {
   };
 }
 
+/**
+ * Tenant-scoped where clause for JobPosting (enforces REQ-SEC-CAND-05).
+ * Chain: JobPosting → Department → Company → CompanyGroup → Tenant.
+ * Super admins bypass.
+ */
+function tenantJobPostingFilter(id: string, decoded: Record<string, any> | null) {
+  if (!decoded) return { id };
+  if (decoded.role === 'super_admin') return { id };
+  return {
+    id,
+    department: {
+      company: {
+        companyGroup: { tenantId: decoded.tenantId as string },
+      },
+    },
+  };
+}
+
+/** Tenant-scoped where clause for JobApplication (via JobPosting → Department → ... → Tenant). */
+function tenantApplicationFilter(id: string, decoded: Record<string, any> | null) {
+  if (!decoded) return { id };
+  if (decoded.role === 'super_admin') return { id };
+  return {
+    id,
+    jobPosting: {
+      department: {
+        company: {
+          companyGroup: { tenantId: decoded.tenantId as string },
+        },
+      },
+    },
+  };
+}
+
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
@@ -34,10 +68,11 @@ export async function GET(
         { status: 401, headers: corsHeaders() }
       );
     }
+    const decodedRec = decoded as unknown as Record<string, any>;
 
     const { id } = await params;
-    const jobPosting = await prisma.jobPosting.findUnique({
-      where: { id },
+    const jobPosting = await prisma.jobPosting.findFirst({
+      where: tenantJobPostingFilter(id, decodedRec),
       include: {
         department: {
           select: { id: true, name: true },
@@ -91,6 +126,7 @@ export async function PUT(
         { status: 401, headers: corsHeaders() }
       );
     }
+    const decodedRec = decoded as unknown as Record<string, any>;
 
     const { id } = await params;
     const body = await request.json();
@@ -109,13 +145,33 @@ export async function PUT(
       status,
     } = body;
 
-    // Check if job posting exists
-    const existing = await prisma.jobPosting.findUnique({ where: { id } });
+    // Check if job posting exists AND belongs to caller's tenant
+    const existing = await prisma.jobPosting.findFirst({
+      where: tenantJobPostingFilter(id, decodedRec),
+    });
     if (!existing) {
       return NextResponse.json(
         { error: 'Job posting not found' },
         { status: 404, headers: corsHeaders() }
       );
+    }
+
+    // If moving to a new department, verify it's in the same tenant
+    if (departmentId && departmentId !== existing.departmentId) {
+      const newDept = await prisma.department.findFirst({
+        where: {
+          id: departmentId,
+          company: {
+            companyGroup: { tenantId: decodedRec.tenantId as string },
+          },
+        },
+      });
+      if (!newDept) {
+        return NextResponse.json(
+          { error: 'Target department not found in your tenant' },
+          { status: 404, headers: corsHeaders() }
+        );
+      }
     }
 
     const updateData: Record<string, unknown> = {};
@@ -184,13 +240,16 @@ export async function PATCH(
         { status: 401, headers: corsHeaders() }
       );
     }
+    const decodedRec = decoded as unknown as Record<string, any>;
 
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, feedback, aiFeedbackDraft } = body;
 
-    // Try to update as job posting first
-    const jobPosting = await prisma.jobPosting.findUnique({ where: { id } });
+    // Try to update as job posting first (tenant-scoped)
+    const jobPosting = await prisma.jobPosting.findFirst({
+      where: tenantJobPostingFilter(id, decodedRec),
+    });
     if (jobPosting) {
       const updateData: Record<string, unknown> = {};
       if (status !== undefined) updateData.status = status;
@@ -211,11 +270,32 @@ export async function PATCH(
       );
     }
 
-    // Try to update as application
-    const application = await prisma.jobApplication.findUnique({ where: { id } });
+    // Try to update as application (tenant-scoped via jobPosting → department → company → group → tenant)
+    const application = await prisma.jobApplication.findFirst({
+      where: tenantApplicationFilter(id, decodedRec),
+    });
     if (application) {
       const updateData: Record<string, unknown> = {};
       if (status !== undefined) updateData.status = status;
+      // AI-generated rejection feedback stored as JSON in `notes` field
+      // (REQ-STAT-05/06 — HR can review the AI draft before publishing)
+      if (aiFeedbackDraft !== undefined) {
+        updateData.notes = JSON.stringify({
+          ...(application.notes ? tryParseNotes(application.notes) : {}),
+          aiFeedbackDraft,
+          aiFeedbackReviewed: false,
+          aiFeedbackPublishedAt: null,
+        });
+      }
+      if (feedback !== undefined) {
+        // HR has approved + published the AI feedback
+        updateData.notes = JSON.stringify({
+          ...(application.notes ? tryParseNotes(application.notes) : {}),
+          aiFeedback: feedback,
+          aiFeedbackReviewed: true,
+          aiFeedbackPublishedAt: new Date().toISOString(),
+        });
+      }
 
       const updated = await prisma.jobApplication.update({
         where: { id },
@@ -250,6 +330,10 @@ export async function PATCH(
   }
 }
 
+function tryParseNotes(s: string): Record<string, unknown> {
+  try { return JSON.parse(s) as Record<string, unknown>; } catch { return { raw: s }; }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -270,12 +354,13 @@ export async function DELETE(
         { status: 401, headers: corsHeaders() }
       );
     }
+    const decodedRec = decoded as unknown as Record<string, any>;
 
     const { id } = await params;
 
-    // Check if job posting exists
-    const existing = await prisma.jobPosting.findUnique({
-      where: { id },
+    // Check if job posting exists AND belongs to caller's tenant
+    const existing = await prisma.jobPosting.findFirst({
+      where: tenantJobPostingFilter(id, decodedRec),
       include: { _count: { select: { applications: true } } },
     });
     if (!existing) {

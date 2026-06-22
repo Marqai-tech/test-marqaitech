@@ -11,6 +11,37 @@ function corsHeaders() {
   };
 }
 
+/**
+ * Build a Prisma `where` clause that restricts JobPosting results to the
+ * authenticated user's tenant. This enforces REQ-SEC-CAND-05 (Cross-Tenant
+ * Blindness) so an HR user from Company A cannot list / read / edit job
+ * postings belonging to Company B (a different tenant).
+ *
+ * The chain is:
+ *   JobPosting → Department → Company → CompanyGroup → Tenant
+ *
+ * Super admins bypass the filter (they can see all tenants).
+ */
+function tenantWhere(decoded: Record<string, any> | null): Record<string, unknown> {
+  if (!decoded) return {};
+  if (decoded.role === 'super_admin') return {};
+  return {
+    department: {
+      company: {
+        companyGroup: { tenantId: decoded.tenantId as string },
+      },
+    },
+  };
+}
+
+/** Same filter but for a single-record lookup by id. */
+function tenantScopedJobPostingFilter(id: string, decoded: Record<string, any> | null) {
+  return {
+    id,
+    ...tenantWhere(decoded),
+  };
+}
+
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
@@ -32,6 +63,7 @@ export async function GET(request: Request) {
         { status: 401, headers: corsHeaders() }
       );
     }
+    const decodedRec = decoded as unknown as Record<string, any>;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -39,7 +71,8 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const departmentId = searchParams.get('departmentId');
 
-    const where: Record<string, unknown> = {};
+    // Start with the tenant filter (critical for cross-tenant blindness)
+    const where: Record<string, unknown> = tenantWhere(decodedRec);
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
 
@@ -115,10 +148,11 @@ export async function POST(request: Request) {
         { status: 401, headers: corsHeaders() }
       );
     }
+    const decodedRec = decoded as unknown as Record<string, any>;
 
     const body = await request.json();
 
-    // Handle application submission
+    // Handle application submission (HR-side manual apply on behalf of candidate)
     if (body.action === 'apply') {
       const { jobPostingId, candidateName, candidateEmail, candidatePhone, source, expectedSalary } = body;
 
@@ -129,8 +163,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // Verify job posting exists
-      const jobExists = await prisma.jobPosting.findUnique({ where: { id: jobPostingId } });
+      // Verify job posting exists AND belongs to the caller's tenant
+      const jobExists = await prisma.jobPosting.findFirst({
+        where: tenantScopedJobPostingFilter(jobPostingId, decodedRec),
+      });
       if (!jobExists) {
         return NextResponse.json(
           { error: 'Job posting not found' },
@@ -187,6 +223,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify the department belongs to the caller's tenant (prevent cross-tenant job creation)
+    const department = await prisma.department.findFirst({
+      where: {
+        id: departmentId,
+        company: {
+          companyGroup: { tenantId: decodedRec.tenantId as string },
+        },
+      },
+    });
+    if (!department) {
+      return NextResponse.json(
+        { error: 'Department not found in your tenant' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
     const jobPosting = await prisma.jobPosting.create({
       data: {
         title,
@@ -212,14 +264,14 @@ export async function POST(request: Request) {
     // Notify HR admins about the new job posting
     const hrAdmins = await prisma.user.findMany({
       where: {
-        tenantId: decoded.tenantId as string,
+        tenantId: decodedRec.tenantId as string,
         role: { in: ['super_admin', 'tenant_admin', 'hr_admin'] },
       },
     });
 
     for (const admin of hrAdmins) {
       await createNotification({
-        tenantId: decoded.tenantId as string,
+        tenantId: decodedRec.tenantId as string,
         userId: admin.id,
         title: 'New Job Posting Created',
         message: `A new job posting "${title}" has been created for ${jobPosting.department.name} department.`,

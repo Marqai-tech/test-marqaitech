@@ -105,6 +105,88 @@ export async function GET(request: Request) {
       take: 20,
     });
 
+    // ─── Talent Pool entries (REQ-STAT-01) ──────────────────────────────
+    const talentPoolEntries = await prisma.candidateTalentPool.findMany({
+      where: { candidateEmail: email, removedAt: null },
+      include: {
+        company: { select: { id: true, name: true, logo: true } },
+      },
+      orderBy: { placedAt: 'desc' },
+    });
+
+    // ─── Saved Jobs (REQ-CAND-07) ───────────────────────────────────────
+    const savedJobs = await prisma.candidateSavedJob.findMany({
+      where: { candidateEmail: email },
+      include: {
+        jobPosting: {
+          select: {
+            id: true,
+            title: true,
+            position: true,
+            location: true,
+            type: true,
+            experience: true,
+            salary: true,
+            status: true,
+            postedDate: true,
+            department: { select: { name: true, company: { select: { name: true, logo: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // ─── Resume Optimization per application (REQ-AI-RES-03..09) ─────────
+    const optimizations = await prisma.candidateResumeOptimization.findMany({
+      where: { candidateEmail: email },
+      select: {
+        jobApplicationId: true,
+        matchScore: true,
+        version: true,
+        updatedAt: true,
+      },
+    });
+    const optimizationByApp: Record<string, { matchScore: number; version: number; updatedAt: Date }> = {};
+    for (const o of optimizations) {
+      optimizationByApp[o.jobApplicationId] = {
+        matchScore: o.matchScore,
+        version: o.version,
+        updatedAt: o.updatedAt,
+      };
+    }
+
+    // ─── AI Feedback published to this candidate (REQ-STAT-05) ──────────
+    const aiFeedback = await prisma.candidateAiFeedback.findMany({
+      where: { candidateEmail: email, reviewStatus: 'published' },
+      select: {
+        jobApplicationId: true,
+        hrEditedVersion: true,
+        publishedAt: true,
+      },
+    });
+    const feedbackByApp: Record<string, { text: string; publishedAt: Date }> = {};
+    for (const f of aiFeedback) {
+      feedbackByApp[f.jobApplicationId] = {
+        text: f.hrEditedVersion || '',
+        publishedAt: f.publishedAt || new Date(),
+      };
+    }
+
+    // ─── Job Alerts (REQ-STAT-03) ───────────────────────────────────────
+    const jobAlerts = await prisma.candidateJobAlert.findMany({
+      where: { candidateEmail: email, seenAt: null },
+      include: {
+        jobPosting: {
+          select: {
+            id: true, title: true, location: true,
+            department: { select: { company: { select: { name: true, logo: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
     // ─── Stats ───────────────────────────────────────────────────────────
     const stats = {
       applied: applications.filter(a => a.status === 'applied').length,
@@ -113,6 +195,7 @@ export async function GET(request: Request) {
       offered: applications.filter(a => a.status === 'offered').length,
       hired: applications.filter(a => a.status === 'hired').length,
       rejected: applications.filter(a => a.status === 'rejected').length,
+      talentPool: applications.filter(a => a.status === 'talent_pool').length,
       total: applications.length,
     };
 
@@ -285,19 +368,28 @@ export async function GET(request: Request) {
     return NextResponse.json({
       profile: { name, email },
       stats,
-      applications: applications.map(a => ({
-        id: a.id,
-        jobTitle: a.jobPosting.title,
-        position: a.jobPosting.position,
-        department: a.jobPosting.department?.name,
-        location: a.jobPosting.location,
-        type: a.jobPosting.type,
-        status: a.status,
-        appliedDate: a.appliedDate,
-        rating: a.rating,
-        interviewDate: a.interviewDate,
-        expectedSalary: a.expectedSalary,
-      })),
+      applications: applications.map(a => {
+        const opt = optimizationByApp[a.id];
+        const fb = feedbackByApp[a.id];
+        return {
+          id: a.id,
+          jobTitle: a.jobPosting.title,
+          position: a.jobPosting.position,
+          department: a.jobPosting.department?.name,
+          location: a.jobPosting.location,
+          type: a.jobPosting.type,
+          status: a.status,
+          appliedDate: a.appliedDate,
+          rating: a.rating,
+          interviewDate: a.interviewDate,
+          expectedSalary: a.expectedSalary,
+          // REQ-AI-RES-03: per-application match score
+          matchScore: opt?.matchScore ?? null,
+          optimizationVersion: opt?.version ?? null,
+          // REQ-STAT-05: published AI feedback (only shown after HR review)
+          aiFeedback: fb ? { text: fb.text, publishedAt: fb.publishedAt } : null,
+        };
+      }),
       interviews: { upcoming, attended, missed },
       aiInterviews: {
         total: aiSessions.length,
@@ -317,6 +409,33 @@ export async function GET(request: Request) {
       skillMatrix,
       aiSuggestions,
       learningSuggestions,
+      // ─── Candidate Portal addendum sections ───
+      // REQ-STAT-01: Talent Pool status — which companies have placed this candidate
+      talentPool: talentPoolEntries.map(tp => ({
+        id: tp.id,
+        companyName: tp.company.name,
+        companyLogo: tp.company.logo,
+        placedAt: tp.placedAt,
+        notes: tp.notes,
+        // REQ-STAT-02: positive message shown in the UI
+        message: `Your profile is impressive — we have added you to ${tp.company.name}'s talent pool and may reach out for future matching roles.`,
+      })),
+      // REQ-CAND-07: Saved Jobs (bookmarked but not applied to)
+      savedJobs: savedJobs.map(s => ({
+        id: s.id,
+        jobPostingId: s.jobPostingId,
+        matchScore: s.matchScore,
+        savedAt: s.createdAt,
+        lastViewedAt: s.lastViewedAt,
+        job: s.jobPosting,
+      })),
+      // REQ-STAT-03: New job alerts matching this candidate's profile
+      jobAlerts: jobAlerts.map(ja => ({
+        id: ja.id,
+        matchScore: ja.matchScore,
+        createdAt: ja.createdAt,
+        job: ja.jobPosting,
+      })),
     }, { headers: CORS });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 500, headers: CORS });

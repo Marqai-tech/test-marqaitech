@@ -14,12 +14,15 @@ interface DashboardData {
   profile: { name: string; email: string };
   stats: {
     applied: number; shortlisted: number; interviewing: number;
-    offered: number; hired: number; rejected: number; total: number;
+    offered: number; hired: number; rejected: number; talentPool: number; total: number;
   };
   applications: Array<{
     id: string; jobTitle: string; position: string; department?: string;
     location?: string; type: string; status: string; appliedDate: string;
     rating?: number; interviewDate?: string; expectedSalary?: string;
+    matchScore?: number | null;
+    optimizationVersion?: number | null;
+    aiFeedback?: { text: string; publishedAt: string } | null;
   }>;
   interviews: {
     upcoming: any[]; attended: any[]; missed: any[];
@@ -36,6 +39,19 @@ interface DashboardData {
     jobTitle?: string; interviewType?: string; interviewDate?: string;
   }>;
   learningSuggestions: Array<{ title: string; provider: string; url: string; level: string }>;
+  // Candidate Portal addendum sections
+  talentPool: Array<{
+    id: string; companyName: string; companyLogo?: string | null;
+    placedAt: string; notes?: string | null; message: string;
+  }>;
+  savedJobs: Array<{
+    id: string; jobPostingId: string; matchScore?: number | null;
+    savedAt: string; lastViewedAt?: string | null;
+    job: any;
+  }>;
+  jobAlerts: Array<{
+    id: string; matchScore: number; createdAt: string; job: any;
+  }>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -45,7 +61,49 @@ const STATUS_COLORS: Record<string, string> = {
   offered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   hired: 'bg-green-50 text-green-700 border-green-200',
   rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+  talent_pool: 'bg-indigo-50 text-indigo-700 border-indigo-200',
 };
+
+// REQ-CAND-07: Visual status tracker — Applied → AI Screening → Interview → Offer
+const STATUS_STEPS = ['applied', 'screening', 'interview', 'offered', 'hired'];
+
+function StatusTracker({ status }: { status: string }) {
+  // For talent_pool / rejected, show a special pill instead of the stepper
+  if (status === 'talent_pool') {
+    return <span className="text-xs px-2 py-1 rounded border bg-indigo-50 text-indigo-700 border-indigo-200">💼 Talent Pool</span>;
+  }
+  if (status === 'rejected') {
+    return <span className="text-xs px-2 py-1 rounded border bg-rose-50 text-rose-700 border-rose-200">✗ Not Selected</span>;
+  }
+
+  const currentIdx = STATUS_STEPS.indexOf(status);
+  if (currentIdx === -1) {
+    return <span className={`text-xs px-2 py-1 rounded border ${STATUS_COLORS[status] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>{status}</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {STATUS_STEPS.map((step, idx) => {
+        const isDone = idx <= currentIdx;
+        const isCurrent = idx === currentIdx;
+        const label = step.charAt(0).toUpperCase() + step.slice(1);
+        return (
+          <div key={step} className="flex items-center">
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+              isCurrent ? 'bg-blue-600 text-white' :
+              isDone ? 'bg-blue-100 text-blue-700' :
+              'bg-gray-100 text-gray-400'
+            }`}>
+              {isDone && !isCurrent && <span>✓</span>}
+              {label}
+            </div>
+            {idx < STATUS_STEPS.length - 1 && <div className={`w-3 h-px ${idx < currentIdx ? 'bg-blue-400' : 'bg-gray-300'}`}></div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_token') : null;
@@ -114,7 +172,7 @@ export default function CandidateDashboardPage() {
     );
   }
 
-  const { profile, stats, applications, interviews, aiInterviews, resumeInsights, sentiments, skillMatrix, aiSuggestions, learningSuggestions } = data;
+  const { profile, stats, applications, interviews, aiInterviews, resumeInsights, sentiments, skillMatrix, aiSuggestions, learningSuggestions, talentPool, savedJobs, jobAlerts } = data;
 
   // Compute interview progress chart data (attended by score)
   const interviewProgress = interviews.attended
@@ -141,6 +199,9 @@ export default function CandidateDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a href="/candidate-portal/settings" className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Settings & Privacy">
+              <FiActivity className="w-4 h-4" />
+            </a>
             <button onClick={fetchData} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Refresh">
               <FiRefreshCw className="w-4 h-4" />
             </button>
@@ -155,12 +216,13 @@ export default function CandidateDashboardPage() {
         {/* Stats Grid */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3">Application Overview</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
             <StatCard label="Applied" value={stats.applied} icon={<FiBriefcase className="w-5 h-5" />} color="sky" />
             <StatCard label="Shortlisted" value={stats.shortlisted} icon={<FiStar className="w-5 h-5" />} color="violet" />
             <StatCard label="Interviewing" value={stats.interviewing} icon={<FiClock className="w-5 h-5" />} color="amber" />
             <StatCard label="Offered" value={stats.offered} icon={<FiAward className="w-5 h-5" />} color="emerald" />
             <StatCard label="Hired" value={stats.hired} icon={<FiCheckCircle className="w-5 h-5" />} color="green" />
+            <StatCard label="Talent Pool" value={stats.talentPool} icon={<FiTarget className="w-5 h-5" />} color="indigo" />
             <StatCard label="Rejected" value={stats.rejected} icon={<FiXCircle className="w-5 h-5" />} color="rose" />
           </div>
         </section>
@@ -243,10 +305,41 @@ export default function CandidateDashboardPage() {
                           <span>• Applied {fmtDate(app.appliedDate)}</span>
                         </div>
                       </div>
-                      <span className={`text-[10px] font-semibold uppercase px-2 py-1 rounded-full border ${STATUS_COLORS[app.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                        {app.status}
-                      </span>
+                      {/* REQ-AI-RES-03: per-application match score */}
+                      {app.matchScore != null && (
+                        <div className="text-center ml-3">
+                          <div className="text-[10px] uppercase tracking-wider text-slate-400">Match</div>
+                          <div className={`text-lg font-bold ${app.matchScore >= 70 ? 'text-green-600' : app.matchScore >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>{app.matchScore}%</div>
+                        </div>
+                      )}
                     </div>
+                    {/* REQ-CAND-07: visual status tracker (Applied → Screening → Interview → Offer) */}
+                    <div className="mt-3">
+                      <StatusTracker status={app.status} />
+                    </div>
+                    {/* REQ-STAT-05: published AI feedback */}
+                    {app.aiFeedback && (
+                      <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="text-[10px] font-bold uppercase text-blue-700 mb-1">💬 Feedback from the hiring team</div>
+                        <div className="text-xs text-slate-700 whitespace-pre-wrap">{app.aiFeedback.text}</div>
+                        <div className="text-[10px] text-slate-400 mt-1">{fmtDate(app.aiFeedback.publishedAt)}</div>
+                      </div>
+                    )}
+                    {/* Action row: optimize resume (REQ-AI-RES-09) */}
+                    {!['hired', 'rejected'].includes(app.status) && app.matchScore == null && (
+                      <div className="mt-2">
+                        <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700">
+                          <FiZap className="w-3 h-3" /> Optimize Resume with AI
+                        </Link>
+                      </div>
+                    )}
+                    {app.matchScore != null && (
+                      <div className="mt-2">
+                        <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700">
+                          <FiZap className="w-3 h-3" /> Re-optimize Resume (v{app.optimizationVersion || 1})
+                        </Link>
+                      </div>
+                    )}
                     {app.expectedSalary && (
                       <p className="text-[11px] text-slate-500 mt-2">Expected: {app.expectedSalary}</p>
                     )}
@@ -255,6 +348,85 @@ export default function CandidateDashboardPage() {
               )}
             </div>
           </section>
+
+          {/* Talent Pool Section (REQ-STAT-01, REQ-STAT-02) */}
+          {talentPool && talentPool.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <FiTarget className="w-4 h-4 text-slate-500" /> Talent Pool Status
+              </h2>
+              <div className="space-y-2">
+                {talentPool.map(tp => (
+                  <div key={tp.id} className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-xs font-semibold text-slate-800">{tp.companyName}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Added on {fmtDate(tp.placedAt)}</div>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">💼 In Talent Pool</span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-2 italic">{tp.message}</p>
+                    {tp.notes && <p className="text-[11px] text-slate-500 mt-1">Notes: {tp.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Saved Jobs Section (REQ-CAND-07) */}
+          {savedJobs && savedJobs.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <FiStar className="w-4 h-4 text-slate-500" /> Saved Jobs
+              </h2>
+              <div className="space-y-2">
+                {savedJobs.map(s => (
+                  <div key={s.id} className="bg-white rounded-xl border border-slate-200 p-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-800">{s.job?.title}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {s.job?.department?.company?.name} • {s.job?.location || 'Remote'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {s.matchScore != null && (
+                        <div className="text-center">
+                          <div className="text-[9px] uppercase text-slate-400">Match</div>
+                          <div className={`text-sm font-bold ${s.matchScore >= 70 ? 'text-green-600' : 'text-amber-600'}`}>{s.matchScore}%</div>
+                        </div>
+                      )}
+                      <Link href={`/careers`} className="text-xs text-violet-600 hover:underline">View</Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Job Alerts Section (REQ-STAT-03) */}
+          {jobAlerts && jobAlerts.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <FiZap className="w-4 h-4 text-amber-500" /> New Job Alerts
+              </h2>
+              <div className="space-y-2">
+                {jobAlerts.map(ja => (
+                  <div key={ja.id} className="bg-white rounded-xl border border-amber-200 p-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-800">{ja.job?.title}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {ja.job?.department?.company?.name} • {ja.job?.location || 'Remote'}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[9px] uppercase text-slate-400">Match</div>
+                      <div className="text-sm font-bold text-green-600">{ja.matchScore}%</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Upcoming Interviews Sidebar */}
           <section>

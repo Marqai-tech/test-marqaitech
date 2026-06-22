@@ -92,6 +92,11 @@ export default function CandidateLoginPage() {
               >
                 {loading ? 'Sending...' : <>Send OTP <FiArrowRight className="w-4 h-4" /></>}
               </button>
+              <div className="text-center text-xs">
+                <a href="/candidate-portal/forgot-password" className="text-slate-500 hover:text-violet-600 hover:underline">
+                  Forgot password? Get a magic link
+                </a>
+              </div>
             </>
           ) : (
             <>
