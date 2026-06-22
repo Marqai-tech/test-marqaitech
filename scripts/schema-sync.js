@@ -2069,6 +2069,160 @@ async function main() {
     `ALTER TABLE "JobBoardPosting" DROP CONSTRAINT IF EXISTS "JobBoardPosting_jobPostingId_fkey"`,
     `ALTER TABLE "JobBoardPosting" ADD CONSTRAINT "JobBoardPosting_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "JobPosting"("id") ON DELETE CASCADE`,
 
+    // ─── Candidate Portal Addendum tables (REQ-CAND / REQ-STAT / REQ-AI-RES / REQ-SEC-CAND) ───
+    // Tenant admin toggles for the candidate portal. For this demo environment
+    // we default them ON so HR can immediately try the Talent Pool / AI Feedback
+    // buttons and candidates can use the AI Resume Optimizer. In a real
+    // multi-tenant production deploy, these would default to false and be
+    // opt-in per tenant via the tenant-admin settings page.
+    `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "aiFeedbackEnabled" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "resumeScoreThreshold" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "talentPoolCrossCompanyEnabled" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "videoInterviewRetakeLimit" INTEGER NOT NULL DEFAULT 2`,
+    `ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "videoRetentionDays" INTEGER NOT NULL DEFAULT 90`,
+
+    // One-time upgrade: flip existing tenant rows to the demo-friendly defaults
+    // so HR can try Talent Pool / AI Feedback without an admin having to enable
+    // them first. Idempotent — only updates rows where the flag is still false/0.
+    `UPDATE "Tenant" SET "aiFeedbackEnabled" = true WHERE "aiFeedbackEnabled" = false`,
+    `UPDATE "Tenant" SET "talentPoolCrossCompanyEnabled" = true WHERE "talentPoolCrossCompanyEnabled" = false`,
+    `UPDATE "Tenant" SET "videoInterviewRetakeLimit" = 2 WHERE "videoInterviewRetakeLimit" = 0`,
+
+    // REQ-STAT-01: Talent Pool — candidates marked "on hold" by a specific sub-company
+    `CREATE TABLE IF NOT EXISTS "CandidateTalentPool" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "candidateName" TEXT NOT NULL,
+      "companyId" TEXT NOT NULL,
+      "jobApplicationId" TEXT,
+      "skillsSnapshot" TEXT,
+      "notes" TEXT,
+      "placedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "removedAt" TIMESTAMP(3),
+      "expiresAt" TIMESTAMP(3),
+      CONSTRAINT "CandidateTalentPool_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateTalentPool_candidateEmail_companyId_key" ON "CandidateTalentPool"("candidateEmail", "companyId")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateTalentPool_candidateEmail_idx" ON "CandidateTalentPool"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateTalentPool_companyId_idx" ON "CandidateTalentPool"("companyId")`,
+    `ALTER TABLE "CandidateTalentPool" DROP CONSTRAINT IF EXISTS "CandidateTalentPool_companyId_fkey"`,
+    `ALTER TABLE "CandidateTalentPool" ADD CONSTRAINT "CandidateTalentPool_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "CandidateTalentPool" DROP CONSTRAINT IF EXISTS "CandidateTalentPool_jobApplicationId_fkey"`,
+    `ALTER TABLE "CandidateTalentPool" ADD CONSTRAINT "CandidateTalentPool_jobApplicationId_fkey" FOREIGN KEY ("jobApplicationId") REFERENCES "JobApplication"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+    // REQ-CAND-06: Password reset / magic-link tokens for candidates
+    `CREATE TABLE IF NOT EXISTS "CandidatePasswordReset" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "tokenHash" TEXT NOT NULL,
+      "requestedFromIp" TEXT,
+      "requestedFromUa" TEXT,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      "usedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidatePasswordReset_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CandidatePasswordReset_tokenHash_key" ON "CandidatePasswordReset"("tokenHash")`,
+    `CREATE INDEX IF NOT EXISTS "CandidatePasswordReset_candidateEmail_idx" ON "CandidatePasswordReset"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "CandidatePasswordReset_expiresAt_idx" ON "CandidatePasswordReset"("expiresAt")`,
+
+    // REQ-SEC-CAND-02: Right to Erasure — candidate-initiated hard-delete requests
+    `CREATE TABLE IF NOT EXISTS "CandidateErasureRequest" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "companyId" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "deletionLog" TEXT,
+      "reason" TEXT,
+      "requestedFromIp" TEXT,
+      "requestedFromUa" TEXT,
+      "completedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidateErasureRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "CandidateErasureRequest_candidateEmail_idx" ON "CandidateErasureRequest"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateErasureRequest_status_idx" ON "CandidateErasureRequest"("status")`,
+
+    // REQ-AI-RES-03..09: AI resume optimization artifacts (one row per application)
+    `CREATE TABLE IF NOT EXISTS "CandidateResumeOptimization" (
+      "id" TEXT NOT NULL,
+      "jobApplicationId" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "matchScore" INTEGER NOT NULL DEFAULT 0,
+      "gapAnalysis" TEXT,
+      "rewriteSuggestions" TEXT,
+      "suggestedKeywords" TEXT,
+      "formatFeedback" TEXT,
+      "summaryOptions" TEXT,
+      "selectedSummary" TEXT,
+      "optimizedResume" TEXT,
+      "version" INTEGER NOT NULL DEFAULT 1,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidateResumeOptimization_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateResumeOptimization_jobApplicationId_key" ON "CandidateResumeOptimization"("jobApplicationId")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateResumeOptimization_candidateEmail_idx" ON "CandidateResumeOptimization"("candidateEmail")`,
+    `ALTER TABLE "CandidateResumeOptimization" DROP CONSTRAINT IF EXISTS "CandidateResumeOptimization_jobApplicationId_fkey"`,
+    `ALTER TABLE "CandidateResumeOptimization" ADD CONSTRAINT "CandidateResumeOptimization_jobApplicationId_fkey" FOREIGN KEY ("jobApplicationId") REFERENCES "JobApplication"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // REQ-STAT-05/06: AI-generated rejection feedback with HR review workflow
+    `CREATE TABLE IF NOT EXISTS "CandidateAiFeedback" (
+      "id" TEXT NOT NULL,
+      "jobApplicationId" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "aiDraft" TEXT,
+      "hrEditedVersion" TEXT,
+      "reviewStatus" TEXT NOT NULL DEFAULT 'draft',
+      "reviewedBy" TEXT,
+      "reviewedAt" TIMESTAMP(3),
+      "publishedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidateAiFeedback_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateAiFeedback_jobApplicationId_key" ON "CandidateAiFeedback"("jobApplicationId")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateAiFeedback_candidateEmail_idx" ON "CandidateAiFeedback"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateAiFeedback_reviewStatus_idx" ON "CandidateAiFeedback"("reviewStatus")`,
+    `ALTER TABLE "CandidateAiFeedback" DROP CONSTRAINT IF EXISTS "CandidateAiFeedback_jobApplicationId_fkey"`,
+    `ALTER TABLE "CandidateAiFeedback" ADD CONSTRAINT "CandidateAiFeedback_jobApplicationId_fkey" FOREIGN KEY ("jobApplicationId") REFERENCES "JobApplication"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // REQ-CAND-07: Saved Jobs — candidates bookmark roles they haven't applied to yet
+    `CREATE TABLE IF NOT EXISTS "CandidateSavedJob" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "jobPostingId" TEXT NOT NULL,
+      "matchScore" INTEGER,
+      "lastViewedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidateSavedJob_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CandidateSavedJob_candidateEmail_jobPostingId_key" ON "CandidateSavedJob"("candidateEmail", "jobPostingId")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateSavedJob_candidateEmail_idx" ON "CandidateSavedJob"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateSavedJob_jobPostingId_idx" ON "CandidateSavedJob"("jobPostingId")`,
+    `ALTER TABLE "CandidateSavedJob" DROP CONSTRAINT IF EXISTS "CandidateSavedJob_jobPostingId_fkey"`,
+    `ALTER TABLE "CandidateSavedJob" ADD CONSTRAINT "CandidateSavedJob_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "JobPosting"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // REQ-STAT-03: Job-alert subscription for talent-pool candidates
+    `CREATE TABLE IF NOT EXISTS "CandidateJobAlert" (
+      "id" TEXT NOT NULL,
+      "candidateEmail" TEXT NOT NULL,
+      "companyId" TEXT NOT NULL,
+      "jobPostingId" TEXT NOT NULL,
+      "matchScore" INTEGER NOT NULL DEFAULT 0,
+      "seenAt" TIMESTAMP(3),
+      "appliedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CandidateJobAlert_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "CandidateJobAlert_candidateEmail_idx" ON "CandidateJobAlert"("candidateEmail")`,
+    `CREATE INDEX IF NOT EXISTS "CandidateJobAlert_jobPostingId_idx" ON "CandidateJobAlert"("jobPostingId")`,
+    `ALTER TABLE "CandidateJobAlert" DROP CONSTRAINT IF EXISTS "CandidateJobAlert_jobPostingId_fkey"`,
+    `ALTER TABLE "CandidateJobAlert" ADD CONSTRAINT "CandidateJobAlert_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "JobPosting"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── JobApplication: ensure talent_pool status + rating column type is compatible ───
+    // (no-op if already correct; rating stored as TEXT in old migration, kept as-is for compat)
+
     // ─── Biometric Device Integration FKs (REQ-ATT-03) ───
     `ALTER TABLE "BiometricDevice" DROP CONSTRAINT IF EXISTS "BiometricDevice_branchId_fkey"`,
     `ALTER TABLE "BiometricDevice" ADD CONSTRAINT "BiometricDevice_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE`,

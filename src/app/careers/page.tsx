@@ -147,6 +147,9 @@ export default function CareersPage() {
   const [form, setForm] = useState<ApplyFormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
+  // Post-apply success state — shows a CTA to the candidate portal
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+
   // REQ-SEC-REC-04 — withdraw-consent modal state
   const [showWithdraw, setShowWithdraw] = useState(false);
 
@@ -492,6 +495,8 @@ export default function CareersPage() {
         toast.success('Your referral has been recorded — your connection will get credit!');
       }
       toast.success(data.message || 'Application submitted successfully!');
+      // Show the post-apply success modal with a CTA to the candidate portal.
+      setSubmittedEmail(form.candidateEmail);
       closeApply();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to submit';
@@ -888,6 +893,38 @@ export default function CareersPage() {
           submitting={submitting}
           onWithdraw={() => setShowWithdraw(true)}
         />
+      )}
+
+      {/* ───────────── Post-Apply Success Modal (REQ-CAND-05 onboarding) ───────────── */}
+      {submittedEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+              <FiCheckCircle className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 mb-1">Application submitted!</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              We've received your application. Create a candidate portal account to track its
+              status, see interview feedback, and optimize your resume with AI.
+            </p>
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 mb-4">
+              <p className="text-xs text-violet-700 font-medium mb-1">Your email</p>
+              <p className="text-sm font-mono text-violet-900 break-all">{submittedEmail}</p>
+            </div>
+            <a
+              href={`/candidate-portal/login?email=${encodeURIComponent(submittedEmail)}`}
+              className="block w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-sky-600 hover:from-violet-700 hover:to-sky-700 text-white rounded-lg text-sm font-medium mb-2"
+            >
+              Set up my candidate portal →
+            </a>
+            <button
+              onClick={() => setSubmittedEmail(null)}
+              className="w-full text-xs text-slate-500 hover:text-slate-700 py-1"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ───────────── Withdraw Consent Modal (REQ-SEC-REC-04) ───────────── */}

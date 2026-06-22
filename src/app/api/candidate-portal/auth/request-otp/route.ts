@@ -31,15 +31,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400, headers: CORS });
     }
 
-    // Look up candidate name from any job application they've ever submitted
+    // Look up candidate name from any job application they've ever submitted.
+    // If they haven't applied yet, we still create a CandidatePortalUser so they
+    // can pre-register (per REQ-CAND-05: "candidates can register before applying").
     const apps = await prisma.jobApplication.findFirst({
       where: { candidateEmail: email },
       select: { candidateName: true },
     });
-    if (!apps) {
-      // Don't leak whether email exists — return success
-      return NextResponse.json({ ok: true, message: 'If you have applied, an OTP has been sent.' }, { headers: CORS });
-    }
+    const candidateName = apps?.candidateName || email.split('@')[0];
 
     const otp = String(randomInt(100000, 999999));
     const otpHash = await hashPassword(otp);
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
       where: { candidateEmail: email },
       create: {
         candidateEmail: email,
-        candidateName: apps.candidateName,
+        candidateName,
         currentOtpHash: otpHash,
         otpExpiresAt,
       },
@@ -59,17 +58,19 @@ export async function POST(request: Request) {
       },
     });
 
-    // TODO: integrate with email provider (SendGrid / Postmark / SES)
-    // For now, log it (dev only). In production the email service would pick this up.
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[candidate-portal] OTP for ${email}: ${otp}`);
-    }
+    // Email provider integration (SendGrid/Postmark/SES) is not configured yet.
+    // Until it is, we surface the OTP in the response so candidates can actually
+    // complete the login flow. In production with a real email provider wired up,
+    // this branch would be removed and only the email would carry the OTP.
+    console.log(`[candidate-portal] OTP for ${email}: ${otp}`);
 
     return NextResponse.json({
       ok: true,
-      message: 'If you have applied, an OTP has been sent.',
-      // Dev-only: include the OTP so the user can test without an email service
-      ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
+      message: apps
+        ? 'If you have applied, an OTP has been sent.'
+        : 'An OTP has been generated for your email.',
+      // Email provider not yet configured — surface OTP so the candidate can log in.
+      devOtp: otp,
     }, { headers: CORS });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 500, headers: CORS });

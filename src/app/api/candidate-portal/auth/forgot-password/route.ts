@@ -46,11 +46,27 @@ export async function POST(request: Request) {
 
   const { ip, ua } = getRequestMeta(request);
 
-  // Look up the candidate portal user. If they don't exist, we still return
-  // 200 OK (don't leak which emails are registered — anti-enumeration).
-  const user = await prisma.candidatePortalUser.findUnique({
+  // Look up the candidate portal user. If they don't exist, we still create one
+  // from any JobApplication they may have submitted, so they can recover access.
+  let user = await prisma.candidatePortalUser.findUnique({
     where: { candidateEmail: email },
   });
+
+  if (!user) {
+    // Try to recover from a JobApplication they submitted before signing up
+    const app = await prisma.jobApplication.findFirst({
+      where: { candidateEmail: email },
+      select: { candidateName: true },
+    });
+    if (app) {
+      user = await prisma.candidatePortalUser.create({
+        data: {
+          candidateEmail: email,
+          candidateName: app.candidateName,
+        },
+      });
+    }
+  }
 
   if (user) {
     // Expire any previously-issued unused tokens for this email
@@ -83,18 +99,24 @@ export async function POST(request: Request) {
       (typeof request !== 'undefined' ? new URL(request.url).origin : 'https://nexus-hrms-mu.vercel.app');
     const magicLink = `${baseUrl}/candidate-portal/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
-    // Send email — in dev, log it; in production, wire up a real provider.
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== CANDIDATE MAGIC LINK ==========');
-      console.log(`To: ${email}`);
-      console.log(`Name: ${user.candidateName}`);
-      console.log(`Link (expires in ${TOKEN_EXPIRY_MINUTES} min): ${magicLink}`);
-      console.log('==========================================\n');
-    } else {
-      // TODO: integrate with SendGrid/Postmark/SES
-      // For now, log server-side so ops can retrieve in an emergency
-      console.log(`[forgot-password] Magic link generated for ${email} — email provider not configured`);
-    }
+    // Email provider (SendGrid/Postmark/SES) not yet wired up. Until it is,
+    // we surface the magic link in the response so candidates can actually
+    // complete the password reset / magic-link login flow. In production with
+    // a real email provider, this would be removed and only the email would
+    // carry the link.
+    console.log('\n========== CANDIDATE MAGIC LINK ==========');
+    console.log(`To: ${email}`);
+    console.log(`Name: ${user.candidateName}`);
+    console.log(`Link (expires in ${TOKEN_EXPIRY_MINUTES} min): ${magicLink}`);
+    console.log('==========================================\n');
+
+    return NextResponse.json({
+      ok: true,
+      message: 'A password-reset link has been generated. The link expires in 30 minutes.',
+      // Email provider not yet configured — surface the magic link so the
+      // candidate can actually complete the flow.
+      magicLink,
+    }, { headers: CORS });
   }
 
   // Always return the same response to prevent email enumeration

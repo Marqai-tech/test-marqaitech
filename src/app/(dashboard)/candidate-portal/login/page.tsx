@@ -1,17 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
 
 export default function CandidateLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<'request' | 'verify'>('request');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
+
+  // Pre-fill email from query string (e.g. /candidate-portal/login?email=foo@bar.com)
+  useEffect(() => {
+    const e = searchParams.get('email');
+    if (e) setEmail(e);
+  }, [searchParams]);
 
   const requestOtp = async () => {
     setLoading(true);
@@ -93,9 +101,9 @@ export default function CandidateLoginPage() {
                 {loading ? 'Sending...' : <>Send OTP <FiArrowRight className="w-4 h-4" /></>}
               </button>
               <div className="text-center text-xs">
-                <a href="/candidate-portal/forgot-password" className="text-slate-500 hover:text-violet-600 hover:underline">
+                <Link href="/candidate-portal/forgot-password" className="text-slate-500 hover:text-violet-600 hover:underline">
                   Forgot password? Get a magic link
-                </a>
+                </Link>
               </div>
             </>
           ) : (
@@ -117,9 +125,18 @@ export default function CandidateLoginPage() {
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1.5">A 6-digit code was sent to {email}.</p>
                 {devOtp && (
-                  <p className="text-[11px] text-amber-600 mt-1 bg-amber-50 px-2 py-1 rounded">
-                    <strong>Dev mode:</strong> Your OTP is <code className="font-mono font-bold">{devOtp}</code>
-                  </p>
+                  <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                    <p className="text-[11px] text-amber-700 leading-relaxed">
+                      <strong>Demo mode:</strong> Email delivery is not configured yet. Your OTP is{' '}
+                      <button
+                        onClick={() => { setOtp(devOtp); }}
+                        className="font-mono font-bold text-amber-900 underline hover:text-amber-950"
+                      >
+                        {devOtp}
+                      </button>
+                      <span className="text-amber-600"> (click to auto-fill)</span>
+                    </p>
+                  </div>
                 )}
               </div>
               <button

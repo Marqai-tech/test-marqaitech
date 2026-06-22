@@ -32,6 +32,15 @@ async function main() {
       country: 'US',
       currency: 'USD',
       timezone: 'America/New_York',
+      // Candidate Portal addendum: enable AI features for the demo tenant so
+      // HR can immediately try Talent Pool / AI Feedback buttons and
+      // candidates can use the AI Resume Optimizer without needing an admin
+      // to flip these flags manually first.
+      aiFeedbackEnabled: true,
+      resumeScoreThreshold: 0,
+      talentPoolCrossCompanyEnabled: true,
+      videoInterviewRetakeLimit: 2,
+      videoRetentionDays: 90,
     },
   });
   console.log(`  ✓ Tenant: ${tenant.name} (${tenant.id})`);

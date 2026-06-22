@@ -6,6 +6,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [magicLink, setMagicLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -14,6 +15,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError(null);
     setMessage(null);
+    setMagicLink(null);
     try {
       const r = await fetch('/api/candidate-portal/auth/forgot-password', {
         method: 'POST',
@@ -26,6 +28,7 @@ export default function ForgotPasswordPage() {
         return;
       }
       setMessage(d.message || 'If an account exists for that email, a password-reset link has been sent. The link expires in 30 minutes.');
+      if (d.magicLink) setMagicLink(d.magicLink);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Network error');
     } finally {
@@ -53,6 +56,29 @@ export default function ForgotPasswordPage() {
             <div className="text-center space-y-4">
               <div className="text-5xl">📧</div>
               <div className="text-sm text-gray-700">{message}</div>
+              {magicLink && (
+                <div className="space-y-2">
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 text-left">
+                    <strong>Demo mode:</strong> Email delivery is not configured yet.
+                    Use the link below to log in directly:
+                  </div>
+                  <a
+                    href={magicLink}
+                    className="inline-block w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-md text-sm hover:from-blue-700 hover:to-violet-700 font-medium"
+                  >
+                    Open Magic Link →
+                  </a>
+                  <details className="text-left">
+                    <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">Or copy the link manually</summary>
+                    <input
+                      readOnly
+                      value={magicLink}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      className="w-full mt-1 text-[10px] font-mono border border-gray-200 rounded px-2 py-1 bg-gray-50 text-gray-600"
+                    />
+                  </details>
+                </div>
+              )}
               <Link href="/candidate-portal/login" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
                 Back to Login
               </Link>
