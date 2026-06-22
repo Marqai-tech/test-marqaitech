@@ -1,35 +1,55 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
+import { useAuthStore } from '@/store/authStore';
 
 export default function GiftingPage() {
   const [tab, setTab] = useState<'gifts' | 'kudos'>('gifts');
   const [gifts, setGifts] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
 
-  const load = useCallback(async (): Promise<void> => {
-    const token = localStorage.getItem('token');
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (tab === 'gifts') {
-      const r = await fetch('/api/gifts', { headers: { Authorization: `Bearer ${token}` } });
-      setGifts((await r.json()).gifts || []);
-    } else {
-      const r = await fetch(`/api/recognition?employeeId=${u.employeeId || ''}`, { headers: { Authorization: `Bearer ${token}` } });
-      const d = await r.json(); setLedger(d.ledger || []);
+  // Use authStore — fixes "no token provided" + missing employeeId.
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const employeeId = user?.employee?.employeeId || null;
+
+  const load = useCallback(async (empId: string | null): Promise<void> => {
+    if (!token) return;
+    try {
+      if (tab === 'gifts') {
+        const r = await fetch('/api/gifts', { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json().catch(() => ({}));
+        setGifts(d.gifts || []);
+      } else {
+        const r = await fetch(`/api/recognition?employeeId=${empId || ''}`, { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json().catch(() => ({}));
+        setLedger(d.ledger || []);
+      }
+    } catch {
+      // silent — page will show empty state
     }
-  }, [tab]);
+  }, [tab, token]);
 
   // Auto-seed wellness (incl. gifts + kudos) demo data on first load
-  const { seeded } = useAutoSeedDemo('wellness', () => load());
+  const { seeded } = useAutoSeedDemo('wellness', () => load(employeeId));
 
-  useEffect(() => { load(); }, [tab, load, seeded]);
+  const [retriedFetchUser, setRetriedFetchUser] = useState(false);
+  useEffect(() => {
+    if (token && !user?.employee && !retriedFetchUser) {
+      setRetriedFetchUser(true);
+      fetchUser();
+      return;
+    }
+    load(employeeId);
+  }, [tab, employeeId, token, seeded, load, user, fetchUser, retriedFetchUser]);
+
   async function runMilestones(): Promise<void> {
-    const token = localStorage.getItem('token');
+    if (!token) return;
     const r = await fetch('/api/gifts/milestone-scan', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-    const d = await r.json();
-    alert(`Milestone scan: ${d.totalSent} gifts sent (birthdays: ${d.birthdayGifts}, anniversaries: ${d.anniversaryGifts})`);
-    load();
+    const d = await r.json().catch(() => ({}));
+    alert(`Milestone scan: ${d.totalSent || 0} gifts sent (birthdays: ${d.birthdayGifts || 0}, anniversaries: ${d.anniversaryGifts || 0})`);
+    load(employeeId);
   }
   return (
     <div className="p-6 space-y-6">

@@ -9,7 +9,7 @@ export default function VendorInvoicesPage() {
   useEffect(() => { loadVIs(); }, []);
   async function loadVIs(): Promise<void> {
     setLoading(true);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch('/api/vendor-invoices', { headers: { Authorization: `Bearer ${token}` } });
     setVis((await r.json()).vendorInvoices || []); setLoading(false);
   }
@@ -67,7 +67,7 @@ export default function VendorInvoicesPage() {
     const [vendors, setVendors] = useState<any[]>([]);
     const [pos, setPOs] = useState<any[]>([]);
     useEffect(() => { (async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const v = await fetch('/api/vendors?limit=100', { headers: { Authorization: `Bearer ${token}` } });
       setVendors((await v.json()).vendors || []);
       const p = await fetch('/api/purchase-orders', { headers: { Authorization: `Bearer ${token}` } });
@@ -75,7 +75,7 @@ export default function VendorInvoicesPage() {
     })(); }, []);
     async function submit(e: any) {
       e.preventDefault();
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/vendor-invoices', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
       if (r.ok) onCreated(); else alert((await r.json()).error);
     }

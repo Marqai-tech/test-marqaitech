@@ -23,7 +23,7 @@ export default function ScheduledReportsPage() {
   async function load() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/reports/schedules', { headers: { Authorization: `Bearer ${token}` } });
       const data = await r.json();
       setSchedules(data.schedules || []);
@@ -37,7 +37,7 @@ export default function ScheduledReportsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       // Parse recipients: textarea content as JSON array, or split by comma
       let recipientsJson: any[] = [];
       try {

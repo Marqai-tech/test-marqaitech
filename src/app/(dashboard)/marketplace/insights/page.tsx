@@ -2,25 +2,37 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
+import { useAuthStore } from '@/store/authStore';
 
 export default function MarketplaceInsightsPage() {
   const [stress, setStress] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Use authStore token — fixes "no token provided" error.
+  const token = useAuthStore((s) => s.token);
+
   // Auto-seed wellness (incl. financial stress flags) demo data on first load
   const { seeded } = useAutoSeedDemo('wellness');
 
   async function runStress(): Promise<void> {
+    if (!token) return;
     setLoading(true);
-    const token = localStorage.getItem('token');
-    const r = await fetch('/api/marketplace/ai/financial-stress', { headers: { Authorization: `Bearer ${token}` } });
-    setStress((await r.json()).results || []); setLoading(false);
+    try {
+      const r = await fetch('/api/marketplace/ai/financial-stress', { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json().catch(() => ({}));
+      setStress(d.results || []);
+    } catch {
+      setStress([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   // Auto-run stress analysis once after seeding completes
   useEffect(() => {
-    if (seeded) runStress();
-  }, [seeded]);
+    if (seeded && token) runStress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeded, token]);
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">

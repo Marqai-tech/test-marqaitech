@@ -11,7 +11,7 @@ export default function SOWPage() {
   async function loadSOWs(): Promise<void> {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/clients/sow', { headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json();
       setSows(d.sows || []);
@@ -21,7 +21,7 @@ export default function SOWPage() {
 
   async function approve(id: string) {
     if (!confirm('Approve this SOW? This will auto-create a Project shell.')) return;
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch(`/api/clients/sow/${id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
     if (r.ok) { alert('SOW approved — project created'); loadSOWs(); }
     else { const e = await r.json(); alert(e.error || 'Failed'); }
@@ -75,13 +75,13 @@ export default function SOWPage() {
     const [form, setForm] = useState({ clientId: '', title: '', fileName: '', rawText: '', currency: 'INR' });
     const [clients, setClients] = useState<any[]>([]);
     useEffect(() => { (async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/clients?limit=100', { headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json(); setClients(d.clients || []);
     })(); }, []);
     async function submit(e: any) {
       e.preventDefault();
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/clients/sow', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
       if (r.ok) onCreated();
       else { const e = await r.json(); alert(e.error); }

@@ -516,9 +516,16 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
         {currentSection ? (
           /* ─── Module Submenu View ─── */
           <div>
-            {/* Back button */}
+            {/* Back button — clears explicit selection AND navigates to /home
+                (a picker route) so the picker view actually shows. Without the
+                navigation, autoDetectedModuleKey would keep the submenu visible
+                on any non-picker route, making the button appear dead. */}
             <button
-              onClick={() => setExplicitSelection(null)}
+              onClick={() => {
+                setExplicitSelection(null);
+                router.push('/home');
+                if (isMobileMenu) onToggle();
+              }}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200 transition-colors ${
                 collapsed ? 'justify-center' : ''
               }`}

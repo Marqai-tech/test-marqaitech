@@ -9,7 +9,7 @@ export default function PurchaseOrdersPage() {
   useEffect(() => { loadPOs(); }, []);
   async function loadPOs(): Promise<void> {
     setLoading(true);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch('/api/purchase-orders', { headers: { Authorization: `Bearer ${token}` } });
     setPOs((await r.json()).purchaseOrders || []); setLoading(false);
   }
@@ -62,7 +62,7 @@ export default function PurchaseOrdersPage() {
     const [vendors, setVendors] = useState<any[]>([]);
     const [companies, setCompanies] = useState<any[]>([]);
     useEffect(() => { (async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const [v, c] = await Promise.all([
         fetch('/api/vendors?limit=100', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/companies', { headers: { Authorization: `Bearer ${token}` } }),
@@ -74,7 +74,7 @@ export default function PurchaseOrdersPage() {
     function updateLine(i: number, field: string, val: any) { const li = [...form.lineItems]; li[i] = { ...li[i], [field]: val }; setForm({ ...form, lineItems: li }); }
     async function submit(e: any) {
       e.preventDefault();
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/purchase-orders', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
       if (r.ok) onCreated(); else alert((await r.json()).error);
     }

@@ -12,6 +12,18 @@ interface TenantInfo {
   logo?: string | null;
 }
 
+interface EmployeeInfo {
+  id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  department?: string | null;
+  designation?: string | null;
+  branch?: string | null;
+  status?: string;
+  salary?: number | null;
+}
+
 interface UserInfo {
   id: string;
   name: string;
@@ -20,6 +32,9 @@ interface UserInfo {
   avatar?: string | null;
   tenantId?: string;
   tenant?: TenantInfo;
+  // Populated by /api/auth/me — required by marketplace pages (wallet, ewa, etc.)
+  // that need the logged-in user's employeeId to fetch per-employee data.
+  employee?: EmployeeInfo | null;
 }
 
 // Permissions: { moduleKey: { action: boolean } }
@@ -80,6 +95,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Fetch permissions after login
       get().fetchPermissions();
+
+      // Also fetch the full user profile (incl. employee info) so that
+      // pages like /marketplace/wallet can read user.employee.employeeId
+      // immediately after login instead of waiting for a page reload.
+      // Login response itself doesn't include employee data; /api/auth/me does.
+      get().fetchUser();
 
       return true;
     } catch (error: unknown) {

@@ -33,7 +33,11 @@ export function useAutoSeedDemo(module: Module, onSeeded?: () => void) {
       }
     } catch {}
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    // NOTE: authStore persists the JWT under the `tb_token` localStorage key
+    // (see src/store/authStore.ts). The bare `token` key is never set, so reading
+    // it returns null and the API responds with "No token provided" — that's the
+    // bug we're fixing here.
+    const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
     if (!token) return; // not logged in yet — page-level guard will handle redirect
 
     let cancelled = false;

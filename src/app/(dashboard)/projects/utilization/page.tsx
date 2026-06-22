@@ -13,7 +13,7 @@ export default function UtilizationPage() {
   async function load() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const params = new URLSearchParams({ weeks: String(weeks), persist: '1' });
       if (projectId) params.set('projectId', projectId);
       const r = await fetch(`/api/projects/utilization?${params}`, {

@@ -3,20 +3,29 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
+import { useAuthStore } from '@/store/authStore';
 
 export default function InsurancePage() {
   const [policies, setPolicies] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
 
+  // Use authStore token — fixes "no token provided" error.
+  const token = useAuthStore((s) => s.token);
+
   const load = useCallback(async (): Promise<void> => {
-    const token = localStorage.getItem('token');
-    const [p, c] = await Promise.all([
-      fetch('/api/insurance/policies', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/insurance/claims', { headers: { Authorization: `Bearer ${token}` } }),
-    ]);
-    setPolicies((await p.json()).policies || []);
-    setClaims((await c.json()).claims || []);
-  }, []);
+    if (!token) return;
+    try {
+      const [p, c] = await Promise.all([
+        fetch('/api/insurance/policies', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/insurance/claims', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const [pd, cd] = await Promise.all([p.json().catch(() => ({})), c.json().catch(() => ({}))]);
+      setPolicies(pd.policies || []);
+      setClaims(cd.claims || []);
+    } catch {
+      // silent
+    }
+  }, [token]);
 
   // Auto-seed wellness + insurance demo data on first load
   const { seeded } = useAutoSeedDemo('wellness', () => load());

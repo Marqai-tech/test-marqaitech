@@ -10,14 +10,14 @@ export default function ClientInsightsPage() {
 
   async function runChurn(): Promise<void> {
     setLoading(true);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch('/api/clients/ai/churn', { headers: { Authorization: `Bearer ${token}` } });
     setChurn((await r.json()).results || []);
     setLoading(false);
   }
   async function runMargin(): Promise<void> {
     setLoading(true);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch('/api/clients/ai/margin', { headers: { Authorization: `Bearer ${token}` } });
     setMargin((await r.json()).results || []);
     setLoading(false);

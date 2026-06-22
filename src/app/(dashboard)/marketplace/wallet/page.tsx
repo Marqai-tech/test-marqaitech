@@ -2,26 +2,94 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
+import { useAuthStore } from '@/store/authStore';
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState<any>(null);
-  const [employeeId, setEmployeeId] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Pull token + employee info from the authStore instead of localStorage.
+  // The authStore never persists `user` to localStorage, so the previous
+  // `localStorage.getItem("user")` lookup always returned null, employeeId
+  // was never set, loadWallet was never called, and the page was stuck on
+  // "Loading wallet..." forever.
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const employeeId = user?.employee?.employeeId || null;
 
   const loadWallet = useCallback(async (empId: string): Promise<void> => {
-    const token = localStorage.getItem('token');
-    const r = await fetch(`/api/wallet?employeeId=${empId}`, { headers: { Authorization: `Bearer ${token}` } });
-    setWallet((await r.json()).wallet);
-  }, []);
+    if (!token) return;
+    try {
+      setLoadError(null);
+      const r = await fetch(`/api/wallet?employeeId=${empId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        setLoadError(e.error || `Failed to load wallet (HTTP ${r.status})`);
+        return;
+      }
+      const data = await r.json();
+      setWallet(data.wallet);
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : 'Network error');
+    }
+  }, [token]);
 
   // Auto-seed wellness/wallet demo data on first load
   const { seeded } = useAutoSeedDemo('wellness', () => {
     if (employeeId) loadWallet(employeeId);
   });
 
+  // When user info (incl. employee) becomes available, or after seeding
+  // completes, fetch the wallet. Also retry once if employee info isn't
+  // loaded yet (e.g. fetchUser is still in flight right after login).
+  const [ retriedFetchUser, setRetriedFetchUser ] = useState(false);
   useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (u.employeeId) { setEmployeeId(u.employeeId); loadWallet(u.employeeId); }
-  }, [loadWallet, seeded]);
+    if (token && !user?.employee && !retriedFetchUser) {
+      setRetriedFetchUser(true);
+      fetchUser();
+      return;
+    }
+    if (employeeId) loadWallet(employeeId);
+  }, [employeeId, token, seeded, loadWallet, user, fetchUser, retriedFetchUser]);
+
+  // Friendly empty-states instead of being stuck on "Loading wallet..."
+  if (!token) {
+    return <div className="p-6 text-gray-500">Please log in to view your wallet.</div>;
+  }
+  if (!employeeId) {
+    return (
+      <div className="p-6 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold">My Wallet</h1>
+          <p className="text-sm text-gray-600 mt-1">Multi-bucket · Co-pay logic · Tax-optimized (REQ-MKT-01/02/03/04)</p>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+          No employee record linked to your account. Wallets are per-employee — please log in as a user with an Employee profile, or assign an Employee record to this user in the admin console.
+        </div>
+      </div>
+    );
+  }
+  if (loadError) {
+    return (
+      <div className="p-6 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold">My Wallet</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {loadError}
+        </div>
+        <button
+          onClick={() => employeeId && loadWallet(employeeId)}
+          className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   if (!wallet) return <div className="p-6 text-gray-500">Loading wallet...</div>;
   return (
     <div className="p-6 space-y-6">

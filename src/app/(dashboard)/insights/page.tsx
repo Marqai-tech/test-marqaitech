@@ -13,7 +13,7 @@ export default function InsightsPage() {
   async function load() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const params = new URLSearchParams({ hours: '6' });
       if (moduleFilter) params.set('module', moduleFilter);
       const r = await fetch(`/api/analytics/insights?${params}`, {

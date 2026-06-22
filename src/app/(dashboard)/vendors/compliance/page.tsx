@@ -10,18 +10,18 @@ export default function VendorCompliancePage() {
 
   useEffect(() => { loadVendors(); }, []);
   async function loadVendors(): Promise<void> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch('/api/vendors?limit=100', { headers: { Authorization: `Bearer ${token}` } });
     setVendors((await r.json()).vendors || []);
   }
   async function loadDocs(vendorId: string) {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch(`/api/vendors/${vendorId}/documents`, { headers: { Authorization: `Bearer ${token}` } });
     setDocs((await r.json()).documents || []);
   }
   async function runScan(): Promise<void> {
     setShowScan(true);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('tb_token');
     const r = await fetch('/api/vendors/compliance-scan', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
     const d = await r.json();
     alert(`Compliance scan complete: ${d.total} reminders sent/expired flagged.`);
@@ -95,7 +95,7 @@ export default function VendorCompliancePage() {
     const [form, setForm] = useState({ name: '', type: 'insurance', expiryDate: '' });
     async function submit(e: any) {
       e.preventDefault();
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       await fetch(`/api/vendors/${vendorId}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
       setOpen(false); setForm({ name: '', type: 'insurance', expiryDate: '' }); onAdded();
     }

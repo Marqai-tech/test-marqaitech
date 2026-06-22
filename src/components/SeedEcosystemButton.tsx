@@ -26,7 +26,10 @@ export default function SeedEcosystemButton({ module = 'all', label, compact = f
     setError(null);
     setResult(null);
     try {
-      const token = localStorage.getItem('token');
+      // authStore persists the JWT under `tb_token` (not `token`).
+      // Reading the bare `token` key returned null and made the API reply
+      // "No token provided" — fixed 2026-06-22.
+      const token = localStorage.getItem('tb_token');
       const r = await fetch('/api/admin/seed-ecosystem-data', {
         method: 'POST',
         headers: {

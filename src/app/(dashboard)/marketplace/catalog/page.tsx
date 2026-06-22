@@ -1,42 +1,59 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
+import { useAuthStore } from '@/store/authStore';
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Use authStore — fixes "no token provided" + missing employeeId for Buy flow.
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const employeeId = user?.employee?.employeeId || null;
+
   const load = useCallback(async (cat: string): Promise<void> => {
+    if (!token) { setLoading(false); return; }
     setLoading(true);
-    const token = localStorage.getItem('token');
-    const url = `/api/marketplace/products${cat ? `?category=${cat}` : ''}`;
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    setProducts((await r.json()).products || []);
-    setLoading(false);
-  }, []);
+    try {
+      const url = `/api/marketplace/products${cat ? `?category=${cat}` : ''}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json().catch(() => ({}));
+      setProducts(d.products || []);
+    } catch {
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   // Auto-seed demo data on first load if catalog is empty
   const { seeded } = useAutoSeedDemo('marketplace', () => load(category));
 
+  const [retriedFetchUser, setRetriedFetchUser] = useState(false);
   useEffect(() => {
+    if (token && !user?.employee && !retriedFetchUser) {
+      setRetriedFetchUser(true);
+      fetchUser();
+    }
     load(category);
-  }, [category, load, seeded]);
+  }, [category, load, seeded, token, user, fetchUser, retriedFetchUser]);
+
   async function buy(p: any) {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!u.employeeId) { alert('No employee context'); return; }
+    if (!employeeId) { alert('No employee context — please log in as a user with an Employee profile.'); return; }
+    if (!token) { alert('Not authenticated'); return; }
     // For demo: use first wallet bucket of allowed category
-    const token = localStorage.getItem('token');
-    const wr = await fetch(`/api/wallet?employeeId=${u.employeeId}`, { headers: { Authorization: `Bearer ${token}` } });
+    const wr = await fetch(`/api/wallet?employeeId=${employeeId}`, { headers: { Authorization: `Bearer ${token}` } });
     const wallet = (await wr.json()).wallet;
     const allowed = p.allowedBuckets.split(',').map((s: any) => s.trim());
     const bucket = wallet?.buckets?.find((b: any) => allowed.includes(b.category));
     if (!bucket) { alert(`No eligible bucket. Allowed: ${p.allowedBuckets}`); return; }
     if (!confirm(`Buy ${p.name} for ${p.currency} ${p.corporatePrice} from ${bucket.category} bucket?`)) return;
-    const r = await fetch('/api/marketplace/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ employeeId: u.employeeId, productId: p.id, qty: 1, walletBucketId: bucket.id }) });
+    const r = await fetch('/api/marketplace/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ employeeId, productId: p.id, qty: 1, walletBucketId: bucket.id }) });
     if (r.ok) { const o = await r.json(); alert(`✓ Order placed! Code: ${o.order.fulfillmentRef}`); }
-    else { const e = await r.json(); alert(e.error); }
+    else { const e = await r.json().catch(() => ({})); alert(e.error || 'Order failed'); }
   }
   const cats = ['', 'voucher', 'gift_card', 'physical_goods', 'digital_goods', 'course', 'insurance_topup'];
   return (
