@@ -483,7 +483,12 @@ export default function CareersPage() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 409) {
+          // Already-applied is still a "success" from the candidate's POV —
+          // they have an application on file. Show the post-apply success
+          // modal so they get the CTA to set up their candidate portal
+          // (they likely never completed that step on their first apply).
           toast.success(data.error || "You've already applied — we'll be in touch!");
+          setSubmittedEmail(form.candidateEmail.trim());
           closeApply();
           return;
         }
@@ -839,7 +844,7 @@ export default function CareersPage() {
                 <li><a href="#openings" className="hover:text-white transition-colors">Browse Openings</a></li>
                 <li><a href="#companies" className="hover:text-white transition-colors">Hiring Companies</a></li>
                 <li><a href="#why" className="hover:text-white transition-colors">Why Join Us</a></li>
-                <li><Link href="/login" className="hover:text-white transition-colors">Sign In to Portal</Link></li>
+                <li><Link href="/candidate-portal/login" className="hover:text-white transition-colors">Sign In to Portal</Link></li>
               </ul>
             </div>
             <div>
