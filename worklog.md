@@ -1952,3 +1952,32 @@ Stage Summary:
 - Timesheets API: HTTP 200
 - Sidebar: Attendance / Leave / Timesheets are 3 separate menus (verified in src/components/Sidebar.tsx lines 165-197)
 - Production URL: https://nexus-hrms-mu.vercel.app
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix "Apply for job → success modal with 'Set up my candidate portal' button - this step only not working"
+
+Work Log:
+- Explored /careers page and found the success modal at lines 898-928 with the "Set up my candidate portal" link
+- Used agent-browser to simulate the apply flow on production (https://nexus-hrms-mu.vercel.app/careers)
+- Verified the success modal DOES appear when applying with a fresh email — the link correctly navigates to /candidate-portal/login?email=... and the email is pre-filled
+- Tested the duplicate-email (409) case: applying with an already-used email triggered the early-return path at line 485-489 which called closeApply() and returned WITHOUT setting submittedEmail, so the success modal never appeared — this is the bug the user hit
+- Fixed /home/z/my-project/src/app/careers/page.tsx:
+  - In the 409 branch of handleSubmitApply, added setSubmittedEmail(form.candidateEmail.trim()) BEFORE closeApply() so the success modal with the portal-setup CTA appears even when the candidate has already applied (which is the most common scenario when users are testing the flow repeatedly with the same email)
+- Also fixed the footer "Sign In to Portal" link in the "For Candidates" column: was pointing to /login (HR/admin login) which would confuse candidates — now points to /candidate-portal/login
+- Committed as 28939eb and pushed to origin/main; waited for Vercel build
+- Re-tested on production with agent-browser:
+  1. Applied with the duplicate email "test-portal-flow-1782211981@example.com" (already on file)
+  2. Verified the success modal appeared with "Application submitted!" + the "Set up my candidate portal" button
+  3. Clicked the button → navigated to /candidate-portal/login?email=test-portal-flow-1782211981%40example.com
+  4. Email was pre-filled, clicked "Send OTP"
+  5. Demo OTP hint "391238" appeared as clickable button
+  6. Clicked it to auto-fill, then "Verify & Continue"
+  7. Landed on /candidate-portal/dashboard with "APPLICATION OVERVIEW", "INTERVIEW ACTIVITY", "AI SUGGESTIONS", "YOUR APPLICATIONS" sections
+
+Stage Summary:
+- Root cause: the 409 (already-applied) path returned early without showing the success modal, so candidates testing the flow with the same email twice never saw the "Set up my candidate portal" CTA
+- Fix: show the success modal in both success (200) and already-applied (409) cases — both are valid "you have an application on file" states where the candidate should be encouraged to set up their portal
+- Bonus fix: footer "Sign In to Portal" link now goes to /candidate-portal/login (was /login)
+- Full flow verified end-to-end on production
