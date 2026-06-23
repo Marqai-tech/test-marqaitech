@@ -175,19 +175,87 @@ ${resumeText.slice(0, 12000)}
 /**
  * Best-effort local fallback: pulls email, phone, and a few bullets out of the
  * raw text using regex when ZAI is unavailable. Always returns a usable object.
+ *
+ * Also extracts skills from a "SKILLS" section heading (very common resume
+ * convention) — this keeps the candidate dashboard useful even when the LLM
+ * extraction is unavailable on serverless.
  */
 function localFallbackExtraction(text: string, language: string): ParsedResume {
   const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const phoneMatch = text.match(/(\+?\d[\d\s().-]{7,}\d)/);
   const nameGuess = (text.split('\n').find(l => l.trim().length > 2 && l.trim().length < 60 && /^[A-Za-z][A-Za-z\s.'-]+$/.test(l.trim())) || '').trim();
 
+  // Location extraction — look for "Location: <city>, <country>" or
+  // "City, ST" patterns. Falls back to ''.
+  let location = '';
+  const locMatch = text.match(/\bLocation\s*:\s*([^\n]+)/i);
+  if (locMatch) {
+    location = locMatch[1].trim().slice(0, 80);
+  } else {
+    // Common "City, Country" or "City, ST 12345" patterns
+    const cityMatch = text.match(/\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?,\s*(?:[A-Z]{2}|[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?))\b/);
+    if (cityMatch) location = cityMatch[1];
+  }
+
+  // Skill extraction — look for a "SKILLS" / "TECHNICAL SKILLS" / "CORE SKILLS"
+  // section heading and grab the text until the next ALL-CAPS section heading
+  // or blank-line break. Then split on commas / bullets / pipes.
+  const skills: string[] = [];
+  const skillsSectionMatch = text.match(
+    /\b(?:TECHNICAL\s+SKILLS|CORE\s+SKILLS|KEY\s+SKILLS|SKILLS(?:\s*&\s*EXPERTISE)?)\s*\n([^\n]*(?:\n(?!^[A-Z][A-Z\s&]{2,30}\n)[^\n]*)*)/im,
+  );
+  if (skillsSectionMatch) {
+    const sectionText = skillsSectionMatch[1];
+    const tokens = sectionText
+      .split(/[,•·|\n\t]+/)
+      .map(t => t.trim())
+      .filter(t => t.length >= 2 && t.length < 40 && !/^[A-Z][A-Z\s&]{2,30}$/.test(t));
+    // Dedupe + cap at 20
+    for (const t of tokens) {
+      const lower = t.toLowerCase();
+      if (!skills.find(s => s.toLowerCase() === lower)) skills.push(t);
+      if (skills.length >= 20) break;
+    }
+  }
+
+  // If no SKILLS section was found, try a weaker heuristic: scan for known
+  // technology keywords anywhere in the text. This catches resumes that
+  // don't use a formal "SKILLS" heading but still list technologies inline.
+  if (skills.length === 0) {
+    const KNOWN_TECH = [
+      'JavaScript', 'TypeScript', 'React', 'Angular', 'Vue', 'Node.js', 'Express',
+      'Next.js', 'Python', 'Django', 'Flask', 'Java', 'Spring', 'Kotlin', 'Swift',
+      'Go', 'Rust', 'C\\+\\+', 'C#', '.NET', 'PHP', 'Laravel', 'Ruby', 'Rails',
+      'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Oracle', 'SQL Server',
+      'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins',
+      'Git', 'GraphQL', 'REST', 'gRPC', 'Kafka', 'RabbitMQ', 'Elasticsearch',
+      'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'Redux', 'Vuex',
+      'Jest', 'Cypress', 'Playwright', 'Selenium', 'Tableau', 'Power BI',
+      'Excel', 'PowerPoint', 'Jira', 'Confluence', 'Agile', 'Scrum', 'DevOps',
+      'CI/CD', 'Linux', 'Bash', 'PowerShell', 'Machine Learning', 'TensorFlow',
+      'PyTorch', 'Pandas', 'NumPy', 'Spark', 'Hadoop', 'Airflow',
+    ];
+    const lowerText = text.toLowerCase();
+    for (const tech of KNOWN_TECH) {
+      const re = new RegExp(`\\b${tech}\\b`, 'i');
+      if (re.test(text)) {
+        // Push the canonical form (without regex escapes) — strip the
+        // backslashes used for regex escaping.
+        skills.push(tech.replace(/\\/g, ''));
+        if (skills.length >= 20) break;
+      }
+    }
+    // Avoid the unused-variable warning if we didn't enter the loop
+    void lowerText;
+  }
+
   return {
     name: nameGuess || 'Unknown Candidate',
     email: emailMatch ? emailMatch[0] : '',
     phone: phoneMatch ? phoneMatch[0].trim() : '',
-    location: '',
+    location,
     summary: text.slice(0, 240).replace(/\s+/g, ' ').trim(),
-    skills: [],
+    skills,
     education: [],
     experience: [],
     certifications: [],

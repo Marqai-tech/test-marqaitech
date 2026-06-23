@@ -22,6 +22,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { parseResumeFromDataUrl } from '@/lib/resume-parser';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -97,6 +98,47 @@ export async function GET(request: Request) {
       },
       orderBy: { appliedDate: 'desc' },
     });
+
+    // ─── Backfill missing ResumeParse rows for existing applications ────
+    // Before this fix, /api/public/apply stored the resume data URL on the
+    // application but never created a ResumeParse row. So candidates who
+    // applied before the fix have no insights / skill matrix on their
+    // dashboard. We backfill lazily on dashboard load: for each application
+    // that has a resume data URL but zero ResumeParse rows, parse + persist
+    // one now (best-effort, non-blocking — failures are swallowed).
+    await Promise.allSettled(
+      applications
+        .filter((a) => !!a.resume && a.resume.startsWith('data:') && a.resumeParses.length === 0)
+        .map(async (a) => {
+          try {
+            const result = await parseResumeFromDataUrl(a.resume as string);
+            await prisma.resumeParse.create({
+              data: {
+                jobApplicationId: a.id,
+                rawText: result.rawText.slice(0, 100_000),
+                language: result.language || 'en',
+                parsedData: JSON.stringify(result.parsed),
+                confidence: result.confidence,
+                sourceFormat: result.sourceFormat,
+                parseError: result.parseError || null,
+              },
+            });
+            // Mutate the in-memory application so the rest of this request
+            // sees the freshly-parsed insight without a second DB round-trip.
+            a.resumeParses = [
+              {
+                parsedData: JSON.stringify(result.parsed),
+                language: result.language,
+                confidence: result.confidence,
+                sourceFormat: result.sourceFormat,
+                parseError: result.parseError || null,
+              } as any,
+            ];
+          } catch (err) {
+            console.warn('[candidate-portal/dashboard] backfill parse failed for', a.id, err);
+          }
+        }),
+    );
 
     // ─── AI Interview Sessions (separate from manual Interview records) ──
     const aiSessions = await prisma.interviewSession.findMany({
