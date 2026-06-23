@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
+import { parseResumeFromDataUrl } from '@/lib/resume-parser';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -191,6 +192,31 @@ export async function POST(req: NextRequest) {
         appliedDate: true,
       },
     });
+
+    // ===== Parse the resume + persist ResumeParse row (best-effort, non-blocking) =====
+    // This is what populates the "Resume Insights" + "Skill Matrix" sections
+    // on the candidate dashboard. Without it, candidates see an empty
+    // insights panel even though they uploaded a resume. We swallow parse
+    // errors so a bad resume file never blocks the application itself.
+    if (resumeDataUrl && typeof resumeDataUrl === 'string' && resumeDataUrl.startsWith('data:')) {
+      try {
+        const result = await parseResumeFromDataUrl(resumeDataUrl);
+        await db.resumeParse.create({
+          data: {
+            jobApplicationId: application.id,
+            rawText: result.rawText.slice(0, 100_000), // cap to avoid column overflow
+            language: result.language || 'en',
+            parsedData: JSON.stringify(result.parsed),
+            confidence: result.confidence,
+            sourceFormat: result.sourceFormat,
+            parseError: result.parseError || null,
+          },
+        });
+      } catch (parseErr) {
+        // Non-fatal — log and continue
+        console.error('[public/apply] resume parse failed (non-fatal):', parseErr);
+      }
+    }
 
     // ===== Audit + notification (best-effort, non-blocking) =====
     try {

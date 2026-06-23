@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
+import { FiMail, FiLock, FiArrowRight, FiArrowLeft, FiGrid } from 'react-icons/fi';
 
 export default function CandidateLoginPage() {
   const router = useRouter();
@@ -66,6 +66,25 @@ export default function CandidateLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-white to-sky-50 p-4">
+      {/* Back navigation — visible in top-left so candidates can return to the
+          careers page or HR/admins can hop over to the HRMS login. */}
+      <div className="fixed top-4 left-4 flex items-center gap-2 text-xs">
+        <Link
+          href="/careers"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-violet-700 hover:border-violet-200 transition-colors shadow-sm"
+        >
+          <FiArrowLeft className="w-3.5 h-3.5" /> Back to Careers
+        </Link>
+      </div>
+      <div className="fixed top-4 right-4 flex items-center gap-2 text-xs">
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-sky-700 hover:border-sky-200 transition-colors shadow-sm"
+          title="HR / Admin login"
+        >
+          <FiGrid className="w-3.5 h-3.5" /> HRMS Login
+        </Link>
+      </div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-sky-500 text-white mb-3 shadow-lg">
@@ -158,6 +177,11 @@ export default function CandidateLoginPage() {
 
         <p className="text-center text-[11px] text-slate-400 mt-4">
           By signing in you agree to our <a href="/recruitment/pii-policy" className="underline">PII & Privacy Policy</a>.
+        </p>
+        <p className="text-center text-[11px] mt-2">
+          <Link href="/careers" className="text-violet-600 hover:underline">← Browse open positions</Link>
+          <span className="mx-2 text-slate-300">·</span>
+          <Link href="/login" className="text-slate-500 hover:text-sky-600 hover:underline">HR / Admin login</Link>
         </p>
       </div>
     </div>

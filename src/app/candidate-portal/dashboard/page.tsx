@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiBriefcase, FiCheckCircle, FiClock, FiXCircle, FiAward, FiTrendingUp,
   FiCalendar, FiTarget, FiZap, FiBookOpen, FiAlertCircle, FiActivity,
   FiArrowRight, FiStar, FiMapPin, FiRefreshCw, FiLogOut, FiBarChart2,
+  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -52,6 +53,32 @@ interface DashboardData {
   jobAlerts: Array<{
     id: string; matchScore: number; createdAt: string; job: any;
   }>;
+}
+
+interface MatchingJob {
+  id: string;
+  title: string;
+  position: string;
+  location: string | null;
+  type: string;
+  experience: string | null;
+  salary: string | null;
+  company: string;
+  matchScore: number;
+  matchedSkills: string[];
+}
+
+interface ExternalBoard {
+  board: string;
+  url: string;
+  description: string;
+}
+
+interface MatchingJobsData {
+  candidateSkills: string[];
+  candidateLocation: string | null;
+  internal: MatchingJob[];
+  external: ExternalBoard[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -125,6 +152,10 @@ export default function CandidateDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [matchingJobs, setMatchingJobs] = useState<MatchingJobsData | null>(null);
+  const [matchingJobsLoading, setMatchingJobsLoading] = useState(false);
+  const [reuploadingAppId, setReuploadingAppId] = useState<string | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -144,6 +175,20 @@ export default function CandidateDashboardPage() {
     }
   }, [router]);
 
+  const fetchMatchingJobs = useCallback(async () => {
+    setMatchingJobsLoading(true);
+    try {
+      const r = await fetch('/api/candidate-portal/matching-jobs', { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setMatchingJobs(d);
+    } catch {
+      // Silent — matching jobs is a "nice to have" side section
+    } finally {
+      setMatchingJobsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_token') : null;
     if (!token) {
@@ -151,7 +196,9 @@ export default function CandidateDashboardPage() {
       return;
     }
     fetchData();
-  }, [fetchData, router]);
+    // Load matching jobs in parallel — non-blocking, sidebar-style
+    fetchMatchingJobs();
+  }, [fetchData, fetchMatchingJobs, router]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -159,6 +206,69 @@ export default function CandidateDashboardPage() {
       localStorage.removeItem('tb_candidate_email');
     }
     router.push('/candidate-portal/login');
+  };
+
+  // ─── Resume re-upload ─────────────────────────────────────────────────
+  // Triggered by the "Re-upload resume" button on each application row.
+  // Opens the file picker, reads the file as a data URL, and POSTs it to
+  // /api/candidate-portal/resume/re-upload. On success we refresh both the
+  // dashboard data (so insights/skill matrix update) and the matching-jobs
+  // data (so internal/external recommendations pick up the new skills).
+  const handleReUploadClick = (appId: string) => {
+    setReuploadingAppId(appId);
+    if (resumeInputRef.current) {
+      resumeInputRef.current.dataset.appId = appId;
+      resumeInputRef.current.click();
+    }
+  };
+
+  const handleResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const appId = resumeInputRef.current?.dataset.appId;
+    // Reset input value so the same file can be re-selected later
+    if (e.target) e.target.value = '';
+    if (!file || !appId) {
+      setReuploadingAppId(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Resume must be under 5 MB');
+      setReuploadingAppId(null);
+      return;
+    }
+    const allowed = ['.pdf', '.doc', '.docx', '.rtf', '.txt'];
+    if (!allowed.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+      toast.error('Resume must be a PDF, DOC, DOCX, RTF, or TXT file');
+      setReuploadingAppId(null);
+      return;
+    }
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const r = await fetch('/api/candidate-portal/resume/re-upload', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          jobApplicationId: appId,
+          resumeDataUrl: dataUrl,
+          resumeFileName: file.name,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      toast.success(d.message || 'Resume updated');
+      // Refresh dashboard + matching jobs in parallel
+      fetchData();
+      fetchMatchingJobs();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload resume');
+    } finally {
+      setReuploadingAppId(null);
+    }
   };
 
   if (loading || !data) {
@@ -186,10 +296,25 @@ export default function CandidateDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Hidden file input for resume re-upload (one shared input for all apps) */}
+      <input
+        ref={resumeInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.rtf,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/plain"
+        className="hidden"
+        onChange={handleResumeFileChange}
+      />
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Link
+              href="/careers"
+              className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-violet-700 px-2 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+              title="Back to careers page"
+            >
+              <FiArrowLeft className="w-3.5 h-3.5" /> Careers
+            </Link>
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-sky-500 text-white flex items-center justify-center">
               <FiBriefcase className="w-5 h-5" />
             </div>
@@ -199,6 +324,20 @@ export default function CandidateDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/careers"
+              className="hidden md:inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+              title="Browse open positions"
+            >
+              <FiSearch className="w-3.5 h-3.5" /> Browse Jobs
+            </Link>
+            <Link
+              href="/login"
+              className="hidden md:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-sky-700 px-2.5 py-1.5 rounded-lg hover:bg-sky-50 transition-colors"
+              title="HR / Admin login"
+            >
+              <FiGrid className="w-3.5 h-3.5" /> HRMS
+            </Link>
             <a href="/candidate-portal/settings" className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Settings & Privacy">
               <FiActivity className="w-4 h-4" />
             </a>
@@ -325,21 +464,28 @@ export default function CandidateDashboardPage() {
                         <div className="text-[10px] text-slate-400 mt-1">{fmtDate(app.aiFeedback.publishedAt)}</div>
                       </div>
                     )}
-                    {/* Action row: optimize resume (REQ-AI-RES-09) */}
-                    {!['hired', 'rejected'].includes(app.status) && app.matchScore == null && (
-                      <div className="mt-2">
+                    {/* Action row: re-upload resume + optimize resume (REQ-AI-RES-09) */}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                      <button
+                        onClick={() => handleReUploadClick(app.id)}
+                        disabled={reuploadingAppId === app.id}
+                        className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700 disabled:text-slate-400 disabled:cursor-wait"
+                        title="Replace the resume on file for this application"
+                      >
+                        <FiUpload className="w-3 h-3" />
+                        {reuploadingAppId === app.id ? 'Uploading…' : 'Re-upload resume'}
+                      </button>
+                      {!['hired', 'rejected'].includes(app.status) && app.matchScore == null && (
                         <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700">
                           <FiZap className="w-3 h-3" /> Optimize Resume with AI
                         </Link>
-                      </div>
-                    )}
-                    {app.matchScore != null && (
-                      <div className="mt-2">
+                      )}
+                      {app.matchScore != null && (
                         <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700">
                           <FiZap className="w-3 h-3" /> Re-optimize Resume (v{app.optimizationVersion || 1})
                         </Link>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     {app.expectedSalary && (
                       <p className="text-[11px] text-slate-500 mt-2">Expected: {app.expectedSalary}</p>
                     )}
@@ -595,6 +741,114 @@ export default function CandidateDashboardPage() {
             )}
           </section>
         </div>
+
+        {/* ─── Matching Jobs: internal portal + external job boards ─── */}
+        <section>
+          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <FiSearch className="w-4 h-4 text-slate-500" /> Matching Jobs
+            <span className="text-[10px] font-normal text-slate-500">— based on the skills detected on your resume</span>
+          </h2>
+
+          {/* Detected skills row — gives the candidate transparency about
+              what's driving the matches. */}
+          {matchingJobs && matchingJobs.candidateSkills.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-3 mb-3">
+              <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Your top skills</p>
+              <div className="flex flex-wrap gap-1.5">
+                {matchingJobs.candidateSkills.map((s, i) => (
+                  <span key={i} className="text-[11px] bg-violet-50 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full capitalize">{s}</span>
+                ))}
+              </div>
+              {matchingJobs.candidateLocation && (
+                <p className="text-[10px] text-slate-500 mt-2">📍 Detected location: <span className="font-medium">{matchingJobs.candidateLocation}</span></p>
+              )}
+            </div>
+          )}
+
+          {/* Internal matching jobs */}
+          <div className="mb-4">
+            <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <FiBriefcase className="w-3.5 h-3.5 text-violet-500" /> From our portal
+            </h3>
+            {matchingJobsLoading ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center text-xs text-slate-400">
+                <div className="w-5 h-5 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-1.5" />
+                Finding matching jobs…
+              </div>
+            ) : matchingJobs && matchingJobs.internal.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {matchingJobs.internal.map((job) => (
+                  <div key={job.id} className="bg-white rounded-xl border border-slate-200 p-3 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{job.company} · {job.position}</p>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
+                          {job.location && <span className="flex items-center gap-0.5"><FiMapPin className="w-3 h-3" />{job.location}</span>}
+                          <span className="capitalize">· {job.type}</span>
+                          {job.experience && <span>· {job.experience}</span>}
+                        </div>
+                      </div>
+                      <div className="text-center flex-shrink-0">
+                        <div className="text-[9px] uppercase text-slate-400">Match</div>
+                        <div className={`text-base font-bold ${job.matchScore >= 60 ? 'text-emerald-600' : 'text-amber-600'}`}>{job.matchScore}%</div>
+                      </div>
+                    </div>
+                    {job.matchedSkills.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {job.matchedSkills.slice(0, 5).map((s, i) => (
+                          <span key={i} className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded capitalize">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                    <Link
+                      href={`/careers`}
+                      className="inline-flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-700 mt-2.5"
+                    >
+                      Apply now <FiArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center text-xs text-slate-500">
+                {matchingJobs && matchingJobs.candidateSkills.length === 0
+                  ? 'Upload a resume to see matching jobs from our portal.'
+                  : 'No new matching jobs from our portal right now. Check the external boards below.'}
+              </div>
+            )}
+          </div>
+
+          {/* External job-board deep links */}
+          {matchingJobs && matchingJobs.external.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <FiExternalLink className="w-3.5 h-3.5 text-sky-500" /> From other job portals
+                <span className="text-[10px] font-normal text-slate-500">— pre-filled searches on major job boards</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {matchingJobs.external.map((board) => (
+                  <a
+                    key={board.board}
+                    href={board.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white rounded-xl border border-slate-200 p-3 hover:border-sky-300 hover:shadow-md transition-all flex items-start justify-between gap-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">{board.board}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{board.description}</p>
+                    </div>
+                    <FiExternalLink className="w-3.5 h-3.5 text-sky-500 flex-shrink-0 mt-0.5" />
+                  </a>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2">
+                Note: we don't scrape or proxy listings — these links open directly on each job board's site with your top skills pre-filled as the search query.
+              </p>
+            </div>
+          )}
+        </section>
 
         {/* Learning Suggestions */}
         {learningSuggestions.length > 0 && (
