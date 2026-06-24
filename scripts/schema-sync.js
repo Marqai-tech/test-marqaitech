@@ -2158,6 +2158,13 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "CandidatePasswordReset_candidateEmail_idx" ON "CandidatePasswordReset"("candidateEmail")`,
     `CREATE INDEX IF NOT EXISTS "CandidatePasswordReset_expiresAt_idx" ON "CandidatePasswordReset"("expiresAt")`,
 
+    // REQ-CAND-AUTH: Password + social login for CandidatePortalUser
+    // (original table only had OTP fields; these columns were added later)
+    `ALTER TABLE "CandidatePortalUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT`,
+    `ALTER TABLE "CandidatePortalUser" ADD COLUMN IF NOT EXISTS "passwordSetAt" TIMESTAMP(3)`,
+    `ALTER TABLE "CandidatePortalUser" ADD COLUMN IF NOT EXISTS "oauthProvider" TEXT`,
+    `ALTER TABLE "CandidatePortalUser" ADD COLUMN IF NOT EXISTS "oauthSubject" TEXT`,
+
     // REQ-SEC-CAND-02: Right to Erasure — candidate-initiated hard-delete requests
     `CREATE TABLE IF NOT EXISTS "CandidateErasureRequest" (
       "id" TEXT NOT NULL,

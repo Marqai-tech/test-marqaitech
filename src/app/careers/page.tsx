@@ -634,7 +634,7 @@ export default function CareersPage() {
           </nav>
           <div className="flex items-center gap-2">
             <Link
-              href="/login"
+              href="/candidate-portal/login"
               className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
             >
               Sign In <FiExternalLink className="w-3.5 h-3.5" />

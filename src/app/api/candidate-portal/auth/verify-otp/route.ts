@@ -60,6 +60,8 @@ export async function POST(request: Request) {
       ok: true,
       token,
       user: { email: user.candidateEmail, name: user.candidateName },
+      // Tell the client whether to prompt for password setup after OTP login
+      needsPasswordSetup: !user.passwordHash,
     }, { headers: CORS });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 500, headers: CORS });

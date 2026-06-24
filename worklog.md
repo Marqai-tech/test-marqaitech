@@ -2088,3 +2088,48 @@ Files modified:
 - src/app/(dashboard)/analytics/candidate-flow/page.tsx (NEW — admin analytics dashboard)
 - src/components/Sidebar.tsx (added "Candidate Flow Analytics" nav link under Talent Acquisition)
 
+
+---
+Task ID: candidate-portal-auth-revamp
+Agent: main
+Task: Add password + social login to candidate portal; fix "Sign In" link to point to candidate login instead of HRMS login
+
+Work Log:
+- Investigated existing /candidate-portal/login — was OTP-only, no password setup flow
+- Inspected CandidatePortalUser model: only had OTP fields (currentOtpHash, otpExpiresAt, magicToken, magicExpiresAt)
+- Updated prisma/schema.prisma: added passwordHash, passwordSetAt, oauthProvider, oauthSubject columns to CandidatePortalUser
+- Added idempotent ALTER TABLE statements to scripts/schema-sync.js (Vercel build runs this on every deploy)
+- Ran `npx prisma generate` to regenerate Prisma client with new fields
+- Created /api/candidate-portal/auth/check-account (GET) — returns {exists, hasPassword, hasOtp, hasOAuth} for an email; lets the login page auto-pick the right tab
+- Created /api/candidate-portal/auth/login-password (POST) — bcrypt-verifies passwordHash and issues candidate JWT; returns 403 with needsPasswordSetup:true if user has no password yet
+- Created /api/candidate-portal/auth/set-password (POST) — takes the OTP-issued JWT + newPassword, sets passwordHash + passwordSetAt
+- Created /api/candidate-portal/auth/oauth-callback (GET) — Google OAuth callback: exchanges code for id_token, decodes user info, upserts CandidatePortalUser with oauthProvider='google' + oauthSubject, issues JWT, redirects to /candidate-portal/oauth-bridge
+- Created /candidate-portal/oauth-bridge page — client-side hop that stores the JWT in localStorage and redirects to /candidate-portal/dashboard (because server routes can't set localStorage)
+- Updated /api/candidate-portal/auth/verify-otp to return `needsPasswordSetup: !user.passwordHash` in response so client knows to prompt for password setup
+- Rewrote /candidate-portal/login with:
+  - Password | OTP tabs (auto-switches based on check-account response)
+  - Password visibility toggle (eye icon)
+  - "Continue with Google" button (initiates Google OAuth flow)
+  - Smart hints: if user has password but is on OTP tab, shows "use Password tab for faster login"; if user has no password but is on Password tab, shows "use OTP once to set up a password"
+- Created /candidate-portal/set-password page — shown after first OTP login; password + confirm fields, strength meter, "Skip for now" option
+- Fixed /careers page header "Sign In" link: was /login (HRMS login) → now /candidate-portal/login
+
+Stage Summary:
+- Candidate portal now supports three login methods: password (after setup), OTP, and Google OAuth
+- After first successful OTP login, candidates are auto-redirected to /candidate-portal/set-password to set a password; future logins default to the Password tab
+- Google OAuth requires GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET env vars (and the redirect URI must be registered in Google Cloud Console: https://<host>/api/candidate-portal/auth/oauth-callback)
+- The frontend exposes the Google client ID via NEXT_PUBLIC_GOOGLE_CLIENT_ID
+- All schema changes are additive (IF NOT EXISTS) and safe to re-run; no destructive migrations
+- All new TypeScript files compile cleanly (no errors in tsc --noEmit for these files)
+- Files created/modified:
+  - prisma/schema.prisma (CandidatePortalUser: +4 columns)
+  - scripts/schema-sync.js (+4 ALTER TABLE statements)
+  - src/app/api/candidate-portal/auth/check-account/route.ts (NEW)
+  - src/app/api/candidate-portal/auth/login-password/route.ts (NEW)
+  - src/app/api/candidate-portal/auth/set-password/route.ts (NEW)
+  - src/app/api/candidate-portal/auth/oauth-callback/route.ts (NEW)
+  - src/app/api/candidate-portal/auth/verify-otp/route.ts (added needsPasswordSetup to response)
+  - src/app/candidate-portal/login/page.tsx (full rewrite: tabs + Google button)
+  - src/app/candidate-portal/set-password/page.tsx (NEW)
+  - src/app/candidate-portal/oauth-bridge/page.tsx (NEW)
+  - src/app/careers/page.tsx (header Sign In link → /candidate-portal/login)

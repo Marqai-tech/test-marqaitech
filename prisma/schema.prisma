@@ -4587,6 +4587,12 @@ model CandidatePortalUser {
   currentOtpHash  String?
   otpExpiresAt    DateTime?
   lastLoginAt     DateTime?
+  // Password-based login — set after first OTP login (or via forgot-password)
+  passwordHash    String?
+  passwordSetAt   DateTime?
+  // Social login (Google, Microsoft, etc.)
+  oauthProvider   String?
+  oauthSubject    String?
   // Token for "magic link" login from email
   magicToken      String?  @unique
   magicExpiresAt  DateTime?
