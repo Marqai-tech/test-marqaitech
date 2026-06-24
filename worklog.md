@@ -2001,3 +2001,90 @@ Stage Summary:
 - File: `/home/z/my-project/src/app/(dashboard)/recruitment/page.tsx`
 - No imports or state declarations needed to change
 - Recruitment page now renders correctly without the "Something went wrong" error
+
+---
+Task ID: candidate-portal-improvements-wave1
+Agent: main (Super Z)
+Task: Fix resume parser DOMMatrix error, fix candidate registration scoping bug, add resume-upload-first auto-fill flow, improve AI resume optimizer accuracy, build Job Search Matrix in Talent Acquisition, build Candidate Flow Analytics for admins
+
+Work Log:
+
+1. DOMMatrix parse error (root cause + fix):
+   - Root cause: src/lib/resume-parser.ts used `pdf-parse` v2.4.5 whose CJS bundle references `DOMMatrix` (a browser-only API) at module-eval time. On Node/Vercel this threw `ReferenceError: DOMMatrix is not defined`, which got persisted to ResumeParse.parseError and surfaced as "⚠ Parse error: DOMMatrix is not defined" in the candidate dashboard.
+   - Installed `unpdf@1.6.2` (serverless-friendly wrapper around pdfjs-dist's legacy build — pure JS, no DOMMatrix/Canvas/DOM required).
+   - Rewrote `extractTextFromPdf()` in src/lib/resume-parser.ts to use `unpdf`'s `getDocumentProxy()` + `extractText()` instead of pdf-parse's `PDFParse` class.
+   - Verified with a smoke test: built a minimal "Hello World" PDF and parsed it in pure Node — succeeded with no DOMMatrix error.
+
+2. Candidate registration scoping bug (root cause + fix):
+   - Root cause: when a user applied on /careers as a different candidate (different email) from the same browser, the candidate-portal JWT in localStorage still held the OLD candidate's email. The apply form had no awareness of the existing session, so the user could accidentally submit under the wrong email — making it look like new applications were "showing up under the old candidate".
+   - Fix: src/app/careers/page.tsx now detects the candidate-portal JWT on mount and stores `loggedInCandidateEmail`. When the apply modal opens, the email field is pre-filled with this value, and a banner "Signed in as <email>" appears at the top of the form. A "Use a different email →" button clears the candidate-portal session so the user can apply as someone else cleanly.
+
+3. Resume-upload-first flow with auto-fill:
+   - Created new public API endpoint /api/public/parse-resume that takes a resumeDataUrl and returns the parsed structured fields (name/email/phone/skills/etc.) WITHOUT persisting anything — used purely for form auto-fill.
+   - Restructured the /careers apply modal: resume upload is now the FIRST field (above name/email/phone). After upload, the client kicks off /api/public/parse-resume and auto-fills the name/email/phone fields from the parsed result. The candidate can still verify/edit before submitting.
+   - Adds a parsing spinner, confidence % display, and a skills preview chip cloud so the candidate knows what was extracted.
+
+4. AI resume optimizer accuracy improvements (src/lib/candidate-resume-optimizer.ts):
+   - computeMatchScore / computeGapAnalysis / generateRewriteSuggestions / suggestMissingKeywords all now accept an optional `rawResumeText` parameter and include the FULL raw resume text (up to 8000 chars) in the ZAI prompt — instead of relying only on the structured fields returned by the parser (which may be incomplete).
+   - Updated the API route /api/candidate-portal/resume/optimize to pass `rawText` to ALL four optimizer functions (previously only `analyzeFormat` got it).
+   - Improved prompts: added scoring guide (90-100 exceptional, 70-89 solid, etc.), asked the model to quote specific resume evidence, increased max_tokens (500→800 for match, 1000→1500 for gap+rewrite, 800→1200 for keywords), bumped JD context from 1500→3000 chars, expanded rewrite count from 3-6 → 4-8.
+   - Updated fallback heuristic functions (computeFallbackMatchScore, computeFallbackGapAnalysis) to also use rawResumeText when available — so even when ZAI is down, the heuristic score is based on the full resume text, not just the parsed description fields.
+   - Updated the PATCH endpoint (iterative optimize-and-apply) to pass the edited resume text to computeMatchScore for recompute.
+
+5. Job Search Matrix in Talent Acquisition (new "Candidate Search" tab):
+   - New API endpoint: GET /api/recruitment/candidate-search — aggregates candidates across ALL applications (not just one job) and filters by:
+     * skills (comma-separated, candidate must have ALL)
+     * minExperienceYears / maxExperienceYears (parsed from resume experience entries)
+     * minSalary / maxSalary (expectedSalary → numeric LPA parse)
+     * status (default: exclude rejected)
+     * jobPostingId (optional restrict to one job)
+     * q (free-text across name/email/skills)
+   - Returns candidates with: skills, totalExperienceYears, expectedSalaryLpa, latestStatus, matchScore (highest across their applications), and the list of jobs they've applied to.
+   - Added "Candidate Search" as a third tab in src/app/(dashboard)/recruitment/page.tsx (alongside "Job Postings" and "Applications").
+   - UI includes: filter panel (skills/exp/salary/status/job/free-text), summary stats cards (total matches, avg experience, avg salary, unique skills), clickable skills cloud that adds to filter, candidate cards with PII masking for non-recruiters, match score badge, and per-candidate "Applied to" job list.
+
+6. Candidate Flow Analytics for Super Admin & HR Admin:
+   - New API endpoint: GET /api/analytics/candidate-flow — aggregates over a configurable time window (default 90 days):
+     * summary: unique candidates, total applications, applications per candidate, resume upload count + rate, parse success count + rate, avg parse confidence
+     * funnel: applied → screening → interview → offered → hired (+ rejected + talent_pool)
+     * conversion rates at each stage + overall applied→hired
+     * registrationsOverTime + applicationsOverTime (daily buckets)
+     * byCompany, byDepartment, byJobPosting, byTenant, bySource (top 15 each)
+     * resumeBySourceFormat (pdf/docx/text/etc.)
+     * topSkills (top 25 across all parsed resumes)
+   - New dashboard page at /analytics/candidate-flow (src/app/(dashboard)/analytics/candidate-flow/page.tsx):
+     * 6 KPI cards (unique candidates, total applications, resumes uploaded, parse success rate, avg confidence, overall hire rate)
+     * Conversion funnel chart + stage-by-stage conversion rates
+     * Two area charts: registrations over time + applications over time
+     * Four breakdown charts: by company, by department, by source (pie), by resume format (pie)
+     * Top job postings table with links to /recruitment/[jobId]
+     * Top skills bar chart
+     * Tenant breakdown grid (shown only if multiple tenants)
+     * Time-window selector (7/30/90/180/365 days)
+   - Added sidebar link under "Talent Acquisition" → "Candidate Flow Analytics" (marked isNew)
+
+Verification:
+- npx tsc --noEmit --skipLibCheck reports 0 errors in any of the modified files (remaining errors are pre-existing in payroll/dashboard/employees files).
+- npx next build succeeds in 21.2s — all new routes registered: /analytics/candidate-flow, /api/analytics/candidate-flow, /api/public/parse-resume, /api/recruitment/candidate-search.
+- Smoke-tested unpdf in pure Node: parsed a minimal "Hello World" PDF successfully with no DOMMatrix error.
+
+Stage Summary:
+- DOMMatrix parse error: FIXED (replaced pdf-parse v2 with unpdf)
+- Candidate scoping bug: FIXED (careers apply form now detects + surfaces candidate-portal session, with logout option)
+- Resume-upload-first auto-fill: SHIPPED (new /api/public/parse-resume + restructured apply modal)
+- AI resume optimizer accuracy: IMPROVED (full raw resume text now included in all 4 ZAI prompts; better prompts with scoring guide + evidence quoting; higher max_tokens)
+- Job Search Matrix: SHIPPED (new Candidate Search tab in recruitment page; filter by skill/exp/salary/status/job/free-text)
+- Candidate Flow Analytics: SHIPPED (new /analytics/candidate-flow page + /api/analytics/candidate-flow endpoint; accessible to super_admin/tenant_admin/hr_admin/recruiter via sidebar)
+
+Files modified:
+- src/lib/resume-parser.ts (extractTextFromPdf rewrite — pdf-parse → unpdf)
+- src/lib/candidate-resume-optimizer.ts (4 functions now accept rawResumeText; prompts enriched; fallbacks updated)
+- src/app/api/candidate-portal/resume/optimize/route.ts (pass rawText to all 4 optimizers + recompute)
+- src/app/api/public/parse-resume/route.ts (NEW — public parse endpoint for form auto-fill)
+- src/app/careers/page.tsx (resume-upload-first flow, auto-fill, candidate-session awareness, logout helper)
+- src/app/api/recruitment/candidate-search/route.ts (NEW — Job Search Matrix API)
+- src/app/(dashboard)/recruitment/page.tsx (new "Candidate Search" tab + UI)
+- src/app/api/analytics/candidate-flow/route.ts (NEW — candidate-flow analytics API)
+- src/app/(dashboard)/analytics/candidate-flow/page.tsx (NEW — admin analytics dashboard)
+- src/components/Sidebar.tsx (added "Candidate Flow Analytics" nav link under Talent Acquisition)
+

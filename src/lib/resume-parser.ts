@@ -87,27 +87,37 @@ export function detectLanguage(text: string): string {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Extract text from a PDF buffer using pdf-parse v2.
- * Throws on parse failure — caller should catch and fall back to text mode.
+ * Extract text from a PDF buffer using `unpdf` — a serverless-friendly
+ * wrapper around pdfjs-dist's legacy build that works in pure Node (no
+ * DOMMatrix, no Canvas, no DOM required).
+ *
+ * Previously this used `pdf-parse` v2.4.5, but its CJS bundle internally
+ * references `DOMMatrix` (a browser-only API) at module-eval time, which
+ * threw `ReferenceError: DOMMatrix is not defined` on Node/Vercel and got
+ * persisted to ResumeParse.parseError — surfacing as "⚠ Parse error:
+ * DOMMatrix is not defined" in the candidate dashboard.
+ *
+ * `unpdf` is designed for exactly this case (Cloudflare Workers / Node /
+ * Vercel Edge) and ships pure-JS implementations of the bits pdfjs needs.
  */
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  // pdf-parse v2 ships a `PDFParse` class (not a default function).
-  // Dynamic import keeps pdfjs out of the serverless cold-start path when
-  // no PDFs are being parsed.
-  const mod = await import('pdf-parse');
-  const PDFParse = (mod as unknown as { PDFParse?: new (opts: { data: Uint8Array | Buffer }) => { getText(): Promise<{ text?: string }> } }).PDFParse;
-  if (!PDFParse) {
-    throw new Error('pdf-parse PDFParse export not found');
-  }
-  const pdf = new PDFParse({ data: buffer });
+  const { extractText, getDocumentProxy } = await import('unpdf');
+
+  // unpdf expects a Uint8Array; Buffer is a subclass but we pass an explicit
+  // view to avoid any prototype-edge cases.
+  const bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const pdf = await getDocumentProxy(bytes, {
+    // Suppress console noise from pdfjs on malformed PDFs
+    verbosity: 0,
+  });
+
   try {
-    const result = await pdf.getText();
-    return (result?.text || '').trim();
+    const { text } = await extractText(pdf, { mergePages: true });
+    return (text || '').trim();
   } finally {
-    // best-effort cleanup
+    // Best-effort cleanup of pdfjs document resources
     try {
-      // @ts-expect-error — destroy() exists at runtime but our narrowed type doesn't expose it
-      await pdf.destroy?.();
+      await pdf.destroy();
     } catch { /* ignore */ }
   }
 }

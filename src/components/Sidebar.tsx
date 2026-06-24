@@ -165,6 +165,7 @@ const navSections: NavSection[] = [
       { label: 'Offers', href: '/offers', icon: <FiStar className="w-5 h-5" />, moduleKey: 'recruitment' },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-5 h-5" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-5 h-5" />, moduleKey: 'recruitment' },
+      { label: 'Candidate Flow Analytics', href: '/analytics/candidate-flow', icon: <FiBarChart2 className="w-5 h-5" />, moduleKey: 'recruitment', isNew: true },
     ],
   },
   {

@@ -150,6 +150,19 @@ export default function CareersPage() {
   // Post-apply success state — shows a CTA to the candidate portal
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
+  // REQ-CAND-05: Track the currently-logged-in candidate's email (from
+  // candidate-portal JWT in localStorage). When the user opens the apply form,
+  // we pre-fill email with this — and warn them if they change it (because
+  // that creates a NEW candidate record, not connected to their existing
+  // candidate-portal login).
+  const [loggedInCandidateEmail, setLoggedInCandidateEmail] = useState<string | null>(null);
+  // Resume parsing state — when candidate uploads a resume we kick off a
+  // server-side parse via /api/public/parse-resume and auto-fill the form
+  // fields from the result.
+  const [parsingResume, setParsingResume] = useState(false);
+  const [parseConfidence, setParseConfidence] = useState<number | null>(null);
+  const [parsedSkills, setParsedSkills] = useState<string[]>([]);
+
   // REQ-SEC-REC-04 — withdraw-consent modal state
   const [showWithdraw, setShowWithdraw] = useState(false);
 
@@ -181,6 +194,14 @@ export default function CareersPage() {
         }
         if (jobId && typeof jobId === 'string' && jobId.trim()) {
           setReferralJobId(jobId.trim());
+        }
+        // Detect candidate-portal login — if the user is already logged in
+        // as a candidate, we pre-fill their email so they don't accidentally
+        // create a separate candidate record by typing a different email.
+        const candidateToken = localStorage.getItem('tb_candidate_token');
+        const candidateEmail = localStorage.getItem('tb_candidate_email');
+        if (candidateToken && candidateEmail) {
+          setLoggedInCandidateEmail(candidateEmail);
         }
       } catch {
         // window.location access can throw in non-browser envs — safe to ignore.
@@ -373,17 +394,40 @@ export default function CareersPage() {
     setApplyJob(job);
     // REQ-SRC-05: pre-fill the referral token from URL ?ref= param so the
     // apply API can attribute the application to the matching Referral.
-    // We spread EMPTY_FORM then override referralToken — this preserves the
-    // consent-checkbox reset behaviour while keeping the token sticky.
-    setForm({ ...EMPTY_FORM, referralToken: referralToken || '' });
+    // REQ-CAND-05: Also pre-fill the candidate email from the candidate-portal
+    // session if the user is already logged in — prevents accidentally
+    // creating a duplicate candidate record under a different email.
+    setForm({
+      ...EMPTY_FORM,
+      referralToken: referralToken || '',
+      candidateEmail: loggedInCandidateEmail || '',
+    });
+    setParseConfidence(null);
+    setParsedSkills([]);
     setShowApply(true);
   };
   const closeApply = () => {
     setShowApply(false);
     setApplyJob(null);
-    setForm({ ...EMPTY_FORM, referralToken: referralToken || '' });
+    setForm({
+      ...EMPTY_FORM,
+      referralToken: referralToken || '',
+      candidateEmail: loggedInCandidateEmail || '',
+    });
+    setParseConfidence(null);
+    setParsedSkills([]);
   };
 
+  /**
+   * Resume upload handler — uploads the file, kicks off a server-side parse,
+   * and auto-fills the form fields (name / email / phone) from the parsed
+   * resume. The candidate can then verify / edit before submitting.
+   *
+   * This is the "resume upload first, then auto-fill" flow requested by the
+   * user: candidate uploads resume → form is pre-populated → candidate
+   * reviews and submits. Much less typing, fewer typos in email addresses
+   * (which was causing the duplicate-candidate-record bug).
+   */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -395,9 +439,62 @@ export default function CareersPage() {
       const dataUrl = await fileToDataUrl(file);
       setForm((f) => ({ ...f, resumeDataUrl: dataUrl, resumeFileName: file.name }));
       toast.success(`Loaded: ${file.name}`);
+
+      // Kick off the parse — don't block the form, just auto-fill when ready.
+      setParsingResume(true);
+      try {
+        const parseRes = await fetch('/api/public/parse-resume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeDataUrl: dataUrl }),
+        });
+        if (parseRes.ok) {
+          const parseData = await parseRes.json();
+          if (parseData.parsed) {
+            const p = parseData.parsed;
+            setForm((f) => ({
+              ...f,
+              // Only auto-fill fields that are empty — don't overwrite what
+              // the candidate has already typed (e.g. if they corrected their
+              // email after a prior parse).
+              candidateName: f.candidateName || p.name || '',
+              candidateEmail: f.candidateEmail || p.email || '',
+              candidatePhone: f.candidatePhone || p.phone || '',
+            }));
+            setParseConfidence(typeof parseData.confidence === 'number' ? parseData.confidence : null);
+            setParsedSkills(Array.isArray(p.skills) ? p.skills : []);
+            if (parseData.parseError) {
+              toast(`Resume parsed with warnings: ${parseData.parseError}`, { icon: '⚠️' });
+            } else if (p.name || p.email) {
+              toast.success('Auto-filled your details from the resume — please verify');
+            }
+          }
+        }
+      } catch (parseErr) {
+        // Non-fatal — candidate can still fill the form manually.
+        console.warn('[careers] resume parse failed:', parseErr);
+        toast('Could not auto-fill from resume — please enter details manually', { icon: '⚠️' });
+      } finally {
+        setParsingResume(false);
+      }
     } catch {
       toast.error('Failed to read file');
     }
+  };
+
+  /**
+   * Logout helper — clears the candidate-portal session so the user can
+   * apply as a different candidate without their old session leaking into
+   * the new application.
+   */
+  const handleLogoutCandidate = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tb_candidate_token');
+      localStorage.removeItem('tb_candidate_email');
+    }
+    setLoggedInCandidateEmail(null);
+    setForm((f) => ({ ...f, candidateEmail: '' }));
+    toast.success('Logged out of candidate portal');
   };
 
   const handleSubmitApply = async (e: React.FormEvent) => {
@@ -897,6 +994,11 @@ export default function CareersPage() {
           onFileChange={handleFileChange}
           submitting={submitting}
           onWithdraw={() => setShowWithdraw(true)}
+          parsingResume={parsingResume}
+          parseConfidence={parseConfidence}
+          parsedSkills={parsedSkills}
+          loggedInCandidateEmail={loggedInCandidateEmail}
+          onLogoutCandidate={handleLogoutCandidate}
         />
       )}
 
@@ -1046,6 +1148,11 @@ function ApplyModal({
   onFileChange,
   submitting,
   onWithdraw,
+  parsingResume,
+  parseConfidence,
+  parsedSkills,
+  loggedInCandidateEmail,
+  onLogoutCandidate,
 }: {
   job: PublicJob;
   form: ApplyFormState;
@@ -1055,6 +1162,11 @@ function ApplyModal({
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   submitting: boolean;
   onWithdraw: () => void;
+  parsingResume: boolean;
+  parseConfidence: number | null;
+  parsedSkills: string[];
+  loggedInCandidateEmail: string | null;
+  onLogoutCandidate: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
@@ -1078,7 +1190,80 @@ function ApplyModal({
 
         {/* Form */}
         <form onSubmit={onSubmit} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* REQ-CAND-05: Logged-in candidate banner — warns the user when
+              they're applying under an existing candidate-portal session. */}
+          {loggedInCandidateEmail && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[11px] text-indigo-800 min-w-0">
+                <FiCheckCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">
+                  Signed in as <strong className="font-semibold">{loggedInCandidateEmail}</strong> — applying under this account.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onLogoutCandidate}
+                className="text-[10px] font-semibold text-indigo-700 hover:text-indigo-900 hover:underline whitespace-nowrap"
+              >
+                Use a different email →
+              </button>
+            </div>
+          )}
+
+          {/* Resume upload FIRST — once uploaded we parse it server-side and
+              auto-fill the name/email/phone fields below. */}
+          <Field label="Resume *" icon={<FiUpload className="w-3.5 h-3.5" />}>
+            <label className="flex items-center gap-3 px-3 py-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40 transition-all">
+              <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <FiUpload className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-700">
+                  {form.resumeFileName || 'Click to upload your resume'}
+                </p>
+                <p className="text-[10px] text-slate-500">PDF, DOC, DOCX, RTF or TXT — max 5 MB</p>
+              </div>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.rtf,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/plain"
+                onChange={onFileChange}
+                className="hidden"
+              />
+            </label>
+            {parsingResume && (
+              <div className="flex items-center gap-2 mt-2 text-xs text-indigo-700 font-medium">
+                <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                Parsing your resume & auto-filling details…
+              </div>
+            )}
+            {form.resumeFileName && !parsingResume && (
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-emerald-700 font-medium">
+                <FiCheckCircle className="w-3.5 h-3.5" /> {form.resumeFileName} ready
+                {parseConfidence !== null && (
+                  <span className="text-slate-500 font-normal ml-1">
+                    · parsed with {Math.round(parseConfidence * 100)}% confidence
+                  </span>
+                )}
+              </div>
+            )}
+            {parsedSkills.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {parsedSkills.slice(0, 12).map((s, i) => (
+                  <span key={`${s}-${i}`} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                    {s}
+                  </span>
+                ))}
+                {parsedSkills.length > 12 && (
+                  <span className="text-[10px] px-1.5 py-0.5 text-slate-500">+{parsedSkills.length - 12} more</span>
+                )}
+              </div>
+            )}
+          </Field>
+
+          {/* Auto-filled candidate details — appear AFTER resume upload,
+              but the candidate can still edit them. We surface a small hint
+              when they've been auto-filled so the candidate knows to verify. */}
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${parsingResume ? 'opacity-60' : ''}`}>
             <Field label="Full Name *" icon={<FiUser className="w-3.5 h-3.5" />}>
               <input
                 value={form.candidateName}
@@ -1124,32 +1309,6 @@ function ApplyModal({
               placeholder="Tell us why you're a great fit for this role…"
               className="form-input resize-none"
             />
-          </Field>
-
-          {/* Resume upload */}
-          <Field label="Resume *" icon={<FiUpload className="w-3.5 h-3.5" />}>
-            <label className="flex items-center gap-3 px-3 py-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40 transition-all">
-              <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                <FiUpload className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-700">
-                  {form.resumeFileName || 'Click to upload your resume'}
-                </p>
-                <p className="text-[10px] text-slate-500">PDF, DOC, DOCX, RTF or TXT — max 5 MB</p>
-              </div>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.rtf,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/plain"
-                onChange={onFileChange}
-                className="hidden"
-              />
-            </label>
-            {form.resumeFileName && (
-              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-emerald-700 font-medium">
-                <FiCheckCircle className="w-3.5 h-3.5" /> {form.resumeFileName} ready to submit
-              </div>
-            )}
           </Field>
 
           {/* REQ-SEC-REC-04 — Consent checkboxes (4 required) */}

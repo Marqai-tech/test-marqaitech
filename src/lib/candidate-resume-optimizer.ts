@@ -67,19 +67,33 @@ export interface MatchScoreBreakdown {
  *
  * Uses Z-AI when available; falls back to a deterministic keyword-overlap
  * heuristic so the candidate always gets a number (even offline).
+ *
+ * When `rawResumeText` is provided, the full resume text is included in the
+ * prompt so the model can see actual bullet points, achievements, and
+ * verify skills in context — instead of relying only on the structured
+ * fields returned by the parser (which may be incomplete).
  */
 export async function computeMatchScore(
   resume: ParsedResume,
   jobDescription: string,
   jobRequirements: string | null,
   jobTitle: string,
+  rawResumeText?: string,
 ): Promise<MatchScoreBreakdown> {
   const fullJd = [jobTitle, jobDescription, jobRequirements || ''].filter(Boolean).join('\n\n');
-  const fallback = computeFallbackMatchScore(resume, fullJd);
+  const fallback = computeFallbackMatchScore(resume, fullJd, rawResumeText);
 
   if (!fullJd || fullJd.trim().length < 20) {
     return { ...fallback, reasoning: 'Insufficient job description content — using heuristic score.' };
   }
+
+  // Build a rich candidate context that includes BOTH the structured fields
+  // AND the full raw resume text. The structured fields give the model a
+  // quick summary; the raw text lets it verify skill claims by looking at
+  // actual bullet points and quantified achievements.
+  const rawTextSection = rawResumeText && rawResumeText.trim().length > 50
+    ? `\n\nFULL RESUME TEXT (verbatim, for evidence verification):\n---\n${rawResumeText.slice(0, 8000)}\n---`
+    : '';
 
   try {
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
@@ -88,38 +102,46 @@ export async function computeMatchScore(
       messages: [
         {
           role: 'system',
-          content: 'You are an expert ATS scoring engine. Respond with valid JSON only, no markdown.',
+          content: 'You are an expert ATS scoring engine used by top recruiters. Analyze the candidate resume against the job requirements carefully. Quote specific resume evidence when justifying scores. Respond with valid JSON only, no markdown.',
         },
         {
           role: 'user',
-          content: `Score this candidate's resume against the job description. Return JSON:
+          content: `Score this candidate's resume against the job description. Be rigorous and evidence-based — only give high scores if the resume actually demonstrates the required skills/years/experience.
+
+Return JSON:
 {
   "overall": number (0-100),
   "skills": number (0-100),
   "experience": number (0-100),
   "education": number (0-100),
   "keywords": number (0-100),
-  "reasoning": "1-2 sentence explanation"
+  "reasoning": "2-3 sentence explanation citing specific evidence from the resume"
 }
+
+Scoring guide:
+- 90-100: Exceptional fit — every key requirement met with strong evidence
+- 70-89: Solid fit — most requirements met, minor gaps
+- 50-69: Partial fit — some key requirements met, notable gaps
+- 30-49: Weak fit — few requirements met
+- 0-29: Poor fit — most requirements missing
 
 JOB TITLE: ${jobTitle}
 
-JOB DESCRIPTION:
+JOB DESCRIPTION & REQUIREMENTS:
 ${fullJd}
 
-CANDIDATE SKILLS: ${resume.skills.join(', ')}
-
-CANDIDATE EXPERIENCE:
-${resume.experience.map(e => `- ${e.role} at ${e.company} (${e.duration})`).join('\n')}
-
-CANDIDATE EDUCATION:
-${resume.education.map(e => `- ${e.degree} from ${e.institution}${e.year ? ` (${e.year})` : ''}`).join('\n')}
-
-CANDIDATE SUMMARY: ${resume.summary || '(none)'}`
+CANDIDATE STRUCTURED PROFILE:
+- Name: ${resume.name}
+- Skills: ${resume.skills.join(', ') || '(none extracted)'}
+- Experience:
+${resume.experience.map(e => `  - ${e.role} at ${e.company} (${e.duration})${e.description ? ': ' + e.description : ''}`).join('\n') || '  (none extracted)'}
+- Education:
+${resume.education.map(e => `  - ${e.degree} from ${e.institution}${e.year ? ` (${e.year})` : ''}`).join('\n') || '  (none extracted)'}
+- Summary: ${resume.summary || '(none)'}${rawTextSection}`
         }
       ],
       temperature: 0.2,
-      max_tokens: 500,
+      max_tokens: 800,
     });
 
     const content = completion?.choices?.[0]?.message?.content || '';
@@ -150,9 +172,13 @@ export async function computeGapAnalysis(
   jobDescription: string,
   jobRequirements: string | null,
   jobTitle: string,
+  rawResumeText?: string,
 ): Promise<GapAnalysis> {
   const fullJd = [jobTitle, jobDescription, jobRequirements || ''].filter(Boolean).join('\n\n');
-  const fallback = computeFallbackGapAnalysis(resume, fullJd);
+  const fallback = computeFallbackGapAnalysis(resume, fullJd, rawResumeText);
+  const rawTextSection = rawResumeText && rawResumeText.trim().length > 50
+    ? `\n\nFULL RESUME TEXT (verbatim — use this to find evidence for each skill):\n---\n${rawResumeText.slice(0, 8000)}\n---`
+    : '';
 
   try {
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
@@ -186,11 +212,11 @@ CANDIDATE SKILLS: ${resume.skills.join(', ')}
 CANDIDATE EXPERIENCE:
 ${resume.experience.map(e => `- ${e.role} at ${e.company} (${e.duration})${e.description ? ': ' + e.description : ''}`).join('\n')}
 
-CANDIDATE SUMMARY: ${resume.summary || '(none)'}`
+CANDIDATE SUMMARY: ${resume.summary || '(none)'}${rawTextSection}`
         }
       ],
       temperature: 0.2,
-      max_tokens: 1000,
+      max_tokens: 1500,
     });
 
     const content = completion?.choices?.[0]?.message?.content || '';
@@ -216,11 +242,16 @@ CANDIDATE SUMMARY: ${resume.summary || '(none)'}`
 export async function generateRewriteSuggestions(
   resume: ParsedResume,
   jobDescription: string,
+  rawResumeText?: string,
 ): Promise<RewriteSuggestion[]> {
-  const experienceText = resume.experience
-    .map(e => `${e.role} at ${e.company}: ${e.description || ''}`)
-    .filter(Boolean)
-    .join('\n');
+  // Prefer the full raw resume text (which has the exact phrasing the
+  // candidate wrote) — fall back to the structured experience entries.
+  const experienceText = rawResumeText && rawResumeText.trim().length > 50
+    ? rawResumeText.slice(0, 8000)
+    : resume.experience
+        .map(e => `${e.role} at ${e.company}: ${e.description || ''}`)
+        .filter(Boolean)
+        .join('\n');
 
   if (!experienceText.trim()) return [];
 
@@ -231,7 +262,7 @@ export async function generateRewriteSuggestions(
       messages: [
         {
           role: 'system',
-          content: 'You are an expert resume writer. Respond with valid JSON only, no markdown.',
+          content: 'You are an expert resume writer with 10+ years of experience coaching candidates for top tech companies. Respond with valid JSON only, no markdown.',
         },
         {
           role: 'user',
@@ -246,24 +277,24 @@ export async function generateRewriteSuggestions(
 }
 
 Rules:
-- "original" must be a phrase that actually appears in the resume text.
+- "original" MUST be an exact substring that appears in the resume text (copy-paste it).
 - "suggested" should be more impactful (quantified, action-verb-led, or ATS-friendly).
-- Provide 3-6 high-quality suggestions, not nitpicks.
-- type="quantify" = add numbers/metrics
-- type="action_verb" = replace weak verbs with strong action verbs
+- Provide 4-8 high-quality suggestions covering different aspects (not all the same type).
+- type="quantify" = add numbers/metrics where the candidate was vague
+- type="action_verb" = replace weak verbs (did, worked, helped) with strong ones (architected, spearheaded, optimized)
 - type="concise" = trim wordiness
 - type="keyword" = inject JD keywords naturally
 - type="grammar" = fix grammar/spelling
 
-TARGET JOB:
-${jobDescription.substring(0, 1500)}
+TARGET JOB DESCRIPTION:
+${jobDescription.substring(0, 3000)}
 
-CANDIDATE EXPERIENCE:
+CANDIDATE RESUME (use this text for "original" fields):
 ${experienceText}`
         }
       ],
       temperature: 0.3,
-      max_tokens: 1000,
+      max_tokens: 1500,
     });
 
     const content = completion?.choices?.[0]?.message?.content || '';
@@ -292,7 +323,15 @@ ${experienceText}`
 export async function suggestMissingKeywords(
   resume: ParsedResume,
   jobDescription: string,
+  rawResumeText?: string,
 ): Promise<KeywordSuggestion[]> {
+  // Build a candidate-context string that lets the model VERIFY that a
+  // keyword is actually missing — by searching the full resume text, not
+  // just the (possibly incomplete) structured skills list.
+  const candidateContext = rawResumeText && rawResumeText.trim().length > 50
+    ? `CANDIDATE SKILLS (from parser): ${resume.skills.join(', ') || '(none extracted)'}\n\nFULL RESUME TEXT (search this for keyword presence before suggesting):\n${rawResumeText.slice(0, 6000)}`
+    : `CANDIDATE SKILLS: ${resume.skills.join(', ') || '(none extracted)'}\nCANDIDATE EXPERIENCE: ${resume.experience.map(e => e.role + ' at ' + e.company).join(', ')}`;
+
   try {
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
     const zai = await ZAI.create();
@@ -314,23 +353,22 @@ export async function suggestMissingKeywords(
 }
 
 Rules:
-- Only suggest keywords that are GENUINELY missing from the candidate's skills/experience.
-- Don't suggest keywords the candidate can't honestly claim.
-- Provide 3-8 keywords, ranked by impact.
+- ONLY suggest keywords that are GENUINELY missing from BOTH the skills list AND the full resume text. If a keyword appears anywhere in the resume, do NOT suggest it.
+- Don't suggest keywords the candidate can't honestly claim given their experience.
+- Provide 4-10 keywords, ranked by impact (highest first).
 - "technical" = programming language, tool, platform, framework
 - "soft_skill" = leadership, communication, etc.
 - "industry" = domain-specific terminology
 - "certification" = industry-recognized credentials
 
-CANDIDATE SKILLS: ${resume.skills.join(', ')}
-CANDIDATE EXPERIENCE: ${resume.experience.map(e => e.role + ' at ' + e.company).join(', ')}
+${candidateContext}
 
 TARGET JOB:
-${jobDescription.substring(0, 1500)}`
+${jobDescription.substring(0, 3000)}`
         }
       ],
       temperature: 0.3,
-      max_tokens: 800,
+      max_tokens: 1200,
     });
 
     const content = completion?.choices?.[0]?.message?.content || '';
@@ -542,7 +580,7 @@ function tryParseJson(content: string): any {
  * Deterministic fallback for match scoring when Z-AI is unavailable.
  * Uses keyword overlap + experience-text presence heuristics.
  */
-function computeFallbackMatchScore(resume: ParsedResume, fullJd: string): MatchScoreBreakdown {
+function computeFallbackMatchScore(resume: ParsedResume, fullJd: string, rawResumeText?: string): MatchScoreBreakdown {
   const jdLower = fullJd.toLowerCase();
   const jdWords = new Set(jdLower.split(/\W+/).filter((w: string) => w.length > 2));
   const resumeSkillsLower = resume.skills.map(s => s.toLowerCase());
@@ -555,8 +593,11 @@ function computeFallbackMatchScore(resume: ParsedResume, fullJd: string): MatchS
     ? 0
     : Math.round((matchedSkills.length / Math.max(resume.skills.length, 1)) * 100);
 
-  // Experience (text presence)
-  const expText = resume.experience.map(e => `${e.role} ${e.company} ${e.description || ''}`).join(' ').toLowerCase();
+  // Experience (text presence) — use raw resume text when available because
+  // it's much richer than the parser's structured `description` field.
+  const expText = rawResumeText && rawResumeText.trim().length > 50
+    ? rawResumeText.toLowerCase()
+    : resume.experience.map(e => `${e.role} ${e.company} ${e.description || ''}`).join(' ').toLowerCase();
   const expKeywords = Array.from(jdWords).filter(w => expText.includes(w));
   const experienceScore = jdWords.size === 0
     ? 50
@@ -565,7 +606,7 @@ function computeFallbackMatchScore(resume: ParsedResume, fullJd: string): MatchS
   // Education (degree presence)
   const educationScore = resume.education.length > 0 ? 80 : 40;
 
-  // Keywords (overall JD word coverage in resume)
+  // Keywords (overall JD word coverage in resume — including raw text)
   const allResumeText = (resume.skills.join(' ') + ' ' + expText + ' ' + (resume.summary || '')).toLowerCase();
   const matchedJdWords = Array.from(jdWords).filter(w => allResumeText.includes(w));
   const keywordsScore = jdWords.size === 0
@@ -586,10 +627,14 @@ function computeFallbackMatchScore(resume: ParsedResume, fullJd: string): MatchS
   };
 }
 
-function computeFallbackGapAnalysis(resume: ParsedResume, fullJd: string): GapAnalysis {
+function computeFallbackGapAnalysis(resume: ParsedResume, fullJd: string, rawResumeText?: string): GapAnalysis {
   const jdLower = fullJd.toLowerCase();
   const resumeSkillsLower = resume.skills.map(s => s.toLowerCase());
-  const expText = resume.experience.map(e => `${e.role} ${e.description || ''}`).join(' ').toLowerCase();
+  // Use the raw resume text (much richer) when available — fallback to
+  // structured experience entries only if the parser gave us nothing else.
+  const expText = rawResumeText && rawResumeText.trim().length > 50
+    ? rawResumeText.toLowerCase()
+    : resume.experience.map(e => `${e.role} ${e.description || ''}`).join(' ').toLowerCase();
 
   // Crude skill extraction from JD: find words that look like skills
   const jdSkillCandidates = new Set<string>();

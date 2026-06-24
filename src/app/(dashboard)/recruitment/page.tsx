@@ -233,7 +233,7 @@ export default function RecruitmentPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
-  const [activeTab, setActiveTab] = useState<'postings' | 'applications'>('postings');
+  const [activeTab, setActiveTab] = useState<'postings' | 'applications' | 'search'>('postings');
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,6 +259,52 @@ export default function RecruitmentPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+
+  /* ─── Job Search Matrix (talent-acquisition candidate shortlisting) ─── */
+  // Recruiter filters candidates across ALL applications by skill, experience,
+  // salary range, status, or free-text query — to build a shortlist for a
+  // specific open requirement.
+  const [searchFilters, setSearchFilters] = useState({
+    skills: '',
+    minExperienceYears: '',
+    maxExperienceYears: '',
+    minSalary: '',
+    maxSalary: '',
+    status: '',
+    jobPostingId: '',
+    q: '',
+  });
+  const [searchResults, setSearchResults] = useState<{
+    candidates: any[];
+    summary: { totalMatches: number; avgExperienceYears: number; avgExpectedSalaryLpa: number | null; uniqueSkills: string[] };
+    filters: any;
+  } | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const runCandidateSearch = useCallback(async () => {
+    setSearching(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchFilters.skills) params.set('skills', searchFilters.skills);
+      if (searchFilters.minExperienceYears) params.set('minExperienceYears', searchFilters.minExperienceYears);
+      if (searchFilters.maxExperienceYears) params.set('maxExperienceYears', searchFilters.maxExperienceYears);
+      if (searchFilters.minSalary) params.set('minSalary', searchFilters.minSalary);
+      if (searchFilters.maxSalary) params.set('maxSalary', searchFilters.maxSalary);
+      if (searchFilters.status) params.set('status', searchFilters.status);
+      if (searchFilters.jobPostingId) params.set('jobPostingId', searchFilters.jobPostingId);
+      if (searchFilters.q) params.set('q', searchFilters.q);
+      params.set('limit', '100');
+      const r = await fetch(`/api/recruitment/candidate-search?${params.toString()}`, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Search failed');
+      setSearchResults(d);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Search failed');
+      setSearchResults(null);
+    } finally {
+      setSearching(false);
+    }
+  }, [searchFilters]);
 
   /* ─── WAVE2-A: PII masking policies (REQ-SEC-REC-03) ─── */
   const [piiPolicies, setPiiPolicies] = useState<PiiPolicyEntry[]>([]);
@@ -867,12 +913,15 @@ export default function RecruitmentPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit flex-wrap">
         <button onClick={() => setActiveTab('postings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'postings' ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
           Job Postings
         </button>
         <button onClick={() => setActiveTab('applications')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'applications' ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
           Applications
+        </button>
+        <button onClick={() => setActiveTab('search')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'search' ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+          Candidate Search
         </button>
       </div>
 
@@ -1221,6 +1270,283 @@ export default function RecruitmentPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ─── Candidate Search Tab (Job Search Matrix) ─── */}
+      {/* Recruiter filters candidates across ALL applications by skill,
+          experience, salary range, status, or free-text query — to build
+          a shortlist for a specific open requirement. */}
+      {activeTab === 'search' && (
+        <div className="space-y-4">
+          {/* Filter panel */}
+          <div className="nexus-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <FiUsers className="w-4 h-4 text-violet-600" />
+              <h3 className="text-sm font-semibold text-nexus-text-primary">Candidate Shortlist Filters</h3>
+              <span className="text-[11px] text-nexus-text-muted ml-2">
+                Filter candidates across all applications by skill, experience, salary, and more
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="text-[11px] font-medium text-nexus-text-secondary uppercase tracking-wider">Skills (comma-separated)</label>
+                <input
+                  type="text"
+                  value={searchFilters.skills}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, skills: e.target.value })}
+                  placeholder="react, nodejs, aws"
+                  className="mt-1 w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+                <p className="text-[10px] text-nexus-text-muted mt-0.5">Candidate must have ALL listed skills</p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-nexus-text-secondary uppercase tracking-wider">Experience (years)</label>
+                <div className="mt-1 flex gap-1.5">
+                  <input
+                    type="number"
+                    min="0"
+                    value={searchFilters.minExperienceYears}
+                    onChange={(e) => setSearchFilters({ ...searchFilters, minExperienceYears: e.target.value })}
+                    placeholder="Min"
+                    className="w-full px-2 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={searchFilters.maxExperienceYears}
+                    onChange={(e) => setSearchFilters({ ...searchFilters, maxExperienceYears: e.target.value })}
+                    placeholder="Max"
+                    className="w-full px-2 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-nexus-text-secondary uppercase tracking-wider">Expected Salary (LPA)</label>
+                <div className="mt-1 flex gap-1.5">
+                  <input
+                    type="number"
+                    min="0"
+                    value={searchFilters.minSalary}
+                    onChange={(e) => setSearchFilters({ ...searchFilters, minSalary: e.target.value })}
+                    placeholder="Min"
+                    className="w-full px-2 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={searchFilters.maxSalary}
+                    onChange={(e) => setSearchFilters({ ...searchFilters, maxSalary: e.target.value })}
+                    placeholder="Max"
+                    className="w-full px-2 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-nexus-text-secondary uppercase tracking-wider">Status</label>
+                <select
+                  value={searchFilters.status}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, status: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                >
+                  <option value="">All (excl. rejected)</option>
+                  <option value="applied">Applied</option>
+                  <option value="screening">Screening</option>
+                  <option value="interview">Interview</option>
+                  <option value="offered">Offered</option>
+                  <option value="hired">Hired</option>
+                  <option value="talent_pool">Talent Pool</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-nexus-text-secondary uppercase tracking-wider">Job Posting</label>
+                <select
+                  value={searchFilters.jobPostingId}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, jobPostingId: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                >
+                  <option value="">All jobs</option>
+                  {jobPostings.map(j => (
+                    <option key={j.id} value={j.id}>{j.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-medium text-nexus-text-secondary uppercase tracking-wider">Search name / email / skill</label>
+                <input
+                  type="text"
+                  value={searchFilters.q}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, q: e.target.value })}
+                  placeholder="e.g. alice@example.com or python"
+                  className="mt-1 w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  onKeyDown={(e) => { if (e.key === 'Enter') runCandidateSearch(); }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                onClick={runCandidateSearch}
+                disabled={searching}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 text-white text-sm font-medium transition-colors"
+              >
+                {searching ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Searching…</>
+                ) : (
+                  <><FiBarChart2 className="w-3.5 h-3.5" /> Search Candidates</>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setSearchFilters({ skills: '', minExperienceYears: '', maxExperienceYears: '', minSalary: '', maxSalary: '', status: '', jobPostingId: '', q: '' });
+                  setSearchResults(null);
+                }}
+                className="px-3 py-2 rounded-lg border border-nexus-border text-xs font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+              >
+                Clear filters
+              </button>
+            </div>
+          </div>
+
+          {/* Results */}
+          {searchResults && (
+            <>
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="nexus-card p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-nexus-text-muted font-medium">Total Matches</p>
+                  <p className="text-2xl font-bold text-violet-600 mt-0.5">{searchResults.summary.totalMatches}</p>
+                </div>
+                <div className="nexus-card p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-nexus-text-muted font-medium">Avg Experience</p>
+                  <p className="text-2xl font-bold text-nexus-text-primary mt-0.5">
+                    {searchResults.summary.avgExperienceYears}<span className="text-xs font-medium ml-1 text-nexus-text-muted">yrs</span>
+                  </p>
+                </div>
+                <div className="nexus-card p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-nexus-text-muted font-medium">Avg Expected Salary</p>
+                  <p className="text-2xl font-bold text-nexus-text-primary mt-0.5">
+                    {searchResults.summary.avgExpectedSalaryLpa !== null ? (
+                      <>{searchResults.summary.avgExpectedSalaryLpa}<span className="text-xs font-medium ml-1 text-nexus-text-muted">LPA</span></>
+                    ) : '—'}
+                  </p>
+                </div>
+                <div className="nexus-card p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-nexus-text-muted font-medium">Unique Skills Found</p>
+                  <p className="text-2xl font-bold text-nexus-text-primary mt-0.5">{searchResults.summary.uniqueSkills.length}</p>
+                </div>
+              </div>
+
+              {/* Unique skills cloud (clickable to add to filter) */}
+              {searchResults.summary.uniqueSkills.length > 0 && (
+                <div className="nexus-card p-3">
+                  <p className="text-[11px] font-semibold text-nexus-text-secondary uppercase tracking-wider mb-2">Skills found in matching candidates (click to filter)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {searchResults.summary.uniqueSkills.slice(0, 40).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          const current = searchFilters.skills.split(',').map(x => x.trim()).filter(Boolean);
+                          if (!current.includes(s)) {
+                            setSearchFilters({ ...searchFilters, skills: [...current, s].join(', ') });
+                          }
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Candidate cards */}
+              {searchResults.candidates.length === 0 ? (
+                <div className="nexus-card text-center py-12">
+                  <FiUsers className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
+                  <p className="text-nexus-text-secondary font-medium">No candidates match your filters</p>
+                  <p className="text-sm text-nexus-text-muted mt-1">Try widening the experience / salary range or removing some skills</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {searchResults.candidates.map((c: any, idx: number) => {
+                    const masked = !isRecruiterOrAdmin ? maskCandidateFields({
+                      candidateName: c.candidateName,
+                      candidateEmail: c.candidateEmail,
+                      candidatePhone: c.candidatePhone,
+                    }, user?.role, piiPolicies) : null;
+                    const displayName = masked?.candidateName ?? c.candidateName;
+                    const displayEmail = masked?.candidateEmail ?? c.candidateEmail;
+                    const displayPhone = masked?.candidatePhone ?? c.candidatePhone;
+                    return (
+                      <div key={c.candidateEmail} className="nexus-card p-4 hover:shadow-md transition-shadow">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono text-nexus-text-muted">#{idx + 1}</span>
+                              <h4 className="text-sm font-semibold text-nexus-text-primary">{displayName}</h4>
+                              <span className={`text-[10px] px-2 py-0.5 rounded border ${getAppStatusBadge(c.latestStatus).className}`}>
+                                {c.latestStatus}
+                              </span>
+                              {c.matchScore !== null && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                                  c.matchScore >= 75 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                  c.matchScore >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                  'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}>
+                                  ★ Match: {Math.round(c.matchScore)}%
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-nexus-text-secondary">
+                              <span className="flex items-center gap-1"><FiMail className="w-3 h-3" />{displayEmail}</span>
+                              {displayPhone && <span className="flex items-center gap-1"><FiPhone className="w-3 h-3" />{displayPhone}</span>}
+                              <span className="flex items-center gap-1"><FiBriefcase className="w-3 h-3" />{c.totalExperienceYears > 0 ? `${c.totalExperienceYears.toFixed(1)} yrs exp` : 'Exp unknown'}</span>
+                              {c.expectedSalaryLpa !== null && (
+                                <span className="flex items-center gap-1"><FiStar className="w-3 h-3" />₹{c.expectedSalaryLpa} LPA</span>
+                              )}
+                            </div>
+                            {c.skills.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {c.skills.slice(0, 15).map((s: string, i: number) => (
+                                  <span key={`${s}-${i}`} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                    {s}
+                                  </span>
+                                ))}
+                                {c.skills.length > 15 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 text-slate-500">+{c.skills.length - 15} more</span>
+                                )}
+                              </div>
+                            )}
+                            {c.applications.length > 0 && (
+                              <div className="mt-2 text-[11px] text-nexus-text-muted">
+                                <span className="font-medium">Applied to:</span>{' '}
+                                {c.applications.slice(0, 3).map((a: any, i: number) => (
+                                  <span key={a.id}>
+                                    {i > 0 && ' · '}
+                                    <span className="text-nexus-text-secondary">{a.jobTitle}</span>
+                                    {a.company && <span className="text-nexus-text-muted"> ({a.company})</span>}
+                                  </span>
+                                ))}
+                                {c.applications.length > 3 && <span className="text-nexus-text-muted"> +{c.applications.length - 3} more</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

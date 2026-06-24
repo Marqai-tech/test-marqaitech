@@ -143,12 +143,15 @@ export async function POST(request: Request) {
 
   const { jobPosting, parsed, rawText } = loaded;
 
-  // Run the full pipeline in parallel
+  // Run the full pipeline in parallel — pass the raw resume text to every
+  // optimizer function so the model can see actual bullet points and
+  // verify skill claims (instead of relying only on the structured fields
+  // returned by the parser, which may be incomplete).
   const [matchScore, gapAnalysis, rewriteSuggestions, keywordSuggestions, formatFeedback, summaryOptions] = await Promise.all([
-    computeMatchScore(parsed, jobPosting.description, jobPosting.requirements, jobPosting.title),
-    computeGapAnalysis(parsed, jobPosting.description, jobPosting.requirements, jobPosting.title),
-    generateRewriteSuggestions(parsed, jobPosting.description),
-    suggestMissingKeywords(parsed, jobPosting.description),
+    computeMatchScore(parsed, jobPosting.description, jobPosting.requirements, jobPosting.title, rawText),
+    computeGapAnalysis(parsed, jobPosting.description, jobPosting.requirements, jobPosting.title, rawText),
+    generateRewriteSuggestions(parsed, jobPosting.description, rawText),
+    suggestMissingKeywords(parsed, jobPosting.description, rawText),
     analyzeFormat(parsed, rawText),
     parsed.summary ? Promise.resolve([]) : generateSummaryOptions(parsed),
   ]);
@@ -243,6 +246,7 @@ export async function PATCH(request: Request) {
       application.jobPosting.description,
       application.jobPosting.requirements,
       application.jobPosting.title,
+      updatedResume, // pass the edited resume text so the model can see actual bullet points
     );
     newScore = breakdown.overall;
   } catch (err) {
