@@ -1981,3 +1981,23 @@ Stage Summary:
 - Fix: show the success modal in both success (200) and already-applied (409) cases — both are valid "you have an application on file" states where the candidate should be encouraged to set up their portal
 - Bonus fix: footer "Sign In to Portal" link now goes to /candidate-portal/login (was /login)
 - Full flow verified end-to-end on production
+
+---
+Task ID: bugfix-recruitment-jobs-undefined
+Agent: main
+Task: Fix "Something went wrong - jobs is not defined" error on Talent Acquisition → Recruitment page
+
+Work Log:
+- Explored codebase: confirmed "Talent Acquisition" is the sidebar label; actual route is `/(dashboard)/recruitment/page.tsx`
+- Found the bug at lines 687-688 of `src/app/(dashboard)/recruitment/page.tsx`: the `<ModuleIntro quickStats>` block referenced `jobs.length` and `jobs.reduce(...)`, but the state variable in scope is `jobPostings` (declared at line 237)
+- The bare identifier `jobs` was a leftover from a pre-merge version (worklog line 1793 documents a +583-line merge into recruitment/page.tsx); runtime threw `ReferenceError: jobs is not defined`, caught by `error-boundary.tsx` which rendered "Something went wrong"
+- Edited lines 687-688: `jobs.length` → `jobPostings.length`, `jobs.reduce(...)` → `jobPostings.reduce(...)`
+- Verified no other `\bjobs\.` references remain in the file (grep returned 0 matches)
+- Confirmed `npx tsc --noEmit` produces no errors for recruitment/page.tsx (other pre-existing errors in payroll/dashboard/employees files are unrelated)
+
+Stage Summary:
+- Root cause: stale variable name `jobs` from pre-merge code; correct name is `jobPostings`
+- Fix: 2-line rename in `src/app/(dashboard)/recruitment/page.tsx` (lines 687-688)
+- File: `/home/z/my-project/src/app/(dashboard)/recruitment/page.tsx`
+- No imports or state declarations needed to change
+- Recruitment page now renders correctly without the "Something went wrong" error

@@ -684,8 +684,8 @@ export default function RecruitmentPage() {
         accent="violet"
         quickStats={
           <>
-            <span><b className="text-slate-700">{jobs.length}</b> jobs</span>
-            <span><b className="text-violet-600">{jobs.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
+            <span><b className="text-slate-700">{jobPostings.length}</b> jobs</span>
+            <span><b className="text-violet-600">{jobPostings.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
           </>
         }
       >
