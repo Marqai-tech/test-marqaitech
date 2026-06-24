@@ -92,7 +92,7 @@ export async function computeMatchScore(
   // quick summary; the raw text lets it verify skill claims by looking at
   // actual bullet points and quantified achievements.
   const rawTextSection = rawResumeText && rawResumeText.trim().length > 50
-    ? `\n\nFULL RESUME TEXT (verbatim, for evidence verification):\n---\n${rawResumeText.slice(0, 8000)}\n---`
+    ? `\n\nFULL RESUME TEXT (verbatim, for evidence verification — quote exact phrases when justifying scores):\n---\n${rawResumeText.slice(0, 14000)}\n---`
     : '';
 
   try {
@@ -108,6 +108,8 @@ export async function computeMatchScore(
           role: 'user',
           content: `Score this candidate's resume against the job description. Be rigorous and evidence-based — only give high scores if the resume actually demonstrates the required skills/years/experience.
 
+CRITICAL: You MUST read the FULL RESUME TEXT section below and cite specific phrases from it in your reasoning. Do NOT rely solely on the structured "CANDIDATE STRUCTURED PROFILE" — it may be incomplete or stale. The raw text is the source of truth.
+
 Return JSON:
 {
   "overall": number (0-100),
@@ -115,7 +117,7 @@ Return JSON:
   "experience": number (0-100),
   "education": number (0-100),
   "keywords": number (0-100),
-  "reasoning": "2-3 sentence explanation citing specific evidence from the resume"
+  "reasoning": "3-4 sentence explanation QUOTING specific evidence from the resume text (use direct quotes)"
 }
 
 Scoring guide:
@@ -125,12 +127,17 @@ Scoring guide:
 - 30-49: Weak fit — few requirements met
 - 0-29: Poor fit — most requirements missing
 
+PENALIZE the score if:
+- The structured profile says the candidate has a skill, but you cannot find evidence of it in the FULL RESUME TEXT
+- The candidate's actual experience doesn't match the years claimed in the structured profile
+- The candidate is missing key requirements from the job description
+
 JOB TITLE: ${jobTitle}
 
 JOB DESCRIPTION & REQUIREMENTS:
 ${fullJd}
 
-CANDIDATE STRUCTURED PROFILE:
+CANDIDATE STRUCTURED PROFILE (may be incomplete — verify against raw text):
 - Name: ${resume.name}
 - Skills: ${resume.skills.join(', ') || '(none extracted)'}
 - Experience:
@@ -177,7 +184,7 @@ export async function computeGapAnalysis(
   const fullJd = [jobTitle, jobDescription, jobRequirements || ''].filter(Boolean).join('\n\n');
   const fallback = computeFallbackGapAnalysis(resume, fullJd, rawResumeText);
   const rawTextSection = rawResumeText && rawResumeText.trim().length > 50
-    ? `\n\nFULL RESUME TEXT (verbatim — use this to find evidence for each skill):\n---\n${rawResumeText.slice(0, 8000)}\n---`
+    ? `\n\nFULL RESUME TEXT (verbatim — search this for concrete evidence for each skill before categorizing):\n---\n${rawResumeText.slice(0, 14000)}\n---`
     : '';
 
   try {
@@ -247,7 +254,7 @@ export async function generateRewriteSuggestions(
   // Prefer the full raw resume text (which has the exact phrasing the
   // candidate wrote) — fall back to the structured experience entries.
   const experienceText = rawResumeText && rawResumeText.trim().length > 50
-    ? rawResumeText.slice(0, 8000)
+    ? rawResumeText.slice(0, 14000)
     : resume.experience
         .map(e => `${e.role} at ${e.company}: ${e.description || ''}`)
         .filter(Boolean)
@@ -329,7 +336,7 @@ export async function suggestMissingKeywords(
   // keyword is actually missing — by searching the full resume text, not
   // just the (possibly incomplete) structured skills list.
   const candidateContext = rawResumeText && rawResumeText.trim().length > 50
-    ? `CANDIDATE SKILLS (from parser): ${resume.skills.join(', ') || '(none extracted)'}\n\nFULL RESUME TEXT (search this for keyword presence before suggesting):\n${rawResumeText.slice(0, 6000)}`
+    ? `CANDIDATE SKILLS (from parser): ${resume.skills.join(', ') || '(none extracted)'}\n\nFULL RESUME TEXT (search this ENTIRE text for keyword presence before suggesting — if a keyword appears anywhere, do NOT suggest it):\n${rawResumeText.slice(0, 12000)}`
     : `CANDIDATE SKILLS: ${resume.skills.join(', ') || '(none extracted)'}\nCANDIDATE EXPERIENCE: ${resume.experience.map(e => e.role + ' at ' + e.company).join(', ')}`;
 
   try {

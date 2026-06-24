@@ -296,6 +296,7 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
     { icon: <FiServer className="w-5 h-5" />, label: 'System Health', href: '/super-admin', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiGrid className="w-5 h-5" />, label: 'Modules', href: '/super-admin', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
     { icon: <FiActivity className="w-5 h-5" />, label: 'Audit Logs', href: '/audit-logs', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
+    { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Candidate Flow', href: '/analytics/candidate-flow', bg: 'from-fuchsia-400 to-pink-500', shadow: 'shadow-pink-500/25' },
   ];
 
   return (
@@ -452,6 +453,7 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Leave Approvals', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Payroll', href: '/payroll/processing', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
     { icon: <FiBriefcase className="w-5 h-5" />, label: 'Recruitment', href: '/recruitment', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
+    { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Candidate Flow', href: '/analytics/candidate-flow', bg: 'from-fuchsia-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
   ];
 
@@ -780,6 +782,7 @@ function RecruiterHome({ firstName, greeting, today }: { firstName: string; gree
     { icon: <FiFileText className="w-5 h-5" />, label: 'Offers', href: '/offers', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
     { icon: <FiUserPlus className="w-5 h-5" />, label: 'Onboarding', href: '/onboarding', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiGrid className="w-5 h-5" />, label: 'Job Portal', href: '/job-portal', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
+    { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Candidate Flow', href: '/analytics/candidate-flow', bg: 'from-fuchsia-400 to-pink-500', shadow: 'shadow-pink-500/25' },
   ];
 
   return (

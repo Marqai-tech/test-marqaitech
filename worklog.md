@@ -2133,3 +2133,53 @@ Stage Summary:
   - src/app/candidate-portal/set-password/page.tsx (NEW)
   - src/app/candidate-portal/oauth-bridge/page.tsx (NEW)
   - src/app/careers/page.tsx (header Sign In link → /candidate-portal/login)
+
+---
+Task ID: pending-fixes-batch-1
+Agent: main
+Task: Fix DOMMatrix parse error, candidate data isolation, AI optimizer accuracy, and wire up admin analytics + job search matrix UIs
+
+Work Log:
+
+1. DOMMatrix parse error (resume insights)
+   - Root cause: OLD persisted `parseError` values in ResumeParse rows from when the codebase used `pdf-parse` v2.4.5 (which referenced the browser-only DOMMatrix API at module-eval time). The codebase has since switched to `unpdf`, but old rows in the DB still carry the stale error string.
+   - Fix: In `/api/candidate-portal/dashboard/route.ts`, added logic to detect stale parse errors (matching 'DOMMatrix', 'pdf-parse', 'Canvas') and re-parse the resume using the new unpdf pipeline, updating the row in place.
+   - Files modified: src/app/api/candidate-portal/dashboard/route.ts
+
+2. Candidate data isolation (applications bleeding into wrong candidate)
+   - Root cause: When a logged-in candidate applies with a DIFFERENT email than their session, the application is correctly saved under the new email — but the user's portal session still shows the OLD email's dashboard, leading them to think the application "went into the wrong record".
+   - Fix 1: Added inline email-mismatch warning in the ApplyModal — when the typed email differs from `loggedInCandidateEmail`, show an amber alert explaining "This application will be saved under the new email and won't appear in your current portal dashboard" with a "Sign out & apply as [new email]" button.
+   - Fix 2: Updated `handleLogoutCandidate` to NOT clear the form's email field (previously it did, which forced the user to re-type the new email — confusing UX). Now the user keeps their typed email and can submit immediately as the new candidate.
+   - Files modified: src/app/careers/page.tsx (added FiAlertCircle import, added inline warning in ApplyModal, fixed handleLogoutCandidate)
+
+3. AI resume optimizer accuracy
+   - Root cause: The optimizer was passing raw resume text to the AI but truncated at 8000 chars, and the prompt didn't strongly require evidence quotes — so the AI could give high scores without actually reading the resume.
+   - Fix 1: Increased rawText truncation from 8000 → 14000 chars in computeMatchScore, computeGapAnalysis, generateRewriteSuggestions; from 6000 → 12000 in suggestMissingKeywords.
+   - Fix 2: Strengthened the match-score prompt to require quoting specific phrases from the resume, and added explicit penalty rules: "PENALIZE the score if the structured profile says the candidate has a skill, but you cannot find evidence of it in the FULL RESUME TEXT".
+   - Files modified: src/lib/candidate-resume-optimizer.ts
+
+4. Registration flow (resume upload FIRST → parse → auto-fill)
+   - Already in place from prior commit — the ApplyModal shows resume upload as the FIRST field, kicks off server-side parse, and auto-fills name/email/phone from the parsed result with a "Parsed with X% confidence" indicator.
+   - No code changes needed; verified the existing flow works correctly.
+
+5. Admin analytics UI (candidate registrations, applied jobs per section/company, resume upload matrix)
+   - Already in place from prior commit:
+     - /api/analytics/candidate-flow returns: unique candidates, total applications, applications per candidate, resume upload count + rate, parse success count + rate, avg parse confidence, funnel stages, conversion rates, registrations over time, applications over time, by company/department/job posting/tenant/source, resume by source format, top skills
+     - /(dashboard)/analytics/candidate-flow/page.tsx renders all of the above with charts
+   - Added "Candidate Flow" quick-link card to SuperAdmin, HR Admin, and Recruiter home pages so it's discoverable from the main dashboard
+   - Files modified: src/app/(dashboard)/home/page.tsx (added quick-link card to all 3 role home pages)
+
+6. Job search matrix UI (Talent Acquisition module — skill, experience, salary range filters)
+   - Already in place from prior commit:
+     - /api/recruitment/candidate-search accepts: skills, minExperienceYears, maxExperienceYears, minSalary, maxSalary, status, q (free-text)
+     - /(dashboard)/recruitment/page.tsx has a "Candidate Search" tab with all these filters and a results table
+   - No code changes needed; verified the existing UI works correctly.
+
+Stage Summary:
+- All 6 pending items addressed in this batch
+- Files modified:
+  - src/app/api/candidate-portal/dashboard/route.ts (DOMMatrix re-parse logic)
+  - src/app/careers/page.tsx (email-mismatch warning + handleLogoutCandidate fix + FiAlertCircle import)
+  - src/lib/candidate-resume-optimizer.ts (increased rawText limits + stronger prompts)
+  - src/app/(dashboard)/home/page.tsx (added Candidate Flow quick-link card to 3 role home pages)
+- TypeScript clean (no new errors introduced)

@@ -106,27 +106,65 @@ export async function GET(request: Request) {
     // dashboard. We backfill lazily on dashboard load: for each application
     // that has a resume data URL but zero ResumeParse rows, parse + persist
     // one now (best-effort, non-blocking — failures are swallowed).
+    //
+    // ALSO: re-parse any row whose parseError references DOMMatrix — that
+    // error came from the old `pdf-parse` library (which referenced the
+    // browser-only DOMMatrix API at module-eval time). The new `unpdf`
+    // pipeline doesn't have this issue, so re-parsing clears the stale
+    // error and gives the candidate real insights.
+    const STALE_PARSE_ERRORS = ['DOMMatrix', 'pdf-parse', 'Canvas'];
+    const isStaleParseError = (err: string | null | undefined): boolean => {
+      if (!err) return false;
+      return STALE_PARSE_ERRORS.some(k => err.includes(k));
+    };
+
     await Promise.allSettled(
       applications
-        .filter((a) => !!a.resume && a.resume.startsWith('data:') && a.resumeParses.length === 0)
+        .filter((a) => {
+          const hasResume = !!a.resume && a.resume.startsWith('data:');
+          if (!hasResume) return false;
+          // Backfill if no parse rows exist, OR if the most recent parse has
+          // a stale error (DOMMatrix etc.) — re-parse to clear it.
+          if (a.resumeParses.length === 0) return true;
+          const latest = a.resumeParses[0];
+          return isStaleParseError(latest?.parseError as string | undefined);
+        })
         .map(async (a) => {
           try {
             const result = await parseResumeFromDataUrl(a.resume as string);
-            await prisma.resumeParse.create({
-              data: {
-                jobApplicationId: a.id,
-                rawText: result.rawText.slice(0, 100_000),
-                language: result.language || 'en',
-                parsedData: JSON.stringify(result.parsed),
-                confidence: result.confidence,
-                sourceFormat: result.sourceFormat,
-                parseError: result.parseError || null,
-              },
-            });
+            // If we're re-parsing (an existing row had a stale error),
+            // update the latest row in place rather than creating a new one.
+            const latestId = a.resumeParses[0]?.id as string | undefined;
+            if (latestId) {
+              await prisma.resumeParse.update({
+                where: { id: latestId },
+                data: {
+                  rawText: result.rawText.slice(0, 100_000),
+                  language: result.language || 'en',
+                  parsedData: JSON.stringify(result.parsed),
+                  confidence: result.confidence,
+                  sourceFormat: result.sourceFormat,
+                  parseError: result.parseError || null,
+                },
+              });
+            } else {
+              await prisma.resumeParse.create({
+                data: {
+                  jobApplicationId: a.id,
+                  rawText: result.rawText.slice(0, 100_000),
+                  language: result.language || 'en',
+                  parsedData: JSON.stringify(result.parsed),
+                  confidence: result.confidence,
+                  sourceFormat: result.sourceFormat,
+                  parseError: result.parseError || null,
+                },
+              });
+            }
             // Mutate the in-memory application so the rest of this request
             // sees the freshly-parsed insight without a second DB round-trip.
             a.resumeParses = [
               {
+                id: latestId,
                 parsedData: JSON.stringify(result.parsed),
                 language: result.language,
                 confidence: result.confidence,

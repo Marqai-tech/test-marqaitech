@@ -9,7 +9,7 @@ import {
   FiMail, FiPhone, FiUser, FiDollarSign, FiFileText,
   FiHeart, FiShare2, FiChevronRight, FiExternalLink,
   FiGrid, FiZap, FiAward, FiTarget, FiLayers,
-  FiShield, FiCpu, FiUnlock,
+  FiShield, FiCpu, FiUnlock, FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -486,6 +486,12 @@ export default function CareersPage() {
    * Logout helper — clears the candidate-portal session so the user can
    * apply as a different candidate without their old session leaking into
    * the new application.
+   *
+   * IMPORTANT: We only clear the auth tokens, NOT the form fields. If the
+   * user typed a new email in the apply form, we keep it so they can
+   * immediately submit as that new candidate. (Previously this function
+   * cleared candidateEmail, which forced the user to re-type it —
+   * confusing UX that caused the "both candidates show in old record" bug.)
    */
   const handleLogoutCandidate = () => {
     if (typeof window !== 'undefined') {
@@ -493,8 +499,7 @@ export default function CareersPage() {
       localStorage.removeItem('tb_candidate_email');
     }
     setLoggedInCandidateEmail(null);
-    setForm((f) => ({ ...f, candidateEmail: '' }));
-    toast.success('Logged out of candidate portal');
+    toast.success('Signed out of candidate portal — you can now apply as a new candidate.');
   };
 
   const handleSubmitApply = async (e: React.FormEvent) => {
@@ -1282,6 +1287,29 @@ function ApplyModal({
                 placeholder="jane@example.com"
                 className="form-input"
               />
+              {/* Email-mismatch warning — when the candidate is logged in but
+                  types a DIFFERENT email in the apply form, we warn them that
+                  this will create a separate candidate record. They can either
+                  fix the email or sign out to apply as a new person. */}
+              {loggedInCandidateEmail &&
+                form.candidateEmail.trim() &&
+                form.candidateEmail.trim().toLowerCase() !== loggedInCandidateEmail.toLowerCase() &&
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidateEmail.trim()) && (
+                <div className="mt-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 flex items-start gap-2">
+                  <FiAlertCircle className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 text-[11px] text-amber-800 leading-relaxed">
+                    <strong>Heads up:</strong> You&apos;re signed in as <strong>{loggedInCandidateEmail}</strong> but applying with <strong>{form.candidateEmail.trim()}</strong>.
+                    This application will be saved under the new email and won&apos;t appear in your current portal dashboard.
+                    <button
+                      type="button"
+                      onClick={onLogoutCandidate}
+                      className="ml-1 text-amber-900 font-semibold underline hover:text-amber-950"
+                    >
+                      Sign out &amp; apply as {form.candidateEmail.trim()}
+                    </button>
+                  </div>
+                </div>
+              )}
             </Field>
             <Field label="Phone" icon={<FiPhone className="w-3.5 h-3.5" />}>
               <input
