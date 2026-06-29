@@ -10,6 +10,7 @@ import {
   FiRefreshCw, FiShield, FiZap, FiGlobe,
   FiUsers, FiSettings, FiCpu, FiStar,
   FiPlay, FiArrowLeft, FiBriefcase, FiExternalLink,
+  FiTarget, FiTrendingUp,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -35,6 +36,15 @@ export default function LoginPage() {
   const [showDemoAccounts, setShowDemoAccounts] = useState(false);
   const [showMobileApp, setShowMobileApp] = useState(false);
   const [loginMode, setLoginMode] = useState<'user' | 'candidate'>('user');
+  // Candidate login state
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidatePassword, setCandidatePassword] = useState('');
+  const [candidateShowPassword, setCandidateShowPassword] = useState(false);
+  const [candidateError, setCandidateError] = useState('');
+  const [candidateOtp, setCandidateOtp] = useState('');
+  const [candidateTab, setCandidateTab] = useState<'password' | 'otp'>('password');
+  const [candidateStep, setCandidateStep] = useState<'request' | 'verify'>('request');
+  const [candidateDevOtp, setCandidateDevOtp] = useState<string | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -133,6 +143,107 @@ export default function LoginPage() {
       const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ─── Candidate login handlers ───
+  const handleCandidateLoginPassword = async () => {
+    if (!candidateEmail.trim() || !candidatePassword.trim()) {
+      setCandidateError('Email and password are required');
+      return;
+    }
+    setIsSubmitting(true);
+    setCandidateError('');
+    try {
+      const r = await fetch('/api/candidate-portal/auth/login-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: candidateEmail, password: candidatePassword }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (d.needsPasswordSetup) {
+          setCandidateError('Please set up a password first via OTP.');
+          setCandidateTab('otp');
+        } else {
+          throw new Error(d.error || 'Login failed');
+        }
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tb_candidate_token', d.token);
+        localStorage.setItem('tb_candidate_email', candidateEmail);
+      }
+      toast.success('Welcome back! Redirecting to candidate portal...');
+      router.push('/candidate-portal/dashboard');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Login failed';
+      setCandidateError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCandidateRequestOtp = async () => {
+    if (!candidateEmail.trim()) {
+      setCandidateError('Please enter your email');
+      return;
+    }
+    setIsSubmitting(true);
+    setCandidateError('');
+    try {
+      const r = await fetch('/api/candidate-portal/auth/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: candidateEmail }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setCandidateStep('verify');
+      if (d.devOtp) setCandidateDevOtp(d.devOtp);
+      toast.success('OTP sent — check your email');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to send OTP';
+      setCandidateError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCandidateVerifyOtp = async () => {
+    if (candidateOtp.length !== 6) {
+      setCandidateError('Please enter the 6-digit OTP');
+      return;
+    }
+    setIsSubmitting(true);
+    setCandidateError('');
+    try {
+      const r = await fetch('/api/candidate-portal/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: candidateEmail, otp: candidateOtp }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Verification failed');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tb_candidate_token', d.token);
+        localStorage.setItem('tb_candidate_email', candidateEmail);
+      }
+      if (d.needsPasswordSetup) {
+        toast.success('OTP verified! Please set up a password.');
+        router.push(`/candidate-portal/set-password?token=${encodeURIComponent(d.token)}&email=${encodeURIComponent(candidateEmail)}`);
+      } else {
+        toast.success('Welcome! Redirecting to candidate portal...');
+        router.push('/candidate-portal/dashboard');
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Verification failed';
+      setCandidateError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -303,20 +414,263 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Mode Toggle: HR/Admin vs Candidate */}
+          <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
+            <button
+              onClick={() => setLoginMode('user')}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                loginMode === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <FiGrid className="w-4 h-4" /> HR / Admin
+              </span>
+            </button>
+            <button
+              onClick={() => setLoginMode('candidate')}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                loginMode === 'candidate' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <FiBriefcase className="w-4 h-4" /> Candidate
+              </span>
+            </button>
+          </div>
+
           {/* Form header */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Welcome back</h2>
-            <p className="text-sm text-slate-500">Sign in to your account to continue</p>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              {loginMode === 'user' ? 'Welcome back' : 'Candidate Portal'}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {loginMode === 'user'
+                ? 'Sign in to your account to continue'
+                : 'Track your applications, optimize your resume, and find matching jobs'}
+            </p>
           </div>
 
           {/* Error Message */}
-          {error && (
+          {error && loginMode === 'user' && (
             <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200/80 animate-slide-in-down">
               <p className="text-sm text-red-700 font-medium">{error}</p>
             </div>
           )}
+          {candidateError && loginMode === 'candidate' && (
+            <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200/80 animate-slide-in-down">
+              <p className="text-sm text-red-700 font-medium">{candidateError}</p>
+            </div>
+          )}
 
-          {/* Login Form */}
+          {/* ─── CANDIDATE LOGIN FORM ─── */}
+          {loginMode === 'candidate' && (
+            <div className="space-y-5">
+              {/* Candidate Email */}
+              <div>
+                <label htmlFor="candidate-email" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <FiMail className="h-[18px] w-[18px] text-slate-400" />
+                  </div>
+                  <input
+                    id="candidate-email"
+                    type="email"
+                    value={candidateEmail}
+                    onChange={(e) => {
+                      setCandidateEmail(e.target.value);
+                      if (candidateError) setCandidateError('');
+                    }}
+                    placeholder="you@example.com"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 focus:bg-white transition-all text-sm"
+                    autoComplete="email"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">Use the email you applied with.</p>
+              </div>
+
+              {/* Candidate Tab Toggle: Password / OTP */}
+              <div className="flex rounded-lg bg-slate-100 p-1">
+                <button
+                  onClick={() => setCandidateTab('password')}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    candidateTab === 'password' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  Password
+                </button>
+                <button
+                  onClick={() => setCandidateTab('otp')}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    candidateTab === 'otp' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  OTP
+                </button>
+              </div>
+
+              {candidateTab === 'password' ? (
+                <>
+                  {/* Candidate Password */}
+                  <div>
+                    <label htmlFor="candidate-password" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <FiLock className="h-[18px] w-[18px] text-slate-400" />
+                      </div>
+                      <input
+                        id="candidate-password"
+                        type={candidateShowPassword ? 'text' : 'password'}
+                        value={candidatePassword}
+                        onChange={(e) => {
+                          setCandidatePassword(e.target.value);
+                          if (candidateError) setCandidateError('');
+                        }}
+                        placeholder="Enter your password"
+                        className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 focus:bg-white transition-all text-sm"
+                        autoComplete="current-password"
+                        disabled={isSubmitting}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCandidateLoginPassword()}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCandidateShowPassword(!candidateShowPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                      >
+                        {candidateShowPassword ? <FiEyeOff className="h-[18px] w-[18px]" /> : <FiEye className="h-[18px] w-[18px]" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCandidateLoginPassword}
+                    disabled={isSubmitting || !candidateEmail || !candidatePassword}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-violet-500 via-indigo-500 to-sky-500 text-white font-semibold text-sm shadow-lg shadow-violet-500/25 hover:shadow-xl hover:from-violet-600 hover:to-sky-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Signing in...
+                      </>
+                    ) : (
+                      <>Sign In <FiArrowRight className="h-4 w-4" /></>
+                    )}
+                  </button>
+                  <div className="text-center">
+                    <Link href="/candidate-portal/forgot-password" className="text-xs text-violet-500 hover:text-violet-700 hover:underline">
+                      Forgot password?
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {candidateStep === 'request' ? (
+                    <button
+                      type="button"
+                      onClick={handleCandidateRequestOtp}
+                      disabled={isSubmitting || !candidateEmail}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-violet-500 via-indigo-500 to-sky-500 text-white font-semibold text-sm shadow-lg shadow-violet-500/25 hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Sending OTP...
+                        </>
+                      ) : (
+                        <>Send OTP <FiArrowRight className="h-4 w-4" /></>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <div>
+                        <label htmlFor="candidate-otp" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                          Enter OTP
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <FiLock className="h-[18px] w-[18px] text-slate-400" />
+                          </div>
+                          <input
+                            id="candidate-otp"
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={candidateOtp}
+                            onChange={(e) => setCandidateOtp(e.target.value.replace(/\D/g, ''))}
+                            placeholder="123456"
+                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 tracking-[0.5em] font-mono text-sm"
+                            onKeyDown={(e) => e.key === 'Enter' && handleCandidateVerifyOtp()}
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1.5">A 6-digit code was sent to {candidateEmail}.</p>
+                        {candidateDevOtp && (
+                          <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                              <strong>Demo mode:</strong> Your OTP is{' '}
+                              <button
+                                onClick={() => setCandidateOtp(candidateDevOtp)}
+                                className="font-mono font-bold text-amber-900 underline hover:text-amber-950"
+                              >
+                                {candidateDevOtp}
+                              </button>
+                              <span className="text-amber-600"> (click to auto-fill)</span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCandidateVerifyOtp}
+                        disabled={isSubmitting || candidateOtp.length !== 6}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-violet-500 via-indigo-500 to-sky-500 text-white font-semibold text-sm shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                      >
+                        {isSubmitting ? 'Verifying...' : <>Verify & Continue <FiArrowRight className="h-4 w-4" /></>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setCandidateStep('request'); setCandidateOtp(''); setCandidateDevOtp(null); }}
+                        className="w-full text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        ← Use a different email
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Candidate Portal features */}
+              <div className="pt-4 border-t border-slate-100 mt-4">
+                <p className="text-[11px] text-slate-500 font-semibold mb-2 uppercase tracking-wider">What you get:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { icon: FiZap, text: 'AI Resume Builder' },
+                    { icon: FiTarget, text: 'Job Matching' },
+                    { icon: FiTrendingUp, text: 'Application Tracking' },
+                    { icon: FiGlobe, text: 'External Job Search' },
+                  ].map((f, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                      <f.icon className="w-3.5 h-3.5 text-violet-500" />
+                      {f.text}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── HR/ADMIN LOGIN FORM ─── */}
+          {loginMode === 'user' && (
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Field */}
             <div>
@@ -482,6 +836,7 @@ export default function LoginPage() {
               )}
             </div>
           </form>
+          )}
 
           {/* Mobile App Download */}
           <div className="mt-8 pt-6 border-t border-slate-100">

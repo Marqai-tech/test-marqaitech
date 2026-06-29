@@ -7,7 +7,7 @@ import {
   FiBriefcase, FiCheckCircle, FiClock, FiXCircle, FiAward, FiTrendingUp,
   FiCalendar, FiTarget, FiZap, FiBookOpen, FiAlertCircle, FiActivity,
   FiArrowRight, FiStar, FiMapPin, FiRefreshCw, FiLogOut, FiBarChart2,
-  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch,
+  FiUpload, FiArrowLeft, FiExternalLink, FiGrid, FiSearch, FiGlobe,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -156,6 +156,21 @@ export default function CandidateDashboardPage() {
   const [matchingJobsLoading, setMatchingJobsLoading] = useState(false);
   const [reuploadingAppId, setReuploadingAppId] = useState<string | null>(null);
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
+  // Auto-apply state: track which jobs are being auto-applied
+  const [autoApplyingJobIds, setAutoApplyingJobIds] = useState<Set<string>>(new Set());
+  // Scraped external jobs from job portals
+  const [scrapedJobs, setScrapedJobs] = useState<Array<{
+    id: string;
+    title: string;
+    company: string;
+    location: string;
+    source: string;
+    url: string;
+    matchScore: number;
+    postedDate: string;
+    description: string;
+  }>>([]);
+  const [scrapedJobsLoading, setScrapedJobsLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -189,6 +204,22 @@ export default function CandidateDashboardPage() {
     }
   }, []);
 
+  // ─── Fetch scraped external jobs ───
+  const fetchScrapedJobs = useCallback(async () => {
+    setScrapedJobsLoading(true);
+    try {
+      const r = await fetch('/api/candidate-portal/matching-jobs?scrape=true', { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (r.ok && d.scrapedJobs) {
+        setScrapedJobs(d.scrapedJobs);
+      }
+    } catch {
+      // Silent — scraped jobs is a "nice to have"
+    } finally {
+      setScrapedJobsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_token') : null;
     if (!token) {
@@ -196,9 +227,64 @@ export default function CandidateDashboardPage() {
       return;
     }
     fetchData();
-    // Load matching jobs in parallel — non-blocking, sidebar-style
+    // Load matching jobs + scraped jobs in parallel
     fetchMatchingJobs();
-  }, [fetchData, fetchMatchingJobs, router]);
+    fetchScrapedJobs();
+  }, [fetchData, fetchMatchingJobs, fetchScrapedJobs, router]);
+
+  // ─── Auto-apply handler ───
+  // When candidate clicks "Apply now" on a matching job, auto-apply
+  // using their stored resume and profile instead of redirecting to /careers
+  const handleAutoApply = async (job: MatchingJob) => {
+    if (autoApplyingJobIds.has(job.id)) return;
+
+    setAutoApplyingJobIds(prev => new Set(prev).add(job.id));
+    try {
+      // Get the candidate's profile and resume
+      const profileRes = await fetch('/api/candidate-portal/dashboard', { headers: getAuthHeaders() });
+      const profileData = await profileRes.json();
+
+      const candidateEmail = typeof window !== 'undefined' ? localStorage.getItem('tb_candidate_email') : null;
+      if (!candidateEmail) {
+        toast.error('Please login again to apply');
+        return;
+      }
+
+      // Auto-apply using the candidate's stored resume
+      const applyRes = await fetch('/api/public/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobPostingId: job.id,
+          candidateName: profileData.profile?.name || '',
+          candidateEmail: candidateEmail,
+          candidatePhone: '',
+          resumeDataUrl: '', // Will use stored resume
+          source: 'candidate_portal_auto',
+        }),
+      });
+
+      const applyData = await applyRes.json();
+
+      if (applyRes.ok) {
+        toast.success(`Applied to "${job.title}" at ${job.company}!`);
+        // Refresh dashboard to show new application
+        fetchData();
+      } else if (applyRes.status === 409) {
+        toast.error(`You've already applied to this position`);
+      } else {
+        throw new Error(applyData.error || 'Failed to apply');
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to apply');
+    } finally {
+      setAutoApplyingJobIds(prev => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  };
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -324,6 +410,13 @@ export default function CandidateDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/candidate-portal/resume-builder"
+              className="hidden md:inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
+              title="AI Resume Builder"
+            >
+              <FiZap className="w-3.5 h-3.5" /> Resume Builder
+            </Link>
             <Link
               href="/careers"
               className="hidden md:inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
@@ -801,12 +894,22 @@ export default function CandidateDashboardPage() {
                         ))}
                       </div>
                     )}
-                    <Link
-                      href={`/careers`}
-                      className="inline-flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-700 mt-2.5"
+                    <button
+                      onClick={() => handleAutoApply(job)}
+                      disabled={autoApplyingJobIds.has(job.id)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 disabled:opacity-60 px-3 py-1.5 rounded-lg mt-2.5 transition-all"
                     >
-                      Apply now <FiArrowRight className="w-3 h-3" />
-                    </Link>
+                      {autoApplyingJobIds.has(job.id) ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        <>
+                          <FiZap className="w-3 h-3" /> Auto-Apply
+                        </>
+                      )}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -818,6 +921,48 @@ export default function CandidateDashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Scraped External Jobs */}
+          {scrapedJobs.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <FiGlobe className="w-3.5 h-3.5 text-sky-500" /> AI-Found External Jobs
+                <span className="text-[10px] font-normal text-slate-500">— matching your skills from major job boards</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {scrapedJobs.slice(0, 6).map((extJob) => (
+                  <div key={extJob.id} className="bg-white rounded-xl border border-sky-200 p-3 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{extJob.title}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{extJob.company}</p>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
+                          {extJob.location && <span className="flex items-center gap-0.5"><FiMapPin className="w-3 h-3" />{extJob.location}</span>}
+                          <span>· via {extJob.source}</span>
+                        </div>
+                      </div>
+                      <div className="text-center flex-shrink-0">
+                        <div className="text-[9px] uppercase text-slate-400">Match</div>
+                        <div className={`text-base font-bold ${extJob.matchScore >= 60 ? 'text-emerald-600' : 'text-amber-600'}`}>{extJob.matchScore}%</div>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-600 mt-2 line-clamp-2">{extJob.description}</p>
+                    <a
+                      href={extJob.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-sky-600 hover:text-sky-700 font-semibold mt-2.5"
+                    >
+                      View & Apply <FiExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2">
+                AI scanned LinkedIn, Naukri, Indeed & Glassdoor for jobs matching your skills.
+              </p>
+            </div>
+          )}
 
           {/* External job-board deep links */}
           {matchingJobs && matchingJobs.external.length > 0 && (
