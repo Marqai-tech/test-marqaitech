@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       take: 20,
     });
 
-    const systemPrompt = 'You are 3 Boxes AI HRMS assistant. Help with HR queries about leave, attendance, payroll, policies, recruitment. Be helpful and professional. Keep responses concise and actionable.';
+    const systemPrompt = 'You are Nexus AI HRMS assistant. Help with HR queries about leave, attendance, payroll, policies, recruitment. Be helpful and professional. Keep responses concise and actionable.';
 
     const messages = [
       { role: 'system' as const, content: systemPrompt },

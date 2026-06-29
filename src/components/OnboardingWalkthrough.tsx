@@ -26,7 +26,7 @@ interface OnboardingStep {
 const employeeSteps: OnboardingStep[] = [
   {
     id: 1,
-    title: 'Welcome to 3 Boxes HRMS!',
+    title: 'Welcome to Nexus HRMS!',
     description: 'Your all-in-one platform for managing everything HR — from leaves and attendance to payroll and documents. Let us show you around!',
     icon: FiStar,
     iconBg: 'bg-gradient-to-br from-indigo-500 to-violet-600',

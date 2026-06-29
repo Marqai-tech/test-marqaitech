@@ -24,15 +24,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "3 Boxes HRMS",
-    template: "%s | 3 Boxes HRMS",
+    default: "Nexus HRMS",
+    template: "%s | Nexus HRMS",
   },
-  description: "3 Boxes HRMS — SaaS-Based AI HRMS Platform. People · Process · Technology. Comprehensive human resource management with AI-powered interviews, recruitment, payroll, and more.",
+  description: "Nexus HRMS — SaaS-Based AI HRMS Platform by Marq AI Tech Pvt Ltd. People · Process · Technology. Comprehensive human resource management with AI-powered interviews, recruitment, payroll, and more.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "3 Boxes HRMS",
+    title: "Nexus HRMS",
     startupImage: [
       { url: "/icons/splash-750x1334.png", media: "(device-width: 375px) and (device-height: 667px)" },
       { url: "/icons/splash-1125x2436.png", media: "(device-width: 375px) and (device-height: 812px)" },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-  applicationName: "3 Boxes HRMS",
+  applicationName: "Nexus HRMS",
   icons: {
     icon: [
       { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
@@ -54,9 +54,9 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "3 Boxes HRMS - AI-Powered HR Management",
-    description: "3 Boxes HRMS — People · Process · Technology. SaaS-Based AI HRMS Platform with AI-powered interviews, recruitment, payroll, and more.",
-    siteName: "3 Boxes HRMS",
+    title: "Nexus HRMS - AI-Powered HR Management",
+    description: "Nexus HRMS — People · Process · Technology. A Proud Product of Marq AI Tech Pvt Ltd. SaaS-Based AI HRMS Platform with AI-powered interviews, recruitment, payroll, and more.",
+    siteName: "Nexus HRMS",
     type: "website",
   },
 };
@@ -98,11 +98,11 @@ export default async function RootLayout({
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('3 Boxes SW registered:', registration.scope);
+                    console.log('Nexus SW registered:', registration.scope);
                     // Check for updates on load
                     registration.update();
                   }).catch(function(error) {
-                    console.log('3 Boxes SW registration failed:', error);
+                    console.log('Nexus SW registration failed:', error);
                   });
                 });
               }

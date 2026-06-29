@@ -468,7 +468,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
-                3 Boxes <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
+                Nexus <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
               </h1>
               <p className="text-[10px] text-nexus-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
             </div>
@@ -674,6 +674,17 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
             <FiChevronLeft className="w-4 h-4" />
           )}
         </button>
+
+        {/* Proud Product Branding */}
+        {!collapsed && (
+          <div className="px-4 pb-3 pt-1 text-center">
+            <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marq-ai-logo.png" alt="Marq AI" className="w-4 h-4 rounded object-contain" />
+              <span className="text-[9px] text-nexus-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
+            </div>
+          </div>
+        )}
       </div>
       )}
     </aside>

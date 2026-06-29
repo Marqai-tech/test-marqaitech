@@ -144,11 +144,8 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
               }}
             >
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg mx-auto mb-4">
-                <svg viewBox="0 0 35 11" className="w-9 h-4" fill="none">
-                  <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9" />
-                  <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9" />
-                  <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9" />
-                </svg>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/marq-ai-logo.png" alt="Marq AI Tech" className="w-12 h-12 rounded-xl object-contain" />
               </div>
             </div>
 
@@ -158,7 +155,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
                 Welcome to
               </p>
               <h1 className="text-3xl font-extrabold text-slate-900 mb-1">
-                3 Boxes HRMS
+                Nexus HRMS
               </h1>
             </div>
 
@@ -170,7 +167,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
 
             <div style={{ animation: showContent ? 'fadeInUp 0.6s ease-out 0.8s both' : 'none' }}>
               <p className="text-slate-600 leading-relaxed max-w-sm mx-auto mb-8">
-                We&apos;re thrilled to have you on board! 3 Boxes HRMS is your all-in-one platform for managing
+                We&apos;re thrilled to have you on board! Nexus HRMS is your all-in-one platform for managing
                 leaves, attendance, payroll, and so much more. Let&apos;s get you started on this exciting journey!
               </p>
             </div>
@@ -251,14 +248,11 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
             {/* Brand */}
             <div className="mb-4">
               <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mx-auto mb-4">
-                <svg viewBox="0 0 35 11" className="w-7 h-3" fill="none">
-                  <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9" />
-                  <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9" />
-                  <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9" />
-                </svg>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/marq-ai-logo.png" alt="Marq AI Tech" className="w-9 h-9 rounded-lg object-contain" />
               </div>
               <h2 className="text-2xl font-extrabold text-white mb-1">
-                Welcome to 3 Boxes HRMS
+                Welcome to Nexus HRMS
               </h2>
             </div>
 

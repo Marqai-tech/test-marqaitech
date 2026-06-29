@@ -1,7 +1,7 @@
 {
-  "name": "3 Boxes HRMS - AI-Powered Human Resource Management",
-  "short_name": "3 Boxes HRMS",
-  "description": "3 Boxes HRMS — People · Process · Technology. SaaS-Based AI HRMS Platform with AI-powered interviews, recruitment, payroll, and more.",
+  "name": "Nexus HRMS - AI-Powered Human Resource Management",
+  "short_name": "Nexus HRMS",
+  "description": "Nexus HRMS — People · Process · Technology. A Proud Product of Marq AI Tech Pvt Ltd. SaaS-Based AI HRMS Platform with AI-powered interviews, recruitment, payroll, and more.",
   "start_url": "/login",
   "display": "standalone",
   "background_color": "#0F172A",

@@ -156,9 +156,9 @@ export async function POST(request: Request) {
     }
 
     // Multi-tenant mode: return the actual tenant name from the database.
-    // The previous branding-lockdown (forcing every tenant to "3 Boxes Corp")
+    // The previous branding-lockdown (forcing every tenant to "Marq AI Tech Pvt Ltd")
     // has been removed so each tenant keeps its own name (e.g. "Acme Global",
-    // "TechStart Solutions", "GlobalHR Services", "3 Boxes Corp", etc.).
+    // "TechStart Solutions", "GlobalHR Services", "Marq AI Tech Pvt Ltd", etc.).
     return NextResponse.json(
       {
         token,

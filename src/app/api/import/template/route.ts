@@ -56,7 +56,7 @@ const MODULE_TEMPLATES: Record<string, TemplateColumn[]> = {
     { header: 'Name', key: 'name', required: true, type: 'Text', description: 'Department name', example: 'Engineering' },
     { header: 'Code', key: 'code', required: true, type: 'Text', description: 'Unique department code', example: 'ENG' },
     { header: 'Company ID', key: 'companyId', required: false, type: 'Text', description: 'Company ID (if known)', example: 'clx123abc' },
-    { header: 'Company Name', key: 'companyName', required: false, type: 'Lookup', description: 'Company name to look up (used if Company ID is blank)', example: '3 Boxes Corp' },
+    { header: 'Company Name', key: 'companyName', required: false, type: 'Lookup', description: 'Company name to look up (used if Company ID is blank)', example: 'Marq AI Tech Pvt Ltd' },
   ],
   designations: [
     { header: 'Title', key: 'title', required: true, type: 'Text', description: 'Designation title', example: 'Software Engineer' },
@@ -69,7 +69,7 @@ const MODULE_TEMPLATES: Record<string, TemplateColumn[]> = {
   branches: [
     { header: 'Name', key: 'name', required: true, type: 'Text', description: 'Branch name', example: 'Mumbai HQ' },
     { header: 'Code', key: 'code', required: true, type: 'Text', description: 'Unique branch code', example: 'MUM-HQ' },
-    { header: 'Company Name', key: 'companyName', required: false, type: 'Lookup', description: 'Company name to look up', example: '3 Boxes Corp' },
+    { header: 'Company Name', key: 'companyName', required: false, type: 'Lookup', description: 'Company name to look up', example: 'Marq AI Tech Pvt Ltd' },
     { header: 'City', key: 'city', required: false, type: 'Text', description: 'City', example: 'Mumbai' },
     { header: 'State', key: 'state', required: false, type: 'Text', description: 'State or province', example: 'Maharashtra' },
     { header: 'Country', key: 'country', required: false, type: 'Text', description: 'Country', example: 'India' },

@@ -108,7 +108,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         <FiMenu className="w-5 h-5" />
       </button>
 
-      {/* 3 Boxes Logo + Name in Header */}
+      {/* Nexus Logo + Name in Header */}
       <div className="flex items-center gap-2.5 pr-3 border-r border-slate-200">
         <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
           <svg viewBox="0 0 35 11" className="w-5 h-3.5" fill="none">
@@ -118,7 +118,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           </svg>
         </div>
         <div className="hidden sm:block">
-          <span className="text-sm font-extrabold text-slate-800 tracking-tight">3 Boxes</span>
+          <span className="text-sm font-extrabold text-slate-800 tracking-tight">Nexus</span>
           <span className="text-[10px] font-bold text-blue-500 ml-1 tracking-wider">HRMS</span>
         </div>
       </div>

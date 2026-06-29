@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       contextData = `\nLeave Balances:\n${balances.map((b) => `- ${b.leaveType.name}: ${b.remaining} days remaining (of ${b.total} total)`).join('\n')}`;
     }
 
-    const systemPrompt = `You are the 3 Boxes HRMS AI Knowledge Assistant (HR Bot). Help employees with their HR queries.
+    const systemPrompt = `You are the Nexus HRMS AI Knowledge Assistant (HR Bot). Help employees with their HR queries.
 ${userContext}
 ${contextData}
 

@@ -461,7 +461,7 @@ export default function CompanyManagement() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. 3BOXES" /></div>
+              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. NEXUS" /></div>
               <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label><select value={form.currency || 'INR'} onChange={e => updateForm('currency', e.target.value)} className={selectClass}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
               <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
               <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>

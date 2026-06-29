@@ -14,7 +14,7 @@
  *   {{joiningDate}}      — Offer.joiningDate (locale-formatted)
  *   {{probationDays}}    — Offer.probationPeriod
  *   {{reportingTo}}      — Offer.reportingTo
- *   {{companyName}}      — default "3 Boxes Corp" if not provided
+ *   {{companyName}}      — default "Marq AI Tech Pvt Ltd" if not provided
  *   {{todayDate}}        — current date (locale-formatted)
  */
 
@@ -78,7 +78,7 @@ export function renderOfferTemplate(
   body: string,
   input: TemplateRenderInput
 ): TemplateRenderOutput {
-  const companyName = input.companyName || '3 Boxes Corp';
+  const companyName = input.companyName || 'Marq AI Tech Pvt Ltd';
   const today = input.todayDate || new Date();
 
   const values: Record<string, string> = {

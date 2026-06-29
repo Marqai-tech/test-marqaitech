@@ -170,7 +170,7 @@ export default function CareersPage() {
    * When a candidate opens /careers?ref=<token>&jobId=<jobId> (typically
    * redirected there by /api/referrals/track/[token]), we capture both
    * params so we can:
-   *   1. Show a "You were referred by a 3 Boxes Corp employee!" banner
+   *   1. Show a "You were referred by a Marq AI Tech Pvt Ltd employee!" banner
    *   2. Pre-fill the referral token into the apply form (survives modal
    *      open/close because we read it from this state on every openApply)
    *   3. Visually highlight the specific job card the referrer pointed to
@@ -628,7 +628,7 @@ export default function CareersPage() {
               <FiBriefcase className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="font-extrabold text-base leading-tight">3 Boxes HRMS</p>
+              <p className="font-extrabold text-base leading-tight">Nexus HRMS</p>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Career Portal</p>
             </div>
           </div>
@@ -714,7 +714,7 @@ export default function CareersPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-violet-900">
-                      You were referred by a 3 Boxes Corp employee!
+                      You were referred by a Marq AI Tech Pvt Ltd employee!
                     </p>
                     <p className="text-xs text-violet-700 mt-0.5">
                       Your application will be attributed to the person who shared this link.
@@ -933,7 +933,7 @@ export default function CareersPage() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
                   <FiBriefcase className="w-4 h-4 text-white" />
                 </div>
-                <p className="font-extrabold text-white">3 Boxes HRMS</p>
+                <p className="font-extrabold text-white">Nexus HRMS</p>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 A unified talent platform connecting candidates with opportunities across
@@ -960,8 +960,8 @@ export default function CareersPage() {
             </div>
           </div>
           <div className="border-t border-slate-800 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} 3 Boxes HRMS — Career Portal. All rights reserved.</p>
-            <p className="text-xs text-slate-500">Powered by 3 Boxes HRMS</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Nexus HRMS — Career Portal. All rights reserved.</p>
+            <p className="text-xs text-slate-500">Powered by Nexus HRMS</p>
           </div>
         </div>
       </footer>
@@ -1742,7 +1742,7 @@ function JobPostingJsonLd({ jobs }: { jobs: PublicJob[] }) {
 
   if (valid.length === 0) return null;
 
-  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://3boxes.com';
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://nexushrms.com';
 
   return (
     <>
@@ -1794,15 +1794,15 @@ function JobPostingJsonLd({ jobs }: { jobs: PublicJob[] }) {
         }
 
         // Determine the organization name + sameAs URL. Prefer tenant
-        // info (most accurate), fall back to company, then "3 Boxes Corp".
+        // info (most accurate), fall back to company, then "Marq AI Tech Pvt Ltd".
         const orgName =
           job.tenant?.name ||
           job.company?.name ||
-          '3 Boxes Corp';
+          'Marq AI Tech Pvt Ltd';
         const orgSameAs =
           job.tenant?.slug
             ? `${appUrl}/careers/${job.tenant.slug}`
-            : 'https://3boxes.com';
+            : 'https://nexushrms.com';
 
         const jsonLd = {
           '@context': 'https://schema.org/',

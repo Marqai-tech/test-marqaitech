@@ -75,7 +75,7 @@ export default function LoginPage() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        toast.success('3 Boxes HRMS app installed successfully!');
+        toast.success('Nexus HRMS app installed successfully!');
         setDeferredPrompt(null);
       }
     } catch (err) {
@@ -137,7 +137,7 @@ export default function LoginPage() {
     }
   };
 
-  const ThreeBoxesLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' | 'xl' }) => {
+  const NexusLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' | 'xl' }) => {
     const dims = { sm: 'w-6 h-6', md: 'w-9 h-9', lg: 'w-12 h-12', xl: 'w-16 h-16' };
     const boxSize = { sm: 8, md: 11, lg: 15, xl: 19 };
     const gap = { sm: 1.5, md: 2, lg: 2.5, xl: 3 };
@@ -179,10 +179,10 @@ export default function LoginPage() {
           {/* Top — Logo & Brand */}
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <ThreeBoxesLogo size="lg" />
+              <NexusLogo size="lg" />
               <div>
                 <h1 className="text-2xl font-extrabold text-white tracking-tight">
-                  3 Boxes <span className="text-blue-400">HRMS</span>
+                  Nexus <span className="text-blue-400">HRMS</span>
                 </h1>
                 <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
                   People &middot; Process &middot; Technology
@@ -207,7 +207,7 @@ export default function LoginPage() {
             </h2>
 
             <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
-              The next-generation SaaS HRMS platform where three pillars converge — empowering businesses to manage people, streamline processes, and leverage technology seamlessly.
+              The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Pvt Ltd.
             </p>
 
             {/* Three Pillars */}
@@ -241,7 +241,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-6 mb-6">
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
-                  {['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500'].map((c, i) => (
+                  {['bg-blue-500', 'bg-emerald-500', 'bg-blue-500', 'bg-amber-500'].map((c, i) => (
                     <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-[#0F1D3A] flex items-center justify-center text-[10px] font-bold text-white`}>
                       {['SK', 'AP', 'MJ', 'RK'][i]}
                     </div>
@@ -249,7 +249,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-white">2,500+ Companies</p>
-                  <p className="text-[10px] text-slate-400">Trust 3 Boxes HRMS</p>
+                  <p className="text-[10px] text-slate-400">Trust Nexus HRMS</p>
                 </div>
               </div>
               <div className="h-8 w-px bg-white/10" />
@@ -291,9 +291,9 @@ export default function LoginPage() {
           {/* Mobile-only brand header */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-2.5 mb-3">
-              <ThreeBoxesLogo size="md" />
+              <NexusLogo size="md" />
               <h1 className="text-2xl font-extrabold tracking-tight">
-                <span className="gradient-text">3 Boxes</span>
+                <span className="gradient-text">Nexus</span>
                 <span className="text-blue-500 ml-1 text-lg font-extrabold">HRMS</span>
               </h1>
             </div>
@@ -514,7 +514,7 @@ export default function LoginPage() {
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/20 hover:from-blue-600 hover:to-violet-700 transition-all"
                   >
                     <FiDownload className="w-4 h-4" />
-                    Install 3 Boxes HRMS App
+                    Install Nexus HRMS App
                   </button>
                 )}
 
@@ -599,6 +599,43 @@ export default function LoginPage() {
             )}
           </div>
 
+
+          {/* Third-Party Job Portals */}
+          {loginMode === 'candidate' && (
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <FiGlobe className="w-4 h-4 text-slate-500" />
+                <h3 className="text-sm font-semibold text-slate-700">Explore Opportunities</h3>
+              </div>
+              <p className="text-xs text-slate-400 mb-3">Browse jobs across top portals</p>
+              <div className="grid grid-cols-2 gap-2">
+                <a href="https://www.linkedin.com/jobs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                  <div className="w-8 h-8 rounded-lg bg-[#0A66C2] flex items-center justify-center text-white text-[10px] font-bold shrink-0">in</div>
+                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">LinkedIn</p><p className="text-[10px] text-slate-400">Professional network</p></div>
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                </a>
+                <a href="https://www.naukri.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                  <div className="w-8 h-8 rounded-lg bg-[#4A90D9] flex items-center justify-center text-white text-[10px] font-bold shrink-0">N</div>
+                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Naukri</p><p className="text-[10px] text-slate-400">India&apos;s #1 job site</p></div>
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                </a>
+                <a href="https://www.indeed.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                  <div className="w-8 h-8 rounded-lg bg-[#2557A7] flex items-center justify-center text-white text-[10px] font-bold shrink-0">IN</div>
+                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Indeed</p><p className="text-[10px] text-slate-400">Global job search</p></div>
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                </a>
+                <a href="https://www.glassdoor.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                  <div className="w-8 h-8 rounded-lg bg-[#0CAA41] flex items-center justify-center text-white text-[10px] font-bold shrink-0">G</div>
+                  <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Glassdoor</p><p className="text-[10px] text-slate-400">Reviews &amp; jobs</p></div>
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                </a>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 mt-2">
+                <a href="https://www.monster.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors text-[11px] text-slate-500 hover:text-slate-700">Monster <FiExternalLink className="w-2.5 h-2.5" /></a>
+                <a href="https://www.foundit.in" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors text-[11px] text-slate-500 hover:text-slate-700">Foundit <FiExternalLink className="w-2.5 h-2.5" /></a>
+              </div>
+            </div>
+          )}
           {/* Footer */}
           <div className="mt-6 pt-5 border-t border-slate-100">
             <div className="flex items-center justify-between">
@@ -607,7 +644,7 @@ export default function LoginPage() {
                 Enterprise-grade security
               </div>
               <p className="text-[11px] text-slate-400">
-                &copy; {new Date().getFullYear()} 3 Boxes HRMS
+                &copy; {new Date().getFullYear()} Nexus HRMS · A Proud Product of Marq AI Tech Pvt Ltd
               </p>
             </div>
           </div>

@@ -291,12 +291,12 @@ export default function DeclineSurveyPage() {
 
         <div className="text-center mt-6">
           <Link
-            href="https://3boxes.tech"
+            href="https://marqai.tech"
             className="text-xs text-slate-400 hover:text-slate-600"
             target="_blank"
             rel="noreferrer"
           >
-            Powered by 3 Boxes Corp HRMS
+            Powered by Marq AI Tech Pvt Ltd HRMS
           </Link>
         </div>
       </div>

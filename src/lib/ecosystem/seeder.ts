@@ -152,7 +152,7 @@ export async function seedClients(companyId: string, projects: { id: string; nam
           title: sowTitle,
           fileName: `${spec.code}-SOW-2026.pdf`,
           fileUrl: `https://cdn.example/sows/${spec.code}-SOW-2026.pdf`,
-          rawText: `Statement of Work between ${spec.name} and 3 Boxes Corp for the year 2026. ...`,
+          rawText: `Statement of Work between ${spec.name} and Marq AI Tech Pvt Ltd for the year 2026. ...`,
           startDate: new Date('2026-01-01'),
           endDate: new Date('2026-12-31'),
           maxHeadcount: 12 + Math.floor(Math.random() * 30),

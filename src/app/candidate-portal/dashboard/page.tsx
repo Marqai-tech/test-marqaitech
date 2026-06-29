@@ -917,7 +917,7 @@ export default function CandidateDashboardPage() {
         {/* Footer */}
         <footer className="pt-4 pb-2 text-center">
           <p className="text-[11px] text-slate-400">
-            Candidate Portal · Powered by 3 Boxes HRMS · <Link href="/recruitment/pii-policy" className="underline">Privacy Policy</Link>
+            Candidate Portal · Powered by Nexus HRMS · <Link href="/recruitment/pii-policy" className="underline">Privacy Policy</Link>
           </p>
         </footer>
       </main>

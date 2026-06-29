@@ -40,7 +40,7 @@ export async function GET() {
       where: { slug: '3boxes-corp' },
       update: {},
       create: {
-        name: '3 Boxes Corp',
+        name: 'Marq AI Tech Pvt Ltd',
         slug: '3boxes-corp',
         domain: '3boxeshrms.com',
         plan: 'enterprise',
@@ -57,7 +57,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'cg-americas',
-        name: '3 Boxes Americas',
+        name: 'Nexus Americas',
         tenantId: tenant.id,
       },
     });
@@ -67,7 +67,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'cg-asia-pacific',
-        name: '3 Boxes Asia Pacific',
+        name: 'Nexus Asia Pacific',
         tenantId: tenant.id,
       },
     });
@@ -78,7 +78,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-usa',
-        name: '3 Boxes Tech Inc USA',
+        name: 'Nexus Tech Inc USA',
         code: 'NTU',
         companyGroupId: americasGroup.id,
         registrationNo: 'US-NT-001',
@@ -102,7 +102,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-india',
-        name: '3 Boxes Technologies India',
+        name: 'Marq AI Tech Pvt Ltd India',
         code: 'NTI',
         companyGroupId: asiaPacificGroup.id,
         registrationNo: 'IN-NT-001',
@@ -126,7 +126,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-uk',
-        name: '3 Boxes Solutions UK',
+        name: 'Nexus Solutions UK',
         code: 'NSU',
         companyGroupId: americasGroup.id,
         registrationNo: 'UK-NS-001',
@@ -293,7 +293,7 @@ export async function GET() {
 
     // ============ DEMO USERS (login page accounts with individual passwords) ============
     const demoUsers = [
-      { id: 'user-admin', name: 'Admin 3Boxes', email: 'admin@3boxeshrms.com', role: 'super_admin' },
+      { id: 'user-admin', name: 'Admin Nexus', email: 'admin@3boxeshrms.com', role: 'super_admin' },
       { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@3boxeshrms.com', role: 'hr_admin' },
       { id: 'user-manager', name: 'Priya Sharma', email: 'manager@3boxeshrms.com', role: 'manager' },
       { id: 'user-employee', name: 'Raj Patel', email: 'employee@3boxeshrms.com', role: 'employee' },
@@ -1118,11 +1118,11 @@ export async function GET() {
 
     // ============ POLICIES ============
     const policies = [
-      { id: 'pol-1', title: 'Employee Code of Conduct', category: 'code_of_conduct', description: 'Guidelines for professional behavior and workplace conduct', content: 'This policy outlines the expected behavior and professional conduct for all employees of 3 Boxes Corp...', version: '2.1', status: 'active', effectiveDate: new Date('2024-01-01') },
+      { id: 'pol-1', title: 'Employee Code of Conduct', category: 'code_of_conduct', description: 'Guidelines for professional behavior and workplace conduct', content: 'This policy outlines the expected behavior and professional conduct for all employees of Marq AI Tech Pvt Ltd...', version: '2.1', status: 'active', effectiveDate: new Date('2024-01-01') },
       { id: 'pol-2', title: 'Leave Policy', category: 'leave', description: 'Comprehensive leave management policy including all leave types', content: 'All full-time employees are entitled to the following leaves per calendar year...', version: '3.0', status: 'active', effectiveDate: new Date('2025-01-01') },
       { id: 'pol-3', title: 'Information Security Policy', category: 'it', description: 'Security guidelines for handling company and client data', content: 'All employees must adhere to the following information security practices...', version: '1.5', status: 'active', effectiveDate: new Date('2024-06-01') },
       { id: 'pol-4', title: 'Travel and Expense Policy', category: 'travel', description: 'Guidelines for business travel and expense reimbursement', content: 'This policy governs all business-related travel and associated expense reimbursements...', version: '2.0', status: 'active', effectiveDate: new Date('2024-03-01') },
-      { id: 'pol-5', title: 'Workplace Safety Policy', category: 'safety', description: 'Health and safety guidelines for all office locations', content: '3 Boxes Corp is committed to providing a safe and healthy work environment...', version: '1.2', status: 'active', effectiveDate: new Date('2024-01-01') },
+      { id: 'pol-5', title: 'Workplace Safety Policy', category: 'safety', description: 'Health and safety guidelines for all office locations', content: 'Marq AI Tech Pvt Ltd is committed to providing a safe and healthy work environment...', version: '1.2', status: 'active', effectiveDate: new Date('2024-01-01') },
     ];
 
     for (const pol of policies) {
@@ -1250,7 +1250,7 @@ export async function GET() {
 
     // ============ PROJECTS ============
     const projectData = [
-      { id: 'proj-1', name: '3 Boxes Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
+      { id: 'proj-1', name: 'Nexus Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
       { id: 'proj-2', name: 'Mobile App Development', code: 'MAD', companyId: usaCompany.id, clientId: 'client-2', departmentId: 'dept-eng', projectType: 'client', billingType: 'fixed', currency: 'GBP', budgetAmount: 200000, estimatedHours: 3000, startDate: new Date('2025-03-01'), endDate: new Date('2025-09-30'), status: 'active', description: 'Cross-platform mobile app', progress: 20 },
       { id: 'proj-3', name: 'Internal HR Portal', code: 'IHRP', companyId: indiaCompany.id, departmentId: 'dept-eng', projectType: 'internal', billingType: 'non_billable', currency: 'INR', budgetAmount: 5000000, estimatedHours: 2000, startDate: new Date('2025-02-01'), status: 'active', description: 'Internal HR portal', progress: 50 },
     ];
@@ -1479,9 +1479,9 @@ export async function GET() {
     }
 
     // NOTE: The previous branding-lockdown guard that force-renamed EVERY
-    // tenant to "3 Boxes Corp" has been removed. The app now supports true
+    // tenant to "Marq AI Tech Pvt Ltd" has been removed. The app now supports true
     // multi-tenancy — each tenant keeps its own name (e.g. "Acme Global",
-    // "TechStart Solutions", "3 Boxes Corp", etc.). The old guard would
+    // "TechStart Solutions", "Marq AI Tech Pvt Ltd", etc.). The old guard would
     // destroy that setup every time /api/seed was called.
 
     return NextResponse.json(

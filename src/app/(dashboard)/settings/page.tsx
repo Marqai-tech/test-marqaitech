@@ -1162,7 +1162,7 @@ function SettingsContent() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company Name</label>
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('3 boxes') ? '3 Boxes Corp' : n; })()}</p>
+                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('nexus') ? 'Marq AI Tech Pvt Ltd' : n; })()}</p>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slug</label>

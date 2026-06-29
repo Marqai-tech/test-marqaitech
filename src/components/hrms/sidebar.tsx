@@ -179,7 +179,7 @@ export function Sidebar() {
             </div>
             {!sidebarCollapsed && (
               <div className="overflow-hidden">
-                <h1 className="font-bold text-sm tracking-tight whitespace-nowrap">3 Boxes HRMS</h1>
+                <h1 className="font-bold text-sm tracking-tight whitespace-nowrap">Nexus HRMS</h1>
                 <p className="text-[10px] text-muted-foreground whitespace-nowrap">{currentCompany?.name || 'Enterprise'}</p>
               </div>
             )}

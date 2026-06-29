@@ -419,7 +419,7 @@ export default function OfferTemplatesPage() {
                     value={form.header}
                     onChange={(e) => setForm({ ...form, header: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    placeholder="<h1>3 Boxes Corp</h1>"
+                    placeholder="<h1>Marq AI Tech Pvt Ltd</h1>"
                   />
                 </div>
 
@@ -432,7 +432,7 @@ export default function OfferTemplatesPage() {
                     value={form.footer}
                     onChange={(e) => setForm({ ...form, footer: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    placeholder="<p>3 Boxes Corp, Mumbai, India</p>"
+                    placeholder="<p>Marq AI Tech Pvt Ltd, Mumbai, India</p>"
                   />
                 </div>
 

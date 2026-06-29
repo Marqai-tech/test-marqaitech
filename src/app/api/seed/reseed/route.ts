@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     console.log('[Reseed] Starting database reseed...');
 
     // BRANDING GUARD: After any reseed operation, ALWAYS force the tenant name
-    // to "3 Boxes Corp" to prevent eh2r or any other wrong branding from showing.
+    // to "Marq AI Tech Pvt Ltd" to prevent eh2r or any other wrong branding from showing.
     // This is a critical business requirement.
 
     // Create a PrismaClient that works with whatever DB is available
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     try {
       // ============================================================
       // STEP 1: Fix any existing tenant(s) — rename EH2R or any
-      // non-3-Boxes tenant to "3 Boxes Corp"
+      // non-3-Boxes tenant to "Marq AI Tech Pvt Ltd"
       // ============================================================
       const allTenants = await prisma.tenant.findMany();
       console.log('[Reseed] Found', allTenants.length, 'tenant(s):', allTenants.map(t => `${t.name} (${t.slug})`));
@@ -53,34 +53,34 @@ export async function POST(request: Request) {
       let tenant = allTenants.find((t: any) => t.slug === '3boxes-corp' || t.slug === '3boxes-hrms-demo');
 
       if (tenant) {
-        // Update existing 3 Boxes tenant to correct name
+        // Update existing Nexus tenant to correct name
         tenant = await prisma.tenant.update({
           where: { id: tenant.id },
           data: {
-            name: '3 Boxes Corp',
+            name: 'Marq AI Tech Pvt Ltd',
             domain: '3boxeshrms.com',
           },
         });
-        console.log('[Reseed] Updated existing 3 Boxes tenant:', tenant.id, tenant.name);
+        console.log('[Reseed] Updated existing Nexus tenant:', tenant.id, tenant.name);
       } else if (allTenants.length > 0) {
         // Take the first existing tenant (could be EH2R or anything else) and rebrand it
         const existingTenant = allTenants[0];
         tenant = await prisma.tenant.update({
           where: { id: existingTenant.id },
           data: {
-            name: '3 Boxes Corp',
+            name: 'Marq AI Tech Pvt Ltd',
             slug: '3boxes-corp',
             domain: '3boxeshrms.com',
             plan: 'enterprise',
             status: 'active',
           },
         });
-        console.log('[Reseed] Rebranded existing tenant to 3 Boxes Corp:', tenant.id, '(was:', existingTenant.name, ')');
+        console.log('[Reseed] Rebranded existing tenant to Marq AI Tech Pvt Ltd:', tenant.id, '(was:', existingTenant.name, ')');
       } else {
         // No tenants exist — create one
         tenant = await prisma.tenant.create({
           data: {
-            name: '3 Boxes Corp',
+            name: 'Marq AI Tech Pvt Ltd',
             slug: '3boxes-corp',
             domain: '3boxeshrms.com',
             plan: 'enterprise',
@@ -98,12 +98,12 @@ export async function POST(request: Request) {
         if (otherTenant.id !== tenant.id) {
           const nameLower = otherTenant.name.toLowerCase();
           if (nameLower.includes('eh2r') || nameLower.includes('ehhr') || nameLower.includes('nexus') || !nameLower.includes('3 boxes')) {
-            // Move all users from this tenant to the main 3 Boxes tenant
+            // Move all users from this tenant to the main Nexus tenant
             const movedCount = await prisma.user.updateMany({
               where: { tenantId: otherTenant.id },
               data: { tenantId: tenant.id },
             });
-            console.log(`[Reseed] Moved ${movedCount.count} users from "${otherTenant.name}" to "3 Boxes Corp"`);
+            console.log(`[Reseed] Moved ${movedCount.count} users from "${otherTenant.name}" to "Marq AI Tech Pvt Ltd"`);
 
             // Delete the old tenant
             await prisma.tenant.delete({ where: { id: otherTenant.id } });
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       tenant = await prisma.tenant.update({
         where: { id: tenant.id },
         data: {
-          name: '3 Boxes Corp',
+          name: 'Marq AI Tech Pvt Ltd',
           slug: '3boxes-corp',
           domain: '3boxeshrms.com',
           plan: 'enterprise',
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       ]);
 
       const demoUsers = [
-        { email: 'admin@3boxeshrms.com', name: 'Admin 3Boxes', role: 'super_admin', password: passwordHashes[0] },
+        { email: 'admin@3boxeshrms.com', name: 'Admin Nexus', role: 'super_admin', password: passwordHashes[0] },
         { email: 'hr@3boxeshrms.com', name: 'Sarah Johnson', role: 'hr_admin', password: passwordHashes[1] },
         { email: 'manager@3boxeshrms.com', name: 'Priya Sharma', role: 'manager', password: passwordHashes[2] },
         { email: 'employee@3boxeshrms.com', name: 'Raj Patel', role: 'employee', password: passwordHashes[3] },
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: `Reseeded ${upsertedUsers.length} users. ${verifiedCount}/${upsertedUsers.length} passwords verified. All tenants rebranded to "3 Boxes Corp".`,
+        message: `Reseeded ${upsertedUsers.length} users. ${verifiedCount}/${upsertedUsers.length} passwords verified. All tenants rebranded to "Marq AI Tech Pvt Ltd".`,
         tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
         users: upsertedUsers.map((u: any) => ({ id: u.id, email: u.email, role: u.role, status: u.status })),
       });

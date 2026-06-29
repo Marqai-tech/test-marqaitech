@@ -36,7 +36,7 @@ interface TrainingModule {
 const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'tm-1', key: 'dashboard', title: 'Dashboard & Analytics', icon: <LayoutDashboard className="h-5 w-5" />,
-    category: 'OVERVIEW', description: 'Learn how to navigate the 3 Boxes HRMS dashboard, interpret key metrics, and use analytics to make data-driven HR decisions.',
+    category: 'OVERVIEW', description: 'Learn how to navigate the Nexus HRMS dashboard, interpret key metrics, and use analytics to make data-driven HR decisions.',
     videoDuration: '12:30', sopPages: 8,
     tasks: [
       { title: 'Understanding the dashboard layout', completed: false },
@@ -45,7 +45,7 @@ const TRAINING_MODULES: TrainingModule[] = [
       { title: 'Reviewing recent activities feed', completed: false },
     ],
     keyFeatures: ['Real-time employee count and distribution', 'Department-wise headcount analytics', 'Attrition rate tracking', 'New hire onboarding pipeline', 'Pending approvals dashboard', 'Quick action shortcuts'],
-    workflowSteps: ['Login to 3 Boxes HRMS', 'Review dashboard KPIs for anomalies', 'Check pending approvals section', 'Navigate to Analytics for detailed reports', 'Export data for stakeholder meetings'],
+    workflowSteps: ['Login to Nexus HRMS', 'Review dashboard KPIs for anomalies', 'Check pending approvals section', 'Navigate to Analytics for detailed reports', 'Export data for stakeholder meetings'],
     tips: ['Pin frequently used metrics to the top', 'Set up automated daily summary emails', 'Use keyboard shortcuts for quick navigation (Ctrl+K for search)'],
   },
   {

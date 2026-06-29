@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* 3 Boxes HRMS Brand Colors */
+  /* Nexus HRMS Brand Colors */
   --nexus-primary: #3B82F6;
   --nexus-primary-dark: #1D4ED8;
   --nexus-primary-light: #60A5FA;

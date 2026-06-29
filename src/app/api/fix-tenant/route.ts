@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 /**
  * /api/fix-tenant
  *
- * Historically this endpoint force-renamed every tenant to "3 Boxes Corp" and
+ * Historically this endpoint force-renamed every tenant to "Marq AI Tech Pvt Ltd" and
  * merged all extra tenants into a single one — that was a branding-lockdown
  * tool from the early single-tenant era of the app.
  *

@@ -78,7 +78,7 @@ export default function PWAInstallPrompt() {
               <FiSmartphone className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-nexus-text-primary">Install 3 Boxes HRMS App</p>
+              <p className="text-sm font-semibold text-nexus-text-primary">Install Nexus HRMS App</p>
               <p className="text-xs text-nexus-text-secondary mt-1">
                 Tap <span className="inline-flex items-center gap-0.5 font-medium">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
@@ -108,7 +108,7 @@ export default function PWAInstallPrompt() {
               <FiDownload className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-nexus-text-primary">Install 3 Boxes HRMS</p>
+              <p className="text-sm font-semibold text-nexus-text-primary">Install Nexus HRMS</p>
               <p className="text-xs text-nexus-text-secondary mt-1">
                 Install the app on your device for quick access and offline support.
               </p>

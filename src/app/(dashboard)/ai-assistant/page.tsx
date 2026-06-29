@@ -60,7 +60,7 @@ export default function AIAssistantPage() {
   useEffect(() => {
     // Create initial session
     const initialId = `session-${Date.now()}`;
-    setSessions([{ id: initialId, title: 'New Chat', createdAt: new Date(), messages: [{ id: `msg-${Date.now()}`, role: 'assistant', content: 'Hello! I\'m your 3 Boxes AI HRMS assistant. I can help you with leave management, attendance, payroll, policies, recruitment, and more. How can I help you today?', timestamp: new Date() }] }]);
+    setSessions([{ id: initialId, title: 'New Chat', createdAt: new Date(), messages: [{ id: `msg-${Date.now()}`, role: 'assistant', content: 'Hello! I\'m your Nexus AI HRMS assistant. I can help you with leave management, attendance, payroll, policies, recruitment, and more. How can I help you today?', timestamp: new Date() }] }]);
     setActiveSessionId(initialId);
   }, []);
 
@@ -150,7 +150,7 @@ export default function AIAssistantPage() {
             <FiHelpCircle className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">3 Boxes AI Assistant</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Nexus AI Assistant</h2>
             <p className="text-xs text-slate-500">HRMS Help & Support</p>
           </div>
           <div className="ml-auto md:hidden">

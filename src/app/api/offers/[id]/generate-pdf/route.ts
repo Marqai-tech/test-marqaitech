@@ -86,7 +86,7 @@ export async function POST(
       joiningDate: offer.joiningDate,
       probationPeriod: offer.probationPeriod,
       reportingTo: offer.reportingTo,
-      companyName: '3 Boxes Corp',
+      companyName: 'Marq AI Tech Pvt Ltd',
       todayDate: new Date(),
     };
 

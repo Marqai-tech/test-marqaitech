@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -114,7 +114,7 @@ export default function DashboardLayout({
               <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
             </svg>
           </div>
-          <p className="text-sm text-nexus-text-secondary font-medium">Loading 3 Boxes HRMS...</p>
+          <p className="text-sm text-nexus-text-secondary font-medium">Loading Nexus HRMS...</p>
         </div>
       </div>
     );
@@ -162,7 +162,7 @@ export default function DashboardLayout({
               </svg>
             </div>
             <span className="text-sm font-extrabold text-slate-800 truncate">
-              3 Boxes <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span>
+              Nexus <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span>
             </span>
           </div>
           <button
