@@ -9,7 +9,7 @@ import {
   FiMonitor, FiX, FiCheck, FiWifi,
   FiRefreshCw, FiShield, FiZap, FiGlobe,
   FiUsers, FiSettings, FiCpu, FiStar,
-  FiPlay, FiArrowLeft, FiBriefcase,
+  FiPlay, FiArrowLeft, FiBriefcase, FiExternalLink,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [showDemoAccounts, setShowDemoAccounts] = useState(false);
   const [showMobileApp, setShowMobileApp] = useState(false);
+  const [loginMode, setLoginMode] = useState<'user' | 'candidate'>('user');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
