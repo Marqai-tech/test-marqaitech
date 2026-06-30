@@ -6,7 +6,6 @@ import {
   FiBriefcase,
   FiPlus,
   FiUsers,
-  FiClock,
   FiMapPin,
   FiCalendar,
   FiX,
@@ -23,12 +22,16 @@ import {
   FiPhone,
   FiAward,
   FiBriefcase as FiWork,
-  FiZap,
   FiShield,
   FiLock,
   FiBarChart2,
   FiExternalLink,
-  FiArrowRight,
+  FiSearch,
+  FiFilter,
+  FiEye,
+  FiCheckCircle,
+  FiTarget,
+  FiSend,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -172,10 +175,10 @@ function getJobStatusBadge(status: string) {
 function getAppStatusBadge(status: string) {
   const map: Record<string, string> = {
     applied: 'thb-badge thb-badge-info',
-    screening: 'thb-badge thb-badge-warning',
-    interview: 'bg-orange-50 text-orange-700 thb-badge',
-    offered: 'thb-badge thb-badge-purple',
-    hired: 'thb-badge thb-badge-success',
+    screening: 'bg-purple-50 text-purple-700 thb-badge',
+    interview: 'bg-amber-50 text-amber-700 thb-badge',
+    offered: 'thb-badge thb-badge-success',
+    hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
   };
   const labels: Record<string, string> = { applied: 'Applied', screening: 'Screening', interview: 'Interview', offered: 'Offered', hired: 'Hired', rejected: 'Rejected' };
@@ -203,6 +206,38 @@ function formatTimestamp(sec: number | null | undefined) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _formatTimestamp = formatTimestamp;
+
+function getJobTypeBadge(type: string) {
+  const map: Record<string, { className: string; label: string }> = {
+    'full-time': { className: 'bg-emerald-50 text-emerald-700 border border-emerald-200', label: 'Full-time' },
+    'part-time': { className: 'bg-sky-50 text-sky-700 border border-sky-200', label: 'Part-time' },
+    'contract': { className: 'bg-amber-50 text-amber-700 border border-amber-200', label: 'Contract' },
+    'internship': { className: 'bg-purple-50 text-purple-700 border border-purple-200', label: 'Internship' },
+  };
+  return map[type] || { className: 'bg-slate-50 text-slate-700 border border-slate-200', label: type };
+}
+
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function getAvatarColor(name: string) {
+  const colors = [
+    'bg-rose-100 text-rose-700',
+    'bg-emerald-100 text-emerald-700',
+    'bg-amber-100 text-amber-700',
+    'bg-sky-100 text-sky-700',
+    'bg-violet-100 text-violet-700',
+    'bg-pink-100 text-pink-700',
+    'bg-teal-100 text-teal-700',
+    'bg-orange-100 text-orange-700',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 const initialJobForm = {
@@ -233,11 +268,19 @@ export default function RecruitmentPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
 
-  const [activeTab, setActiveTab] = useState<'postings' | 'applications' | 'search'>('postings');
+  const [activeTab, setActiveTab] = useState<'jobs' | 'candidates' | 'analytics'>('jobs');
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
+
+  // Filters
+  const [jobSearch, setJobSearch] = useState('');
+  const [jobTypeFilter, setJobTypeFilter] = useState('');
+  const [jobStatusFilter, setJobStatusFilter] = useState('');
+  const [jobDeptFilter, setJobDeptFilter] = useState('');
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState('');
 
   // Job form state
   const [showJobForm, setShowJobForm] = useState(false);
@@ -261,9 +304,6 @@ export default function RecruitmentPage() {
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   /* ─── Job Search Matrix (talent-acquisition candidate shortlisting) ─── */
-  // Recruiter filters candidates across ALL applications by skill, experience,
-  // salary range, status, or free-text query — to build a shortlist for a
-  // specific open requirement.
   const [searchFilters, setSearchFilters] = useState({
     skills: '',
     minExperienceYears: '',
@@ -275,9 +315,9 @@ export default function RecruitmentPage() {
     q: '',
   });
   const [searchResults, setSearchResults] = useState<{
-    candidates: any[];
+    candidates: Record<string, unknown>[];
     summary: { totalMatches: number; avgExperienceYears: number; avgExpectedSalaryLpa: number | null; uniqueSkills: string[] };
-    filters: any;
+    filters: Record<string, unknown>;
   } | null>(null);
   const [searching, setSearching] = useState(false);
 
@@ -309,13 +349,9 @@ export default function RecruitmentPage() {
   /* ─── WAVE2-A: PII masking policies (REQ-SEC-REC-03) ─── */
   const [piiPolicies, setPiiPolicies] = useState<PiiPolicyEntry[]>([]);
 
-  // Role flag: recruiters + admins see full values; everyone else (hiring panel,
-  // interviewers, managers) sees masked values per the tenant policy.
   const isRecruiterOrAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'recruiter', 'recruiter_admin'].includes(user?.role || '');
 
   useEffect(() => {
-    // Fetch tenant PII policies once on mount. Non-admins also need this so
-    // they can resolve the visibleToRoles whitelist for their own role.
     let cancelled = false;
     (async () => {
       try {
@@ -333,10 +369,6 @@ export default function RecruitmentPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Memoized masked copy of the applications list. We mask only the PII fields
-  // that exist on the JobApplication row (email + phone today). The original
-  // `applications` array is preserved for editing flows so admins can still
-  // PATCH the raw candidateEmail through the inline edit form.
   const maskedApplications = useMemo(() => {
     if (!applications || applications.length === 0) return [];
     return applications.map(a =>
@@ -366,14 +398,12 @@ export default function RecruitmentPage() {
       if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
         const data = await jobsRes.value.json();
         setJobPostings(data.jobPostings || []);
-        // Extract departments
         const deptMap = new Map<string, Department>();
         (data.jobPostings || []).forEach((j: JobPosting) => {
           if (j.department) deptMap.set(j.department.id, j.department);
         });
         setDepartments(Array.from(deptMap.values()));
 
-        // Flatten applications
         const allApps: JobApplication[] = [];
         (data.jobPostings || []).forEach((j: JobPosting) => {
           if (j.applications) {
@@ -382,8 +412,6 @@ export default function RecruitmentPage() {
         });
         setApplications(allApps);
 
-        // ─── WAVE2-C: Lazy-load latest sentiment per application (batched) ───
-        // Cap to the first 30 applications to avoid hammering the API.
         Promise.all(
           allApps.slice(0, 30).map(async (a) => {
             try {
@@ -595,7 +623,11 @@ export default function RecruitmentPage() {
       const r = await fetch(`/api/ats/parse-resume?jobApplicationId=${appId}`, { headers: getAuthHeaders() });
       const d = r.ok ? await r.json() : { parse: null, parsedData: null };
       let parsed: ParsedResume | null = null;
-      try { parsed = d.parsedData ? (typeof d.parsedData === 'string' ? JSON.parse(d.parsedData) : d.parsedData) : null; } catch { parsed = null; }
+      if (d.parsedData && typeof d.parsedData === 'string') {
+        try { parsed = JSON.parse(d.parsedData); } catch { parsed = null; }
+      } else if (d.parsedData && typeof d.parsedData === 'object') {
+        parsed = d.parsedData as ParsedResume;
+      }
       setParseByApp(prev => ({ ...prev, [appId]: { parse: d.parse || null, parsed, loading: false } }));
     } catch {
       setParseByApp(prev => ({ ...prev, [appId]: { parse: null, parsed: null, loading: false } }));
@@ -611,7 +643,6 @@ export default function RecruitmentPage() {
   };
 
   const handleUploadResume = async (appId: string, file: File) => {
-    // Convert file → base64 data URL → POST to parser
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
@@ -626,7 +657,6 @@ export default function RecruitmentPage() {
         const d = await r.json();
         if (!r.ok) throw new Error(d?.error || 'Parse failed');
         toast.success(`Resume parsed (confidence ${Math.round((d.confidence || 0) * 100)}%, ${d.language || 'en'})`);
-        // Refetch parse + sentiment for this app
         await fetchParsedResume(appId);
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : 'Failed to parse resume');
@@ -639,15 +669,11 @@ export default function RecruitmentPage() {
   };
 
   const handleReparse = async (appId: string) => {
-    // Re-parse requires the original resume file. Since we don't store it,
-    // we prompt the user to re-upload. If they have no resume on file, we
-    // try to re-extract from the existing rawText stored on the latest parse.
     const existing = parseByApp[appId]?.parse;
     if (!existing) {
       toast.error('No prior parse — upload a resume first');
       return;
     }
-    // Trigger the hidden file input
     const input = document.getElementById(`resume-upload-${appId}`) as HTMLInputElement | null;
     if (input) {
       input.click();
@@ -673,6 +699,51 @@ export default function RecruitmentPage() {
       setRunningSentimentAppId(null);
     }
   };
+
+  /* ─── Computed Stats ─── */
+  const openPositions = jobPostings.filter(j => j.status === 'open').length;
+  const totalApplications = applications.length;
+  const interviewsScheduled = applications.filter(a => a.status === 'interview').length;
+  const offersPending = applications.filter(a => a.status === 'offered').length;
+  const shortlisted = applications.filter(a => a.status === 'screening').length;
+  const hired = applications.filter(a => a.status === 'hired').length;
+
+  /* ─── Filtered Data ─── */
+  const filteredJobs = useMemo(() => {
+    return jobPostings.filter(job => {
+      if (jobSearch && !job.title.toLowerCase().includes(jobSearch.toLowerCase()) && !job.position.toLowerCase().includes(jobSearch.toLowerCase())) return false;
+      if (jobTypeFilter && job.type !== jobTypeFilter) return false;
+      if (jobStatusFilter && job.status !== jobStatusFilter) return false;
+      if (jobDeptFilter && job.department?.id !== jobDeptFilter) return false;
+      return true;
+    });
+  }, [jobPostings, jobSearch, jobTypeFilter, jobStatusFilter, jobDeptFilter]);
+
+  const filteredCandidates = useMemo(() => {
+    return maskedApplications.filter(app => {
+      if (candidateSearch) {
+        const s = candidateSearch.toLowerCase();
+        if (!app.candidateName.toLowerCase().includes(s) && !app.candidateEmail.toLowerCase().includes(s) && !(app.jobPosting?.title || '').toLowerCase().includes(s)) return false;
+      }
+      if (candidateStatusFilter && app.status !== candidateStatusFilter) return false;
+      return true;
+    });
+  }, [maskedApplications, candidateSearch, candidateStatusFilter]);
+
+  /* ─── Stats Cards ─── */
+  const statsCards = [
+    { label: 'Open Positions', value: openPositions, icon: FiBriefcase, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+    { label: 'Total Applications', value: totalApplications, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
+    { label: 'Interviews Scheduled', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { label: 'Offers Pending', value: offersPending, icon: FiTarget, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
+  ];
+
+  const candidateStatsCards = [
+    { label: 'Total Candidates', value: applications.length, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
+    { label: 'Shortlisted', value: shortlisted, icon: FiFilter, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+    { label: 'Interviewed', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { label: 'Hired', value: hired, icon: FiCheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -707,21 +778,21 @@ export default function RecruitmentPage() {
             </Link>
             <Link
               href="/recruitment/job-boards"
-              className="inline-flex items-center gap-2 px-3 py-2.5 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 font-medium text-sm transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2.5 border border-sky-200 text-sky-700 rounded-lg hover:bg-sky-50 font-medium text-sm transition-colors"
               title="Manage all external job board postings"
             >
               <FiExternalLink className="w-4 h-4" />
               <span className="hidden sm:inline">Job Boards</span>
             </Link>
-            <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
               <FiPlus className="w-4 h-4" />
-              Post Job
+              Create Job
             </button>
           </div>
         )}
       </div>
 
-      {/* Module Intro — minimized by default with hover preview */}
+      {/* Module Intro */}
       <ModuleIntro
         title="Recruitment & ATS"
         subtitle="Requisitions → Job postings → Applications → Interviews → Offers → Onboarding"
@@ -750,7 +821,7 @@ export default function RecruitmentPage() {
         <p>
           The Candidate Portal (separate login) lets external candidates self-serve: dashboard with their
           application status, upcoming interviews, resume insights, skill matrix, AI suggestions, and
-          recommended learning courses for skills they're missing for the jobs they applied to.
+          recommended learning courses for skills they&apos;re missing for the jobs they applied to.
         </p>
       </ModuleIntro>
 
@@ -787,26 +858,26 @@ export default function RecruitmentPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title *</label>
-                  <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
-                  <select value={jobForm.departmentId} onChange={e => setJobForm(p => ({ ...p, departmentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={jobForm.departmentId} onChange={e => setJobForm(p => ({ ...p, departmentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position</label>
-                  <input type="text" value={jobForm.position} onChange={e => setJobForm(p => ({ ...p, position: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="text" value={jobForm.position} onChange={e => setJobForm(p => ({ ...p, position: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
-                  <input type="text" value={jobForm.location} onChange={e => setJobForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="text" value={jobForm.location} onChange={e => setJobForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type</label>
-                  <select value={jobForm.type} onChange={e => setJobForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={jobForm.type} onChange={e => setJobForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
                     <option value="full-time">Full-time</option>
                     <option value="part-time">Part-time</option>
                     <option value="contract">Contract</option>
@@ -815,32 +886,32 @@ export default function RecruitmentPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Experience</label>
-                  <input type="text" value={jobForm.experience} onChange={e => setJobForm(p => ({ ...p, experience: e.target.value }))} placeholder="e.g., 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="text" value={jobForm.experience} onChange={e => setJobForm(p => ({ ...p, experience: e.target.value }))} placeholder="e.g., 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range</label>
-                  <input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., $80K - $120K" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., $80K - $120K" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Vacancies</label>
-                  <input type="number" min="1" value={jobForm.vacancies} onChange={e => setJobForm(p => ({ ...p, vacancies: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="number" min="1" value={jobForm.vacancies} onChange={e => setJobForm(p => ({ ...p, vacancies: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Closing Date</label>
-                  <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
-                <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" />
+                <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 resize-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
-                <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" />
+                <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 resize-none" />
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
                   {submittingJob ? 'Saving...' : editingJobId ? 'Update Job' : 'Post Job'}
                 </button>
               </div>
@@ -851,7 +922,7 @@ export default function RecruitmentPage() {
 
       {/* Embedded Application Form */}
       {showAppForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 transition-all duration-300 ease-in-out">
+        <div id="crud-form" className="thb-card border-l-4 border-l-sky-500 transition-all duration-300 ease-in-out">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">Submit Application</h2>
@@ -861,8 +932,8 @@ export default function RecruitmentPage() {
             </div>
             <div className="space-y-4">
               {appForm.jobPostingId && (
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                  <p className="text-sm text-blue-700 font-medium">
+                <div className="p-3 rounded-lg bg-sky-50 border border-sky-100">
+                  <p className="text-sm text-sky-700 font-medium">
                     <FiBriefcase className="w-4 h-4 inline mr-1" />
                     Applying for: {jobPostings.find(j => j.id === appForm.jobPostingId)?.title || 'Selected Job'}
                   </p>
@@ -870,30 +941,32 @@ export default function RecruitmentPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Posting *</label>
-                <select value={appForm.jobPostingId} onChange={e => setAppForm(p => ({ ...p, jobPostingId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={appForm.jobPostingId} onChange={e => setAppForm(p => ({ ...p, jobPostingId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400">
                   <option value="">Select Job</option>
                   {jobPostings.filter(j => j.status === 'open').map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
-                <input type="text" value={appForm.candidateName} onChange={e => setAppForm(p => ({ ...p, candidateName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
-                <input type="email" value={appForm.candidateEmail} onChange={e => setAppForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>
-                <input type="tel" value={appForm.candidatePhone} onChange={e => setAppForm(p => ({ ...p, candidatePhone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expected Salary</label>
-                <input type="text" value={appForm.expectedSalary} onChange={e => setAppForm(p => ({ ...p, expectedSalary: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
+                  <input type="text" value={appForm.candidateName} onChange={e => setAppForm(p => ({ ...p, candidateName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
+                  <input type="email" value={appForm.candidateEmail} onChange={e => setAppForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>
+                  <input type="tel" value={appForm.candidatePhone} onChange={e => setAppForm(p => ({ ...p, candidatePhone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expected Salary</label>
+                  <input type="text" value={appForm.expectedSalary} onChange={e => setAppForm(p => ({ ...p, expectedSalary: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Source</label>
-                <select value={appForm.source} onChange={e => setAppForm(p => ({ ...p, source: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={appForm.source} onChange={e => setAppForm(p => ({ ...p, source: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400">
                   <option value="website">Website</option>
                   <option value="referral">Referral</option>
                   <option value="linkedin">LinkedIn</option>
@@ -903,7 +976,7 @@ export default function RecruitmentPage() {
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button onClick={handleCancelAppForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleSubmitApp} disabled={submittingApp} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                <button onClick={handleSubmitApp} disabled={submittingApp} className="px-6 py-2.5 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 shadow-sm shadow-sky-500/25 transition-colors">
                   {submittingApp ? 'Submitting...' : 'Submit Application'}
                 </button>
               </div>
@@ -912,372 +985,566 @@ export default function RecruitmentPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit flex-wrap">
-        <button onClick={() => setActiveTab('postings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'postings' ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
-          Job Postings
-        </button>
-        <button onClick={() => setActiveTab('applications')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'applications' ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
-          Applications
-        </button>
-        <button onClick={() => setActiveTab('search')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'search' ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
-          Candidate Search
-        </button>
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {(activeTab === 'jobs' ? statsCards : activeTab === 'candidates' ? candidateStatsCards : statsCards).map((card) => (
+          <div key={card.label} className="thb-card p-5 border border-thb-border hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{card.label}</p>
+                <p className={`text-2xl font-bold mt-1 ${card.color}`}>{card.value}</p>
+              </div>
+              <div className={`p-3 rounded-xl ${card.bg} border ${card.border}`}>
+                <card.icon className={`w-5 h-5 ${card.color}`} />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Job Postings Tab */}
-      {activeTab === 'postings' && (
-        <div className="space-y-4">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="thb-card p-6 animate-pulse">
-                <div className="h-5 w-48 bg-slate-200 rounded mb-3" />
-                <div className="h-3 w-32 bg-slate-200 rounded mb-4" />
-                <div className="flex gap-4"><div className="h-3 w-20 bg-slate-200 rounded" /><div className="h-3 w-20 bg-slate-200 rounded" /></div>
-              </div>
-            ))
-          ) : jobPostings.length === 0 ? (
-            <div className="text-center py-12 thb-card">
-              <FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
-              <p className="text-thb-text-secondary font-medium">No job postings yet</p>
-              <p className="text-sm text-thb-text-muted mt-1">Create your first job posting to start hiring</p>
-            </div>
-          ) : (
-            jobPostings.map(job => {
-              const badge = getJobStatusBadge(job.status);
-              const isExpanded = expandedJob === job.id;
-              const isDeleting = deleteConfirmId === job.id;
-              return (
-                <div key={job.id} className={`thb-card thb-card-hover overflow-hidden transition-colors ${isDeleting ? 'border-red-200' : ''}`}>
-                  {isDeleting ? (
-                    <div className="p-6 bg-red-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                            <FiTrash2 className="w-4 h-4 text-red-500" />
-                          </div>
-                          <span className="text-sm text-red-700 font-medium">Are you sure you want to delete &quot;{job.title}&quot;? This action cannot be undone.</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleDeleteJob(job.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
-                            {deleting ? 'Deleting...' : 'Confirm Delete'}
-                          </button>
-                          <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <h3 className="text-lg font-semibold text-thb-text-primary">{job.title}</h3>
-                              <span className={badge.className}>{badge.label}</span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-thb-text-secondary">
-                              {job.department && <span className="flex items-center gap-1"><FiUsers className="w-3.5 h-3.5" />{job.department.name}</span>}
-                              {job.location && <span className="flex items-center gap-1"><FiMapPin className="w-3.5 h-3.5" />{job.location}</span>}
-                              <span className="flex items-center gap-1"><FiClock className="w-3.5 h-3.5" />{job.type}</span>
-                              <span className="flex items-center gap-1"><FiUsers className="w-3.5 h-3.5" />{job.vacancies} Vacanc{job.vacancies > 1 ? 'ies' : 'y'}</span>
-                              <span className="flex items-center gap-1"><FiCalendar className="w-3.5 h-3.5" />Posted {formatDate(job.postedDate)}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <Link
-                              href={`/recruitment/${job.id}`}
-                              className="px-3 py-2 border border-violet-200 text-violet-700 rounded-lg text-xs font-medium hover:bg-violet-50 transition-colors inline-flex items-center gap-1"
-                              title="View job detail, funnel, candidates, and multi-post to boards"
-                            >
-                              View Detail <FiArrowRight className="w-3 h-3" />
-                            </Link>
-                            <button onClick={() => handleOpenApplyForm(job.id)} className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
-                              Apply
-                            </button>
-                            {isAdmin && (
-                              <>
-                                <button onClick={() => handleOpenEditJobForm(job)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
-                                  <FiEdit2 className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setDeleteConfirmId(job.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                                  <FiTrash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                            <button onClick={() => setExpandedJob(isExpanded ? null : job.id)} className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
-                              {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+      {/* Tab Navigation */}
+      <div className="thb-card p-1.5">
+        <div className="flex gap-1">
+          {[
+            { key: 'jobs' as const, label: 'Jobs', icon: FiBriefcase },
+            { key: 'candidates' as const, label: 'Candidates', icon: FiUsers },
+            { key: 'analytics' as const, label: 'Analytics', icon: FiBarChart2 },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                activeTab === tab.key
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/25'
+                  : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-                      {/* Expanded Content */}
-                      {isExpanded && (
-                        <div className="border-t border-thb-border p-6 bg-slate-50/50 space-y-4">
-                          <div>
-                            <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Description</h4>
-                            <p className="text-sm text-thb-text-secondary whitespace-pre-wrap">{job.description}</p>
-                          </div>
-                          {job.requirements && (
-                            <div>
-                              <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Requirements</h4>
-                              <p className="text-sm text-thb-text-secondary whitespace-pre-wrap">{job.requirements}</p>
-                            </div>
-                          )}
-                          {(job.experience || job.salary) && (
-                            <div className="flex gap-4">
-                              {job.experience && <span className="text-sm text-thb-text-secondary">Experience: <strong>{job.experience}</strong></span>}
-                              {job.salary && <span className="text-sm text-thb-text-secondary">Salary: <strong>{job.salary}</strong></span>}
-                            </div>
-                          )}
-                          {/* Applications for this job */}
-                          {job.applications && job.applications.length > 0 && (
-                            <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-sm font-semibold text-thb-text-primary">Applications ({job.applications.length})</h4>
-                                {!isRecruiterOrAdmin && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
-                                    <FiShield className="w-2.5 h-2.5" /> PII masked
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* JOBS TAB                                                    */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'jobs' && (
+        <div className="space-y-4">
+          {/* Filter Bar */}
+          <div className="thb-card p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+              <div className="relative flex-1 min-w-0">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search jobs by title or position..."
+                  value={jobSearch}
+                  onChange={e => setJobSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={jobTypeFilter}
+                  onChange={e => setJobTypeFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[130px]"
+                >
+                  <option value="">All Types</option>
+                  <option value="full-time">Full-time</option>
+                  <option value="part-time">Part-time</option>
+                  <option value="contract">Contract</option>
+                  <option value="internship">Internship</option>
+                </select>
+                <select
+                  value={jobStatusFilter}
+                  onChange={e => setJobStatusFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[130px]"
+                >
+                  <option value="">All Status</option>
+                  <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="filled">Filled</option>
+                </select>
+                <select
+                  value={jobDeptFilter}
+                  onChange={e => setJobDeptFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[150px]"
+                >
+                  <option value="">All Departments</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                {(jobSearch || jobTypeFilter || jobStatusFilter || jobDeptFilter) && (
+                  <button
+                    onClick={() => { setJobSearch(''); setJobTypeFilter(''); setJobStatusFilter(''); setJobDeptFilter(''); }}
+                    className="px-3 py-2.5 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Jobs Table */}
+          <div className="thb-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-thb-border bg-slate-50/80">
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Job Title</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Job Type</th>
+                    <th className="text-center px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Vacancies</th>
+                    <th className="text-center px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applications</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Posted Date</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                    <th className="text-right px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i} className="border-b border-thb-border/50 animate-pulse">
+                        <td className="px-5 py-4"><div className="h-4 w-40 bg-slate-200 rounded" /></td>
+                        <td className="px-5 py-4"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                        <td className="px-5 py-4"><div className="h-4 w-8 bg-slate-200 rounded mx-auto" /></td>
+                        <td className="px-5 py-4"><div className="h-4 w-8 bg-slate-200 rounded mx-auto" /></td>
+                        <td className="px-5 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
+                        <td className="px-5 py-4"><div className="h-5 w-14 bg-slate-200 rounded-full" /></td>
+                        <td className="px-5 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
+                      </tr>
+                    ))
+                  ) : filteredJobs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-16 text-center">
+                        <FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                        <p className="text-thb-text-secondary font-medium">{jobPostings.length === 0 ? 'No job postings yet' : 'No jobs match your filters'}</p>
+                        <p className="text-sm text-thb-text-muted mt-1">{jobPostings.length === 0 ? 'Create your first job posting to start hiring' : 'Try adjusting your search or filter criteria'}</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredJobs.map(job => {
+                      const badge = getJobStatusBadge(job.status);
+                      const typeBadge = getJobTypeBadge(job.type);
+                      const isDeleting = deleteConfirmId === job.id;
+                      const isExpanded = expandedJob === job.id;
+                      return (
+                        <Fragment key={job.id}>
+                          {isDeleting ? (
+                            <tr className="bg-red-50/80">
+                              <td colSpan={7} className="px-5 py-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                      <FiTrash2 className="w-4 h-4 text-red-500" />
+                                    </div>
+                                    <span className="text-sm text-red-700 font-medium">Delete &quot;{job.title}&quot;? This action cannot be undone.</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button onClick={() => handleDeleteJob(job.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
+                                      {deleting ? 'Deleting...' : 'Confirm Delete'}
+                                    </button>
+                                    <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            <>
+                              <tr className={`border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors ${isExpanded ? 'bg-violet-50/30' : ''}`}>
+                                <td className="px-5 py-4">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-thb-text-primary">{job.title}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {job.department && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                          <FiUsers className="w-2.5 h-2.5" />{job.department.name}
+                                        </span>
+                                      )}
+                                      {job.location && (
+                                        <span className="text-[11px] text-thb-text-muted flex items-center gap-0.5">
+                                          <FiMapPin className="w-2.5 h-2.5" />{job.location}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${typeBadge.className}`}>
+                                    {typeBadge.label}
                                   </span>
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                {job.applications.map(rawApp => {
-                                  // Apply PII masking inline so the expanded per-job list also honors the tenant policy.
-                                  const app = maskCandidateFields(
-                                    rawApp as unknown as Record<string, unknown>,
-                                    user?.role,
-                                    piiPolicies,
-                                  ) as unknown as JobApplication & { __piiMaskedFields?: string[] };
-                                  const appBadge = getAppStatusBadge(app.status);
-                                  const isEditing = editingAppId === app.id;
-                                  const maskedFields = app.__piiMaskedFields || [];
-                                  return (
-                                    <div key={app.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${isEditing ? 'border-blue-300 bg-blue-50/50' : 'border-thb-border'}`}>
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                          <p className="text-sm font-medium text-thb-text-primary">{app.candidateName}</p>
-                                          {maskedFields.length > 0 && (
-                                            <span
-                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200"
-                                              title={buildPiiMaskTooltip(maskedFields)}
-                                            >
-                                              <FiShield className="w-2.5 h-2.5" /> PII masked
+                                </td>
+                                <td className="px-5 py-4 text-center">
+                                  <span className="text-sm font-semibold text-thb-text-primary">{job.vacancies}</span>
+                                </td>
+                                <td className="px-5 py-4 text-center">
+                                  <span className="text-sm font-semibold text-violet-600">{job._count?.applications || job.applications?.length || 0}</span>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <span className="text-sm text-thb-text-secondary">{formatDate(job.postedDate)}</span>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <span className={badge.className}>{badge.label}</span>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Link
+                                      href={`/recruitment/${job.id}`}
+                                      className="p-2 rounded-lg text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                                      title="View Detail"
+                                    >
+                                      <FiEye className="w-4 h-4" />
+                                    </Link>
+                                    <button onClick={() => handleOpenApplyForm(job.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-sky-600 hover:bg-sky-50 transition-colors" title="Apply">
+                                      <FiSend className="w-4 h-4" />
+                                    </button>
+                                    {isAdmin && (
+                                      <>
+                                        <button onClick={() => handleOpenEditJobForm(job)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit">
+                                          <FiEdit2 className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => setDeleteConfirmId(job.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                                          <FiTrash2 className="w-4 h-4" />
+                                        </button>
+                                      </>
+                                    )}
+                                    <button onClick={() => setExpandedJob(isExpanded ? null : job.id)} className={`p-2 rounded-lg transition-colors ${isExpanded ? 'text-violet-600 bg-violet-50' : 'text-thb-text-muted hover:bg-slate-100'}`}>
+                                      {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {/* Expanded Content */}
+                              {isExpanded && (
+                                <tr className="bg-slate-50/50">
+                                  <td colSpan={7} className="px-5 py-5">
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        <div>
+                                          <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Description</h4>
+                                          <p className="text-sm text-thb-text-secondary whitespace-pre-wrap">{job.description}</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                          {job.requirements && (
+                                            <div>
+                                              <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Requirements</h4>
+                                              <p className="text-sm text-thb-text-secondary whitespace-pre-wrap">{job.requirements}</p>
+                                            </div>
+                                          )}
+                                          {(job.experience || job.salary) && (
+                                            <div className="flex gap-4">
+                                              {job.experience && <span className="text-sm text-thb-text-secondary">Experience: <strong>{job.experience}</strong></span>}
+                                              {job.salary && <span className="text-sm text-thb-text-secondary">Salary: <strong>{job.salary}</strong></span>}
+                                            </div>
+                                          )}
+                                          {job.closingDate && (
+                                            <span className="text-sm text-thb-text-secondary flex items-center gap-1">
+                                              <FiCalendar className="w-3.5 h-3.5" />Closes {formatDate(job.closingDate)}
                                             </span>
                                           )}
                                         </div>
-                                        <p className="text-xs text-thb-text-muted">{app.candidateEmail} · Applied {formatDate(app.appliedDate)}</p>
                                       </div>
-                                      {isEditing ? (
-                                        <div className="flex items-center gap-2">
-                                          <select
-                                            value={editAppStatus}
-                                            onChange={e => setEditAppStatus(e.target.value)}
-                                            className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                                          >
-                                            <option value="applied">Applied</option>
-                                            <option value="screening">Screening</option>
-                                            <option value="interview">Interview</option>
-                                            <option value="offered">Offered</option>
-                                            <option value="hired">Hired</option>
-                                            <option value="rejected">Rejected</option>
-                                          </select>
-                                          <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition-colors">
-                                            Save
-                                          </button>
-                                          <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
-                                            Cancel
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center gap-2">
-                                          <span className={appBadge.className}>{appBadge.label}</span>
-                                          {isAdmin && (
-                                            <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit Status">
-                                              <FiEdit2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          )}
+                                      {/* Applications for this job */}
+                                      {job.applications && job.applications.length > 0 && (
+                                        <div>
+                                          <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-sm font-semibold text-thb-text-primary">Applications ({job.applications.length})</h4>
+                                            {!isRecruiterOrAdmin && (
+                                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200" title="PII is masked for your role per REQ-SEC-REC-03.">
+                                                <FiShield className="w-2.5 h-2.5" /> PII masked
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                                            {job.applications.map(rawApp => {
+                                              const app = maskCandidateFields(
+                                                rawApp as unknown as Record<string, unknown>,
+                                                user?.role,
+                                                piiPolicies,
+                                              ) as unknown as JobApplication & { __piiMaskedFields?: string[] };
+                                              const appBadge = getAppStatusBadge(app.status);
+                                              const isEditing = editingAppId === app.id;
+                                              const maskedFields = app.__piiMaskedFields || [];
+                                              return (
+                                                <div key={app.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${isEditing ? 'border-violet-300 bg-violet-50/50' : 'border-thb-border'}`}>
+                                                  <div className="min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                      <p className="text-sm font-medium text-thb-text-primary">{app.candidateName}</p>
+                                                      {maskedFields.length > 0 && (
+                                                        <span
+                                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200"
+                                                          title={buildPiiMaskTooltip(maskedFields)}
+                                                        >
+                                                          <FiShield className="w-2.5 h-2.5" /> PII masked
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <p className="text-xs text-thb-text-muted">{app.candidateEmail} · Applied {formatDate(app.appliedDate)}</p>
+                                                  </div>
+                                                  {isEditing ? (
+                                                    <div className="flex items-center gap-2">
+                                                      <select
+                                                        value={editAppStatus}
+                                                        onChange={e => setEditAppStatus(e.target.value)}
+                                                        className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                                      >
+                                                        <option value="applied">Applied</option>
+                                                        <option value="screening">Screening</option>
+                                                        <option value="interview">Interview</option>
+                                                        <option value="offered">Offered</option>
+                                                        <option value="hired">Hired</option>
+                                                        <option value="rejected">Rejected</option>
+                                                      </select>
+                                                      <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors">
+                                                        Save
+                                                      </button>
+                                                      <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
+                                                        Cancel
+                                                      </button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex items-center gap-2">
+                                                      <span className={appBadge.className}>{appBadge.label}</span>
+                                                      {isAdmin && (
+                                                        <button onClick={() => handleOpenAppEdit(app)} className="p-1 rounded text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit Status">
+                                                          <FiEdit2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
                                         </div>
                                       )}
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* Applications Tab */}
-      {activeTab === 'applications' && (
-        <div className="thb-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-thb-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Job Title</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Source</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Sentiment</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applied Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Rating</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="border-b border-thb-border/50 animate-pulse">
-                      <td className="px-4 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
-                      <td className="px-4 py-3"><div className="h-5 w-20 bg-slate-200 rounded-full" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
-                      <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded ml-auto" /></td>
-                    </tr>
-                  ))
-                ) : applications.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
-                      <FiUsers className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-                      <p className="text-thb-text-secondary font-medium">No applications yet</p>
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                    {maskedApplications.map(app => {
-                    const badge = getAppStatusBadge(app.status);
-                    const isEditing = editingAppId === app.id;
-                    const isAppExpanded = expandedAppId === app.id;
-                    const sentiment = sentimentByApp[app.id];
-                    const parseState = parseByApp[app.id];
-                    const sentimentBadge = getSentimentBadge(sentiment);
-                    const maskedFields = app.__piiMaskedFields || [];
-                    const piiTooltip = buildPiiMaskTooltip(maskedFields);
-                    return (
-                      <Fragment key={app.id}>
-                      <tr className={`border-b border-thb-border/50 transition-colors ${isEditing ? 'bg-blue-50/50' : 'hover:bg-slate-50/50'}`}>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-thb-text-primary">{app.candidateName}</p>
-                              <p className="text-xs text-thb-text-muted">{app.candidateEmail}</p>
-                            </div>
-                            {maskedFields.length > 0 && (
-                              <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold ring-1 ring-emerald-200 flex-shrink-0"
-                                title={piiTooltip}
-                              >
-                                <FiShield className="w-2.5 h-2.5" /> PII masked
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{app.jobPosting?.title || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-thb-text-secondary capitalize">{app.source}</td>
-                        <td className="px-4 py-3">
-                          {isEditing ? (
-                            <select
-                              value={editAppStatus}
-                              onChange={e => setEditAppStatus(e.target.value)}
-                              className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                            >
-                              <option value="applied">Applied</option>
-                              <option value="screening">Screening</option>
-                              <option value="interview">Interview</option>
-                              <option value="offered">Offered</option>
-                              <option value="hired">Hired</option>
-                              <option value="rejected">Rejected</option>
-                            </select>
-                          ) : (
-                            <span className={badge.className}>{badge.label}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={sentimentBadge.className} title={sentimentBadge.title}>{sentimentBadge.label}</span>
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleRunSentiment(app.id)}
-                              disabled={runningSentimentAppId === app.id}
-                              className="ml-2 p-1 rounded text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-50"
-                              title="Run sentiment analysis"
-                            >
-                              {runningSentimentAppId === app.id ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiActivity className="w-3 h-3" />}
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(app.appliedDate)}</td>
-                        <td className="px-4 py-3">
-                          {app.rating ? (
-                            <span className="flex items-center gap-1 text-amber-500"><FiStar className="w-3.5 h-3.5 fill-amber-500" /><span className="text-sm font-medium">{app.rating}</span></span>
-                          ) : '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {isEditing ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition-colors">
-                                Save
-                              </button>
-                              <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1">
-                              {isAdmin && (
-                                <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit Status">
-                                  <FiEdit2 className="w-4 h-4" />
-                                </button>
+                                  </td>
+                                </tr>
                               )}
-                              <button onClick={() => handleToggleAppExpand(app.id)} className={`p-2 rounded-lg border transition-colors ${isAppExpanded ? 'bg-violet-50 text-violet-600 border-violet-200' : 'text-thb-text-secondary border-thb-border hover:bg-slate-50'}`} title="View parsed resume">
-                                {isAppExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
-                              </button>
-                            </div>
+                            </>
                           )}
-                        </td>
-                      </tr>
-                      {isAppExpanded && (
-                        <tr className="bg-slate-50/40">
-                          <td colSpan={8} className="px-6 py-5">
-                            <ParsedResumePanel
-                              appId={app.id}
-                              state={parseState}
-                              parsing={parsingAppId === app.id}
-                              onUpload={handleUploadResume}
-                              onReparse={handleReparse}
-                            />
-                          </td>
-                        </tr>
-                      )}
-                      </Fragment>
-                    );
-                    })}
-                  </>
-                )}
-              </tbody>
-            </table>
+                        </Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ─── Candidate Search Tab (Job Search Matrix) ─── */}
-      {/* Recruiter filters candidates across ALL applications by skill,
-          experience, salary range, status, or free-text query — to build
-          a shortlist for a specific open requirement. */}
-      {activeTab === 'search' && (
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* CANDIDATES TAB                                              */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'candidates' && (
+        <div className="space-y-4">
+          {/* Candidate Filter Bar */}
+          <div className="thb-card p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1 min-w-0">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search candidates by name, email, or role..."
+                  value={candidateSearch}
+                  onChange={e => setCandidateSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={candidateStatusFilter}
+                  onChange={e => setCandidateStatusFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[140px]"
+                >
+                  <option value="">All Status</option>
+                  <option value="applied">Applied</option>
+                  <option value="screening">Screening</option>
+                  <option value="interview">Interview</option>
+                  <option value="offered">Offered</option>
+                  <option value="hired">Hired</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                {candidateStatusFilter && (
+                  <button
+                    onClick={() => { setCandidateSearch(''); setCandidateStatusFilter(''); }}
+                    className="px-3 py-2.5 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Candidates Table */}
+          <div className="thb-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-thb-border bg-slate-50/80">
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Cand ID</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applied Role</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Applied Date</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Sentiment</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                    <th className="text-right px-5 py-3.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-thb-border/50 animate-pulse">
+                        <td className="px-5 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
+                        <td className="px-5 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td>
+                        <td className="px-5 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td>
+                        <td className="px-5 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
+                        <td className="px-5 py-3"><div className="h-5 w-20 bg-slate-200 rounded-full" /></td>
+                        <td className="px-5 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
+                        <td className="px-5 py-3"><div className="h-3 w-12 bg-slate-200 rounded ml-auto" /></td>
+                      </tr>
+                    ))
+                  ) : filteredCandidates.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-16 text-center">
+                        <FiUsers className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                        <p className="text-thb-text-secondary font-medium">No candidates found</p>
+                        <p className="text-sm text-thb-text-muted mt-1">{applications.length === 0 ? 'Applications will appear here once candidates apply' : 'Try adjusting your search or filter'}</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredCandidates.map(app => {
+                      const badge = getAppStatusBadge(app.status);
+                      const isEditing = editingAppId === app.id;
+                      const isAppExpanded = expandedAppId === app.id;
+                      const sentiment = sentimentByApp[app.id];
+                      const parseState = parseByApp[app.id];
+                      const sentimentBadge = getSentimentBadge(sentiment);
+                      const maskedFields = app.__piiMaskedFields || [];
+                      const piiTooltip = buildPiiMaskTooltip(maskedFields);
+                      const initials = getInitials(app.candidateName);
+                      const avatarColor = getAvatarColor(app.candidateName);
+                      const candId = `CAN-${app.id.slice(0, 6).toUpperCase()}`;
+                      return (
+                        <Fragment key={app.id}>
+                          <tr className={`border-b border-thb-border/50 transition-colors ${isEditing ? 'bg-violet-50/50' : 'hover:bg-slate-50/50'}`}>
+                            <td className="px-5 py-3">
+                              <span className="text-xs font-mono text-thb-text-muted">{candId}</span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor}`}>
+                                  {initials}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-medium text-thb-text-primary truncate">{app.candidateName}</p>
+                                    {maskedFields.length > 0 && (
+                                      <span
+                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-semibold ring-1 ring-emerald-200 flex-shrink-0"
+                                        title={piiTooltip}
+                                      >
+                                        <FiShield className="w-2 h-2" />
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-thb-text-muted truncate">{app.candidateEmail}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 text-sm text-thb-text-secondary truncate max-w-[200px]">{app.jobPosting?.title || '—'}</td>
+                            <td className="px-5 py-3 text-sm text-thb-text-secondary">{formatDate(app.appliedDate)}</td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-1">
+                                <span className={sentimentBadge.className} title={sentimentBadge.title}>{sentimentBadge.label}</span>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => handleRunSentiment(app.id)}
+                                    disabled={runningSentimentAppId === app.id}
+                                    className="p-1 rounded text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-50"
+                                    title="Run sentiment analysis"
+                                  >
+                                    {runningSentimentAppId === app.id ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiActivity className="w-3 h-3" />}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3">
+                              {isEditing ? (
+                                <select
+                                  value={editAppStatus}
+                                  onChange={e => setEditAppStatus(e.target.value)}
+                                  className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                >
+                                  <option value="applied">Applied</option>
+                                  <option value="screening">Screening</option>
+                                  <option value="interview">Interview</option>
+                                  <option value="offered">Offered</option>
+                                  <option value="hired">Hired</option>
+                                  <option value="rejected">Rejected</option>
+                                </select>
+                              ) : (
+                                <span className={badge.className}>{badge.label}</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3">
+                              {isEditing ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors">
+                                    Save
+                                  </button>
+                                  <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  {isAdmin && (
+                                    <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Status">
+                                      <FiEdit2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <button onClick={() => handleToggleAppExpand(app.id)} className={`p-2 rounded-lg border transition-colors ${isAppExpanded ? 'bg-violet-50 text-violet-600 border-violet-200' : 'text-thb-text-secondary border-thb-border hover:bg-slate-50'}`} title="View parsed resume">
+                                    {isAppExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                          {isAppExpanded && (
+                            <tr className="bg-slate-50/40">
+                              <td colSpan={7} className="px-6 py-5">
+                                <ParsedResumePanel
+                                  appId={app.id}
+                                  state={parseState}
+                                  parsing={parsingAppId === app.id}
+                                  onUpload={handleUploadResume}
+                                  onReparse={handleReparse}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* ANALYTICS TAB (Candidate Search / Job Search Matrix)        */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'analytics' && (
         <div className="space-y-4">
           {/* Filter panel */}
           <div className="thb-card p-5">
@@ -1444,7 +1711,7 @@ export default function RecruitmentPage() {
                 </div>
               </div>
 
-              {/* Unique skills cloud (clickable to add to filter) */}
+              {/* Unique skills cloud */}
               {searchResults.summary.uniqueSkills.length > 0 && (
                 <div className="thb-card p-3">
                   <p className="text-[11px] font-semibold text-thb-text-secondary uppercase tracking-wider mb-2">Skills found in matching candidates (click to filter)</p>
@@ -1476,66 +1743,73 @@ export default function RecruitmentPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {searchResults.candidates.map((c: any, idx: number) => {
+                  {searchResults.candidates.map((c: Record<string, unknown>, idx: number) => {
+                    const cAny = c as Record<string, unknown>;
                     const masked = !isRecruiterOrAdmin ? maskCandidateFields({
-                      candidateName: c.candidateName,
-                      candidateEmail: c.candidateEmail,
-                      candidatePhone: c.candidatePhone,
+                      candidateName: cAny.candidateName as string,
+                      candidateEmail: cAny.candidateEmail as string,
+                      candidatePhone: cAny.candidatePhone as string | null,
                     }, user?.role, piiPolicies) : null;
-                    const displayName = masked?.candidateName ?? c.candidateName;
-                    const displayEmail = masked?.candidateEmail ?? c.candidateEmail;
-                    const displayPhone = masked?.candidatePhone ?? c.candidatePhone;
+                    const displayName = (masked?.candidateName ?? cAny.candidateName) as string;
+                    const displayEmail = (masked?.candidateEmail ?? cAny.candidateEmail) as string;
+                    const displayPhone = (masked?.candidatePhone ?? cAny.candidatePhone) as string | null;
+                    const cSkills = (cAny.skills || []) as string[];
+                    const cApplications = (cAny.applications || []) as Record<string, unknown>[];
+                    const totalExpYears = cAny.totalExperienceYears as number;
+                    const expSalaryLpa = cAny.expectedSalaryLpa as number | null;
+                    const latestStatus = cAny.latestStatus as string;
+                    const matchScore = cAny.matchScore as number | null;
                     return (
-                      <div key={c.candidateEmail} className="thb-card p-4 hover:shadow-md transition-shadow">
+                      <div key={displayEmail} className="thb-card p-4 hover:shadow-md transition-shadow">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[10px] font-mono text-thb-text-muted">#{idx + 1}</span>
                               <h4 className="text-sm font-semibold text-thb-text-primary">{displayName}</h4>
-                              <span className={`text-[10px] px-2 py-0.5 rounded border ${getAppStatusBadge(c.latestStatus).className}`}>
-                                {c.latestStatus}
+                              <span className={`text-[10px] px-2 py-0.5 rounded border ${getAppStatusBadge(latestStatus).className}`}>
+                                {latestStatus}
                               </span>
-                              {c.matchScore !== null && (
+                              {matchScore !== null && (
                                 <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
-                                  c.matchScore >= 75 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                  c.matchScore >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                  matchScore >= 75 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                  matchScore >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                                   'bg-rose-50 text-rose-700 border border-rose-200'
                                 }`}>
-                                  ★ Match: {Math.round(c.matchScore)}%
+                                  ★ Match: {Math.round(matchScore)}%
                                 </span>
                               )}
                             </div>
                             <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-thb-text-secondary">
                               <span className="flex items-center gap-1"><FiMail className="w-3 h-3" />{displayEmail}</span>
                               {displayPhone && <span className="flex items-center gap-1"><FiPhone className="w-3 h-3" />{displayPhone}</span>}
-                              <span className="flex items-center gap-1"><FiBriefcase className="w-3 h-3" />{c.totalExperienceYears > 0 ? `${c.totalExperienceYears.toFixed(1)} yrs exp` : 'Exp unknown'}</span>
-                              {c.expectedSalaryLpa !== null && (
-                                <span className="flex items-center gap-1"><FiStar className="w-3 h-3" />₹{c.expectedSalaryLpa} LPA</span>
+                              <span className="flex items-center gap-1"><FiBriefcase className="w-3 h-3" />{totalExpYears > 0 ? `${totalExpYears.toFixed(1)} yrs exp` : 'Exp unknown'}</span>
+                              {expSalaryLpa !== null && (
+                                <span className="flex items-center gap-1"><FiStar className="w-3 h-3" />₹{expSalaryLpa} LPA</span>
                               )}
                             </div>
-                            {c.skills.length > 0 && (
+                            {cSkills.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-2">
-                                {c.skills.slice(0, 15).map((s: string, i: number) => (
+                                {cSkills.slice(0, 15).map((s: string, i: number) => (
                                   <span key={`${s}-${i}`} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                                     {s}
                                   </span>
                                 ))}
-                                {c.skills.length > 15 && (
-                                  <span className="text-[10px] px-1.5 py-0.5 text-slate-500">+{c.skills.length - 15} more</span>
+                                {cSkills.length > 15 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 text-slate-500">+{cSkills.length - 15} more</span>
                                 )}
                               </div>
                             )}
-                            {c.applications.length > 0 && (
+                            {cApplications.length > 0 && (
                               <div className="mt-2 text-[11px] text-thb-text-muted">
                                 <span className="font-medium">Applied to:</span>{' '}
-                                {c.applications.slice(0, 3).map((a: any, i: number) => (
-                                  <span key={a.id}>
+                                {cApplications.slice(0, 3).map((a: Record<string, unknown>, i: number) => (
+                                  <span key={a.id as string}>
                                     {i > 0 && ' · '}
-                                    <span className="text-thb-text-secondary">{a.jobTitle}</span>
-                                    {a.company && <span className="text-thb-text-muted"> ({a.company})</span>}
+                                    <span className="text-thb-text-secondary">{a.jobTitle as string}</span>
+                                    {a.company && <span className="text-thb-text-muted"> ({a.company as string})</span>}
                                   </span>
                                 ))}
-                                {c.applications.length > 3 && <span className="text-thb-text-muted"> +{c.applications.length - 3} more</span>}
+                                {cApplications.length > 3 && <span className="text-thb-text-muted"> +{cApplications.length - 3} more</span>}
                               </div>
                             )}
                           </div>
@@ -1587,12 +1861,11 @@ function ParsedResumePanel({
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${parse.confidence >= 0.8 ? 'bg-emerald-100 text-emerald-700' : parse.confidence >= 0.5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                 {Math.round(parse.confidence * 100)}% conf
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 uppercase">{parse.sourceFormat}</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 uppercase">{parse.sourceFormat}</span>
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* hidden file input */}
           <input
             id={`resume-upload-${appId}`}
             type="file"
@@ -1606,7 +1879,7 @@ function ParsedResumePanel({
           />
           <label
             htmlFor={`resume-upload-${appId}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 cursor-pointer transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 cursor-pointer transition-colors"
           >
             <FiUpload className="w-3.5 h-3.5" />
             Upload &amp; Parse
@@ -1677,7 +1950,7 @@ function ParsedResumePanel({
               <p className="text-xs font-semibold text-thb-text-muted uppercase mb-2">Skills ({parsed.skills.length})</p>
               <div className="flex flex-wrap gap-1.5">
                 {parsed.skills.map((s, i) => (
-                  <span key={`${s}-${i}`} className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">{s}</span>
+                  <span key={`${s}-${i}`} className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-xs font-medium border border-sky-100">{s}</span>
                 ))}
               </div>
             </div>
@@ -1749,7 +2022,6 @@ function ParsedResumePanel({
               <FiFileText className="w-3 h-3" /> Show raw extracted text
             </summary>
             <pre className="mt-2 p-3 rounded-lg bg-slate-50 border border-thb-border text-xs text-thb-text-secondary whitespace-pre-wrap max-h-48 overflow-y-auto">
-              {/* rawText is not returned by the API to keep payloads small; show a hint instead */}
               Raw resume text is stored on the server (ResumeParse.rawText). Open this record via /api/ats/parse-resume/{`{id}`} to view it.
             </pre>
           </details>

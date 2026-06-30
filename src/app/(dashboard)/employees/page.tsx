@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiUsers,
@@ -13,11 +13,17 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiFilter,
-  FiHeart,
   FiShield,
   FiActivity,
   FiGrid,
   FiList,
+  FiMoreVertical,
+  FiMail,
+  FiPhone,
+  FiCalendar,
+  FiUserCheck,
+  FiUserX,
+  FiUserPlus,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -116,9 +122,35 @@ function getStatusBadge(status: string) {
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
+function getStatusDotColor(status: string) {
+  const map: Record<string, string> = {
+    active: 'bg-emerald-500',
+    on_leave: 'bg-amber-500',
+    terminated: 'bg-red-500',
+    resigned: 'bg-slate-400',
+  };
+  return map[status] || 'bg-blue-500';
+}
+
 function formatDate(d: string | null | undefined) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function getAvatarColor(name: string) {
+  const colors = [
+    'from-blue-500 to-cyan-500',
+    'from-violet-500 to-purple-500',
+    'from-emerald-500 to-teal-500',
+    'from-orange-500 to-amber-500',
+    'from-pink-500 to-rose-500',
+    'from-indigo-500 to-blue-500',
+    'from-teal-500 to-green-500',
+    'from-red-500 to-pink-500',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 /* ── Initial Form State ── */
@@ -221,19 +253,17 @@ export default function EmployeesPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
-  // Company scope — read from the header CompanySwitcher via context store.
-  // effectiveCompanyId() returns the selected company for admins (or null for
-  // "all companies"), and the user's own company for non-admins. We pass it as
-  // a query param to /api/employees so the list respects the dropdown selection.
   const { effectiveCompanyId, selectedTenantId } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
+  const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -246,7 +276,6 @@ export default function EmployeesPage() {
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
 
-  // Policy dropdowns
   const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
   const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
   const [travelPolicies, setTravelPolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
@@ -255,8 +284,12 @@ export default function EmployeesPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // View mode: list or grid
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  // Row selection for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
 
   // Horizontal form tab state
   const [formTab, setFormTab] = useState('personal');
@@ -273,6 +306,31 @@ export default function EmployeesPage() {
     { key: 'policies', label: 'Policies', icon: '🛡️' },
   ] as const;
 
+  // Stats calculations
+  const stats = {
+    total: allEmployees.length,
+    active: allEmployees.filter(e => e.status === 'active').length,
+    inactive: allEmployees.filter(e => e.status !== 'active').length,
+    newJoiners: allEmployees.filter(e => {
+      if (!e.dateOfJoining) return false;
+      const joinDate = new Date(e.dateOfJoining);
+      const now = new Date();
+      const monthDiff = (now.getFullYear() - joinDate.getFullYear()) * 12 + now.getMonth() - joinDate.getMonth();
+      return monthDiff <= 1;
+    }).length,
+  };
+
+  /* Close action menu on outside click */
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setActionMenuOpen(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   /* Fetch employees */
   const fetchEmployees = useCallback(async (page = 1) => {
     try {
@@ -281,7 +339,6 @@ export default function EmployeesPage() {
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
       if (filterStatus) params.set('status', filterStatus);
-      // Scope by header dropdown selection (super_admin/tenant_admin)
       if (scopeCompanyId) params.set('companyId', scopeCompanyId);
       else if (scopeTenantId) params.set('tenantId', scopeTenantId);
 
@@ -292,14 +349,28 @@ export default function EmployeesPage() {
       setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
     } catch (err) {
       console.error('Failed to load employees from API, using empty state:', err);
-      // Don't show error toast - the API has its own demo fallback
-      // Only show error if we truly have no data
       setEmployees([]);
       setPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
     } finally {
       setLoading(false);
     }
   }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId]);
+
+  /* Fetch all employees for stats */
+  const fetchAllEmployees = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ limit: '500' });
+      if (scopeCompanyId) params.set('companyId', scopeCompanyId);
+      else if (scopeTenantId) params.set('tenantId', scopeTenantId);
+      const res = await fetch(`/api/employees?${params}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setAllEmployees(data.employees || []);
+      }
+    } catch {
+      // silent
+    }
+  }, [scopeCompanyId, scopeTenantId]);
 
   /* Fetch dropdown data */
   const fetchDropdowns = useCallback(async () => {
@@ -320,7 +391,6 @@ export default function EmployeesPage() {
         setDesignations(Array.from(desigMap.values()));
         setBranches(Array.from(branchMap.values()));
       }
-      // Fetch policy dropdowns in parallel
       const [lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
         fetch('/api/policies?category=leave', { headers }),
         fetch('/api/policies?category=attendance', { headers }),
@@ -344,6 +414,10 @@ export default function EmployeesPage() {
     queueMicrotask(() => fetchDropdowns());
   }, [fetchDropdowns]);
 
+  useEffect(() => {
+    queueMicrotask(() => fetchAllEmployees());
+  }, [fetchAllEmployees]);
+
   /* Form handlers */
   const handleOpenAddForm = () => {
     setEditingId(null);
@@ -354,6 +428,7 @@ export default function EmployeesPage() {
     setShowForm(true);
     setFormTab('personal');
     setDeleteConfirmId(null);
+    setActionMenuOpen(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -387,7 +462,6 @@ export default function EmployeesPage() {
       salaryCurrency: emp.salaryCurrency || 'INR',
       emergencyContactName: emp.emergencyContactName || '',
       emergencyContactPhone: emp.emergencyContactPhone || '',
-      // Health History
       bloodGroup: emp.bloodGroup || '',
       hasChronicIllness: (emp as Record<string, unknown>).hasChronicIllness as string || '',
       chronicIllnessDetails: (emp as Record<string, unknown>).chronicIllnessDetails as string || '',
@@ -404,7 +478,6 @@ export default function EmployeesPage() {
       primaryPhysicianPhone: (emp as Record<string, unknown>).primaryPhysicianPhone as string || '',
       healthInsuranceProvider: (emp as Record<string, unknown>).healthInsuranceProvider as string || '',
       healthInsurancePolicyNo: (emp as Record<string, unknown>).healthInsurancePolicyNo as string || '',
-      // Policy Mappings
       leavePolicyId: emp.leavePolicyId || '',
       attendancePolicyId: emp.attendancePolicyId || '',
       travelPolicyId: emp.travelPolicyId || '',
@@ -413,6 +486,7 @@ export default function EmployeesPage() {
     setShowForm(true);
     setFormTab('personal');
     setDeleteConfirmId(null);
+    setActionMenuOpen(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -456,6 +530,7 @@ export default function EmployeesPage() {
       handleCancelForm();
       fetchEmployees(pagination.page);
       fetchDropdowns();
+      fetchAllEmployees();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Operation failed');
     } finally {
@@ -473,7 +548,9 @@ export default function EmployeesPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Delete failed'); }
       toast.success('Employee terminated successfully');
       setDeleteConfirmId(null);
+      setActionMenuOpen(null);
       fetchEmployees(pagination.page);
+      fetchAllEmployees();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
@@ -483,27 +560,107 @@ export default function EmployeesPage() {
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
+  /* Bulk selection */
+  const toggleSelectAll = () => {
+    if (selectedIds.size === employees.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(employees.map(e => e.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+
   /* ── Render ── */
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiUsers className="w-6 h-6 text-blue-500" />
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+              <FiUsers className="w-5 h-5 text-white" />
+            </div>
             Employees
           </h1>
-          <p className="text-thb-text-secondary mt-1">Manage your organization&apos;s workforce</p>
+          <p className="text-thb-text-secondary mt-1 ml-[46px]">Manage your organization&apos;s workforce</p>
         </div>
         {isAdmin && (
-          <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium text-sm shadow-sm shadow-emerald-600/25 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/20">
             <FiPlus className="w-4 h-4" />
             Add Employee
           </button>
         )}
       </div>
 
-      {/* Module Intro — minimized by default with hover preview (saves vertical space) */}
+      {/* ── Stats Row ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Employees */}
+        <div className="thb-card p-5 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/10 to-transparent rounded-bl-[3rem] group-hover:from-blue-500/15 transition-colors" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Total Employees</p>
+              <p className="text-3xl font-bold text-thb-text-primary mt-2">{stats.total}</p>
+              <p className="text-xs text-thb-text-muted mt-1">Across all departments</p>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <FiUsers className="w-5 h-5 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Active */}
+        <div className="thb-card p-5 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-bl-[3rem] group-hover:from-emerald-500/15 transition-colors" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Active</p>
+              <p className="text-3xl font-bold text-emerald-600 mt-2">{stats.active}</p>
+              <p className="text-xs text-thb-text-muted mt-1">Currently working</p>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+              <FiUserCheck className="w-5 h-5 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Inactive */}
+        <div className="thb-card p-5 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-red-500/10 to-transparent rounded-bl-[3rem] group-hover:from-red-500/15 transition-colors" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Inactive</p>
+              <p className="text-3xl font-bold text-red-500 mt-2">{stats.inactive}</p>
+              <p className="text-xs text-thb-text-muted mt-1">On leave / exited</p>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <FiUserX className="w-5 h-5 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* New Joiners */}
+        <div className="thb-card p-5 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-violet-500/10 to-transparent rounded-bl-[3rem] group-hover:from-violet-500/15 transition-colors" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">New Joiners</p>
+              <p className="text-3xl font-bold text-violet-600 mt-2">{stats.newJoiners}</p>
+              <p className="text-xs text-thb-text-muted mt-1">Joined this month</p>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center">
+              <FiUserPlus className="w-5 h-5 text-violet-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Module Intro */}
       <ModuleIntro
         title="Employee Management"
         subtitle="Centralized directory, lifecycle, documents, and AI insights"
@@ -551,7 +708,7 @@ export default function EmployeesPage() {
         userRole={user?.role}
       />
 
-      {/* Embedded Add/Edit Employee Form */}
+      {/* ── Add/Edit Employee Form ── */}
       {showForm && (
         <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 transition-all duration-300 ease-in-out">
           <div className="p-6">
@@ -566,7 +723,7 @@ export default function EmployeesPage() {
 
             {/* Horizontal Section Tabs */}
             <div className="flex items-center gap-1 border-b border-thb-border mb-6 overflow-x-auto pb-px -mx-1 px-1">
-              {formTabs.map((tab, idx) => (
+              {formTabs.map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
@@ -765,8 +922,8 @@ export default function EmployeesPage() {
                     <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('salary')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
-                      Next: Salary <FiChevronRight className="w-4 h-4" />
+                    <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                      Next: Statutory <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -883,13 +1040,13 @@ export default function EmployeesPage() {
               {/* Emergency Contact */}
               {formTab === 'emergency' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Contact Name</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Name</label>
                       <input type="text" value={form.emergencyContactName} onChange={e => updateForm('emergencyContactName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Contact Phone</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Phone</label>
                       <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
                   </div>
@@ -920,7 +1077,7 @@ export default function EmployeesPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Chronic Illness</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Chronic Illness?</label>
                       <select value={form.hasChronicIllness} onChange={e => updateForm('hasChronicIllness', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
@@ -930,11 +1087,11 @@ export default function EmployeesPage() {
                     {form.hasChronicIllness === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Chronic Illness Details</label>
-                        <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="e.g., Diabetes, Hypertension" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="Describe the condition" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     )}
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Known Allergies</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Allergies?</label>
                       <select value={form.hasAllergies} onChange={e => updateForm('hasAllergies', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
@@ -944,11 +1101,11 @@ export default function EmployeesPage() {
                     {form.hasAllergies === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Allergy Details</label>
-                        <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="e.g., Penicillin, Peanuts, Dust" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="List allergies" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     )}
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Disability</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Disability?</label>
                       <select value={form.hasDisability} onChange={e => updateForm('hasDisability', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
@@ -958,11 +1115,11 @@ export default function EmployeesPage() {
                     {form.hasDisability === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Disability Details</label>
-                        <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability & accommodations needed" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     )}
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currently on Medication</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">On Medication?</label>
                       <select value={form.isOnMedication} onChange={e => updateForm('isOnMedication', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
@@ -972,11 +1129,11 @@ export default function EmployeesPage() {
                     {form.isOnMedication === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Medication Details</label>
-                        <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications & dosage" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     )}
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Surgeries</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Had Surgery?</label>
                       <select value={form.hasHadSurgery} onChange={e => updateForm('hasHadSurgery', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
@@ -986,25 +1143,23 @@ export default function EmployeesPage() {
                     {form.hasHadSurgery === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Surgery Details</label>
-                        <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Type & year of surgery" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Surgery details" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     )}
-                    <div className="sm:col-span-2 lg:col-span-3">
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Medical Condition</label>
-                      <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} placeholder="Any critical condition to alert medical responders (e.g., Epilepsy, Asthma)" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                    </div>
                   </div>
-
-                  {/* Physician & Insurance */}
-                  <div className="mt-4 pt-4 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Physician & Insurance</h4>
+                  <div className="pt-3 border-t border-thb-border/50">
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Emergency Medical & Insurance</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Medical Condition</label>
+                        <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Primary Physician Name</label>
                         <input type="text" value={form.primaryPhysicianName} onChange={e => updateForm('primaryPhysicianName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Physician Phone</label>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Primary Physician Phone</label>
                         <input type="tel" value={form.primaryPhysicianPhone} onChange={e => updateForm('primaryPhysicianPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
@@ -1012,7 +1167,7 @@ export default function EmployeesPage() {
                         <input type="text" value={form.healthInsuranceProvider} onChange={e => updateForm('healthInsuranceProvider', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Insurance Policy Number</label>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Health Insurance Policy No</label>
                         <input type="text" value={form.healthInsurancePolicyNo} onChange={e => updateForm('healthInsurancePolicyNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     </div>
@@ -1031,137 +1186,98 @@ export default function EmployeesPage() {
               {/* Overseas Details */}
               {formTab === 'overseas' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-thb-text-muted">Capture foreign citizenship, travel, visa and international driving license information. All fields are optional.</p>
-                  {/* Foreign Citizenship */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Foreign Citizenship</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Holds Foreign Citizenship?</label>
-                        <select value={form.hasForeignCitizenship} onChange={e => updateForm('hasForeignCitizenship', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                          <option value="">Select</option>
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                      </div>
-                      {form.hasForeignCitizenship === 'yes' && (
-                        <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Citizenship Country</label>
-                          <input type="text" value={form.foreignCitizenshipCountry} onChange={e => updateForm('foreignCitizenshipCountry', e.target.value)} placeholder="e.g., United States" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                        </div>
-                      )}
-                      {form.hasForeignCitizenship === 'yes' && (
-                        <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Passport Number</label>
-                          <input type="text" value={form.foreignPassportNumber} onChange={e => updateForm('foreignPassportNumber', e.target.value)} placeholder="Passport number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                        </div>
-                      )}
-                      {form.hasForeignCitizenship === 'yes' && (
-                        <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Passport Expiry Date</label>
-                          <input type="date" value={form.foreignPassportExpiry} onChange={e => updateForm('foreignPassportExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                        </div>
-                      )}
+                  <p className="text-xs text-thb-text-muted">Applicable for employees with foreign citizenship, travel history, or international work assignments.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Citizenship?</label>
+                      <select value={form.hasForeignCitizenship} onChange={e => updateForm('hasForeignCitizenship', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
                     </div>
-                  </div>
-                  {/* Foreign Sojourns */}
-                  <div className="pt-3 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Foreign Sojourns</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {form.hasForeignCitizenship === 'yes' && (
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Foreign Sojourn History?</label>
-                        <select value={form.hasForeignSojourn} onChange={e => updateForm('hasForeignSojourn', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                          <option value="">Select</option>
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Citizenship Country</label>
+                        <input type="text" value={form.foreignCitizenshipCountry} onChange={e => updateForm('foreignCitizenshipCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
-                      {form.hasForeignSojourn === 'yes' && (
-                        <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country of Sojourn</label>
-                          <input type="text" value={form.foreignSojournCountry} onChange={e => updateForm('foreignSojournCountry', e.target.value)} placeholder="e.g., Germany" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                        </div>
-                      )}
-                      {form.hasForeignSojourn === 'yes' && (
-                        <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purpose of Sojourn</label>
-                          <input type="text" value={form.foreignSojournPurpose} onChange={e => updateForm('foreignSojournPurpose', e.target.value)} placeholder="e.g., Employment, Education" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                        </div>
-                      )}
-                      {form.hasForeignSojourn === 'yes' && (
-                        <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                          <input type="text" value={form.foreignSojournDuration} onChange={e => updateForm('foreignSojournDuration', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                        </div>
-                      )}
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Passport Number</label>
+                      <input type="text" value={form.foreignPassportNumber} onChange={e => updateForm('foreignPassportNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
-                  </div>
-                  {/* Visa Details */}
-                  <div className="pt-3 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Visa Details</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Available?</label>
-                        <select value={form.hasVisa} onChange={e => updateForm('hasVisa', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                          <option value="">Select</option>
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                      </div>
-                      {form.hasVisa === 'yes' && (
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Passport Expiry</label>
+                      <input type="date" value={form.foreignPassportExpiry} onChange={e => updateForm('foreignPassportExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Sojourn?</label>
+                      <select value={form.hasForeignSojourn} onChange={e => updateForm('hasForeignSojourn', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.hasForeignSojourn === 'yes' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Sojourn Country</label>
+                          <input type="text" value={form.foreignSojournCountry} onChange={e => updateForm('foreignSojournCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Sojourn Purpose</label>
+                          <input type="text" value={form.foreignSojournPurpose} onChange={e => updateForm('foreignSojournPurpose', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Sojourn Duration</label>
+                          <input type="text" value={form.foreignSojournDuration} onChange={e => updateForm('foreignSojournDuration', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Visa?</label>
+                      <select value={form.hasVisa} onChange={e => updateForm('hasVisa', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {form.hasVisa === 'yes' && (
+                      <>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Type</label>
-                          <select value={form.visaType} onChange={e => updateForm('visaType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                            <option value="">Select</option>
-                            <option value="tourist">Tourist</option>
-                            <option value="business">Business</option>
-                            <option value="work">Work / Employment</option>
-                            <option value="student">Student</option>
-                            <option value="transit">Transit</option>
-                            <option value="diplomatic">Diplomatic</option>
-                            <option value="other">Other</option>
-                          </select>
+                          <input type="text" value={form.visaType} onChange={e => updateForm('visaType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                         </div>
-                      )}
-                      {form.hasVisa === 'yes' && (
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Country</label>
-                          <input type="text" value={form.visaCountry} onChange={e => updateForm('visaCountry', e.target.value)} placeholder="e.g., United States" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.visaCountry} onChange={e => updateForm('visaCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                         </div>
-                      )}
-                      {form.hasVisa === 'yes' && (
                         <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Expiry Date</label>
+                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Expiry</label>
                           <input type="date" value={form.visaExpiry} onChange={e => updateForm('visaExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                         </div>
-                      )}
+                      </>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Intl Driving License?</label>
+                      <select value={form.hasIntlDrivingLicense} onChange={e => updateForm('hasIntlDrivingLicense', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
                     </div>
-                  </div>
-                  {/* International Driving License */}
-                  <div className="pt-3 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">International Driving License</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has International Driving License?</label>
-                        <select value={form.hasIntlDrivingLicense} onChange={e => updateForm('hasIntlDrivingLicense', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                          <option value="">Select</option>
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                      </div>
-                      {form.hasIntlDrivingLicense === 'yes' && (
+                    {form.hasIntlDrivingLicense === 'yes' && (
+                      <>
                         <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Issuing Country</label>
-                          <input type="text" value={form.intlDrivingLicenseCountry} onChange={e => updateForm('intlDrivingLicenseCountry', e.target.value)} placeholder="e.g., India" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">License Country</label>
+                          <input type="text" value={form.intlDrivingLicenseCountry} onChange={e => updateForm('intlDrivingLicenseCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                         </div>
-                      )}
-                      {form.hasIntlDrivingLicense === 'yes' && (
                         <div>
-                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expiry Date</label>
+                          <label className="block text-xs font-medium text-thb-text-secondary mb-1">License Expiry</label>
                           <input type="date" value={form.intlDrivingLicenseExpiry} onChange={e => updateForm('intlDrivingLicenseExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                         </div>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center justify-between pt-2">
                     <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
@@ -1177,79 +1293,74 @@ export default function EmployeesPage() {
               {/* Previous Experience */}
               {formTab === 'experience' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-thb-text-muted">Enter previous employment history. Up to 3 previous employers can be added.</p>
-                  {/* Experience 1 */}
                   <div>
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Previous Employer 1</h4>
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Experience 1</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employer Name</label>
-                        <input type="text" value={form.previousEmployer1} onChange={e => updateForm('previousEmployer1', e.target.value)} placeholder="Company name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
+                        <input type="text" value={form.previousEmployer1} onChange={e => updateForm('previousEmployer1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation1} onChange={e => updateForm('previousDesignation1', e.target.value)} placeholder="Job title" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDesignation1} onChange={e => updateForm('previousDesignation1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration1} onChange={e => updateForm('previousDuration1', e.target.value)} placeholder="e.g., Jan 2020 - Dec 2022" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDuration1} onChange={e => updateForm('previousDuration1', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason1} onChange={e => updateForm('previousReason1', e.target.value)} placeholder="e.g., Better opportunity, Relocation" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousReason1} onChange={e => updateForm('previousReason1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     </div>
                   </div>
-                  {/* Experience 2 */}
                   <div className="pt-3 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Previous Employer 2</h4>
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Experience 2</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employer Name</label>
-                        <input type="text" value={form.previousEmployer2} onChange={e => updateForm('previousEmployer2', e.target.value)} placeholder="Company name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
+                        <input type="text" value={form.previousEmployer2} onChange={e => updateForm('previousEmployer2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation2} onChange={e => updateForm('previousDesignation2', e.target.value)} placeholder="Job title" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDesignation2} onChange={e => updateForm('previousDesignation2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration2} onChange={e => updateForm('previousDuration2', e.target.value)} placeholder="e.g., Jun 2017 - Dec 2019" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDuration2} onChange={e => updateForm('previousDuration2', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason2} onChange={e => updateForm('previousReason2', e.target.value)} placeholder="e.g., Career growth, Company closure" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousReason2} onChange={e => updateForm('previousReason2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     </div>
                   </div>
-                  {/* Experience 3 */}
                   <div className="pt-3 border-t border-thb-border/50">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Previous Employer 3</h4>
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Experience 3</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employer Name</label>
-                        <input type="text" value={form.previousEmployer3} onChange={e => updateForm('previousEmployer3', e.target.value)} placeholder="Company name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
+                        <input type="text" value={form.previousEmployer3} onChange={e => updateForm('previousEmployer3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation3} onChange={e => updateForm('previousDesignation3', e.target.value)} placeholder="Job title" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDesignation3} onChange={e => updateForm('previousDesignation3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration3} onChange={e => updateForm('previousDuration3', e.target.value)} placeholder="e.g., Mar 2014 - May 2017" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDuration3} onChange={e => updateForm('previousDuration3', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason3} onChange={e => updateForm('previousReason3', e.target.value)} placeholder="e.g., Relocation, Higher studies" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousReason3} onChange={e => updateForm('previousReason3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     </div>
                   </div>
-                  {/* Total Experience */}
                   <div className="pt-3 border-t border-thb-border/50">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Total Work Experience</label>
-                        <input type="text" value={form.totalExperience} onChange={e => updateForm('totalExperience', e.target.value)} placeholder="e.g., 8 years 6 months" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Total Experience</label>
+                        <input type="text" value={form.totalExperience} onChange={e => updateForm('totalExperience', e.target.value)} placeholder="e.g., 5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       </div>
                     </div>
                   </div>
@@ -1264,36 +1375,36 @@ export default function EmployeesPage() {
                 </div>
               )}
 
-              {/* Policy & Structure Mappings */}
+              {/* Policy Mappings */}
               {formTab === 'policies' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-thb-text-muted">Assign leave, attendance, travel policies and salary structure. Can also be configured later from the employee detail page.</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <p className="text-xs text-thb-text-muted">Assign organizational policies to this employee. These can be updated later from the employee profile.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Leave Policy</label>
                       <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                        <option value="">— Not Assigned —</option>
-                        {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                        <option value="">Select Leave Policy</option>
+                        {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Attendance Policy</label>
                       <select value={form.attendancePolicyId} onChange={e => updateForm('attendancePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                        <option value="">— Not Assigned —</option>
-                        {attendancePolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                        <option value="">Select Attendance Policy</option>
+                        {attendancePolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Travel Policy</label>
                       <select value={form.travelPolicyId} onChange={e => updateForm('travelPolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                        <option value="">— Not Assigned —</option>
-                        {travelPolicies.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
+                        <option value="">Select Travel Policy</option>
+                        {travelPolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Structure</label>
                       <select value={form.salaryStructureId} onChange={e => updateForm('salaryStructureId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
-                        <option value="">— Not Assigned —</option>
+                        <option value="">Select Salary Structure</option>
                         {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
@@ -1320,9 +1431,10 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Search & Filters */}
+      {/* ── Filter Bar ── */}
       <div className="thb-card p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          {/* Search */}
           <div className="flex-1 relative">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
@@ -1333,21 +1445,40 @@ export default function EmployeesPage() {
               className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
+
+          {/* Department Filter */}
+          <select
+            value={filterDept}
+            onChange={e => setFilterDept(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+          >
+            <option value="">All Departments</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+
+          {/* Designation Filter */}
+          <select
+            value={filterDesignation}
+            onChange={e => setFilterDesignation(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+          >
+            <option value="">All Designations</option>
+            {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+          </select>
+
+          {/* More Filters Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${showFilters ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'}`}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors whitespace-nowrap ${showFilters ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'}`}
           >
             <FiFilter className="w-4 h-4" />
-            Filters
+            More
           </button>
         </div>
 
+        {/* Extended Filters */}
         {showFilters && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-3 border-t border-thb-border">
-            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-              <option value="">All Departments</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
               <option value="">All Status</option>
               <option value="active">Active</option>
@@ -1355,75 +1486,146 @@ export default function EmployeesPage() {
               <option value="terminated">Terminated</option>
               <option value="resigned">Resigned</option>
             </select>
-            <button onClick={() => { setFilterDept(''); setFilterStatus(''); setSearch(''); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm text-thb-text-secondary hover:bg-slate-50 transition-colors">
-              Clear Filters
+            <button onClick={() => { setFilterDept(''); setFilterDesignation(''); setFilterStatus(''); setSearch(''); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm text-thb-text-secondary hover:bg-slate-50 transition-colors">
+              Clear All Filters
             </button>
+          </div>
+        )}
+
+        {/* Active filter indicators */}
+        {(filterDept || filterDesignation || filterStatus || search) && (
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-thb-border">
+            <span className="text-xs text-thb-text-muted">Active filters:</span>
+            {search && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                Search: &ldquo;{search}&rdquo;
+                <button onClick={() => setSearch('')} className="hover:text-blue-900"><FiX className="w-3 h-3" /></button>
+              </span>
+            )}
+            {filterDept && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-medium">
+                Dept: {departments.find(d => d.id === filterDept)?.name}
+                <button onClick={() => setFilterDept('')} className="hover:text-violet-900"><FiX className="w-3 h-3" /></button>
+              </span>
+            )}
+            {filterDesignation && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
+                Role: {designations.find(d => d.id === filterDesignation)?.title}
+                <button onClick={() => setFilterDesignation('')} className="hover:text-amber-900"><FiX className="w-3 h-3" /></button>
+              </span>
+            )}
+            {filterStatus && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                Status: {filterStatus.replace('_', ' ')}
+                <button onClick={() => setFilterStatus('')} className="hover:text-emerald-900"><FiX className="w-3 h-3" /></button>
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {/* View Mode Toggle */}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          onClick={() => setViewMode('list')}
-          className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
-          title="List View"
-        >
-          <FiList className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => setViewMode('grid')}
-          className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
-          title="Grid View"
-        >
-          <FiGrid className="w-5 h-5" />
-        </button>
+      {/* ── View Mode Toggle & Bulk Actions ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {selectedIds.size > 0 && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+              <span className="text-sm font-medium text-blue-700">{selectedIds.size} selected</span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-blue-500 hover:text-blue-700"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          {pagination.total > 0 && (
+            <span className="text-sm text-thb-text-muted">
+              Showing {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} employees
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
+            title="List View"
+          >
+            <FiList className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
+            title="Grid View"
+          >
+            <FiGrid className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* ── Table (List View) ── */}
       {viewMode === 'list' ? (
       <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-thb-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Designation</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Date of Joining</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-thb-border bg-slate-50/80">
+                <th className="text-left px-4 py-3 w-12">
+                  <input
+                    type="checkbox"
+                    checked={employees.length > 0 && selectedIds.size === employees.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                  />
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Emp ID</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Name</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden md:table-cell">Email</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden lg:table-cell">Phone</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden sm:table-cell">Designation</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden xl:table-cell">Joining Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider w-16">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-thb-border/50 animate-pulse">
+                    <td className="px-4 py-3"><div className="w-4 h-4 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded font-mono" /></td>
                     <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-slate-200 rounded-full" /><div className="space-y-1"><div className="h-3 w-28 bg-slate-200 rounded" /><div className="h-2 w-20 bg-slate-200 rounded" /></div></div></td>
-                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3 hidden md:table-cell"><div className="h-3 w-32 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3 hidden lg:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3 hidden sm:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3 hidden xl:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded ml-auto" /></td>
+                    <td className="px-4 py-3"><div className="h-3 w-6 bg-slate-200 rounded ml-auto" /></td>
                   </tr>
                 ))
               ) : employees.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
-                    <FiUsers className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-                    <p className="text-thb-text-secondary font-medium">No employees found</p>
-                    <p className="text-sm text-thb-text-muted mt-1">Try adjusting your search or filters</p>
+                  <td colSpan={9} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center">
+                      <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                        <FiUsers className="w-8 h-8 text-thb-text-muted" />
+                      </div>
+                      <p className="text-thb-text-secondary font-medium text-base">No employees found</p>
+                      <p className="text-sm text-thb-text-muted mt-1">Try adjusting your search or filters</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 employees.map(emp => {
                   const badge = getStatusBadge(emp.status);
-                  const initials = `${emp.firstName[0]}${emp.lastName[0]}`;
+                  const dotColor = getStatusDotColor(emp.status);
+                  const initials = `${emp.firstName?.[0] || ''}${emp.lastName?.[0] || ''}`.toUpperCase();
+                  const avatarGradient = getAvatarColor(`${emp.firstName} ${emp.lastName}`);
                   const isDeleting = deleteConfirmId === emp.id;
+                  const isSelected = selectedIds.has(emp.id);
                   return (
-                    <tr key={emp.id} className={`border-b border-thb-border/50 transition-colors ${isDeleting ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
+                    <tr key={emp.id} className={`border-b border-thb-border/50 transition-colors ${isDeleting ? 'bg-red-50/80' : isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/50'}`}>
                       {isDeleting ? (
-                        <td colSpan={6} className="px-4 py-3">
+                        <td colSpan={9} className="px-4 py-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
@@ -1444,38 +1646,95 @@ export default function EmployeesPage() {
                       ) : (
                         <>
                           <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(emp.id)}
+                              className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs font-mono font-medium text-thb-text-secondary bg-slate-100 px-2 py-0.5 rounded">
+                              {emp.employeeId}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               {emp.avatar ? (
-                                <img src={emp.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+                                <img src={emp.avatar} alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm flex-shrink-0" />
                               ) : (
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm`}>
                                   {initials}
                                 </div>
                               )}
-                              <div>
-                                <p className="text-sm font-medium text-thb-text-primary">{emp.firstName} {emp.lastName}</p>
-                                <p className="text-xs text-thb-text-muted">{emp.employeeId} · {emp.email}</p>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-thb-text-primary truncate">{emp.firstName} {emp.lastName}</p>
+                                <p className="text-xs text-thb-text-muted truncate">{emp.department?.name || 'No Department'}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{emp.department?.name || '—'}</td>
-                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{emp.designation?.title || '—'}</td>
-                          <td className="px-4 py-3"><span className={badge.className}>{badge.label}</span></td>
-                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(emp.dateOfJoining)}</td>
+                          <td className="px-4 py-3 hidden md:table-cell">
+                            <div className="flex items-center gap-1.5 text-sm text-thb-text-secondary truncate">
+                              <FiMail className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                              <span className="truncate">{emp.email}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 hidden lg:table-cell">
+                            <div className="flex items-center gap-1.5 text-sm text-thb-text-secondary">
+                              <FiPhone className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                              <span>{emp.phone || '—'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell">
+                            <span className="text-sm text-thb-text-secondary">{emp.designation?.title || '—'}</span>
+                          </td>
+                          <td className="px-4 py-3 hidden xl:table-cell">
+                            <div className="flex items-center gap-1.5 text-sm text-thb-text-secondary">
+                              <FiCalendar className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                              <span>{formatDate(emp.dateOfJoining)}</span>
+                            </div>
+                          </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => router.push(`/employees/${emp.id}`)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View">
-                                <FiEye className="w-4 h-4" />
+                            <span className={`inline-flex items-center gap-1.5 ${badge.className}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                              {badge.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end relative" ref={actionMenuOpen === emp.id ? actionMenuRef : null}>
+                              <button
+                                onClick={() => setActionMenuOpen(actionMenuOpen === emp.id ? null : emp.id)}
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
+                                title="Actions"
+                              >
+                                <FiMoreVertical className="w-4 h-4" />
                               </button>
-                              {isAdmin && (
-                                <>
-                                  <button onClick={() => handleOpenEditForm(emp)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
-                                    <FiEdit2 className="w-4 h-4" />
+                              {actionMenuOpen === emp.id && (
+                                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-thb-border shadow-lg py-1.5 z-50 animate-fade-in">
+                                  <button
+                                    onClick={() => { router.push(`/employees/${emp.id}`); setActionMenuOpen(null); }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                  >
+                                    <FiEye className="w-4 h-4" /> View Details
                                   </button>
-                                  <button onClick={() => setDeleteConfirmId(emp.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                                    <FiTrash2 className="w-4 h-4" />
-                                  </button>
-                                </>
+                                  {isAdmin && (
+                                    <>
+                                      <button
+                                        onClick={() => { handleOpenEditForm(emp); setActionMenuOpen(null); }}
+                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-amber-600 transition-colors"
+                                      >
+                                        <FiEdit2 className="w-4 h-4" /> Edit Employee
+                                      </button>
+                                      <div className="my-1 border-t border-thb-border" />
+                                      <button
+                                        onClick={() => { setDeleteConfirmId(emp.id); setActionMenuOpen(null); }}
+                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                      >
+                                        <FiTrash2 className="w-4 h-4" /> Terminate
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>
@@ -1491,23 +1750,23 @@ export default function EmployeesPage() {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-thb-border">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-thb-border bg-slate-50/50">
             <p className="text-sm text-thb-text-muted">
               Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
             </p>
             <div className="flex items-center gap-1">
-              <button onClick={() => fetchEmployees(pagination.page - 1)} disabled={pagination.page <= 1} className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <button onClick={() => fetchEmployees(pagination.page - 1)} disabled={pagination.page <= 1} className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <FiChevronLeft className="w-4 h-4" />
               </button>
               {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
                 const p = i + 1;
                 return (
-                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white' : 'text-thb-text-secondary hover:bg-slate-50'}`}>
+                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-white border border-thb-border'}`}>
                     {p}
                   </button>
                 );
               })}
-              <button onClick={() => fetchEmployees(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <button onClick={() => fetchEmployees(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <FiChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -1515,72 +1774,133 @@ export default function EmployeesPage() {
         )}
       </div>
       ) : (
-      /* Grid View */
+      /* ── Grid View ── */
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {employees.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-thb-text-secondary">
-            <FiUsers className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No employees found</p>
+          <div className="col-span-full text-center py-16">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <FiUsers className="w-8 h-8 text-thb-text-muted" />
+              </div>
+              <p className="text-thb-text-secondary font-medium">No employees found</p>
+              <p className="text-sm text-thb-text-muted mt-1">Try adjusting your search or filters</p>
+            </div>
           </div>
         ) : (
           employees.map(emp => {
             const statusBadge = getStatusBadge(emp.status);
+            const dotColor = getStatusDotColor(emp.status);
             const initials = `${emp.firstName?.[0] || ''}${emp.lastName?.[0] || ''}`.toUpperCase();
+            const avatarGradient = getAvatarColor(`${emp.firstName} ${emp.lastName}`);
+            const isDeleting = deleteConfirmId === emp.id;
             return (
-              <div key={emp.id} className="thb-card hover:shadow-lg transition-all duration-200 overflow-hidden group">
-                {/* Photo/Avatar Section */}
-                <div className="h-32 bg-gradient-to-br from-blue-500 to-indigo-600 relative overflow-hidden">
-                  {emp.avatar ? (
-                    <img src={emp.avatar} alt={`${emp.firstName} ${emp.lastName}`} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white text-4xl font-bold">
-                      {initials}
+              <div key={emp.id} className={`thb-card overflow-hidden group transition-all duration-200 ${isDeleting ? 'ring-2 ring-red-300' : 'hover:shadow-lg'}`}>
+                {isDeleting ? (
+                  <div className="p-5 text-center space-y-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+                      <FiTrash2 className="w-5 h-5 text-red-500" />
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-
-                {/* Employee Info */}
-                <div className="p-4 space-y-3">
-                  <div>
-                    <h3 className="font-semibold text-thb-text-primary text-base truncate">
-                      {emp.firstName} {emp.lastName}
-                    </h3>
-                    <p className="text-xs text-thb-text-secondary truncate">{emp.email}</p>
-                  </div>
-
-                  <div className="space-y-1.5 text-sm">
-                    {emp.designation && (
-                      <div className="flex items-center gap-2 text-thb-text-secondary">
-                        <span className="text-xs truncate">{emp.designation.title}</span>
-                      </div>
-                    )}
-                    {emp.department && (
-                      <div className="flex items-center gap-2 text-thb-text-secondary">
-                        <span className="text-xs truncate">{emp.department.name}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-thb-border">
-                    <span className={statusBadge.className}>{statusBadge.label}</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => router.push(`/employees/${emp.id}`)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View Details">
-                        <FiEye className="w-4 h-4" />
+                    <p className="text-sm text-red-700 font-medium">Terminate {emp.firstName}?</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => handleDelete(emp.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
+                        {deleting ? 'Wait...' : 'Confirm'}
                       </button>
-                      {isAdmin && (
-                        <>
-                          <button onClick={() => handleOpenEditForm(emp)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
-                            <FiEdit2 className="w-4 h-4" />
+                      <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Card Header with Avatar */}
+                    <div className="p-5 pb-3">
+                      <div className="flex items-start gap-3.5">
+                        {emp.avatar ? (
+                          <img src={emp.avatar} alt={`${emp.firstName} ${emp.lastName}`} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm flex-shrink-0" />
+                        ) : (
+                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm`}>
+                            {initials}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-thb-text-primary text-sm truncate">
+                            {emp.firstName} {emp.lastName}
+                          </h3>
+                          <span className="text-[11px] font-mono font-medium text-thb-text-muted bg-slate-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                            {emp.employeeId}
+                          </span>
+                        </div>
+                        {/* Quick Action Menu */}
+                        <div className="relative" ref={actionMenuOpen === emp.id ? actionMenuRef : null}>
+                          <button
+                            onClick={() => setActionMenuOpen(actionMenuOpen === emp.id ? null : emp.id)}
+                            className="p-1 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <FiMoreVertical className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteConfirmId(emp.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                            <FiTrash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                          {actionMenuOpen === emp.id && (
+                            <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl border border-thb-border shadow-lg py-1.5 z-50 animate-fade-in">
+                              <button
+                                onClick={() => { router.push(`/employees/${emp.id}`); setActionMenuOpen(null); }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                              >
+                                <FiEye className="w-4 h-4" /> View
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => { handleOpenEditForm(emp); setActionMenuOpen(null); }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-amber-600 transition-colors"
+                                  >
+                                    <FiEdit2 className="w-4 h-4" /> Edit
+                                  </button>
+                                  <div className="my-1 border-t border-thb-border" />
+                                  <button
+                                    onClick={() => { setDeleteConfirmId(emp.id); setActionMenuOpen(null); }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                  >
+                                    <FiTrash2 className="w-4 h-4" /> Terminate
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Details */}
+                    <div className="px-5 pb-4 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                        <FiMail className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                        <span className="truncate">{emp.email}</span>
+                      </div>
+                      {emp.designation && (
+                        <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                          <FiShield className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                          <span className="truncate">{emp.designation.title}</span>
+                        </div>
+                      )}
+                      {emp.department && (
+                        <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                          <FiActivity className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                          <span className="truncate">{emp.department.name}</span>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
+
+                    {/* Card Footer */}
+                    <div className="px-5 py-3 border-t border-thb-border bg-slate-50/50 flex items-center justify-between">
+                      <span className={`inline-flex items-center gap-1.5 ${statusBadge.className}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                        {statusBadge.label}
+                      </span>
+                      <span className="text-[11px] text-thb-text-muted">
+                        Joined {formatDate(emp.dateOfJoining)}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })
@@ -1602,7 +1922,7 @@ export default function EmployeesPage() {
               {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
                 const p = i + 1;
                 return (
-                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white' : 'text-thb-text-secondary hover:bg-slate-50'}`}>
+                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}>
                     {p}
                   </button>
                 );

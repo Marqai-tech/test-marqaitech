@@ -16,6 +16,17 @@ import {
   FiHeart,
   FiShield,
   FiUpload,
+  FiEdit2,
+  FiGlobe,
+  FiDroplet,
+  FiHome,
+  FiUsers,
+  FiAward,
+  FiTrendingUp,
+  FiHash,
+  FiCheckCircle,
+  FiXCircle,
+  FiCreditCard,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -69,7 +80,7 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   };
 
   const policyDropdown = (label: string, field: string, items: Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>, currentId: string | null | undefined, icon: React.ReactNode) => (
-    <div className="thb-card p-4">
+    <div className="thb-card p-5">
       <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">{icon}{label}</h4>
       <select
         value={currentId || ''}
@@ -92,14 +103,13 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   );
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Policy & Structure Mappings</h3>
+    <div className="space-y-5">
       {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-blue-500" />)}
         {policyDropdown('Attendance Policy', 'attendancePolicyId', attendancePolicies, policies?.attendancePolicyId, <FiClock className="w-4 h-4 text-emerald-500" />)}
         {policyDropdown('Travel Policy', 'travelPolicyId', travelPolicies, policies?.travelPolicyId, <FiBriefcase className="w-4 h-4 text-amber-500" />)}
-        <div className="thb-card p-4">
+        <div className="thb-card p-5">
           <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Structure</h4>
           <select
             value={policies?.salaryStructureId || ''}
@@ -189,6 +199,52 @@ interface EmployeeData {
 const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies'] as const;
 type TabName = typeof tabs[number];
 
+// ─── Info Field Component ───
+function InfoField({ label, value, icon }: { label: string; value?: string | null; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 py-3">
+      {icon && <span className="mt-0.5 text-thb-text-muted flex-shrink-0">{icon}</span>}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted mb-0.5">{label}</p>
+        <p className="text-sm font-medium text-thb-text-primary break-words">{value || '—'}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section Card Component ───
+function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="thb-card overflow-hidden">
+      <div className="px-6 py-4 border-b border-thb-border bg-gradient-to-r from-slate-50/80 to-transparent">
+        <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
+          {icon}
+          {title}
+        </h3>
+      </div>
+      <div className="p-6">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Stat Card Component ───
+function StatCard({ icon, label, value, subtitle, colorClass }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string; colorClass: string }) {
+  return (
+    <div className="thb-card p-5 flex items-start gap-4">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs font-medium text-thb-text-muted mb-1">{label}</p>
+        <p className="text-xl font-bold text-thb-text-primary">{value}</p>
+        {subtitle && <p className="text-[11px] text-thb-text-muted mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -212,7 +268,6 @@ export default function EmployeeDetailPage() {
       setEmployee(data.employee);
     } catch (err) {
       console.error('Failed to load employee details:', err);
-      // Don't show error toast - the page shows a "not found" state that handles this gracefully
       setEmployee(null);
     } finally {
       setLoading(false);
@@ -253,26 +308,52 @@ export default function EmployeeDetailPage() {
     if (employee) queueMicrotask(() => fetchRelatedData());
   }, [employee, fetchRelatedData]);
 
+  // ─── Loading State ───
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="thb-card p-6 animate-pulse">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-slate-200 rounded-full" />
-            <div className="space-y-2"><div className="h-5 w-48 bg-slate-200 rounded" /><div className="h-3 w-32 bg-slate-200 rounded" /></div>
+        <div className="thb-card overflow-hidden animate-pulse">
+          <div className="h-32 bg-gradient-to-r from-slate-200 to-slate-100" />
+          <div className="px-6 pb-6 -mt-12">
+            <div className="flex items-end gap-5">
+              <div className="w-[120px] h-[120px] rounded-2xl bg-slate-200 border-4 border-white" />
+              <div className="pb-3 space-y-2 flex-1">
+                <div className="h-6 w-48 bg-slate-200 rounded" />
+                <div className="h-4 w-64 bg-slate-200 rounded" />
+              </div>
+            </div>
           </div>
         </div>
-        <div className="thb-card p-6 animate-pulse"><div className="h-8 bg-slate-200 rounded w-full" /></div>
+        <div className="thb-card p-6 animate-pulse">
+          <div className="flex gap-4 mb-6">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-8 w-20 bg-slate-200 rounded" />)}
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-16 bg-slate-200 rounded" />)}
+          </div>
+        </div>
       </div>
     );
   }
 
+  // ─── Not Found State ───
   if (!employee) {
     return (
-      <div className="text-center py-12">
-        <FiUser className="w-12 h-12 text-thb-text-muted mx-auto mb-4" />
-        <p className="text-thb-text-secondary font-medium">Employee not found</p>
-        <button onClick={() => router.push('/employees')} className="mt-4 text-blue-500 hover:text-blue-700 text-sm font-medium">Back to Employees</button>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-5">
+            <FiUser className="w-10 h-10 text-slate-300" />
+          </div>
+          <p className="text-lg font-semibold text-thb-text-primary mb-1">Employee Not Found</p>
+          <p className="text-sm text-thb-text-secondary mb-6">The employee you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+          <button
+            onClick={() => router.push('/employees')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <FiArrowLeft className="w-4 h-4" />
+            Back to Employees
+          </button>
+        </div>
       </div>
     );
   }
@@ -285,108 +366,201 @@ export default function EmployeeDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
-      <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 text-sm text-thb-text-secondary hover:text-thb-text-primary transition-colors">
-        <FiArrowLeft className="w-4 h-4" />
-        Back to Employees
-      </button>
+      {/* ═══════════════════════════════════════════
+          PROFILE HEADER CARD — SmartHR Style
+          ═══════════════════════════════════════════ */}
+      <div className="thb-card overflow-hidden">
+        {/* Gradient Strip */}
+        <div className="h-32 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-400 relative">
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
+        </div>
 
-      {/* Employee Header */}
-      <div className="thb-card p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {employee.avatar ? (
-            <img src={employee.avatar} alt="" className="w-16 h-16 rounded-full object-cover ring-4 ring-slate-100" />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold ring-4 ring-slate-100 flex-shrink-0">
-              {initials}
+        {/* Profile Content - overlaps the gradient */}
+        <div className="px-6 pb-6 -mt-12 relative">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5">
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              {employee.avatar ? (
+                <img
+                  src={employee.avatar}
+                  alt={`${employee.firstName} ${employee.lastName}`}
+                  className="w-[120px] h-[120px] rounded-2xl object-cover border-4 border-white shadow-lg"
+                />
+              ) : (
+                <div className="w-[120px] h-[120px] rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
+                  {initials}
+                </div>
+              )}
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-bold text-thb-text-primary">{employee.firstName} {employee.lastName}</h1>
-              <span className={badge.className}>{badge.label}</span>
+
+            {/* Name, Designation, Meta */}
+            <div className="flex-1 min-w-0 pb-1">
+              <div className="flex flex-wrap items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold text-thb-text-primary tracking-tight">
+                  {employee.firstName} {employee.lastName}
+                </h1>
+                <span className={badge.className}>{badge.label}</span>
+              </div>
+              <p className="text-sm text-thb-text-secondary font-medium mb-2">
+                {employee.designation?.title || 'No Designation'}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-thb-text-muted">
+                <span className="inline-flex items-center gap-1.5 bg-white border border-thb-border rounded-md px-2.5 py-1 font-medium text-thb-text-secondary shadow-sm">
+                  <FiHash className="w-3 h-3" />
+                  {employee.employeeId}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <FiBriefcase className="w-3 h-3" />
+                  {employee.department?.name || 'No Department'}
+                </span>
+                {employee.branch && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <FiBriefcase className="w-3 h-3" />
+                    {employee.branch.name}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1.5">
+                  <FiCalendar className="w-3 h-3" />
+                  Joined {formatDate(employee.dateOfJoining)}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-thb-text-secondary">
-              <span className="flex items-center gap-1"><FiBriefcase className="w-3.5 h-3.5" />{employee.employeeId}</span>
-              <span className="flex items-center gap-1"><FiMail className="w-3.5 h-3.5" />{employee.email}</span>
-              <span>{employee.department?.name} · {employee.designation?.title}</span>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0 sm:pb-1">
+              <button
+                onClick={() => router.push(`/employees/${id}/edit`)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <FiEdit2 className="w-3.5 h-3.5" />
+                Edit
+              </button>
+              <button
+                onClick={() => router.push('/employees')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-thb-border text-thb-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <FiArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="thb-card">
-        <div className="border-b border-thb-border overflow-x-auto">
-          <nav className="flex -mb-px">
+      {/* ═══════════════════════════════════════════
+          STAT CARDS ROW
+          ═══════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={<FiCalendar className="w-5 h-5 text-blue-600" />}
+          label="Days Employed"
+          value={daysEmployed}
+          subtitle={`Since ${formatDate(employee.dateOfJoining)}`}
+          colorClass="bg-blue-50"
+        />
+        <StatCard
+          icon={<FiClock className="w-5 h-5 text-emerald-600" />}
+          label="Attendance Rate"
+          value={`${attendanceRate}%`}
+          subtitle="Last 30 days"
+          colorClass="bg-emerald-50"
+        />
+        <StatCard
+          icon={<FiCalendar className="w-5 h-5 text-amber-600" />}
+          label="Leave Balance"
+          value={totalLeaveBalance}
+          subtitle="Days remaining"
+          colorClass="bg-amber-50"
+        />
+        <StatCard
+          icon={<FiDollarSign className="w-5 h-5 text-violet-600" />}
+          label="Salary"
+          value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
+          subtitle={employee.salary ? employee.salary.toLocaleString() : undefined}
+          colorClass="bg-violet-50"
+        />
+      </div>
+
+      {/* ═══════════════════════════════════════════
+          TAB NAVIGATION + CONTENT
+          ═══════════════════════════════════════════ */}
+      <div className="thb-card overflow-hidden">
+        {/* Tab Bar */}
+        <div className="border-b border-thb-border bg-gradient-to-r from-slate-50/50 to-transparent overflow-x-auto">
+          <nav className="flex px-6">
             {tabs.map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                className={`relative px-4 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary hover:border-slate-300'
+                    ? 'text-blue-600'
+                    : 'text-thb-text-muted hover:text-thb-text-primary'
                 }`}
               >
                 {tab}
+                {activeTab === tab && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-600 rounded-full" />
+                )}
               </button>
             ))}
           </nav>
         </div>
 
+        {/* Tab Content */}
         <div className="p-6">
+
           {/* ── Overview Tab ── */}
           {activeTab === 'Overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                  <p className="text-xs font-medium text-blue-600 mb-1">Days Employed</p>
-                  <p className="text-2xl font-bold text-blue-700">{daysEmployed}</p>
-                  <p className="text-xs text-blue-500 mt-1">Since {formatDate(employee.dateOfJoining)}</p>
+              {/* Personal Information */}
+              <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-blue-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Full Name" value={`${employee.firstName} ${employee.lastName}`} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Date of Birth" value={formatDate(employee.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                  <InfoField label="Gender" value={employee.gender} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Marital Status" value={employee.maritalStatus} icon={<FiHeart className="w-3.5 h-3.5" />} />
+                  <InfoField label="Nationality" value={employee.nationality} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                  <InfoField label="Blood Group" value={employee.bloodGroup} icon={<FiDroplet className="w-3.5 h-3.5" />} />
                 </div>
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-100">
-                  <p className="text-xs font-medium text-amber-600 mb-1">Leave Balance</p>
-                  <p className="text-2xl font-bold text-amber-700">{totalLeaveBalance}</p>
-                  <p className="text-xs text-amber-500 mt-1">Days remaining</p>
-                </div>
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-                  <p className="text-xs font-medium text-emerald-600 mb-1">Attendance Rate</p>
-                  <p className="text-2xl font-bold text-emerald-700">{attendanceRate}%</p>
-                  <p className="text-xs text-emerald-500 mt-1">Last 30 days</p>
-                </div>
-              </div>
+              </SectionCard>
 
-              {/* Quick Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="thb-card p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-thb-text-primary">Contact Information</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm"><FiMail className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.email}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiPhone className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.phone || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiMapPin className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{[employee.city, employee.state, employee.country].filter(Boolean).join(', ') || '—'}</span></div>
-                  </div>
+              {/* Contact Information */}
+              <SectionCard title="Contact Information" icon={<FiMail className="w-4 h-4 text-emerald-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Email" value={employee.email} icon={<FiMail className="w-3.5 h-3.5" />} />
+                  <InfoField label="Phone" value={employee.phone} icon={<FiPhone className="w-3.5 h-3.5" />} />
+                  <InfoField label="Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
+                  <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                  <InfoField label="State" value={employee.state} />
+                  <InfoField label="ZIP Code" value={employee.zipCode} />
+                  <InfoField label="Country" value={employee.country} icon={<FiGlobe className="w-3.5 h-3.5" />} />
                 </div>
-                <div className="thb-card p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-thb-text-primary">Employment</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm"><FiBriefcase className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.department?.name || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiUser className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.designation?.title || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiCalendar className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">Joined {formatDate(employee.dateOfJoining)}</span></div>
-                  </div>
+              </SectionCard>
+
+              {/* Emergency Contact */}
+              <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </div>
-              </div>
+              </SectionCard>
 
               {/* Skills */}
               {employee.skills && employee.skills.length > 0 && (
-                <div className="thb-card p-4">
-                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Skills</h3>
+                <SectionCard title="Skills" icon={<FiAward className="w-4 h-4 text-violet-500" />}>
                   <div className="flex flex-wrap gap-2">
                     {employee.skills.map(s => (
-                      <span key={s.id} className="thb-badge thb-badge-info">{s.skill} · {s.level}</span>
+                      <span key={s.id} className="inline-flex items-center gap-1.5 thb-badge thb-badge-info">
+                        <FiTrendingUp className="w-3 h-3" />
+                        {s.skill}
+                        <span className="opacity-60">·</span>
+                        {s.level}
+                      </span>
                     ))}
                   </div>
-                </div>
+                </SectionCard>
               )}
             </div>
           )}
@@ -394,54 +568,66 @@ export default function EmployeeDetailPage() {
           {/* ── Personal Tab ── */}
           {activeTab === 'Personal' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { label: 'First Name', value: employee.firstName },
-                  { label: 'Last Name', value: employee.lastName },
-                  { label: 'Email', value: employee.email },
-                  { label: 'Phone', value: employee.phone },
-                  { label: 'Date of Birth', value: formatDate(employee.dateOfBirth) },
-                  { label: 'Gender', value: employee.gender },
-                  { label: 'Marital Status', value: employee.maritalStatus },
-                  { label: 'Nationality', value: employee.nationality },
-                  { label: 'Blood Group', value: employee.bloodGroup },
-                  { label: 'Address', value: employee.address },
-                  { label: 'City', value: employee.city },
-                  { label: 'State', value: employee.state },
-                  { label: 'ZIP Code', value: employee.zipCode },
-                  { label: 'Country', value: employee.country },
-                ].map(field => (
-                  <div key={field.label}>
-                    <p className="text-xs font-medium text-thb-text-muted mb-1">{field.label}</p>
-                    <p className="text-sm font-medium text-thb-text-primary">{field.value || '—'}</p>
-                  </div>
-                ))}
-              </div>
+              {/* Personal Details */}
+              <SectionCard title="Personal Details" icon={<FiUser className="w-4 h-4 text-blue-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="First Name" value={employee.firstName} />
+                  <InfoField label="Last Name" value={employee.lastName} />
+                  <InfoField label="Email" value={employee.email} icon={<FiMail className="w-3.5 h-3.5" />} />
+                  <InfoField label="Phone" value={employee.phone} icon={<FiPhone className="w-3.5 h-3.5" />} />
+                  <InfoField label="Date of Birth" value={formatDate(employee.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                  <InfoField label="Gender" value={employee.gender} />
+                  <InfoField label="Marital Status" value={employee.maritalStatus} />
+                  <InfoField label="Nationality" value={employee.nationality} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                  <InfoField label="Blood Group" value={employee.bloodGroup} icon={<FiDroplet className="w-3.5 h-3.5" />} />
+                </div>
+              </SectionCard>
+
+              {/* Address */}
+              <SectionCard title="Address" icon={<FiMapPin className="w-4 h-4 text-emerald-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Street Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
+                  <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                  <InfoField label="State" value={employee.state} />
+                  <InfoField label="ZIP Code" value={employee.zipCode} />
+                  <InfoField label="Country" value={employee.country} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                </div>
+              </SectionCard>
 
               {/* Emergency Contact */}
-              <div className="thb-card p-4">
-                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiHeart className="w-4 h-4 text-rose-500" />Emergency Contact</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Name</p><p className="text-sm font-medium text-thb-text-primary">{employee.emergencyContactName || '—'}</p></div>
-                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Phone</p><p className="text-sm font-medium text-thb-text-primary">{employee.emergencyContactPhone || '—'}</p></div>
+              <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </div>
-              </div>
+              </SectionCard>
 
               {/* Dependents */}
               {employee.dependents && employee.dependents.length > 0 && (
-                <div className="thb-card p-4">
-                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Dependents</h3>
+                <SectionCard title="Dependents" icon={<FiUsers className="w-4 h-4 text-amber-500" />}>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Relation</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">DOB</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Gender</th></tr></thead>
+                      <thead>
+                        <tr className="border-b border-thb-border">
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Name</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Relation</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Date of Birth</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Gender</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {employee.dependents.map(dep => (
-                          <tr key={dep.id} className="border-b border-thb-border/50"><td className="py-2 text-sm">{dep.name}</td><td className="py-2 text-sm text-thb-text-secondary">{dep.relation}</td><td className="py-2 text-sm text-thb-text-secondary">{formatDate(dep.dateOfBirth)}</td><td className="py-2 text-sm text-thb-text-secondary">{dep.gender || '—'}</td></tr>
+                          <tr key={dep.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 text-sm font-medium text-thb-text-primary">{dep.name}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{dep.relation}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{formatDate(dep.dateOfBirth)}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{dep.gender || '—'}</td>
+                          </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </SectionCard>
               )}
             </div>
           )}
@@ -449,97 +635,128 @@ export default function EmployeeDetailPage() {
           {/* ── Employment Tab ── */}
           {activeTab === 'Employment' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { label: 'Employee ID', value: employee.employeeId },
-                  { label: 'Department', value: employee.department?.name },
-                  { label: 'Designation', value: employee.designation?.title },
-                  { label: 'Branch', value: employee.branch?.name },
-                  { label: 'Date of Joining', value: formatDate(employee.dateOfJoining) },
-                  { label: 'Status', value: badge.label },
-                ].map(field => (
-                  <div key={field.label}>
-                    <p className="text-xs font-medium text-thb-text-muted mb-1">{field.label}</p>
-                    <p className="text-sm font-medium text-thb-text-primary">{field.value || '—'}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Salary Info */}
-              <div className="thb-card p-4">
-                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Information</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Salary</p><p className="text-sm font-medium text-thb-text-primary">{employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'}</p></div>
-                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Currency</p><p className="text-sm font-medium text-thb-text-primary">{employee.salaryCurrency || 'INR'}</p></div>
+              {/* Employment Details */}
+              <SectionCard title="Employment Details" icon={<FiBriefcase className="w-4 h-4 text-blue-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Employee ID" value={employee.employeeId} icon={<FiHash className="w-3.5 h-3.5" />} />
+                  <InfoField label="Department" value={employee.department?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                  <InfoField label="Designation" value={employee.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Branch" value={employee.branch?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                  <InfoField label="Date of Joining" value={formatDate(employee.dateOfJoining)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                  <InfoField label="Status" value={badge.label} />
                 </div>
-              </div>
+              </SectionCard>
+
+              {/* Salary Information */}
+              <SectionCard title="Salary Information" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Salary" value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'} icon={<FiDollarSign className="w-3.5 h-3.5" />} />
+                  <InfoField label="Currency" value={employee.salaryCurrency || 'INR'} />
+                </div>
+              </SectionCard>
 
               {/* Bank Details */}
-              <div className="thb-card p-4">
-                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Bank Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Bank Name', value: employee.bankName },
-                    { label: 'Account No', value: employee.bankAccountNo },
-                    { label: 'IFSC Code', value: employee.bankIfscCode },
-                    { label: 'PAN Number', value: employee.panNumber },
-                    { label: 'Aadhaar Number', value: employee.aadhaarNumber },
-                  ].map(field => (
-                    <div key={field.label}>
-                      <p className="text-xs font-medium text-thb-text-muted mb-1">{field.label}</p>
-                      <p className="text-sm font-medium text-thb-text-primary">{field.value || '—'}</p>
-                    </div>
-                  ))}
+              <SectionCard title="Bank & Statutory Details" icon={<FiShield className="w-4 h-4 text-violet-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Bank Name" value={employee.bankName} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                  <InfoField label="Account No" value={employee.bankAccountNo} icon={<FiHash className="w-3.5 h-3.5" />} />
+                  <InfoField label="IFSC Code" value={employee.bankIfscCode} />
+                  <InfoField label="PAN Number" value={employee.panNumber} icon={<FiFileText className="w-3.5 h-3.5" />} />
+                  <InfoField label="Aadhaar Number" value={employee.aadhaarNumber} icon={<FiShield className="w-3.5 h-3.5" />} />
                 </div>
-              </div>
+              </SectionCard>
 
-              {/* Experience */}
+              {/* Work Experience */}
               {employee.experiences && employee.experiences.length > 0 && (
-                <div className="thb-card p-4">
-                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Work Experience</h3>
-                  <div className="space-y-3">
+                <SectionCard title="Work Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />}>
+                  <div className="space-y-4">
                     {employee.experiences.map(exp => (
-                      <div key={exp.id} className="p-3 rounded-lg border border-thb-border">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-thb-text-primary">{exp.company}</p>
-                          {exp.isCurrent && <span className="thb-badge thb-badge-success">Current</span>}
+                      <div key={exp.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                          <FiBriefcase className="w-5 h-5 text-amber-600" />
                         </div>
-                        <p className="text-xs text-thb-text-secondary mt-1">{exp.designation} · {formatDate(exp.startDate)} – {exp.endDate ? formatDate(exp.endDate) : 'Present'}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-thb-text-primary">{exp.company}</p>
+                            {exp.isCurrent && <span className="thb-badge thb-badge-success">Current</span>}
+                          </div>
+                          <p className="text-xs text-thb-text-secondary mt-0.5">{exp.designation}</p>
+                          <p className="text-xs text-thb-text-muted mt-1">
+                            {formatDate(exp.startDate)} — {exp.endDate ? formatDate(exp.endDate) : 'Present'}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </SectionCard>
+              )}
+
+              {/* Qualifications */}
+              {employee.qualifications && employee.qualifications.length > 0 && (
+                <SectionCard title="Qualifications" icon={<FiAward className="w-4 h-4 text-blue-500" />}>
+                  <div className="space-y-4">
+                    {employee.qualifications.map(q => (
+                      <div key={q.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                          <FiAward className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-thb-text-primary">{q.degree}</p>
+                          <p className="text-xs text-thb-text-secondary mt-0.5">{q.institution}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-thb-text-muted">Year: {q.year}</span>
+                            {q.percentage && <span className="text-xs text-thb-text-muted">Score: {q.percentage}%</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
               )}
             </div>
           )}
 
           {/* ── Documents Tab ── */}
           {activeTab === 'Documents' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-thb-text-primary">Documents</h3>
-                <button className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
+                <div>
+                  <h3 className="text-sm font-semibold text-thb-text-primary">Documents</h3>
+                  <p className="text-xs text-thb-text-muted mt-0.5">{employee.documents?.length || 0} documents on file</p>
+                </div>
+                <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors shadow-sm">
                   <FiUpload className="w-3.5 h-3.5" />
                   Upload Document
                 </button>
               </div>
               {(!employee.documents || employee.documents.length === 0) ? (
-                <div className="text-center py-8">
-                  <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-                  <p className="text-thb-text-secondary">No documents uploaded</p>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <FiFileText className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-medium text-thb-text-secondary mb-1">No documents uploaded</p>
+                  <p className="text-xs text-thb-text-muted">Upload documents to keep employee records complete.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Uploaded</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Expiry</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-thb-border">
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Name</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Type</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Uploaded</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Expiry</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {employee.documents.map(doc => (
-                        <tr key={doc.id} className="border-b border-thb-border/50">
-                          <td className="py-2 text-sm font-medium text-thb-text-primary">{doc.name}</td>
-                          <td className="py-2 text-sm text-thb-text-secondary capitalize">{doc.type.replace('_', ' ')}</td>
-                          <td className="py-2"><span className="thb-badge thb-badge-success">{doc.status}</span></td>
-                          <td className="py-2 text-sm text-thb-text-secondary">{formatDate(doc.uploadedAt)}</td>
-                          <td className="py-2 text-sm text-thb-text-secondary">{formatDate(doc.expiryDate)}</td>
+                        <tr key={doc.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 text-sm font-medium text-thb-text-primary">{doc.name}</td>
+                          <td className="py-3 text-sm text-thb-text-secondary capitalize">{doc.type.replace('_', ' ')}</td>
+                          <td className="py-3"><span className="thb-badge thb-badge-success">{doc.status}</span></td>
+                          <td className="py-3 text-sm text-thb-text-secondary">{formatDate(doc.uploadedAt)}</td>
+                          <td className="py-3 text-sm text-thb-text-secondary">{formatDate(doc.expiryDate)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -554,45 +771,63 @@ export default function EmployeeDetailPage() {
             <div className="space-y-6">
               {/* Leave Balances */}
               {employee.leaveBalances && employee.leaveBalances.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Leave Balances</h3>
+                <SectionCard title="Leave Balances" icon={<FiCalendar className="w-4 h-4 text-blue-500" />}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {employee.leaveBalances.map(lb => (
-                      <div key={lb.id} className="p-4 rounded-xl border border-thb-border">
-                        <p className="text-sm font-medium text-thb-text-primary">{lb.leaveType.name}</p>
-                        <div className="flex items-center justify-between mt-2 text-xs text-thb-text-secondary">
-                          <span>Total: {lb.total}</span>
-                          <span>Used: {lb.used}</span>
-                          <span>Remaining: {lb.remaining}</span>
+                    {employee.leaveBalances.map(lb => {
+                      const pct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
+                      const barColor = pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-500' : 'bg-blue-500';
+                      return (
+                        <div key={lb.id} className="p-4 rounded-xl border border-thb-border hover:shadow-sm transition-shadow">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-semibold text-thb-text-primary">{lb.leaveType.name}</p>
+                            <span className="text-xs font-medium text-thb-text-muted">{lb.year}</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+                            <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-thb-text-muted">
+                            <span>Total: <strong className="text-thb-text-secondary">{lb.total}</strong></span>
+                            <span>Used: <strong className="text-thb-text-secondary">{lb.used}</strong></span>
+                            <span>Remaining: <strong className="text-emerald-600">{lb.remaining}</strong></span>
+                          </div>
                         </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${lb.total > 0 ? (lb.used / lb.total) * 100 : 0}%` }} />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
+                </SectionCard>
               )}
 
               {/* Leave History */}
-              <div>
-                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Leave History</h3>
+              <SectionCard title="Leave History" icon={<FiClock className="w-4 h-4 text-amber-500" />}>
                 {leaveRequests.length === 0 ? (
-                  <div className="text-center py-8"><FiCalendar className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No leave requests</p></div>
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <FiCalendar className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <p className="text-sm text-thb-text-muted">No leave requests found</p>
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">From</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">To</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Reason</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th></tr></thead>
+                      <thead>
+                        <tr className="border-b border-thb-border">
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Type</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">From</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">To</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Reason</th>
+                          <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {leaveRequests.map(lr => {
                           const statusMap: Record<string, string> = { pending: 'thb-badge thb-badge-warning', approved: 'thb-badge thb-badge-success', rejected: 'thb-badge thb-badge-error', cancelled: 'bg-slate-100 text-slate-600 thb-badge' };
                           return (
-                            <tr key={lr.id} className="border-b border-thb-border/50">
-                              <td className="py-2 text-sm">{lr.leaveType.name}</td>
-                              <td className="py-2 text-sm text-thb-text-secondary">{formatDate(lr.startDate)}</td>
-                              <td className="py-2 text-sm text-thb-text-secondary">{formatDate(lr.endDate)}</td>
-                              <td className="py-2 text-sm text-thb-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
-                              <td className="py-2"><span className={statusMap[lr.status] || 'thb-badge thb-badge-info'}>{lr.status}</span></td>
+                            <tr key={lr.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                              <td className="py-3 text-sm font-medium text-thb-text-primary">{lr.leaveType.name}</td>
+                              <td className="py-3 text-sm text-thb-text-secondary">{formatDate(lr.startDate)}</td>
+                              <td className="py-3 text-sm text-thb-text-secondary">{formatDate(lr.endDate)}</td>
+                              <td className="py-3 text-sm text-thb-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
+                              <td className="py-3"><span className={statusMap[lr.status] || 'thb-badge thb-badge-info'}>{lr.status}</span></td>
                             </tr>
                           );
                         })}
@@ -600,31 +835,44 @@ export default function EmployeeDetailPage() {
                     </table>
                   </div>
                 )}
-              </div>
+              </SectionCard>
             </div>
           )}
 
           {/* ── Attendance Tab ── */}
           {activeTab === 'Attendance' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-thb-text-primary">Recent Attendance</h3>
+            <SectionCard title="Recent Attendance" icon={<FiClock className="w-4 h-4 text-emerald-500" />}>
               {attendance.length === 0 ? (
-                <div className="text-center py-8"><FiClock className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No attendance records</p></div>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <FiClock className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-sm text-thb-text-muted">No attendance records found</p>
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Date</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Check In</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Check Out</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Work Hours</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Overtime</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-thb-border">
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Date</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Check In</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Check Out</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Work Hours</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Overtime</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {attendance.map(a => {
                         const statusMap: Record<string, string> = { present: 'thb-badge thb-badge-success', absent: 'thb-badge thb-badge-error', late: 'bg-orange-50 text-orange-700 thb-badge', half_day: 'thb-badge thb-badge-warning', holiday: 'thb-badge thb-badge-info', weekend: 'bg-slate-100 text-slate-600 thb-badge', on_leave: 'thb-badge thb-badge-warning' };
                         return (
-                          <tr key={a.id} className="border-b border-thb-border/50">
-                            <td className="py-2 text-sm">{formatDate(a.date)}</td>
-                            <td className="py-2 text-sm text-thb-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
-                            <td className="py-2 text-sm text-thb-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
-                            <td className="py-2 text-sm text-thb-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
-                            <td className="py-2 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
-                            <td className="py-2"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{a.status.replace('_', ' ')}</span></td>
+                          <tr key={a.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 text-sm font-medium text-thb-text-primary">{formatDate(a.date)}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+                            <td className="py-3"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{a.status.replace('_', ' ')}</span></td>
                           </tr>
                         );
                       })}
@@ -632,106 +880,42 @@ export default function EmployeeDetailPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </SectionCard>
           )}
-
-          {/* ── Policies Tab ── */}
-          {activeTab === 'Health' && (
-            <div className="space-y-4">
-              <div className="thb-card p-6">
-                <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-2">
-                  <FiHeart className="w-5 h-5 text-red-500" />
-                  Health History
-                </h3>
-                <p className="text-xs text-thb-text-muted mb-6">Employee health information for workplace safety and emergency preparedness.</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Blood Group & Vitals */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Vitals & Blood</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Blood Group</label>
-                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{employee.bloodGroup || '—'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Emergency Condition</label>
-                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).emergencyMedicalCondition as string || '—'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Medical History */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Medical History</h4>
-                    <div className="space-y-2">
-                      {[
-                        { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
-                        { label: 'Allergies', value: (employee as Record<string, unknown>).hasAllergies as string, details: (employee as Record<string, unknown>).allergyDetails as string },
-                        { label: 'Disability', value: (employee as Record<string, unknown>).hasDisability as string, details: (employee as Record<string, unknown>).disabilityDetails as string },
-                        { label: 'On Medication', value: (employee as Record<string, unknown>).isOnMedication as string, details: (employee as Record<string, unknown>).medicationDetails as string },
-                        { label: 'Previous Surgery', value: (employee as Record<string, unknown>).hasHadSurgery as string, details: (employee as Record<string, unknown>).surgeryDetails as string },
-                      ].map((item) => (
-                        <div key={item.label} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 border border-thb-border/30">
-                          <span className={`shrink-0 mt-0.5 w-2 h-2 rounded-full ${item.value === 'yes' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                          <div>
-                            <p className="text-xs font-medium text-thb-text-primary">{item.label}</p>
-                            <p className="text-xs text-thb-text-muted">{item.value === 'yes' ? `Yes — ${item.details || 'No details provided'}` : item.value === 'no' ? 'No' : '—'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Physician & Insurance */}
-                  <div className="space-y-3 md:col-span-2">
-                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Physician & Insurance</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Primary Physician</label>
-                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).primaryPhysicianName as string || '—'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Physician Phone</label>
-                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).primaryPhysicianPhone as string || '—'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Insurance Provider</label>
-                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).healthInsuranceProvider as string || '—'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Policy Number</label>
-                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).healthInsurancePolicyNo as string || '—'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          {activeTab === 'Policies' && <EmployeePoliciesTab employeeId={employee.id} />}
 
           {/* ── Payroll Tab ── */}
           {activeTab === 'Payroll' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-thb-text-primary">Recent Payslips</h3>
+            <SectionCard title="Recent Payslips" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />}>
               {payrolls.length === 0 ? (
-                <div className="text-center py-8"><FiDollarSign className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No payroll records</p></div>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <FiDollarSign className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-sm text-thb-text-muted">No payroll records found</p>
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Month</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Gross Salary</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Deductions</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Net Salary</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th></tr></thead>
+                    <thead>
+                      <tr className="border-b border-thb-border">
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Month</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Gross Salary</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Deductions</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Net Salary</th>
+                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {payrolls.map(p => {
                         const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                         const statusMap: Record<string, string> = { draft: 'thb-badge thb-badge-warning', processed: 'thb-badge thb-badge-info', paid: 'thb-badge thb-badge-success', cancelled: 'thb-badge thb-badge-error' };
                         return (
-                          <tr key={p.id} className="border-b border-thb-border/50">
-                            <td className="py-2 text-sm font-medium">{months[p.month]} {p.year}</td>
-                            <td className="py-2 text-sm text-thb-text-secondary">${p.grossSalary.toLocaleString()}</td>
-                            <td className="py-2 text-sm text-red-500">${p.totalDeductions.toLocaleString()}</td>
-                            <td className="py-2 text-sm font-medium text-emerald-600">${p.netSalary.toLocaleString()}</td>
-                            <td className="py-2"><span className={statusMap[p.status] || 'thb-badge thb-badge-info'}>{p.status}</span></td>
+                          <tr key={p.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 text-sm font-medium text-thb-text-primary">{months[p.month]} {p.year}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">${p.grossSalary.toLocaleString()}</td>
+                            <td className="py-3 text-sm text-red-500">${p.totalDeductions.toLocaleString()}</td>
+                            <td className="py-3 text-sm font-semibold text-emerald-600">${p.netSalary.toLocaleString()}</td>
+                            <td className="py-3"><span className={statusMap[p.status] || 'thb-badge thb-badge-info'}>{p.status}</span></td>
                           </tr>
                         );
                       })}
@@ -739,8 +923,61 @@ export default function EmployeeDetailPage() {
                   </table>
                 </div>
               )}
+            </SectionCard>
+          )}
+
+          {/* ── Health Tab ── */}
+          {activeTab === 'Health' && (
+            <div className="space-y-6">
+              {/* Vitals & Blood */}
+              <SectionCard title="Vitals & Blood Information" icon={<FiHeart className="w-4 h-4 text-red-500" />}>
+                <p className="text-xs text-thb-text-muted mb-4">Employee health information for workplace safety and emergency preparedness.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0">
+                  <InfoField label="Blood Group" value={employee.bloodGroup} icon={<FiDroplet className="w-3.5 h-3.5" />} />
+                  <InfoField label="Emergency Condition" value={(employee as Record<string, unknown>).emergencyMedicalCondition as string} />
+                </div>
+              </SectionCard>
+
+              {/* Medical History */}
+              <SectionCard title="Medical History" icon={<FiShield className="w-4 h-4 text-amber-500" />}>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
+                    { label: 'Allergies', value: (employee as Record<string, unknown>).hasAllergies as string, details: (employee as Record<string, unknown>).allergyDetails as string },
+                    { label: 'Disability', value: (employee as Record<string, unknown>).hasDisability as string, details: (employee as Record<string, unknown>).disabilityDetails as string },
+                    { label: 'On Medication', value: (employee as Record<string, unknown>).isOnMedication as string, details: (employee as Record<string, unknown>).medicationDetails as string },
+                    { label: 'Previous Surgery', value: (employee as Record<string, unknown>).hasHadSurgery as string, details: (employee as Record<string, unknown>).surgeryDetails as string },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-3 p-3 rounded-lg border border-thb-border hover:bg-slate-50/50 transition-colors">
+                      {item.value === 'yes' ? (
+                        <FiCheckCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      ) : (
+                        <FiXCircle className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-thb-text-primary">{item.label}</p>
+                        <p className="text-xs text-thb-text-muted">{item.value === 'yes' ? `Yes — ${item.details || 'No details provided'}` : item.value === 'no' ? 'No' : '—'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+
+              {/* Physician & Insurance */}
+              <SectionCard title="Physician & Insurance" icon={<FiShield className="w-4 h-4 text-blue-500" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-0">
+                  <InfoField label="Primary Physician" value={(employee as Record<string, unknown>).primaryPhysicianName as string} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Physician Phone" value={(employee as Record<string, unknown>).primaryPhysicianPhone as string} icon={<FiPhone className="w-3.5 h-3.5" />} />
+                  <InfoField label="Insurance Provider" value={(employee as Record<string, unknown>).healthInsuranceProvider as string} icon={<FiShield className="w-3.5 h-3.5" />} />
+                  <InfoField label="Policy Number" value={(employee as Record<string, unknown>).healthInsurancePolicyNo as string} icon={<FiFileText className="w-3.5 h-3.5" />} />
+                </div>
+              </SectionCard>
             </div>
           )}
+
+          {/* ── Policies Tab ── */}
+          {activeTab === 'Policies' && <EmployeePoliciesTab employeeId={employee.id} />}
+
         </div>
       </div>
     </div>
