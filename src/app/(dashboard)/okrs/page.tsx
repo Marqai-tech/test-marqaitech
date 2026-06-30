@@ -496,7 +496,7 @@ export default function OKRCascadePage() {
             Cascade objectives from Company → Sub-Company → Project → Individual. Track key results with live progress bars.
           </p>
         </div>
-        <button onClick={handleCreateTopLevel} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={handleCreateTopLevel} className="3boxes-btn-primary flex items-center gap-2">
           <FiPlus className="w-4 h-4" /> New Top-Level OKR
         </button>
       </div>
@@ -535,7 +535,7 @@ export default function OKRCascadePage() {
           <select
             value={filterCategory}
             onChange={e => setFilterCategory(e.target.value)}
-            className="nexus-input min-w-[160px]"
+            className="3boxes-input min-w-[160px]"
           >
             <option value="">All Categories</option>
             <option value="company">Company</option>
@@ -548,9 +548,9 @@ export default function OKRCascadePage() {
             placeholder="Quarter (e.g. Q1 2026)"
             value={filterQuarter}
             onChange={e => setFilterQuarter(e.target.value)}
-            className="nexus-input min-w-[160px]"
+            className="3boxes-input min-w-[160px]"
           />
-          <button onClick={fetchOkrs} className="nexus-btn-secondary flex items-center gap-2">
+          <button onClick={fetchOkrs} className="3boxes-btn-secondary flex items-center gap-2">
             <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
         </div>
@@ -567,7 +567,7 @@ export default function OKRCascadePage() {
             <FiTarget className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500 mb-2">No OKRs found</p>
             <p className="text-sm text-slate-400 mb-4">Start by creating a company-level OKR — it will cascade down to sub-companies, projects, and individuals.</p>
-            <button onClick={handleCreateTopLevel} className="nexus-btn-primary inline-flex items-center gap-2">
+            <button onClick={handleCreateTopLevel} className="3boxes-btn-primary inline-flex items-center gap-2">
               <FiPlus className="w-4 h-4" /> Create First OKR
             </button>
           </div>
@@ -612,7 +612,7 @@ export default function OKRCascadePage() {
                   value={form.objective}
                   onChange={e => setForm({ ...form, objective: e.target.value })}
                   rows={2}
-                  className="nexus-input w-full"
+                  className="3boxes-input w-full"
                   placeholder="e.g. Achieve $5M revenue in FY 2026"
                 />
               </div>
@@ -623,7 +623,7 @@ export default function OKRCascadePage() {
                   <select
                     value={form.category}
                     onChange={e => setForm({ ...form, category: e.target.value, companyId: '', projectId: '', ownerId: '' })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                     disabled={!!parentOkr}
                   >
                     <option value="company">Company</option>
@@ -637,7 +637,7 @@ export default function OKRCascadePage() {
                   <select
                     value={form.status}
                     onChange={e => setForm({ ...form, status: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="draft">Draft</option>
                     <option value="active">Active</option>
@@ -655,7 +655,7 @@ export default function OKRCascadePage() {
                   <select
                     value={form.companyId}
                     onChange={e => setForm({ ...form, companyId: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="">Select company...</option>
                     {companies.map(c => (
@@ -670,7 +670,7 @@ export default function OKRCascadePage() {
                   <select
                     value={form.projectId}
                     onChange={e => setForm({ ...form, projectId: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="">Select project...</option>
                     {projects.map(p => (
@@ -685,7 +685,7 @@ export default function OKRCascadePage() {
                   <select
                     value={form.ownerId}
                     onChange={e => setForm({ ...form, ownerId: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="">Select employee...</option>
                     {employees.map(e => (
@@ -702,7 +702,7 @@ export default function OKRCascadePage() {
                     type="text"
                     value={form.quarter}
                     onChange={e => setForm({ ...form, quarter: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                     placeholder="Q1 2026"
                   />
                 </div>
@@ -712,7 +712,7 @@ export default function OKRCascadePage() {
                     type="number"
                     value={form.year}
                     onChange={e => setForm({ ...form, year: Number(e.target.value) })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
               </div>
@@ -753,7 +753,7 @@ export default function OKRCascadePage() {
                             krs[idx] = { ...kr, title: e.target.value };
                             setForm({ ...form, keyResults: krs });
                           }}
-                          className="nexus-input col-span-12 sm:col-span-6"
+                          className="3boxes-input col-span-12 sm:col-span-6"
                           placeholder="e.g. Increase revenue by 20%"
                         />
                         <input
@@ -764,7 +764,7 @@ export default function OKRCascadePage() {
                             krs[idx] = { ...kr, targetValue: Number(e.target.value) };
                             setForm({ ...form, keyResults: krs });
                           }}
-                          className="nexus-input col-span-6 sm:col-span-2"
+                          className="3boxes-input col-span-6 sm:col-span-2"
                           placeholder="100"
                         />
                         <input
@@ -775,7 +775,7 @@ export default function OKRCascadePage() {
                             krs[idx] = { ...kr, unit: e.target.value };
                             setForm({ ...form, keyResults: krs });
                           }}
-                          className="nexus-input col-span-5 sm:col-span-3"
+                          className="3boxes-input col-span-5 sm:col-span-3"
                           placeholder="%, INR, hrs..."
                         />
                         <button
@@ -796,8 +796,8 @@ export default function OKRCascadePage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
-              <button onClick={() => setShowModal(false)} className="nexus-btn-secondary">Cancel</button>
-              <button onClick={handleSave} disabled={saving} className="nexus-btn-primary flex items-center gap-2">
+              <button onClick={() => setShowModal(false)} className="3boxes-btn-secondary">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="3boxes-btn-primary flex items-center gap-2">
                 {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
                 {editingOkr ? 'Update OKR' : 'Create OKR'}
               </button>

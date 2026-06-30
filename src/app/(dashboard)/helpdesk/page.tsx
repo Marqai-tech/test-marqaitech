@@ -294,8 +294,8 @@ export default function HelpdeskPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary">Helpdesk</h1>
-          <p className="text-nexus-text-secondary mt-1">Manage support tickets and requests</p>
+          <h1 className="text-2xl font-bold text-thb-text-primary">Helpdesk</h1>
+          <p className="text-thb-text-secondary mt-1">Manage support tickets and requests</p>
         </div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
           <FiPlus className="w-4 h-4" /> Create Ticket
@@ -304,9 +304,9 @@ export default function HelpdeskPage() {
 
       {/* Error State */}
       {error && (
-        <div className="nexus-card p-6 text-center border-l-4 border-l-red-400">
+        <div className="thb-card p-6 text-center border-l-4 border-l-red-400">
           <FiAlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-          <p className="text-nexus-text-secondary mb-3">{error}</p>
+          <p className="text-thb-text-secondary mb-3">{error}</p>
           <button onClick={fetchTickets} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">
             Retry
           </button>
@@ -315,7 +315,7 @@ export default function HelpdeskPage() {
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         {(['my', 'all'] as const).map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-nexus-text-primary' : 'text-nexus-text-muted hover:text-nexus-text-primary'}`}>
+          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-thb-text-primary' : 'text-thb-text-muted hover:text-thb-text-primary'}`}>
             {tab === 'my' ? 'My Tickets' : 'All Tickets'}
           </button>
         ))}
@@ -323,11 +323,11 @@ export default function HelpdeskPage() {
 
       {/* View Panel */}
       {viewingId && viewingTicket && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingTicket.subject}</h2>
+                <h2 className="text-lg font-semibold text-thb-text-primary">{viewingTicket.subject}</h2>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[viewingTicket.priority]?.bg || 'bg-slate-100'} ${priorityConfig[viewingTicket.priority]?.text || 'text-slate-600'}`}>{viewingTicket.priority || 'medium'}</span>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[viewingTicket.status]?.bg || 'bg-slate-100'} ${statusConfig[viewingTicket.status]?.text || 'text-slate-600'}`}>{getStatusText(viewingTicket.status)}</span>
@@ -335,40 +335,40 @@ export default function HelpdeskPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => handleEdit(viewingTicket)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
-                <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <div>
-                <span className="text-xs font-medium text-nexus-text-secondary">Ticket ID</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 font-mono">{viewingTicket.ticketId?.slice(0, 8) || '—'}</p>
+                <span className="text-xs font-medium text-thb-text-secondary">Ticket ID</span>
+                <p className="text-sm font-medium text-thb-text-primary mt-0.5 font-mono">{viewingTicket.ticketId?.slice(0, 8) || '—'}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-nexus-text-secondary">Requester</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiUser className="w-3.5 h-3.5" />{viewingTicket.requesterName || 'Unknown'}</p>
+                <span className="text-xs font-medium text-thb-text-secondary">Requester</span>
+                <p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1"><FiUser className="w-3.5 h-3.5" />{viewingTicket.requesterName || 'Unknown'}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-nexus-text-secondary">Requester Type</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{viewingTicket.requesterType || 'employee'}</p>
+                <span className="text-xs font-medium text-thb-text-secondary">Requester Type</span>
+                <p className="text-sm font-medium text-thb-text-primary mt-0.5 capitalize">{viewingTicket.requesterType || 'employee'}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-nexus-text-secondary">Assigned Agent</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingTicket.assignedAgentName || 'Unassigned'}</p>
+                <span className="text-xs font-medium text-thb-text-secondary">Assigned Agent</span>
+                <p className="text-sm font-medium text-thb-text-primary mt-0.5">{viewingTicket.assignedAgentName || 'Unassigned'}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-nexus-text-secondary">Category</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{getCategoryLabel(viewingTicket.category) || '—'}</p>
+                <span className="text-xs font-medium text-thb-text-secondary">Category</span>
+                <p className="text-sm font-medium text-thb-text-primary mt-0.5 capitalize">{getCategoryLabel(viewingTicket.category) || '—'}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-nexus-text-secondary">Created</span>
-                <p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1"><FiClock className="w-3.5 h-3.5" />{viewingTicket.createdAt ? new Date(viewingTicket.createdAt).toLocaleString() : '—'}</p>
+                <span className="text-xs font-medium text-thb-text-secondary">Created</span>
+                <p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1"><FiClock className="w-3.5 h-3.5" />{viewingTicket.createdAt ? new Date(viewingTicket.createdAt).toLocaleString() : '—'}</p>
               </div>
             </div>
 
             <div className="mb-6">
-              <span className="text-xs font-medium text-nexus-text-secondary">Description</span>
-              <p className="text-sm text-nexus-text-primary mt-0.5 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap">{viewingTicket.description || 'No description'}</p>
+              <span className="text-xs font-medium text-thb-text-secondary">Description</span>
+              <p className="text-sm text-thb-text-primary mt-0.5 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap">{viewingTicket.description || 'No description'}</p>
             </div>
 
             {/* Status Actions */}
@@ -385,21 +385,21 @@ export default function HelpdeskPage() {
             </div>
 
             {/* Comments */}
-            <div className="border-t border-nexus-border pt-4">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiMessageSquare className="w-4 h-4" /> Comments ({viewingTicket.comments?.length || 0})</h3>
+            <div className="border-t border-thb-border pt-4">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiMessageSquare className="w-4 h-4" /> Comments ({viewingTicket.comments?.length || 0})</h3>
               <div className="space-y-3 max-h-60 overflow-y-auto mb-3">
                 {(viewingTicket.comments || []).map((c) => (
                   <div key={c.id} className={`p-3 rounded-lg ${c.isInternal ? 'bg-amber-50 border border-amber-100' : 'bg-slate-50'}`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-nexus-text-primary">{c.authorName || 'Anonymous'}{c.isInternal && ' (Internal)'}</span>
-                      <span className="text-xs text-nexus-text-muted">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
+                      <span className="text-xs font-medium text-thb-text-primary">{c.authorName || 'Anonymous'}{c.isInternal && ' (Internal)'}</span>
+                      <span className="text-xs text-thb-text-muted">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
                     </div>
-                    <p className="text-sm text-nexus-text-secondary">{c.content}</p>
+                    <p className="text-sm text-thb-text-secondary">{c.content}</p>
                   </div>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2.5 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2.5 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                 <button onClick={handleAddComment} className="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm transition-colors"><FiSend className="w-4 h-4" /></button>
               </div>
             </div>
@@ -409,26 +409,26 @@ export default function HelpdeskPage() {
 
       {/* Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Ticket' : 'Create Ticket'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Subject *</label>
-                <input type="text" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Ticket subject" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Subject *</label>
+                <input type="text" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Ticket subject" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description *</label>
-                <textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Describe the issue..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
+                <textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Describe the issue..." />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="hr">HR</option>
                   <option value="it">IT</option>
                   <option value="payroll">Payroll</option>
@@ -437,8 +437,8 @@ export default function HelpdeskPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Priority</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority</label>
+                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -446,16 +446,16 @@ export default function HelpdeskPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Requester Type</label>
-                <select value={form.requesterType} onChange={(e) => setForm({ ...form, requesterType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requester Type</label>
+                <select value={form.requesterType} onChange={(e) => setForm({ ...form, requesterType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="employee">Employee</option>
                   <option value="client">Client</option>
                   <option value="vendor">Vendor</option>
                 </select>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
             </div>
           </div>
@@ -464,11 +464,11 @@ export default function HelpdeskPage() {
 
       {/* Tickets Table */}
       {loading ? (
-        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="nexus-card p-5 animate-pulse"><div className="h-4 w-3/4 bg-slate-200 rounded mb-2" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
+        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="thb-card p-5 animate-pulse"><div className="h-4 w-3/4 bg-slate-200 rounded mb-2" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
       ) : displayTickets.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiAlertCircle className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary">
+        <div className="thb-card p-12 text-center">
+          <FiAlertCircle className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary">
             {activeTab === 'my' ? 'You haven\'t created any tickets yet' : 'No tickets found'}
           </p>
           <button onClick={handleAddNew} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
@@ -476,17 +476,17 @@ export default function HelpdeskPage() {
           </button>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50/50 border-b border-nexus-border">
+              <thead className="bg-slate-50/50 border-b border-thb-border">
                 <tr>
                   {['ID', 'Subject', 'Category', 'Priority', 'Status', 'Assigned Agent', 'Created', 'Actions'].map((h) => (
-                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider ${h === 'Actions' ? 'text-right' : ''}`}>{h}</th>
+                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold text-thb-text-secondary uppercase tracking-wider ${h === 'Actions' ? 'text-right' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-nexus-border/50">
+              <tbody className="divide-y divide-thb-border/50">
                 {displayTickets.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === t.id ? (
@@ -495,24 +495,24 @@ export default function HelpdeskPage() {
                           <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this ticket?</span>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleDelete(t.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                           </div>
                         </div>
                       </td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-sm font-mono text-nexus-text-secondary">{t.ticketId?.slice(0, 8) || '—'}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary max-w-[200px] truncate">{t.subject}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary capitalize">{getCategoryLabel(t.category) || t.requesterType || '—'}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-thb-text-secondary">{t.ticketId?.slice(0, 8) || '—'}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary max-w-[200px] truncate">{t.subject}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary capitalize">{getCategoryLabel(t.category) || t.requesterType || '—'}</td>
                         <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityConfig[t.priority]?.bg || 'bg-slate-100'} ${priorityConfig[t.priority]?.text || 'text-slate-600'}`}>{t.priority || 'medium'}</span></td>
                         <td className="px-4 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[t.status]?.bg || 'bg-slate-100'} ${statusConfig[t.status]?.text || 'text-slate-600'}`}>{getStatusText(t.status)}</span></td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.assignedAgentName || 'Unassigned'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-muted">{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{t.assignedAgentName || 'Unassigned'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-muted">{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleView(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleView(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </>

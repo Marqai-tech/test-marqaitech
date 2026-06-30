@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 }
 
 function buildSystemPrompt(interviewType: string, jobTitle: string): string {
-  const basePrompt = `You are an AI interviewer for Nexus HRMS conducting a ${interviewType} interview for the position of ${jobTitle}. You are professional, thorough, and adaptive in your questioning.`;
+  const basePrompt = `You are an AI interviewer for 3Boxes HRMS conducting a ${interviewType} interview for the position of ${jobTitle}. You are professional, thorough, and adaptive in your questioning.`;
 
   const typeSpecific: Record<string, string> = {
     technical: `Focus on technical skills, problem-solving abilities, and domain knowledge. Ask progressively challenging questions. When the candidate gives a good answer, dig deeper. If they struggle, guide them with hints. Cover: system design, algorithms, best practices, and real-world scenarios.`,

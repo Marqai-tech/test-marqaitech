@@ -123,7 +123,7 @@ export default function RostersPage() {
           <p className="text-sm text-slate-500 mt-1">Configure auto-rotating shifts for manufacturing or support teams</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowForm(!showForm)} className="nexus-btn-primary flex items-center gap-2">
+          <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
             <FiPlus className="w-4 h-4" /> New Roster
           </button>
         )}
@@ -134,7 +134,7 @@ export default function RostersPage() {
       </ModuleTips>
 
       {showForm && isAdmin && (
-        <div className="nexus-card p-6 border-l-4 border-l-cyan-500">
+        <div className="thb-card p-6 border-l-4 border-l-cyan-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Rotational Roster</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -142,20 +142,20 @@ export default function RostersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Name *</label>
-              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="nexus-input w-full" placeholder="e.g. Support Team A — Weekly Rotation" />
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Support Team A — Weekly Rotation" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Start Date *</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="nexus-input w-full" />
+              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
-            <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="nexus-input w-full" />
+            <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="3boxes-input w-full" />
           </div>
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Rotation Unit</label>
-            <select value={form.rotationUnit} onChange={e => setForm({ ...form, rotationUnit: e.target.value })} className="nexus-input w-full">
+            <select value={form.rotationUnit} onChange={e => setForm({ ...form, rotationUnit: e.target.value })} className="3boxes-input w-full">
               <option value="week">Weekly (rotate every week)</option>
               <option value="day">Daily (rotate every day)</option>
             </select>
@@ -174,7 +174,7 @@ export default function RostersPage() {
                       const next = [...form.pattern];
                       next[idx] = e.target.value;
                       setForm({ ...form, pattern: next });
-                    }} className="nexus-input flex-1">
+                    }} className="3boxes-input flex-1">
                       {shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.startTime} - {s.endTime})</option>)}
                     </select>
                     <button onClick={() => setForm({ ...form, pattern: form.pattern.filter((_, i) => i !== idx) })} className="p-1 text-red-500 hover:text-red-700">
@@ -189,8 +189,8 @@ export default function RostersPage() {
             )}
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary flex items-center gap-2">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
               {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
               Create Roster
             </button>
@@ -201,14 +201,14 @@ export default function RostersPage() {
       {loading ? (
         <div className="text-center py-12 text-slate-400">Loading...</div>
       ) : rosters.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
+        <div className="thb-card p-12 text-center">
           <FiCalendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-500">No rotational rosters configured.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {rosters.map(r => (
-            <div key={r.id} className="nexus-card p-5">
+            <div key={r.id} className="thb-card p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">{r.name}</h3>

@@ -12,7 +12,7 @@ import type { NextRequest } from 'next/server'
  * `app/login/`, `app/(dashboard)/`, etc. — with NO `[locale]` segment —
  * the rewritten path `/en/login` doesn't match any route, and Next.js
  * returns 404 for EVERY page. This was the root cause of the
- * 2026-06-21 production outage on nexus-hrms-mu.vercel.app.
+ * 2026-06-21 production outage on 3boxes-hrms-mu.vercel.app.
  *
  * Fix: implement locale detection OURSELVES. We:
  *   1. Read NEXT_LOCALE cookie (set when user explicitly switches locale)

@@ -45,15 +45,15 @@ function getAuthHeaders() {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    available: 'nexus-badge nexus-badge-success',
-    assigned: 'nexus-badge nexus-badge-info',
-    under_repair: 'nexus-badge nexus-badge-warning',
-    maintenance: 'nexus-badge nexus-badge-warning',
-    disposed: 'nexus-badge nexus-badge-error',
-    retired: 'nexus-badge nexus-badge-error',
-    lost: 'nexus-badge nexus-badge-error',
+    available: 'thb-badge thb-badge-success',
+    assigned: 'thb-badge thb-badge-info',
+    under_repair: 'thb-badge thb-badge-warning',
+    maintenance: 'thb-badge thb-badge-warning',
+    disposed: 'thb-badge thb-badge-error',
+    retired: 'thb-badge thb-badge-error',
+    lost: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function formatStatus(status: string) {
@@ -284,11 +284,11 @@ export default function AssetsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiPackage className="w-6 h-6 text-violet-500" />
             Assets
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage company assets and equipment</p>
+          <p className="text-thb-text-secondary mt-1">Manage company assets and equipment</p>
         </div>
         {isAdmin && (
           <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
@@ -302,24 +302,24 @@ export default function AssetsPage() {
       <ModuleWorkflow moduleKey="assets" title="How to Manage Company Assets" subtitle="Follow this workflow to manage assets throughout their lifecycle" steps={assetsWorkflowSteps} accentColor="blue" userRole={user?.role} />
 
       {/* Filters & Search */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by name, asset tag, or serial number..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <div className="flex items-center gap-2">
-            <FiFilter className="w-4 h-4 text-nexus-text-muted" />
+            <FiFilter className="w-4 h-4 text-thb-text-muted" />
             <select
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             >
               <option value="">All Categories</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
@@ -327,7 +327,7 @@ export default function AssetsPage() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             >
               <option value="">All Statuses</option>
               {STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
@@ -338,74 +338,74 @@ export default function AssetsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Asset' : 'Add New Asset'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Asset name" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Asset name" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Asset Tag *</label>
-                <input type="text" value={form.assetTag} onChange={e => setForm(p => ({ ...p, assetTag: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. AST-001" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Asset Tag *</label>
+                <input type="text" value={form.assetTag} onChange={e => setForm(p => ({ ...p, assetTag: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. AST-001" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category *</label>
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Brand</label>
-                <input type="text" value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Brand name" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Brand</label>
+                <input type="text" value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Brand name" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Model</label>
-                <input type="text" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Model name" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Model</label>
+                <input type="text" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Model name" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Serial Number</label>
-                <input type="text" value={form.serialNumber} onChange={e => setForm(p => ({ ...p, serialNumber: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Serial number" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Serial Number</label>
+                <input type="text" value={form.serialNumber} onChange={e => setForm(p => ({ ...p, serialNumber: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Serial number" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purchase Date</label>
-                <input type="date" value={form.purchaseDate} onChange={e => setForm(p => ({ ...p, purchaseDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purchase Date</label>
+                <input type="date" value={form.purchaseDate} onChange={e => setForm(p => ({ ...p, purchaseDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purchase Cost</label>
-                <input type="number" step="0.01" value={form.purchaseCost} onChange={e => setForm(p => ({ ...p, purchaseCost: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purchase Cost</label>
+                <input type="number" step="0.01" value={form.purchaseCost} onChange={e => setForm(p => ({ ...p, purchaseCost: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Condition</label>
-                <select value={form.condition} onChange={e => setForm(p => ({ ...p, condition: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Condition</label>
+                <select value={form.condition} onChange={e => setForm(p => ({ ...p, condition: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {['new', 'good', 'fair', 'poor'].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Location</label>
-                <input type="text" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Office location" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
+                <input type="text" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Office location" />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notes</label>
-                <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Additional notes..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Notes</label>
+                <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Additional notes..." />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
@@ -415,27 +415,27 @@ export default function AssetsPage() {
       )}
 
       {/* Assets Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Asset Tag</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Brand / Model</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Assigned To</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Location</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Asset Tag</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Name</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Brand / Model</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Assigned To</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Location</th>
                 {isAdmin && (
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
@@ -449,16 +449,16 @@ export default function AssetsPage() {
               ) : filteredAssets.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiPackage className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No assets found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">
+                    <FiPackage className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No assets found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">
                       {search || filterCategory || filterStatus ? 'Try adjusting your filters' : 'Add your first asset to get started'}
                     </p>
                   </td>
                 </tr>
               ) : (
                 filteredAssets.map(asset => (
-                  <tr key={asset.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={asset.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === asset.id ? (
                       <td colSpan={colCount} className="px-4 py-3 bg-red-50">
                         <div className="flex items-center justify-between">
@@ -467,7 +467,7 @@ export default function AssetsPage() {
                             <button onClick={() => handleDelete(asset.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
                               {deleting ? 'Deleting...' : 'Confirm'}
                             </button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
                               Cancel
                             </button>
                           </div>
@@ -481,23 +481,23 @@ export default function AssetsPage() {
                             <span className="text-sm font-mono font-medium text-blue-600">{asset.assetTag}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{asset.name}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatCategory(asset.category)}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{asset.name}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatCategory(asset.category)}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
                           {asset.brand || asset.model ? `${asset.brand || ''} ${asset.model || ''}`.trim() : '—'}
                         </td>
                         <td className="px-4 py-3">
                           <span className={getStatusBadge(asset.status)}>{formatStatus(asset.status)}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{getAssignedEmployee(asset)}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">—</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{getAssignedEmployee(asset)}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">—</td>
                         {isAdmin && (
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => handleEdit(asset)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                              <button onClick={() => handleEdit(asset)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
-                              <button onClick={() => setDeleteConfirmId(asset.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                              <button onClick={() => setDeleteConfirmId(asset.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
                                 <FiTrash2 className="w-4 h-4" />
                               </button>
                             </div>

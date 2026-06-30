@@ -190,14 +190,14 @@ export default function PayrollAIInsightsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiActivity className="w-6 h-6 text-violet-500" />
             AI Payroll Insights
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Anomaly detection · Compliance change tracking · Ghost employee detection</p>
+          <p className="text-thb-text-secondary mt-1">Anomaly detection · Compliance change tracking · Ghost employee detection</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="text" value={scanRunId} onChange={(e) => setScanRunId(e.target.value)} placeholder="Payroll Run ID (for scan)" className="px-3 py-2 text-sm border border-nexus-border rounded-lg bg-white text-nexus-text-primary placeholder:text-slate-400 w-64" />
+          <input type="text" value={scanRunId} onChange={(e) => setScanRunId(e.target.value)} placeholder="Payroll Run ID (for scan)" className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-slate-400 w-64" />
           <button onClick={runScan} disabled={scanning} className="inline-flex items-center gap-2 px-4 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm transition-colors disabled:opacity-50">
             <FiRefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Run AI Scan'}
@@ -206,37 +206,37 @@ export default function PayrollAIInsightsPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className={`nexus-card p-4 border-l-4 ${tab === 'anomalies' ? 'border-violet-500' : 'border-transparent'}`}>
+        <div className={`thb-card p-4 border-l-4 ${tab === 'anomalies' ? 'border-violet-500' : 'border-transparent'}`}>
           <button onClick={() => setTab('anomalies')} className="w-full text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiAlertTriangle className="w-5 h-5 text-violet-500" /></div>
               <div>
-                <p className="text-xs font-medium text-nexus-text-secondary">Anomalies</p>
-                <p className="text-xl font-bold text-nexus-text-primary">{anomalySummary?.total ?? 0}</p>
+                <p className="text-xs font-medium text-thb-text-secondary">Anomalies</p>
+                <p className="text-xl font-bold text-thb-text-primary">{anomalySummary?.total ?? 0}</p>
                 <p className="text-xs text-red-600">{anomalySummary?.open ?? 0} open · {anomalySummary?.critical ?? 0} critical</p>
               </div>
             </div>
           </button>
         </div>
-        <div className={`nexus-card p-4 border-l-4 ${tab === 'compliance' ? 'border-amber-500' : 'border-transparent'}`}>
+        <div className={`thb-card p-4 border-l-4 ${tab === 'compliance' ? 'border-amber-500' : 'border-transparent'}`}>
           <button onClick={() => setTab('compliance')} className="w-full text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><FiBell className="w-5 h-5 text-amber-500" /></div>
               <div>
-                <p className="text-xs font-medium text-nexus-text-secondary">Compliance Alerts</p>
-                <p className="text-xl font-bold text-nexus-text-primary">{alertSummary?.total ?? 0}</p>
+                <p className="text-xs font-medium text-thb-text-secondary">Compliance Alerts</p>
+                <p className="text-xl font-bold text-thb-text-primary">{alertSummary?.total ?? 0}</p>
                 <p className="text-xs text-red-600">{alertSummary?.critical ?? 0} critical · {alertSummary?.high ?? 0} high</p>
               </div>
             </div>
           </button>
         </div>
-        <div className={`nexus-card p-4 border-l-4 ${tab === 'ghosts' ? 'border-red-500' : 'border-transparent'}`}>
+        <div className={`thb-card p-4 border-l-4 ${tab === 'ghosts' ? 'border-red-500' : 'border-transparent'}`}>
           <button onClick={() => setTab('ghosts')} className="w-full text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center"><FiUserX className="w-5 h-5 text-red-500" /></div>
               <div>
-                <p className="text-xs font-medium text-nexus-text-secondary">Ghost Employees</p>
-                <p className="text-xl font-bold text-nexus-text-primary">{ghostSummary?.total ?? 0}</p>
+                <p className="text-xs font-medium text-thb-text-secondary">Ghost Employees</p>
+                <p className="text-xl font-bold text-thb-text-primary">{ghostSummary?.total ?? 0}</p>
                 <p className="text-xs text-red-600">{ghostSummary?.confirmedFraud ?? 0} confirmed · avg risk {ghostSummary?.avgRiskScore ?? 0}</p>
               </div>
             </div>
@@ -247,33 +247,33 @@ export default function PayrollAIInsightsPage() {
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter by status (OPEN, RESOLVED, etc.)" className="pl-9 pr-3 py-2 text-sm border border-nexus-border rounded-lg bg-white text-nexus-text-primary w-72" />
+          <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter by status (OPEN, RESOLVED, etc.)" className="pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary w-72" />
         </div>
-        <button onClick={() => { if (tab === 'anomalies') fetchAnomalies(); else if (tab === 'compliance') fetchAlerts(); else fetchGhosts(); }} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+        <button onClick={() => { if (tab === 'anomalies') fetchAnomalies(); else if (tab === 'compliance') fetchAlerts(); else fetchGhosts(); }} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
           <FiRefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {loading ? (
-        <div className="nexus-card p-12 text-center text-nexus-text-secondary">Loading…</div>
+        <div className="thb-card p-12 text-center text-thb-text-secondary">Loading…</div>
       ) : tab === 'anomalies' ? (
         anomalies.length === 0 ? (
           <EmptyState icon={<FiAlertTriangle className="w-8 h-8" />} text="No anomalies detected. Run an AI scan to populate this list." />
         ) : (
           <div className="space-y-3">
             {anomalies.map((a) => (
-              <div key={a.id} className="nexus-card p-4 hover:shadow-md transition-shadow">
+              <div key={a.id} className="thb-card p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${severityColor(a.severity)}`}>{a.severity}</span>
                       <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-700">{a.anomalyType.replace(/_/g, ' ')}</span>
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded ${statusColor(a.status)}`}>{a.status}</span>
-                      {a.employee && <span className="text-xs text-nexus-text-secondary">{a.employee.firstName} {a.employee.lastName} ({a.employee.employeeId})</span>}
+                      {a.employee && <span className="text-xs text-thb-text-secondary">{a.employee.firstName} {a.employee.lastName} ({a.employee.employeeId})</span>}
                     </div>
-                    <p className="text-sm text-nexus-text-primary font-medium">{a.description}</p>
+                    <p className="text-sm text-thb-text-primary font-medium">{a.description}</p>
                     {a.deviationPct !== null && (
-                      <p className="text-xs text-nexus-text-secondary mt-1">Observed: {a.observedValue?.toFixed(2)} vs. baseline: {a.baselineValue?.toFixed(2)} ({a.deviationPct > 0 ? '+' : ''}{a.deviationPct.toFixed(0)}%)</p>
+                      <p className="text-xs text-thb-text-secondary mt-1">Observed: {a.observedValue?.toFixed(2)} vs. baseline: {a.baselineValue?.toFixed(2)} ({a.deviationPct > 0 ? '+' : ''}{a.deviationPct.toFixed(0)}%)</p>
                     )}
                     <p className="text-xs text-slate-400 mt-1">Detected {new Date(a.detectedAt).toLocaleString()} via {a.detectionMethod}</p>
                   </div>
@@ -297,7 +297,7 @@ export default function PayrollAIInsightsPage() {
         ) : (
           <div className="space-y-3">
             {alerts.map((c) => (
-              <div key={c.id} className="nexus-card p-4 hover:shadow-md transition-shadow">
+              <div key={c.id} className="thb-card p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -305,10 +305,10 @@ export default function PayrollAIInsightsPage() {
                       <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-700">{c.changeType.replace(/_/g, ' ')}</span>
                       <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-700">{c.countryCode}</span>
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded ${statusColor(c.status)}`}>{c.status}</span>
-                      <span className="text-xs text-nexus-text-secondary">{c.authorityName}</span>
+                      <span className="text-xs text-thb-text-secondary">{c.authorityName}</span>
                     </div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{c.title}</p>
-                    <p className="text-xs text-nexus-text-secondary mt-1 leading-relaxed">{c.description}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{c.title}</p>
+                    <p className="text-xs text-thb-text-secondary mt-1 leading-relaxed">{c.description}</p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1"><FiClock className="w-3 h-3" /> Effective: {new Date(c.effectiveDate).toLocaleDateString()}</span>
                       {c.sourceUrl && <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline"><FiExternalLink className="w-3 h-3" /> Source</a>}
@@ -330,20 +330,20 @@ export default function PayrollAIInsightsPage() {
         ) : (
           <div className="space-y-3">
             {ghosts.map((g) => (
-              <div key={g.id} className="nexus-card p-4 hover:shadow-md transition-shadow">
+              <div key={g.id} className="thb-card p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded ${g.riskScore >= 70 ? 'bg-red-100 text-red-700' : g.riskScore >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>Risk: {g.riskScore.toFixed(0)}/100</span>
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded ${statusColor(g.status)}`}>{g.status.replace(/_/g, ' ')}</span>
-                      <span className="text-xs text-nexus-text-secondary">Period: {g.payrollPeriod}</span>
-                      {g.employee && <span className="text-xs text-nexus-text-secondary">{g.employee.firstName} {g.employee.lastName} ({g.employee.employeeId}){g.employee.department?.name && ` · ${g.employee.department.name}`}</span>}
+                      <span className="text-xs text-thb-text-secondary">Period: {g.payrollPeriod}</span>
+                      {g.employee && <span className="text-xs text-thb-text-secondary">{g.employee.firstName} {g.employee.lastName} ({g.employee.employeeId}){g.employee.department?.name && ` · ${g.employee.department.name}`}</span>}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-xs">
-                      <div><span className="text-slate-500">Timesheet:</span> <span className="font-semibold text-nexus-text-primary">{g.timesheetHours.toFixed(1)} hrs</span></div>
-                      <div><span className="text-slate-500">AD Logins:</span> <span className="font-semibold text-nexus-text-primary">{g.adLoginCount}</span></div>
+                      <div><span className="text-slate-500">Timesheet:</span> <span className="font-semibold text-thb-text-primary">{g.timesheetHours.toFixed(1)} hrs</span></div>
+                      <div><span className="text-slate-500">AD Logins:</span> <span className="font-semibold text-thb-text-primary">{g.adLoginCount}</span></div>
                       <div><span className="text-slate-500">Project:</span> <span className={`font-semibold ${g.hasProjectAllocation ? 'text-emerald-600' : 'text-red-600'}`}>{g.hasProjectAllocation ? 'Allocated' : 'None'}</span></div>
-                      <div><span className="text-slate-500">Last active:</span> <span className="font-semibold text-nexus-text-primary">{g.lastActiveDate ? new Date(g.lastActiveDate).toLocaleDateString() : 'Never'}</span></div>
+                      <div><span className="text-slate-500">Last active:</span> <span className="font-semibold text-thb-text-primary">{g.lastActiveDate ? new Date(g.lastActiveDate).toLocaleDateString() : 'Never'}</span></div>
                     </div>
                     {g.riskFactors && <div className="mt-2 text-xs text-slate-500">Risk factors: {JSON.parse(g.riskFactors).join(', ')}</div>}
                   </div>
@@ -364,12 +364,12 @@ export default function PayrollAIInsightsPage() {
         )
       ) : null}
 
-      <div className="nexus-card p-4 bg-slate-50/50">
+      <div className="thb-card p-4 bg-slate-50/50">
         <div className="flex items-start gap-3">
           <FiShield className="w-5 h-5 text-violet-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-nexus-text-primary mb-1">AI Payroll Compliance Matrix</p>
-            <ul className="text-xs text-nexus-text-secondary space-y-1">
+            <p className="text-sm font-semibold text-thb-text-primary mb-1">AI Payroll Compliance Matrix</p>
+            <ul className="text-xs text-thb-text-secondary space-y-1">
               <li>• <strong>REQ-AI-PAY-01</strong>: Statistical + rule-based detection of net-pay spikes, OT spikes, gross drops, zero-tax anomalies, duplicate bank accounts, and minimum-wage breaches.</li>
               <li>• <strong>REQ-AI-PAY-02</strong>: Surfaces upcoming statutory changes (tax slabs, social security rates, wage caps, filing formats) scraped from tax authority sources.</li>
               <li>• <strong>REQ-AI-PAY-03</strong>: Cross-references active payroll with Timesheet + AD login activity to detect ghost employees receiving pay with zero activity.</li>
@@ -383,9 +383,9 @@ export default function PayrollAIInsightsPage() {
 
 function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="nexus-card p-12 text-center">
+    <div className="thb-card p-12 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 text-slate-400 mb-3">{icon}</div>
-      <p className="text-sm text-nexus-text-secondary">{text}</p>
+      <p className="text-sm text-thb-text-secondary">{text}</p>
     </div>
   );
 }

@@ -63,7 +63,7 @@ export default function CompOffPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Overtime converted to compensatory leave · Expires in 90 days</p>
         </div>
-        <button onClick={fetchItems} className="nexus-btn-secondary flex items-center gap-2">
+        <button onClick={fetchItems} className="3boxes-btn-secondary flex items-center gap-2">
           <FiRefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
@@ -97,7 +97,7 @@ export default function CompOffPage() {
         </div>
       )}
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -135,10 +135,10 @@ export default function CompOffPage() {
                       {isExpiringSoon && <span className="ml-1 text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{daysToExpiry}d left</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`nexus-badge ${
-                        c.status === 'active' ? 'nexus-badge-success' :
-                        c.status === 'expired' ? 'nexus-badge-error' :
-                        c.status === 'used' ? 'bg-slate-100 text-slate-600 nexus-badge' : 'nexus-badge-info'
+                      <span className={`thb-badge ${
+                        c.status === 'active' ? 'thb-badge-success' :
+                        c.status === 'expired' ? 'thb-badge-error' :
+                        c.status === 'used' ? 'bg-slate-100 text-slate-600 thb-badge' : 'thb-badge-info'
                       }`}>{c.status.replace('_', ' ')}</span>
                     </td>
                   </tr>

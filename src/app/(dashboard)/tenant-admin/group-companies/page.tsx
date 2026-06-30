@@ -101,8 +101,8 @@ export default function TenantGroupCompaniesPage() {
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
           <FiLayers className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Super admins use the Super Admin page</h2>
-        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+        <h2 className="text-xl font-semibold text-thb-text-primary">Super admins use the Super Admin page</h2>
+        <p className="text-thb-text-secondary text-sm max-w-md leading-relaxed">
           The Group Companies page here is a <b>read-only</b> view scoped to a single
           tenant (the one the logged-in tenant admin belongs to). Since your super
           admin account is platform-level, please manage group companies from the

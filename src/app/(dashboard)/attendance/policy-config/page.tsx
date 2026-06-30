@@ -93,7 +93,7 @@ export default function PolicyConfigPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Global policy: rounding rules, grace periods, OT, auto-approval, WFH monitoring</p>
         </div>
-        <button onClick={handleSave} disabled={saving} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={handleSave} disabled={saving} className="3boxes-btn-primary flex items-center gap-2">
           {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />}
           Save Policy
         </button>
@@ -105,7 +105,7 @@ export default function PolicyConfigPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Rounding & Grace */}
-        <div className="nexus-card p-6">
+        <div className="thb-card p-6">
           <h2 className="text-sm font-semibold text-slate-800 mb-4">Rounding & Grace Periods (REQ-CFG-03)</h2>
           <div className="space-y-4">
             <label className="flex items-center gap-3">
@@ -116,7 +116,7 @@ export default function PolicyConfigPage() {
               <>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Round to (minutes)</label>
-                  <select value={config.roundMinutes} onChange={e => update('roundMinutes', Number(e.target.value))} className="nexus-input w-full">
+                  <select value={config.roundMinutes} onChange={e => update('roundMinutes', Number(e.target.value))} className="3boxes-input w-full">
                     <option value={5}>5 min</option>
                     <option value={10}>10 min</option>
                     <option value={15}>15 min</option>
@@ -125,7 +125,7 @@ export default function PolicyConfigPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Direction</label>
-                  <select value={config.roundDirection} onChange={e => update('roundDirection', e.target.value)} className="nexus-input w-full">
+                  <select value={config.roundDirection} onChange={e => update('roundDirection', e.target.value)} className="3boxes-input w-full">
                     <option value="nearest">Nearest</option>
                     <option value="up">Always up (employee-favorable)</option>
                     <option value="down">Always down (employer-favorable)</option>
@@ -136,18 +136,18 @@ export default function PolicyConfigPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Late Grace (min)</label>
-                <input type="number" min="0" max="60" value={config.lateGraceMinutes} onChange={e => update('lateGraceMinutes', Number(e.target.value))} className="nexus-input w-full" />
+                <input type="number" min="0" max="60" value={config.lateGraceMinutes} onChange={e => update('lateGraceMinutes', Number(e.target.value))} className="3boxes-input w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Early Departure Grace (min)</label>
-                <input type="number" min="0" max="60" value={config.earlyGraceMinutes} onChange={e => update('earlyGraceMinutes', Number(e.target.value))} className="nexus-input w-full" />
+                <input type="number" min="0" max="60" value={config.earlyGraceMinutes} onChange={e => update('earlyGraceMinutes', Number(e.target.value))} className="3boxes-input w-full" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Overtime */}
-        <div className="nexus-card p-6">
+        <div className="thb-card p-6">
           <h2 className="text-sm font-semibold text-slate-800 mb-4">Overtime (REQ-OT-01)</h2>
           <div className="space-y-4">
             <label className="flex items-center gap-3">
@@ -156,31 +156,31 @@ export default function PolicyConfigPage() {
             </label>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">OT Threshold (minutes from check-in)</label>
-              <input type="number" min="240" max="720" step="30" value={config.overtimeThresholdMinutes} onChange={e => update('overtimeThresholdMinutes', Number(e.target.value))} className="nexus-input w-full" />
+              <input type="number" min="240" max="720" step="30" value={config.overtimeThresholdMinutes} onChange={e => update('overtimeThresholdMinutes', Number(e.target.value))} className="3boxes-input w-full" />
               <p className="text-xs text-slate-500 mt-1">Default: 480 (8 hours). OT starts accruing after this many minutes from check-in.</p>
             </div>
           </div>
         </div>
 
         {/* AI Auto-Approval */}
-        <div className="nexus-card p-6">
+        <div className="thb-card p-6">
           <h2 className="text-sm font-semibold text-slate-800 mb-4">AI Auto-Approval (REQ-AI-ATT-04)</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Auto-approve permissions ≤ (minutes) · 0 = disabled</label>
-              <input type="number" min="0" max="240" step="15" value={config.autoApprovePermissionMinutes} onChange={e => update('autoApprovePermissionMinutes', Number(e.target.value))} className="nexus-input w-full" />
+              <input type="number" min="0" max="240" step="15" value={config.autoApprovePermissionMinutes} onChange={e => update('autoApprovePermissionMinutes', Number(e.target.value))} className="3boxes-input w-full" />
               <p className="text-xs text-slate-500 mt-1">e.g. 30 = auto-approve permissions up to 30 min for employees with ≥ attendance threshold.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Minimum Attendance %</label>
-              <input type="number" min="50" max="100" value={config.autoApproveMinAttendancePct} onChange={e => update('autoApproveMinAttendancePct', Number(e.target.value))} className="nexus-input w-full" />
+              <input type="number" min="50" max="100" value={config.autoApproveMinAttendancePct} onChange={e => update('autoApproveMinAttendancePct', Number(e.target.value))} className="3boxes-input w-full" />
               <p className="text-xs text-slate-500 mt-1">Employee must have ≥ this % attendance in last 30 days to qualify for auto-approval.</p>
             </div>
           </div>
         </div>
 
         {/* WFH Monitoring */}
-        <div className="nexus-card p-6">
+        <div className="thb-card p-6">
           <h2 className="text-sm font-semibold text-slate-800 mb-4">WFH Activity Monitoring (REQ-ATT-07)</h2>
           <div className="space-y-4">
             <label className="flex items-center gap-3">
@@ -189,7 +189,7 @@ export default function PolicyConfigPage() {
             </label>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Inactivity threshold (hours)</label>
-              <input type="number" min="2" max="8" value={config.wfhInactivityThresholdHours} onChange={e => update('wfhInactivityThresholdHours', Number(e.target.value))} className="nexus-input w-full" />
+              <input type="number" min="2" max="8" value={config.wfhInactivityThresholdHours} onChange={e => update('wfhInactivityThresholdHours', Number(e.target.value))} className="3boxes-input w-full" />
               <p className="text-xs text-slate-500 mt-1">If WFH employee has zero activity (chats, timesheets, emails) for this many continuous hours, AI flags to manager.</p>
             </div>
           </div>

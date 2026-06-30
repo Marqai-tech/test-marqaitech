@@ -57,22 +57,22 @@ interface StatutoryComponent {
 // --- Badge Helpers ---
 function getPartyTypeBadge(type: string) {
   const map: Record<string, string> = {
-    EMPLOYEE: 'nexus-badge nexus-badge-info',
-    EMPLOYER: 'nexus-badge nexus-badge-warning',
-    BOTH: 'nexus-badge nexus-badge-purple',
+    EMPLOYEE: 'thb-badge thb-badge-info',
+    EMPLOYER: 'thb-badge thb-badge-warning',
+    BOTH: 'thb-badge thb-badge-purple',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getBasisBadge(basis: string) {
   const map: Record<string, string> = {
-    GROSS_PAY: 'nexus-badge nexus-badge-info',
-    BASIC_PAY: 'nexus-badge nexus-badge-success',
-    SPECIFIC_COMPONENT: 'nexus-badge nexus-badge-warning',
-    SLAB_BASED: 'nexus-badge nexus-badge-purple',
-    FLAT_RATE: 'nexus-badge nexus-badge-error',
+    GROSS_PAY: 'thb-badge thb-badge-info',
+    BASIC_PAY: 'thb-badge thb-badge-success',
+    SPECIFIC_COMPONENT: 'thb-badge thb-badge-warning',
+    SLAB_BASED: 'thb-badge thb-badge-purple',
+    FLAT_RATE: 'thb-badge thb-badge-error',
   };
-  return map[basis] || 'nexus-badge nexus-badge-info';
+  return map[basis] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -165,11 +165,11 @@ const COUNTRY_CATALOG: Record<string, { name: string; components: { code: string
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -402,16 +402,16 @@ export default function StatutoryComponentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiShield className="w-6 h-6 text-emerald-500" />
             Statutory Components
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage statutory compliance components across countries</p>
+          <p className="text-thb-text-secondary mt-1">Manage statutory compliance components across countries</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -429,69 +429,69 @@ export default function StatutoryComponentsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiShield className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Statutory</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalComponents}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Statutory</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalComponents}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiUsers className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Employee Contributions</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{employeeContributions}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Employee Contributions</p>
+              <p className="text-xl font-bold text-thb-text-primary">{employeeContributions}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiDatabase className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Employer Contributions</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{employerContributions}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Employer Contributions</p>
+              <p className="text-xl font-bold text-thb-text-primary">{employerContributions}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
               <FiGlobe className="w-5 h-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Countries Covered</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{countriesCovered}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Countries Covered</p>
+              <p className="text-xl font-bold text-thb-text-primary">{countriesCovered}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by code, name, country, or authority..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -499,7 +499,7 @@ export default function StatutoryComponentsPage() {
           <select
             value={partyTypeFilter}
             onChange={(e) => setPartyTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Party Types</option>
             {PARTY_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -509,7 +509,7 @@ export default function StatutoryComponentsPage() {
 
       {/* View Panel */}
       {viewingComponent && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -519,8 +519,8 @@ export default function StatutoryComponentsPage() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingComponent.componentName}</h2>
-                    <p className="text-sm text-nexus-text-secondary mt-0.5">
+                    <h2 className="text-lg font-semibold text-thb-text-primary">{viewingComponent.componentName}</h2>
+                    <p className="text-sm text-thb-text-secondary mt-0.5">
                       {viewingComponent.componentCode} &middot; {viewingComponent.countryCode}
                     </p>
                   </div>
@@ -535,7 +535,7 @@ export default function StatutoryComponentsPage() {
                     )}
                     <button
                       onClick={() => setViewingComponent(null)}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                     >
                       <FiX className="w-5 h-5" />
                     </button>
@@ -560,7 +560,7 @@ export default function StatutoryComponentsPage() {
                   <DetailItem label="Filing Frequency" value={formatFrequency(viewingComponent.filingFrequency || '')} />
                   <DetailItem label="Filing Format" value={viewingComponent.filingFormat} />
                   <DetailItem label="Penalty Rate %" value={viewingComponent.penaltyRatePct != null ? `${viewingComponent.penaltyRatePct}%` : null} />
-                  <DetailItem label="Challan Required" value={viewingComponent.isChallanRequired} badge={viewingComponent.isChallanRequired ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error'} />
+                  <DetailItem label="Challan Required" value={viewingComponent.isChallanRequired} badge={viewingComponent.isChallanRequired ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error'} />
                   <DetailItem label="Challan Format" value={viewingComponent.challanFormat} />
                   <DetailItem label="Effective From" value={viewingComponent.effectiveFrom ? new Date(viewingComponent.effectiveFrom).toLocaleDateString() : null} />
                   <DetailItem label="Effective To" value={viewingComponent.effectiveTo ? new Date(viewingComponent.effectiveTo).toLocaleDateString() : null} />
@@ -573,15 +573,15 @@ export default function StatutoryComponentsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Statutory Component' : 'Create Statutory Component'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -589,63 +589,63 @@ export default function StatutoryComponentsPage() {
 
             {/* Basic Information */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Basic Information</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Component Code *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Code *</label>
                   <input
                     required
                     value={form.componentCode}
                     onChange={(e) => setForm({ ...form, componentCode: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. EPF_EE, SS_ER"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Component Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Name *</label>
                   <input
                     required
                     value={form.componentName}
                     onChange={(e) => setForm({ ...form, componentName: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. Employees Provident Fund (Employee)"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
                   <select
                     value={form.countryCode}
                     onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Authority Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Authority Name *</label>
                   <input
                     required
                     value={form.authorityName}
                     onChange={(e) => setForm({ ...form, authorityName: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. EPFO, IRS, HMRC"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Authority Code</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Authority Code</label>
                   <input
                     value={form.authorityCode}
                     onChange={(e) => setForm({ ...form, authorityCode: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. EPFO, SSA"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Party Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Party Type</label>
                   <select
                     value={form.partyType}
                     onChange={(e) => setForm({ ...form, partyType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {PARTY_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -655,63 +655,63 @@ export default function StatutoryComponentsPage() {
 
             {/* Calculation & Contribution */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Calculation & Contribution</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Calculation & Contribution</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Calculation Basis</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Calculation Basis</label>
                   <select
                     value={form.calculationBasis}
                     onChange={(e) => setForm({ ...form, calculationBasis: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {CALCULATION_BASIS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Rate Percentage (%)</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Percentage (%)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.ratePercentage}
                     onChange={(e) => setForm({ ...form, ratePercentage: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 12, 6.2"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Wage Ceiling</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Wage Ceiling</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.wageCeiling}
                     onChange={(e) => setForm({ ...form, wageCeiling: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Max basis amount"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Max Contribution Amt</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Max Contribution Amt</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.maxContributionAmt}
                     onChange={(e) => setForm({ ...form, maxContributionAmt: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 1800"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Min Contribution Amt</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Min Contribution Amt</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.minContributionAmt}
                     onChange={(e) => setForm({ ...form, minContributionAmt: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 75"
                   />
                 </div>
@@ -720,59 +720,59 @@ export default function StatutoryComponentsPage() {
 
             {/* Remittance & Filing */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Remittance & Filing</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Remittance & Filing</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Remittance Frequency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Remittance Frequency</label>
                   <select
                     value={form.remittanceFrequency}
                     onChange={(e) => setForm({ ...form, remittanceFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {REMITTANCE_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Remittance Due Day</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Remittance Due Day</label>
                   <input
                     type="number"
                     min="1"
                     max="31"
                     value={form.remittanceDueDay}
                     onChange={(e) => setForm({ ...form, remittanceDueDay: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Day of month (1-31)"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Filing Frequency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Frequency</label>
                   <select
                     value={form.filingFrequency}
                     onChange={(e) => setForm({ ...form, filingFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     <option value="">Select...</option>
                     {FILING_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Filing Format</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Format</label>
                   <input
                     value={form.filingFormat}
                     onChange={(e) => setForm({ ...form, filingFormat: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. ECR, FPS, W-2, IR8A"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Penalty Rate %</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Penalty Rate %</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.penaltyRatePct}
                     onChange={(e) => setForm({ ...form, penaltyRatePct: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 1.5"
                   />
                 </div>
@@ -781,54 +781,54 @@ export default function StatutoryComponentsPage() {
 
             {/* Challan & Effective Dates */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Challan & Effective Dates</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Challan & Effective Dates</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.isChallanRequired}
                       onChange={(e) => setForm({ ...form, isChallanRequired: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Challan Required</span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Challan Format</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Challan Format</label>
                   <input
                     value={form.challanFormat}
                     onChange={(e) => setForm({ ...form, challanFormat: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. Challan ITNS 1, EPF Challan"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
                   <input
                     type="date"
                     value={form.effectiveFrom}
                     onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective To</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective To</label>
                   <input
                     type="date"
                     value={form.effectiveTo}
                     onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
               </div>
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -846,7 +846,7 @@ export default function StatutoryComponentsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -854,19 +854,19 @@ export default function StatutoryComponentsPage() {
           </div>
         </div>
       ) : filteredComponents.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiShield className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No statutory components found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first statutory component to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiShield className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No statutory components found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first statutory component to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Code', 'Name', 'Country', 'Party', 'Basis', 'Rate %', 'Ceiling', 'Authority', 'Frequency', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider whitespace-nowrap">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -893,7 +893,7 @@ export default function StatutoryComponentsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -902,28 +902,28 @@ export default function StatutoryComponentsPage() {
                     </tr>
                   ) : (
                     <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-mono font-medium text-nexus-text-primary whitespace-nowrap">{c.componentCode}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-primary max-w-[200px] truncate">{c.componentName}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary whitespace-nowrap">{c.countryCode}</td>
+                      <td className="px-4 py-3 text-sm font-mono font-medium text-thb-text-primary whitespace-nowrap">{c.componentCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-primary max-w-[200px] truncate">{c.componentName}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary whitespace-nowrap">{c.countryCode}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={getPartyTypeBadge(c.partyType)}>{formatPartyType(c.partyType)}</span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={getBasisBadge(c.calculationBasis)}>{formatBasis(c.calculationBasis)}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-primary whitespace-nowrap">
+                      <td className="px-4 py-3 text-sm text-thb-text-primary whitespace-nowrap">
                         {c.ratePercentage != null ? `${c.ratePercentage}%` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary whitespace-nowrap">
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary whitespace-nowrap">
                         {c.wageCeiling != null ? c.wageCeiling.toLocaleString() : '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary whitespace-nowrap">{c.authorityName}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary whitespace-nowrap">{formatFrequency(c.remittanceFrequency)}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary whitespace-nowrap">{c.authorityName}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary whitespace-nowrap">{formatFrequency(c.remittanceFrequency)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(c)}
-                            className="p-1.5 rounded-md text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />
@@ -932,14 +932,14 @@ export default function StatutoryComponentsPage() {
                             <>
                               <button
                                 onClick={() => handleEdit(c)}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors"
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => setDeleteConfirmId(c.id)}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                                 title="Delete"
                               >
                                 <FiTrash2 className="w-4 h-4" />
@@ -958,15 +958,15 @@ export default function StatutoryComponentsPage() {
       )}
 
       {/* Country-Specific Reference Section */}
-      <div className="nexus-card overflow-hidden">
-        <div className="p-4 border-b border-nexus-border bg-slate-50/50">
-          <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+      <div className="thb-card overflow-hidden">
+        <div className="p-4 border-b border-thb-border bg-slate-50/50">
+          <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
             <FiGlobe className="w-5 h-5 text-purple-500" />
             Statutory Component Catalog by Country
           </h2>
-          <p className="text-sm text-nexus-text-secondary mt-1">Reference guide for common statutory components across jurisdictions</p>
+          <p className="text-sm text-thb-text-secondary mt-1">Reference guide for common statutory components across jurisdictions</p>
         </div>
-        <div className="divide-y divide-nexus-border">
+        <div className="divide-y divide-thb-border">
           {Object.entries(COUNTRY_CATALOG).map(([code, catalog]) => (
             <div key={code}>
               <button
@@ -984,14 +984,14 @@ export default function StatutoryComponentsPage() {
                     {code}
                   </div>
                   <div className="text-left">
-                    <span className="text-sm font-semibold text-nexus-text-primary">{catalog.name}</span>
-                    <span className="text-xs text-nexus-text-muted ml-2">({catalog.components.length} components)</span>
+                    <span className="text-sm font-semibold text-thb-text-primary">{catalog.name}</span>
+                    <span className="text-xs text-thb-text-muted ml-2">({catalog.components.length} components)</span>
                   </div>
                 </div>
                 {expandedCountry === code ? (
-                  <FiChevronUp className="w-5 h-5 text-nexus-text-muted" />
+                  <FiChevronUp className="w-5 h-5 text-thb-text-muted" />
                 ) : (
-                  <FiChevronDown className="w-5 h-5 text-nexus-text-muted" />
+                  <FiChevronDown className="w-5 h-5 text-thb-text-muted" />
                 )}
               </button>
               {expandedCountry === code && (
@@ -999,24 +999,24 @@ export default function StatutoryComponentsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-nexus-border bg-slate-50/50">
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Code</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Component</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Party</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Rate</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Authority</th>
+                        <tr className="border-b border-thb-border bg-slate-50/50">
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Code</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Component</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Party</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Rate</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Authority</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {catalog.components.map((comp) => (
                           <tr key={comp.code} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-3 py-2 text-sm font-mono font-medium text-nexus-text-primary">{comp.code}</td>
-                            <td className="px-3 py-2 text-sm text-nexus-text-primary">{comp.name}</td>
+                            <td className="px-3 py-2 text-sm font-mono font-medium text-thb-text-primary">{comp.code}</td>
+                            <td className="px-3 py-2 text-sm text-thb-text-primary">{comp.name}</td>
                             <td className="px-3 py-2">
                               <span className={getPartyTypeBadge(comp.party)}>{formatPartyType(comp.party)}</span>
                             </td>
-                            <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{comp.rate}</td>
-                            <td className="px-3 py-2 text-sm text-nexus-text-secondary">{comp.authority}</td>
+                            <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{comp.rate}</td>
+                            <td className="px-3 py-2 text-sm text-thb-text-secondary">{comp.authority}</td>
                           </tr>
                         ))}
                       </tbody>

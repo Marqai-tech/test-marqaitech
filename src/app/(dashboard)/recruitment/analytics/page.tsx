@@ -70,14 +70,14 @@ function KpiCard({
   icon, label, value, sublabel, accent,
 }: { icon: React.ReactNode; label: string; value: string; sublabel?: string; accent: string }) {
   return (
-    <div className="nexus-card p-5 flex items-start gap-4">
+    <div className="thb-card p-5 flex items-start gap-4">
       <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-nexus-text-secondary uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-bold text-nexus-text-primary mt-1 truncate">{value}</p>
-        {sublabel && <p className="text-xs text-nexus-text-muted mt-1">{sublabel}</p>}
+        <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wider">{label}</p>
+        <p className="text-2xl font-bold text-thb-text-primary mt-1 truncate">{value}</p>
+        {sublabel && <p className="text-xs text-thb-text-muted mt-1">{sublabel}</p>}
       </div>
     </div>
   );
@@ -137,18 +137,18 @@ export default function RecruitmentAnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBarChart2 className="w-6 h-6 text-violet-500" />
             Recruitment Analytics
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Cost per Hire, Time to Fill, funnel conversion, and source effectiveness
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/recruitment"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
           >
             <FiArrowLeft className="w-4 h-4" /> Back to Recruitment
           </Link>
@@ -166,7 +166,7 @@ export default function RecruitmentAnalyticsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="nexus-card p-5 animate-pulse">
+            <div key={i} className="thb-card p-5 animate-pulse">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-lg bg-slate-200" />
                 <div className="flex-1">
@@ -178,9 +178,9 @@ export default function RecruitmentAnalyticsPage() {
           ))}
         </div>
       ) : !data ? (
-        <div className="nexus-card p-12 text-center">
-          <FiBarChart2 className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">Unable to load analytics</p>
+        <div className="thb-card p-12 text-center">
+          <FiBarChart2 className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">Unable to load analytics</p>
         </div>
       ) : (
         <>
@@ -219,12 +219,12 @@ export default function RecruitmentAnalyticsPage() {
           {/* Funnel + Source breakdown row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Funnel chart */}
-            <div className="nexus-card p-5 lg:col-span-2">
+            <div className="thb-card p-5 lg:col-span-2">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-base font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiTarget className="w-4 h-4 text-blue-500" /> Hiring Funnel
                 </h2>
-                <span className="text-xs text-nexus-text-muted">
+                <span className="text-xs text-thb-text-muted">
                   {data.funnelByStage?.applied ?? 0} total applications
                 </span>
               </div>
@@ -248,23 +248,23 @@ export default function RecruitmentAnalyticsPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-72 flex items-center justify-center text-sm text-nexus-text-muted">
+              <div className="h-72 flex items-center justify-center text-sm text-thb-text-muted">
                 No funnel data yet
               </div>
             )}
 
               {/* Conversion rates */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-4 border-t border-nexus-border">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-4 border-t border-thb-border">
                 {FUNNEL_STAGES.map((stage, i) => {
                   const current = data.funnelByStage?.[stage.key] ?? 0;
                   const prev = i === 0 ? current : (data.funnelByStage?.[FUNNEL_STAGES[i - 1].key] ?? 0);
                   const conv = prev > 0 ? Math.round((current / prev) * 100) : 0;
                   return (
                     <div key={stage.key} className="text-center">
-                      <p className="text-xs text-nexus-text-muted uppercase tracking-wider">{stage.label}</p>
-                      <p className="text-lg font-bold text-nexus-text-primary mt-1">{current}</p>
+                      <p className="text-xs text-thb-text-muted uppercase tracking-wider">{stage.label}</p>
+                      <p className="text-lg font-bold text-thb-text-primary mt-1">{current}</p>
                       {i > 0 && (
-                        <p className="text-[10px] text-nexus-text-muted mt-0.5">{conv}% conversion</p>
+                        <p className="text-[10px] text-thb-text-muted mt-0.5">{conv}% conversion</p>
                       )}
                     </div>
                   );
@@ -273,8 +273,8 @@ export default function RecruitmentAnalyticsPage() {
             </div>
 
             {/* Source breakdown */}
-            <div className="nexus-card p-5">
-              <h2 className="text-base font-semibold text-nexus-text-primary mb-4 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
                 <FiUsers className="w-4 h-4 text-violet-500" /> Application Sources
               </h2>
               {sourceData.length > 0 ? (
@@ -308,9 +308,9 @@ export default function RecruitmentAnalyticsPage() {
                       <div key={s.name} className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
-                          <span className="capitalize text-nexus-text-secondary">{s.name}</span>
+                          <span className="capitalize text-thb-text-secondary">{s.name}</span>
                         </div>
-                        <span className="font-medium text-nexus-text-primary">
+                        <span className="font-medium text-thb-text-primary">
                           {s.value} ({totalSources > 0 ? Math.round((s.value / totalSources) * 100) : 0}%)
                         </span>
                       </div>
@@ -318,7 +318,7 @@ export default function RecruitmentAnalyticsPage() {
                   </div>
                 </>
               ) : (
-                <div className="h-48 flex items-center justify-center text-sm text-nexus-text-muted">
+                <div className="h-48 flex items-center justify-center text-sm text-thb-text-muted">
                   No source data
                 </div>
               )}
@@ -328,35 +328,35 @@ export default function RecruitmentAnalyticsPage() {
           {/* Department table + monthly trend */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Department table */}
-            <div className="nexus-card overflow-hidden lg:col-span-1">
-              <div className="p-5 border-b border-nexus-border">
-                <h2 className="text-base font-semibold text-nexus-text-primary flex items-center gap-2">
+            <div className="thb-card overflow-hidden lg:col-span-1">
+              <div className="p-5 border-b border-thb-border">
+                <h2 className="text-base font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiBriefcase className="w-4 h-4 text-blue-500" /> By Department
                 </h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-nexus-border bg-slate-50/50">
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Department</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Open</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Filled</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Avg TTF</th>
+                    <tr className="border-b border-thb-border bg-slate-50/50">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Open</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Filled</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Avg TTF</th>
                     </tr>
                   </thead>
                   <tbody>
                     {deptRows.length > 0 ? deptRows.map((d) => (
-                      <tr key={d.department} className="border-b border-nexus-border/50 hover:bg-slate-50/50">
-                        <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{d.department}</td>
+                      <tr key={d.department} className="border-b border-thb-border/50 hover:bg-slate-50/50">
+                        <td className="px-4 py-2.5 text-sm font-medium text-thb-text-primary">{d.department}</td>
                         <td className="px-4 py-2.5 text-sm text-right text-blue-600 font-medium">{d.open}</td>
                         <td className="px-4 py-2.5 text-sm text-right text-emerald-600 font-medium">{d.filled}</td>
-                        <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">
+                        <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">
                           {d.avgTimeToFill > 0 ? `${d.avgTimeToFill}d` : '—'}
                         </td>
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-sm text-nexus-text-muted">
+                        <td colSpan={4} className="px-4 py-8 text-center text-sm text-thb-text-muted">
                           No department data
                         </td>
                       </tr>
@@ -367,19 +367,19 @@ export default function RecruitmentAnalyticsPage() {
             </div>
 
             {/* Monthly trend */}
-            <div className="nexus-card p-5 lg:col-span-2">
+            <div className="thb-card p-5 lg:col-span-2">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-base font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiTrendingUp className="w-4 h-4 text-violet-500" /> 6-Month Trend
                 </h2>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1.5">
                     <span className="w-3 h-1.5 rounded-sm bg-violet-500" />
-                    <span className="text-nexus-text-secondary">Applications</span>
+                    <span className="text-thb-text-secondary">Applications</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-3 h-1.5 rounded-sm bg-emerald-500" />
-                    <span className="text-nexus-text-secondary">Hires</span>
+                    <span className="text-thb-text-secondary">Hires</span>
                   </span>
                 </div>
               </div>
@@ -409,7 +409,7 @@ export default function RecruitmentAnalyticsPage() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-64 flex items-center justify-center text-sm text-nexus-text-muted">
+                <div className="h-64 flex items-center justify-center text-sm text-thb-text-muted">
                   No trend data yet
                 </div>
               )}
@@ -418,8 +418,8 @@ export default function RecruitmentAnalyticsPage() {
 
           {/* Time to Fill + Time to Hire by dept */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="nexus-card p-5">
-              <h2 className="text-base font-semibold text-nexus-text-primary mb-4 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
                 <FiClock className="w-4 h-4 text-blue-500" /> Time to Fill by Department
               </h2>
               {Array.isArray(data.timeToFill?.byDepartment) && data.timeToFill.byDepartment.length > 0 ? (
@@ -438,14 +438,14 @@ export default function RecruitmentAnalyticsPage() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-56 flex items-center justify-center text-sm text-nexus-text-muted">
+                <div className="h-56 flex items-center justify-center text-sm text-thb-text-muted">
                   No filled jobs with closingDate set yet
                 </div>
               )}
             </div>
 
-            <div className="nexus-card p-5">
-              <h2 className="text-base font-semibold text-nexus-text-primary mb-4 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
                 <FiClock className="w-4 h-4 text-emerald-500" /> Time to Hire by Department
               </h2>
               {Array.isArray(data.timeToHire?.byDepartment) && data.timeToHire.byDepartment.length > 0 ? (
@@ -464,7 +464,7 @@ export default function RecruitmentAnalyticsPage() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-56 flex items-center justify-center text-sm text-nexus-text-muted">
+                <div className="h-56 flex items-center justify-center text-sm text-thb-text-muted">
                   No hires with linked offer + application yet
                 </div>
               )}
@@ -473,27 +473,27 @@ export default function RecruitmentAnalyticsPage() {
 
           {/* Offers summary + Board postings summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-5">
-              <p className="text-xs font-medium text-nexus-text-secondary uppercase tracking-wider">Offers Accepted</p>
+            <div className="thb-card p-5">
+              <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wider">Offers Accepted</p>
               <div className="flex items-center gap-3 mt-2">
                 <FiCheckCircle className="w-7 h-7 text-emerald-500" />
-                <span className="text-2xl font-bold text-nexus-text-primary">{data.offersAccepted ?? 0}</span>
+                <span className="text-2xl font-bold text-thb-text-primary">{data.offersAccepted ?? 0}</span>
               </div>
             </div>
-            <div className="nexus-card p-5">
-              <p className="text-xs font-medium text-nexus-text-secondary uppercase tracking-wider">Offers Rejected</p>
+            <div className="thb-card p-5">
+              <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wider">Offers Rejected</p>
               <div className="flex items-center gap-3 mt-2">
                 <FiXCircle className="w-7 h-7 text-red-500" />
-                <span className="text-2xl font-bold text-nexus-text-primary">{data.offersRejected ?? 0}</span>
+                <span className="text-2xl font-bold text-thb-text-primary">{data.offersRejected ?? 0}</span>
               </div>
             </div>
-            <div className="nexus-card p-5">
-              <p className="text-xs font-medium text-nexus-text-secondary uppercase tracking-wider">Board Postings</p>
+            <div className="thb-card p-5">
+              <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wider">Board Postings</p>
               <div className="flex items-center gap-3 mt-2">
                 <FiExternalLink className="w-7 h-7 text-violet-500" />
                 <div>
-                  <span className="text-2xl font-bold text-nexus-text-primary">{data.boardPostings?.total ?? 0}</span>
-                  <span className="text-xs text-nexus-text-muted ml-2">
+                  <span className="text-2xl font-bold text-thb-text-primary">{data.boardPostings?.total ?? 0}</span>
+                  <span className="text-xs text-thb-text-muted ml-2">
                     ({data.boardPostings?.posted ?? 0} live, {data.boardPostings?.closed ?? 0} closed)
                   </span>
                 </div>
@@ -508,7 +508,7 @@ export default function RecruitmentAnalyticsPage() {
           </div>
 
           {/* Footer note */}
-          <p className="text-xs text-nexus-text-muted text-center pt-2">
+          <p className="text-xs text-thb-text-muted text-center pt-2">
             Cost per Hire formula: (offeredSalary × 0.1 + INR 50,000 fixed) per hire in last 30 days, averaged.
             All amounts normalized to INR. Generated at {data.generatedAt ? new Date(data.generatedAt).toLocaleString() : '—'}.
           </p>

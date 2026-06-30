@@ -94,7 +94,7 @@ export default function BurnoutPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Detect employees at risk of burnout from overtime + low leave + high activity</p>
         </div>
-        <button onClick={runAnalysis} disabled={running} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={runAnalysis} disabled={running} className="3boxes-btn-primary flex items-center gap-2">
           {running ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiZap className="w-4 h-4" />}
           Run AI Analysis
         </button>
@@ -122,7 +122,7 @@ export default function BurnoutPage() {
         </div>
       </div>
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">

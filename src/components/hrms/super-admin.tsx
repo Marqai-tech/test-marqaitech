@@ -175,7 +175,7 @@ export default function SuperAdmin() {
             <DialogHeader><DialogTitle className="text-white">Add New Tenant</DialogTitle></DialogHeader>
             <div className="space-y-3 mt-4">
               <div><Label className="text-slate-300">Organization Name *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="Enter organization name" value={newTenant.name} onChange={e => setNewTenant(p => ({ ...p, name: e.target.value, code: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} /></div>
-              <div><Label className="text-slate-300">Company Code *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="e.g. nexus-corp" value={newTenant.code} onChange={e => setNewTenant(p => ({ ...p, code: e.target.value }))} /></div>
+              <div><Label className="text-slate-300">Company Code *</Label><Input className="bg-slate-800 border-slate-700 text-white mt-1" placeholder="e.g. 3boxes-corp" value={newTenant.code} onChange={e => setNewTenant(p => ({ ...p, code: e.target.value }))} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-slate-300">Type</Label>
                   <Select value={newTenant.type} onValueChange={v => setNewTenant(p => ({ ...p, type: v }))}><SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>

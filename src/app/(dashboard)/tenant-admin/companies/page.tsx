@@ -183,8 +183,8 @@ export default function TenantCompaniesPage() {
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
           <FiBriefcase className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Super admins use the Super Admin page</h2>
-        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+        <h2 className="text-xl font-semibold text-thb-text-primary">Super admins use the Super Admin page</h2>
+        <p className="text-thb-text-secondary text-sm max-w-md leading-relaxed">
           This Companies page is for tenant admins to induct companies under their
           own tenant&rsquo;s group companies. Since your super admin account is
           platform-level, please manage companies from the{' '}

@@ -77,7 +77,7 @@ interface CurrencyContextValue {
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 
-const STORAGE_KEY = 'nexus_currency';
+const STORAGE_KEY = '3boxes_currency';
 
 function getStoredCurrency(): string {
   if (typeof window === 'undefined') return DEFAULT_CURRENCY;

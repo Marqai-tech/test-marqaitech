@@ -197,15 +197,15 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
   return (
     <div className="space-y-4">
       {/* Module Selector */}
-      <div className="nexus-card">
+      <div className="thb-card">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
               <FiFileText className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-nexus-text-primary">Select Module</h3>
-              <p className="text-xs text-nexus-text-muted">Choose which module data to import</p>
+              <h3 className="text-sm font-semibold text-thb-text-primary">Select Module</h3>
+              <p className="text-xs text-thb-text-muted">Choose which module data to import</p>
             </div>
           </div>
 
@@ -222,7 +222,7 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
                 className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all text-center ${
                   selectedModule === mod.key
                     ? 'border-blue-500 bg-blue-50/50 text-blue-600 shadow-sm'
-                    : 'border-nexus-border/50 hover:border-nexus-border hover:bg-slate-50 text-nexus-text-muted'
+                    : 'border-thb-border/50 hover:border-thb-border hover:bg-slate-50 text-thb-text-muted'
                 }`}
               >
                 <span className={`text-lg ${selectedModule === mod.key ? 'text-blue-500' : 'text-slate-400'}`}>
@@ -234,23 +234,23 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
           </div>
 
           {currentModule && (
-            <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-nexus-border/30">
-              <p className="text-xs text-nexus-text-muted">{currentModule.description}</p>
+            <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-thb-border/30">
+              <p className="text-xs text-thb-text-muted">{currentModule.description}</p>
             </div>
           )}
         </div>
       </div>
 
       {/* File Upload Area */}
-      <div className="nexus-card">
+      <div className="thb-card">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
               <FiUpload className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-nexus-text-primary">Upload File</h3>
-              <p className="text-xs text-nexus-text-muted">Drag & drop or click to select an Excel file</p>
+              <h3 className="text-sm font-semibold text-thb-text-primary">Upload File</h3>
+              <p className="text-xs text-thb-text-muted">Drag & drop or click to select an Excel file</p>
             </div>
           </div>
 
@@ -265,7 +265,7 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
                 ? 'border-blue-500 bg-blue-50/30'
                 : file
                   ? 'border-emerald-400 bg-emerald-50/30'
-                  : 'border-nexus-border/50 hover:border-blue-300 hover:bg-slate-50/50'
+                  : 'border-thb-border/50 hover:border-blue-300 hover:bg-slate-50/50'
             }`}
           >
             <input
@@ -282,8 +282,8 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
                   <FiFileText className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-nexus-text-primary">{file.name}</p>
-                  <p className="text-xs text-nexus-text-muted">{(file.size / 1024).toFixed(1)} KB</p>
+                  <p className="text-sm font-medium text-thb-text-primary">{file.name}</p>
+                  <p className="text-xs text-thb-text-muted">{(file.size / 1024).toFixed(1)} KB</p>
                 </div>
                 <button
                   onClick={(e) => {
@@ -301,10 +301,10 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
                   <FiUpload className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-nexus-text-primary">
+                  <p className="text-sm font-medium text-thb-text-primary">
                     {isDragging ? 'Drop your file here' : 'Drop your Excel file here, or click to browse'}
                   </p>
-                  <p className="text-xs text-nexus-text-muted mt-1">Supports .xlsx and .xls files</p>
+                  <p className="text-xs text-thb-text-muted mt-1">Supports .xlsx and .xls files</p>
                 </div>
               </div>
             )}
@@ -315,7 +315,7 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
             <button
               onClick={handleDownloadTemplate}
               disabled={downloading}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-nexus-border/50 text-sm font-medium text-nexus-text-primary hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-thb-border/50 text-sm font-medium text-thb-text-primary hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {downloading ? (
                 <div className="animate-spin w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full" />
@@ -343,7 +343,7 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
 
       {/* Import Results */}
       {importResult && (
-        <div className="nexus-card">
+        <div className="thb-card">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -362,8 +362,8 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary">Import Results</h3>
-                <p className="text-xs text-nexus-text-muted">
+                <h3 className="text-sm font-semibold text-thb-text-primary">Import Results</h3>
+                <p className="text-xs text-thb-text-muted">
                   {importResult.total} total records processed for {modules.find(m => m.key === importResult.module)?.label || importResult.module}
                 </p>
               </div>
@@ -371,9 +371,9 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
 
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-slate-50 border border-nexus-border/30 text-center">
-                <p className="text-lg font-bold text-nexus-text-primary">{importResult.total}</p>
-                <p className="text-xs text-nexus-text-muted">Total</p>
+              <div className="p-3 rounded-lg bg-slate-50 border border-thb-border/30 text-center">
+                <p className="text-lg font-bold text-thb-text-primary">{importResult.total}</p>
+                <p className="text-xs text-thb-text-muted">Total</p>
               </div>
               <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200/50 text-center">
                 <p className="text-lg font-bold text-emerald-600">{importResult.success}</p>
@@ -390,8 +390,8 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <FiXCircle className="w-4 h-4 text-red-500" />
-                  <h4 className="text-xs font-semibold text-nexus-text-primary">Error Details</h4>
-                  <span className="nexus-badge text-red-600 bg-red-50 border-red-200/50">{importResult.errors.length} error{importResult.errors.length !== 1 ? 's' : ''}</span>
+                  <h4 className="text-xs font-semibold text-thb-text-primary">Error Details</h4>
+                  <span className="thb-badge text-red-600 bg-red-50 border-red-200/50">{importResult.errors.length} error{importResult.errors.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
                   {importResult.errors.map((err, idx) => (

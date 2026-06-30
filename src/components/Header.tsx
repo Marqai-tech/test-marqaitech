@@ -102,13 +102,13 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
       {/* Sidebar Toggle */}
       <button
         onClick={onSidebarToggle}
-        className="p-2 rounded-lg text-nexus-text-secondary hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+        className="p-2 rounded-lg text-thb-text-secondary hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
         title="Toggle sidebar"
       >
         <FiMenu className="w-5 h-5" />
       </button>
 
-      {/* Nexus Logo + Name in Header */}
+      {/* 3Boxes Logo + Name in Header */}
       <div className="flex items-center gap-2.5 pr-3 border-r border-slate-200">
         <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
           <svg viewBox="0 0 35 11" className="w-5 h-3.5" fill="none">
@@ -118,7 +118,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           </svg>
         </div>
         <div className="hidden sm:block">
-          <span className="text-sm font-extrabold text-slate-800 tracking-tight">Nexus</span>
+          <span className="text-sm font-extrabold text-slate-800 tracking-tight">3Boxes</span>
           <span className="text-[10px] font-bold text-blue-500 ml-1 tracking-wider">HRMS</span>
         </div>
       </div>
@@ -131,7 +131,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search employees, modules, actions..."
-          className="w-full pl-10 pr-4 py-2 rounded-lg border border-blue-200 bg-blue-50/30 text-sm text-nexus-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
+          className="w-full pl-10 pr-4 py-2 rounded-lg border border-blue-200 bg-blue-50/30 text-sm text-thb-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
         />
       </div>
 
@@ -146,7 +146,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg text-nexus-text-secondary hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+            className="relative p-2 rounded-lg text-thb-text-secondary hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
           >
             <FiBell className="w-5 h-5" />
             {unreadCount > 0 && (
@@ -158,9 +158,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
           {/* Notification Dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-96 nexus-card shadow-xl animate-slide-in-down overflow-hidden z-50">
-              <div className="flex items-center justify-between p-4 border-b border-nexus-border">
-                <h3 className="font-semibold text-nexus-text-primary">Notifications</h3>
+            <div className="absolute right-0 top-full mt-2 w-96 thb-card shadow-xl animate-slide-in-down overflow-hidden z-50">
+              <div className="flex items-center justify-between p-4 border-b border-thb-border">
+                <h3 className="font-semibold text-thb-text-primary">Notifications</h3>
                 {unreadCount > 0 && (
                   <button
                     onClick={async () => {
@@ -177,14 +177,14 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               <div className="max-h-96 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <div className="p-8 text-center">
-                    <FiBell className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" />
-                    <p className="text-sm text-nexus-text-muted">No notifications yet</p>
+                    <FiBell className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
+                    <p className="text-sm text-thb-text-muted">No notifications yet</p>
                   </div>
                 ) : (
                   notifications.slice(0, 10).map((notif: Notification) => (
                     <div
                       key={notif.id}
-                      className={`flex items-start gap-3 p-4 border-b border-nexus-border/50 hover:bg-slate-50 transition-colors cursor-pointer ${
+                      className={`flex items-start gap-3 p-4 border-b border-thb-border/50 hover:bg-slate-50 transition-colors cursor-pointer ${
                         !notif.isRead ? 'bg-blue-50/30' : ''
                       }`}
                       onClick={async () => {
@@ -201,17 +201,17 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className={`text-sm truncate ${!notif.isRead ? 'font-semibold text-nexus-text-primary' : 'font-medium text-nexus-text-secondary'}`}>
+                          <p className={`text-sm truncate ${!notif.isRead ? 'font-semibold text-thb-text-primary' : 'font-medium text-thb-text-secondary'}`}>
                             {notif.title}
                           </p>
                           {!notif.isRead && (
                             <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-xs text-nexus-text-muted mt-0.5 line-clamp-2">
+                        <p className="text-xs text-thb-text-muted mt-0.5 line-clamp-2">
                           {notif.message}
                         </p>
-                        <p className="text-[10px] text-nexus-text-muted mt-1">
+                        <p className="text-[10px] text-thb-text-muted mt-1">
                           {formatTimeAgo(notif.createdAt)}
                         </p>
                       </div>
@@ -222,7 +222,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               <Link
                 href="/notifications"
                 onClick={() => setShowNotifications(false)}
-                className="block text-center py-3 text-sm font-medium text-blue-500 hover:text-blue-700 hover:bg-slate-50 border-t border-nexus-border transition-colors"
+                className="block text-center py-3 text-sm font-medium text-blue-500 hover:text-blue-700 hover:bg-slate-50 border-t border-thb-border transition-colors"
               >
                 View all notifications
               </Link>
@@ -249,22 +249,22 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               </div>
             )}
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-nexus-text-primary leading-tight">{user?.name}</p>
-              <p className="text-[10px] text-nexus-text-muted capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-sm font-medium text-thb-text-primary leading-tight">{user?.name}</p>
+              <p className="text-[10px] text-thb-text-muted capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>
             </div>
           </button>
 
           {/* User Dropdown */}
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-56 nexus-card shadow-xl animate-slide-in-down overflow-hidden py-1 z-50">
-              <div className="px-4 py-3 border-b border-nexus-border">
-                <p className="text-sm font-semibold text-nexus-text-primary">{user?.name}</p>
-                <p className="text-xs text-nexus-text-muted mt-0.5">{user?.email}</p>
+            <div className="absolute right-0 top-full mt-2 w-56 thb-card shadow-xl animate-slide-in-down overflow-hidden py-1 z-50">
+              <div className="px-4 py-3 border-b border-thb-border">
+                <p className="text-sm font-semibold text-thb-text-primary">{user?.name}</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">{user?.email}</p>
               </div>
               <Link
                 href="/my-profile"
                 onClick={() => setShowUserMenu(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-nexus-text-secondary hover:bg-slate-50 hover:text-nexus-text-primary transition-colors"
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary transition-colors"
               >
                 <FiUser className="w-4 h-4" />
                 My Profile
@@ -273,13 +273,13 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               <Link
                 href="/settings"
                 onClick={() => setShowUserMenu(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-nexus-text-secondary hover:bg-slate-50 hover:text-nexus-text-primary transition-colors"
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary transition-colors"
               >
                 <FiSettings className="w-4 h-4" />
                 Settings
               </Link>
               )}
-              <div className="border-t border-nexus-border my-1" />
+              <div className="border-t border-thb-border my-1" />
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"

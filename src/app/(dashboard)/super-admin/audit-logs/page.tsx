@@ -87,7 +87,7 @@ export default function AuditLogsPage() {
   if (user?.role !== 'super_admin') {
     return (
       <div className="p-6">
-        <div className="nexus-card p-8 text-center">
+        <div className="thb-card p-8 text-center">
           <FiLock className="w-10 h-10 text-rose-500 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-slate-800">Super Admins Only</h2>
           <p className="text-sm text-slate-500 mt-1">Audit logs are visible only to the platform owner.</p>
@@ -122,11 +122,11 @@ export default function AuditLogsPage() {
             <FiChevronLeft className="w-4 h-4 text-slate-600" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
               <FiActivity className="w-6 h-6 text-amber-500" />
               Audit Logs
             </h1>
-            <p className="text-sm text-nexus-text-secondary mt-0.5">
+            <p className="text-sm text-thb-text-secondary mt-0.5">
               <span className="font-mono text-[11px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">REQ-SA-10 · REQ-SEC-06</span>
               {' '}Immutable record of every context swap, tenant lifecycle event, and permission change.
             </p>
@@ -135,14 +135,14 @@ export default function AuditLogsPage() {
         <button
           onClick={() => fetchLogs(pagination.page)}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
           <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
 
       {/* Filters */}
-      <div className="nexus-card p-4 flex flex-wrap items-center gap-3">
+      <div className="thb-card p-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5">
           <FiFilter className="w-4 h-4 text-slate-500" />
           <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Filter:</span>
@@ -184,7 +184,7 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Logs table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-slate-500 text-sm">Loading audit logs…</div>
         ) : filteredLogs.length === 0 ? (

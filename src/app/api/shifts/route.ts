@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
         id: 'shift-1', name: 'Morning Shift', startTime: '06:00', endTime: '14:00',
         breakMinutes: 30, isActive: true, companyId: companyId || 'comp-1',
         createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-01-01'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         members: [
           { id: 'sm-1', employeeId: 'demo-1', effectiveDate: new Date('2025-01-01'),
             employee: { id: 'demo-1', firstName: 'Rajesh', lastName: 'Kumar', employeeId: 'EMP001', department: { name: 'Engineering' } } },
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
         id: 'shift-2', name: 'General Shift', startTime: '09:00', endTime: '18:00',
         breakMinutes: 60, isActive: true, companyId: companyId || 'comp-1',
         createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-01-01'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         members: [
           { id: 'sm-3', employeeId: 'demo-2', effectiveDate: new Date('2025-01-01'),
             employee: { id: 'demo-2', firstName: 'Priya', lastName: 'Sharma', employeeId: 'EMP002', department: { name: 'Human Resources' } } },
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
         id: 'shift-3', name: 'Afternoon Shift', startTime: '14:00', endTime: '22:00',
         breakMinutes: 30, isActive: true, companyId: companyId || 'comp-1',
         createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-01-01'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         members: [
           { id: 'sm-8', employeeId: 'demo-3', effectiveDate: new Date('2025-01-01'),
             employee: { id: 'demo-3', firstName: 'Amit', lastName: 'Patel', employeeId: 'EMP003', department: { name: 'Design' } } },
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
         id: 'shift-4', name: 'Night Shift', startTime: '22:00', endTime: '06:00',
         breakMinutes: 45, isActive: true, companyId: companyId || 'comp-1',
         createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-01-01'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         members: [
           { id: 'sm-10', employeeId: 'demo-5', effectiveDate: new Date('2025-01-08'),
             employee: { id: 'demo-5', firstName: 'Vikram', lastName: 'Singh', employeeId: 'EMP005', department: { name: 'Engineering' } } },

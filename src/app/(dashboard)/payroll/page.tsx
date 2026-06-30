@@ -607,7 +607,7 @@ export default function PayrollManagementPage() {
     <div className="space-y-6">
       {/* Header — concise; the persistent sub-nav (layout.tsx) shows the title bar */}
       <div>
-        <p className="text-nexus-text-secondary text-sm">
+        <p className="text-thb-text-secondary text-sm">
           Configure salary structures, process payroll, and manage compliance. Use the sub-menu above to navigate between payroll modules.
         </p>
       </div>
@@ -652,14 +652,14 @@ export default function PayrollManagementPage() {
         {statsCards.map((card) => {
           const IconComp = card.icon;
           return (
-            <div key={card.label} className="nexus-card nexus-card-hover p-5">
+            <div key={card.label} className="thb-card thb-card-hover p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-nexus-text-secondary">{card.label}</p>
+                  <p className="text-xs font-medium text-thb-text-secondary">{card.label}</p>
                   {loadingStats ? (
                     <div className="h-8 w-12 bg-slate-200 rounded animate-pulse mt-1" />
                   ) : (
-                    <p className="text-2xl font-bold text-nexus-text-primary mt-1">{card.value}</p>
+                    <p className="text-2xl font-bold text-thb-text-primary mt-1">{card.value}</p>
                   )}
                 </div>
                 <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center ${card.iconColor} ring-1 ${card.ring}`}>
@@ -672,7 +672,7 @@ export default function PayrollManagementPage() {
       </div>
 
       {/* Payroll Processing Workflow Guide */}
-      <div className="nexus-card overflow-hidden border border-emerald-100">
+      <div className="thb-card overflow-hidden border border-emerald-100">
         {/* Workflow Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100">
           <div className="flex items-center gap-3">
@@ -680,8 +680,8 @@ export default function PayrollManagementPage() {
               <FiInfo className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-nexus-text-primary">How to Process Payroll</h3>
-              <p className="text-xs text-nexus-text-secondary mt-0.5">
+              <h3 className="text-sm font-semibold text-thb-text-primary">How to Process Payroll</h3>
+              <p className="text-xs text-thb-text-secondary mt-0.5">
                 Follow this workflow to process payroll for the first time
               </p>
             </div>
@@ -691,7 +691,7 @@ export default function PayrollManagementPage() {
           </div>
           <button
             onClick={() => setWorkflowExpanded(!workflowExpanded)}
-            className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+            className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-white/60 transition-colors"
           >
             {workflowExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
           </button>
@@ -818,7 +818,7 @@ export default function PayrollManagementPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed">
+                      <p className="text-[11px] text-thb-text-muted mt-0.5 leading-relaxed">
                         {step.description}
                       </p>
                     </button>
@@ -833,17 +833,17 @@ export default function PayrollManagementPage() {
                 <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
                   <FiCheck className="w-2.5 h-2.5 text-white" />
                 </span>
-                <span className="text-[10px] text-nexus-text-muted">Complete</span>
+                <span className="text-[10px] text-thb-text-muted">Complete</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
                   <span className="text-[8px] text-white font-bold">•</span>
                 </span>
-                <span className="text-[10px] text-nexus-text-muted">Current Step</span>
+                <span className="text-[10px] text-thb-text-muted">Current Step</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-4 h-4 rounded-full bg-slate-100" />
-                <span className="text-[10px] text-nexus-text-muted">Pending</span>
+                <span className="text-[10px] text-thb-text-muted">Pending</span>
               </div>
             </div>
           </div>
@@ -852,7 +852,7 @@ export default function PayrollManagementPage() {
 
       {/* Sub-module Tiles */}
       <div>
-        <h2 className="text-sm font-semibold text-nexus-text-secondary uppercase tracking-wider mb-4">
+        <h2 className="text-sm font-semibold text-thb-text-secondary uppercase tracking-wider mb-4">
           Payroll Modules
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -862,7 +862,7 @@ export default function PayrollManagementPage() {
               <button
                 key={tile.route}
                 onClick={() => handleNavigate(tile.route)}
-                className="nexus-card nexus-card-hover p-5 text-left group transition-all duration-200 hover:shadow-md"
+                className="thb-card thb-card-hover p-5 text-left group transition-all duration-200 hover:shadow-md"
               >
                 <div className="flex items-start gap-4">
                   <div
@@ -872,13 +872,13 @@ export default function PayrollManagementPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
                         {tile.title}
                         {tile.isNew && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-violet-100 text-violet-700 uppercase tracking-wide">New</span>}
                       </h3>
-                      <FiArrowRight className="w-4 h-4 text-nexus-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />
+                      <FiArrowRight className="w-4 h-4 text-thb-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />
                     </div>
-                    <p className="text-xs text-nexus-text-muted mt-1 leading-relaxed">
+                    <p className="text-xs text-thb-text-muted mt-1 leading-relaxed">
                       {tile.description}
                     </p>
                   </div>

@@ -117,7 +117,7 @@ const SAMPLE_DOCUMENTS: DocDocument[] = [
     content: `# System Architecture Overview
 
 ## Introduction
-Nexus HRMS is built on a modern SaaS multi-tenant architecture designed for scalability, security, and performance. The platform serves organizations of all sizes with enterprise-grade HR management capabilities.
+3Boxes HRMS is built on a modern SaaS multi-tenant architecture designed for scalability, security, and performance. The platform serves organizations of all sizes with enterprise-grade HR management capabilities.
 
 ## Architecture Components
 
@@ -153,7 +153,7 @@ The platform uses a shared database with tenant isolation through application-le
 - RBAC with 5 role levels: super_admin, tenant_admin, hr_admin, manager, employee
 - JWT tokens with 24-hour expiry
 - Audit logging for all critical operations`,
-    summary: 'Complete architecture diagram and component breakdown of Nexus HRMS SaaS platform',
+    summary: 'Complete architecture diagram and component breakdown of 3Boxes HRMS SaaS platform',
     tags: 'architecture, system, infrastructure, SaaS',
     version: '2.1',
     author: 'Engineering Team',
@@ -227,7 +227,7 @@ Configure webhooks to receive real-time notifications for events like:
     content: `# Database Schema Documentation
 
 ## Entity Relationship Overview
-Nexus HRMS uses a relational database model with over 50 interconnected entities organized into logical domains.
+3Boxes HRMS uses a relational database model with over 50 interconnected entities organized into logical domains.
 
 ## Core Entities
 
@@ -279,7 +279,7 @@ npx prisma generate
     content: `# Employee Management Guide
 
 ## Overview
-The Employee Management module is the core of Nexus HRMS, providing comprehensive tools for managing the complete employee lifecycle from onboarding to separation.
+The Employee Management module is the core of 3Boxes HRMS, providing comprehensive tools for managing the complete employee lifecycle from onboarding to separation.
 
 ## Employee Lifecycle
 
@@ -333,7 +333,7 @@ The Employee Management module is the core of Nexus HRMS, providing comprehensiv
     content: `# Payroll Processing Manual
 
 ## Payroll Cycle
-Nexus HRMS supports monthly payroll processing with the following workflow:
+3Boxes HRMS supports monthly payroll processing with the following workflow:
 
 ### Step 1: Pre-Processing
 - Verify attendance data for the month
@@ -601,7 +601,7 @@ Feedback is collected from:
     content: `# Data Protection Policy
 
 ## GDPR Compliance
-Nexus HRMS is fully compliant with GDPR and other major data protection regulations.
+3Boxes HRMS is fully compliant with GDPR and other major data protection regulations.
 
 ## Data Encryption
 
@@ -846,7 +846,7 @@ The AI Interview System leverages machine learning to enhance the recruitment pr
     content: `# AI Chatbot Configuration
 
 ## Getting Started
-The Nexus AI Chatbot serves as an intelligent HR assistant that can answer employee queries, guide through processes, and automate routine tasks.
+The 3Boxes AI Chatbot serves as an intelligent HR assistant that can answer employee queries, guide through processes, and automate routine tasks.
 
 ## Setup Guide
 
@@ -904,7 +904,7 @@ The Nexus AI Chatbot serves as an intelligent HR assistant that can answer emplo
     content: `# Predictive Analytics Guide
 
 ## Overview
-Nexus Predictive Analytics uses machine learning models to provide actionable insights for workforce planning, attrition prediction, and performance forecasting.
+3Boxes Predictive Analytics uses machine learning models to provide actionable insights for workforce planning, attrition prediction, and performance forecasting.
 
 ## Available Models
 
@@ -965,7 +965,7 @@ Nexus Predictive Analytics uses machine learning models to provide actionable in
     content: `# Employee Onboarding SOP
 
 ## Purpose
-This Standard Operating Procedure defines the step-by-step process for onboarding new employees into the organization using Nexus HRMS.
+This Standard Operating Procedure defines the step-by-step process for onboarding new employees into the organization using 3Boxes HRMS.
 
 ## Scope
 Applies to all new hires, rehires, and transfers across all departments and branches.
@@ -974,7 +974,7 @@ Applies to all new hires, rehires, and transfers across all departments and bran
 
 ### Day -5 to Day -1: Pre-Boarding
 - [ ] Send welcome email with first-day instructions
-- [ ] Create employee profile in Nexus HRMS
+- [ ] Create employee profile in 3Boxes HRMS
 - [ ] Assign employee ID and generate credentials
 - [ ] Set up email and communication accounts
 - [ ] Prepare workspace and equipment
@@ -987,7 +987,7 @@ Applies to all new hires, rehires, and transfers across all departments and bran
 - [ ] HR documentation (ID proofs, bank details, tax forms)
 - [ ] Company culture and values presentation
 - [ ] Safety and emergency procedures briefing
-- [ ] Nexus HRMS portal walkthrough
+- [ ] 3Boxes HRMS portal walkthrough
 
 ### Day 2-5: Department Integration
 - [ ] Team introductions and role overview
@@ -1008,7 +1008,7 @@ Applies to all new hires, rehires, and transfers across all departments and bran
 - [ ] Probation confirmation/extension decision
 
 ## Checklist Template
-Available in Nexus HRMS under Onboarding > Templates
+Available in 3Boxes HRMS under Onboarding > Templates
 
 ## Responsible Parties
 | Task | Owner |
@@ -1162,14 +1162,14 @@ Standard procedure for managing employee separations including resignation, term
   // Training Videos
   {
     id: 'doc-vid-1',
-    title: 'Getting Started with Nexus HRMS',
-    slug: 'getting-started-nexus-hrms',
+    title: 'Getting Started with 3Boxes HRMS',
+    slug: 'getting-started-3boxes-hrms',
     categoryId: 'cat-training',
     category: { id: 'cat-training', name: 'Training Videos', slug: 'training-videos', icon: 'FiVideo', color: 'cyan' },
-    content: `# Getting Started with Nexus HRMS
+    content: `# Getting Started with 3Boxes HRMS
 
 ## Video Overview
-A comprehensive walkthrough of the Nexus HRMS platform covering initial setup, configuration, and first steps for new administrators.
+A comprehensive walkthrough of the 3Boxes HRMS platform covering initial setup, configuration, and first steps for new administrators.
 
 ## Video Chapters
 
@@ -1238,7 +1238,7 @@ Total: 45 minutes
     content: `# Attendance & Leave Management
 
 ## Video Overview
-Learn how to use the attendance tracking and leave management features in Nexus HRMS, including shift management, overtime, and leave approval workflows.
+Learn how to use the attendance tracking and leave management features in 3Boxes HRMS, including shift management, overtime, and leave approval workflows.
 
 ## Video Chapters
 
@@ -1276,7 +1276,7 @@ Learn how to use the attendance tracking and leave management features in Nexus 
 Total: 40 minutes
 
 ## Prerequisites
-- Getting Started with Nexus HRMS (recommended)`,
+- Getting Started with 3Boxes HRMS (recommended)`,
     summary: 'How to mark attendance, apply for leaves, and manage shifts',
     tags: 'training, video, attendance, leave, shifts',
     version: '1.0',
@@ -1297,7 +1297,7 @@ Total: 40 minutes
     content: `# Payroll Setup & Processing
 
 ## Video Overview
-Complete walkthrough of payroll configuration and processing in Nexus HRMS, from salary structure setup to payslip generation.
+Complete walkthrough of payroll configuration and processing in 3Boxes HRMS, from salary structure setup to payslip generation.
 
 ## Video Chapters
 
@@ -1335,7 +1335,7 @@ Complete walkthrough of payroll configuration and processing in Nexus HRMS, from
 Total: 50 minutes
 
 ## Prerequisites
-- Getting Started with Nexus HRMS
+- Getting Started with 3Boxes HRMS
 - Salary structure configuration completed`,
     summary: 'Complete payroll configuration and processing walkthrough',
     tags: 'training, video, payroll, salary, compliance',
@@ -1363,43 +1363,43 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    published: 'nexus-badge nexus-badge-success',
-    draft: 'nexus-badge nexus-badge-warning',
-    archived: 'bg-slate-100 text-slate-600 nexus-badge',
+    published: 'thb-badge thb-badge-success',
+    draft: 'thb-badge thb-badge-warning',
+    archived: 'bg-slate-100 text-slate-600 thb-badge',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function renderMarkdown(content: string): string {
   let html = content
     // Headers
-    .replace(/^### (.*$)/gim, '<h3 class="text-base font-semibold text-nexus-text-primary mt-4 mb-2">$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-lg font-semibold text-nexus-text-primary mt-5 mb-2">$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1 class="text-xl font-bold text-nexus-text-primary mt-6 mb-3">$1</h1>')
+    .replace(/^### (.*$)/gim, '<h3 class="text-base font-semibold text-thb-text-primary mt-4 mb-2">$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-lg font-semibold text-thb-text-primary mt-5 mb-2">$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1 class="text-xl font-bold text-thb-text-primary mt-6 mb-3">$1</h1>')
     // Bold
-    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-semibold text-nexus-text-primary">$1</strong>')
+    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-semibold text-thb-text-primary">$1</strong>')
     // Inline code
-    .replace(/`([^`]+)`/gim, '<code class="px-1.5 py-0.5 bg-slate-100 text-sm rounded font-mono text-nexus-text-primary">$1</code>')
+    .replace(/`([^`]+)`/gim, '<code class="px-1.5 py-0.5 bg-slate-100 text-sm rounded font-mono text-thb-text-primary">$1</code>')
     // Checkboxes
-    .replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 py-0.5"><input type="checkbox" disabled class="w-4 h-4 rounded border-nexus-border" /><span class="text-sm text-nexus-text-secondary">$1</span></div>')
-    .replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 py-0.5"><input type="checkbox" checked disabled class="w-4 h-4 rounded border-nexus-border" /><span class="text-sm text-nexus-text-secondary line-through">$1</span></div>')
+    .replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 py-0.5"><input type="checkbox" disabled class="w-4 h-4 rounded border-thb-border" /><span class="text-sm text-thb-text-secondary">$1</span></div>')
+    .replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 py-0.5"><input type="checkbox" checked disabled class="w-4 h-4 rounded border-thb-border" /><span class="text-sm text-thb-text-secondary line-through">$1</span></div>')
     // List items
-    .replace(/^- (.*$)/gim, '<li class="text-sm text-nexus-text-secondary ml-4 list-disc">$1</li>')
-    .replace(/^\d+\. (.*$)/gim, '<li class="text-sm text-nexus-text-secondary ml-4 list-decimal">$1</li>')
+    .replace(/^- (.*$)/gim, '<li class="text-sm text-thb-text-secondary ml-4 list-disc">$1</li>')
+    .replace(/^\d+\. (.*$)/gim, '<li class="text-sm text-thb-text-secondary ml-4 list-decimal">$1</li>')
     // Code blocks
     .replace(/```([\s\S]*?)```/gim, '<pre class="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-3"><code>$1</code></pre>')
     // Tables - simple handling
     .replace(/\|(.+)\|/gim, (match) => {
       const cells = match.split('|').filter(c => c.trim() && c.trim() !== '---' && !c.match(/^[-\s]+$/));
       if (cells.length === 0) return '';
-      return '<tr>' + cells.map(c => `<td class="px-3 py-2 text-sm text-nexus-text-secondary border-b border-nexus-border">${c.trim()}</td>`).join('') + '</tr>';
+      return '<tr>' + cells.map(c => `<td class="px-3 py-2 text-sm text-thb-text-secondary border-b border-thb-border">${c.trim()}</td>`).join('') + '</tr>';
     })
     // Paragraphs (double newlines)
-    .replace(/\n\n/g, '</p><p class="text-sm text-nexus-text-secondary leading-relaxed my-2">')
+    .replace(/\n\n/g, '</p><p class="text-sm text-thb-text-secondary leading-relaxed my-2">')
     // Single newlines
     .replace(/\n/g, '<br/>');
 
-  return `<div class="prose-sm"><p class="text-sm text-nexus-text-secondary leading-relaxed">${html}</p></div>`;
+  return `<div class="prose-sm"><p class="text-sm text-thb-text-secondary leading-relaxed">${html}</p></div>`;
 }
 
 const initialForm = {
@@ -1614,7 +1614,7 @@ export default function DocumentationHubPage() {
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="relative px-6 py-8 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
           <div className="relative">
@@ -1649,7 +1649,7 @@ export default function DocumentationHubPage() {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="px-6 py-3 bg-white border-t border-nexus-border overflow-x-auto">
+        <div className="px-6 py-3 bg-white border-t border-thb-border overflow-x-auto">
           <div className="flex items-center gap-2 min-w-max">
             <button
               onClick={() => setActiveCategory(null)}
@@ -1698,15 +1698,15 @@ export default function DocumentationHubPage() {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(isActive ? null : cat.id)}
-              className={`nexus-card p-4 text-left transition-all hover:shadow-md ${
+              className={`thb-card p-4 text-left transition-all hover:shadow-md ${
                 isActive ? `ring-2 ${colors.border} shadow-md` : ''
               }`}
             >
               <div className={`w-10 h-10 rounded-lg ${colors.light} flex items-center justify-center mb-3 ${colors.icon}`}>
                 {iconMap[cat.icon]}
               </div>
-              <h3 className="text-sm font-semibold text-nexus-text-primary">{cat.name}</h3>
-              <p className="text-xs text-nexus-text-muted mt-0.5">{categoryStats[cat.id] || 0} docs</p>
+              <h3 className="text-sm font-semibold text-thb-text-primary">{cat.name}</h3>
+              <p className="text-xs text-thb-text-muted mt-0.5">{categoryStats[cat.id] || 0} docs</p>
             </button>
           );
         })}
@@ -1715,7 +1715,7 @@ export default function DocumentationHubPage() {
       {/* Featured Documents */}
       {!activeCategory && !search && featuredDocs.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2 mb-3">
+          <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-3">
             <FiStar className="w-5 h-5 text-amber-500" />
             Featured Documents
           </h2>
@@ -1723,14 +1723,14 @@ export default function DocumentationHubPage() {
             {featuredDocs.map(doc => {
               const colors = colorMap[doc.category?.color || 'blue'];
               return (
-                <div key={doc.id} className="nexus-card p-4 hover:shadow-md transition-all border-l-4 cursor-pointer" style={{ borderLeftColor: `var(--tw-color-${doc.category?.color || 'blue'})` }}>
+                <div key={doc.id} className="thb-card p-4 hover:shadow-md transition-all border-l-4 cursor-pointer" style={{ borderLeftColor: `var(--tw-color-${doc.category?.color || 'blue'})` }}>
                   <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium mb-2 ${colors.light} ${colors.text}`}>
                     {iconMap[doc.category?.icon || 'FiBookOpen']}
                     {doc.category?.name}
                   </div>
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-1 line-clamp-2">{doc.title}</h3>
-                  <p className="text-xs text-nexus-text-muted line-clamp-2">{doc.summary}</p>
-                  <div className="flex items-center gap-3 mt-3 text-[11px] text-nexus-text-muted">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-1 line-clamp-2">{doc.title}</h3>
+                  <p className="text-xs text-thb-text-muted line-clamp-2">{doc.summary}</p>
+                  <div className="flex items-center gap-3 mt-3 text-[11px] text-thb-text-muted">
                     <span className="flex items-center gap-1"><FiEye className="w-3 h-3" />{doc.viewCount}</span>
                     <span className="flex items-center gap-1"><FiUser className="w-3 h-3" />{doc.author}</span>
                     <span className="flex items-center gap-1"><FiClock className="w-3 h-3" />{formatDate(doc.updatedAt)}</span>
@@ -1752,12 +1752,12 @@ export default function DocumentationHubPage() {
 
       {/* Action Bar */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
           {activeCategory
             ? <>{CATEGORIES.find(c => c.id === activeCategory)?.name} Documents</>
             : <>All Documents</>
           }
-          <span className="text-sm font-normal text-nexus-text-muted">({filteredDocuments.length})</span>
+          <span className="text-sm font-normal text-thb-text-muted">({filteredDocuments.length})</span>
         </h2>
         {isAdmin && (
           <button
@@ -1772,7 +1772,7 @@ export default function DocumentationHubPage() {
 
       {/* View-Only Panel */}
       {viewingId && viewingDocument && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -1780,16 +1780,16 @@ export default function DocumentationHubPage() {
                   {iconMap[viewingDocument.category?.icon || 'FiBookOpen']}
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingDocument.title}</h2>
+                  <h2 className="text-lg font-semibold text-thb-text-primary">{viewingDocument.title}</h2>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`nexus-badge ${colorMap[viewingDocument.category?.color || 'blue'].light} ${colorMap[viewingDocument.category?.color || 'blue'].text}`}>
+                    <span className={`thb-badge ${colorMap[viewingDocument.category?.color || 'blue'].light} ${colorMap[viewingDocument.category?.color || 'blue'].text}`}>
                       {viewingDocument.category?.name}
                     </span>
                     <span className={getStatusBadge(viewingDocument.status)}>
                       {viewingDocument.status.charAt(0).toUpperCase() + viewingDocument.status.slice(1)}
                     </span>
                     {viewingDocument.isFeatured && (
-                      <span className="inline-flex items-center gap-1 nexus-badge bg-amber-50 text-amber-700">
+                      <span className="inline-flex items-center gap-1 thb-badge bg-amber-50 text-amber-700">
                         <FiStar className="w-3 h-3" /> Featured
                       </span>
                     )}
@@ -1819,14 +1819,14 @@ export default function DocumentationHubPage() {
                     )}
                   </>
                 )}
-                <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+                <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             {/* Meta bar */}
-            <div className="flex flex-wrap items-center gap-4 py-3 px-4 bg-slate-50 rounded-lg mb-4 text-xs text-nexus-text-muted">
+            <div className="flex flex-wrap items-center gap-4 py-3 px-4 bg-slate-50 rounded-lg mb-4 text-xs text-thb-text-muted">
               <span className="flex items-center gap-1"><FiUser className="w-3.5 h-3.5" /> {viewingDocument.author || 'Unknown'}</span>
               <span className="flex items-center gap-1"><FiClock className="w-3.5 h-3.5" /> Updated {formatDate(viewingDocument.updatedAt)}</span>
               <span className="flex items-center gap-1"><FiEye className="w-3.5 h-3.5" /> {viewingDocument.viewCount} views</span>
@@ -1847,14 +1847,14 @@ export default function DocumentationHubPage() {
 
       {/* Permissions Panel (Super Admin only) */}
       {showPermissions && isSuperAdmin && permissionsDocId && (
-        <div id="permissions-panel" className="nexus-card border-l-4 border-l-violet-500">
+        <div id="permissions-panel" className="thb-card border-l-4 border-l-violet-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                 <HiShieldCheck className="w-5 h-5 text-violet-500" />
                 Document Permissions
               </h2>
-              <button onClick={() => { setShowPermissions(false); setPermissionsDocId(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={() => { setShowPermissions(false); setPermissionsDocId(null); }} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -1862,25 +1862,25 @@ export default function DocumentationHubPage() {
             {/* Add Permission Form */}
             <div className="flex flex-wrap items-end gap-3 mb-4 p-4 bg-slate-50 rounded-lg">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Target Type</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Target Type</label>
                 <select
                   value={permForm.targetType}
                   onChange={e => setPermForm(p => ({ ...p, targetType: e.target.value, targetId: '' }))}
-                  className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="role">Role</option>
                   <option value="user">User</option>
                 </select>
               </div>
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                   {permForm.targetType === 'role' ? 'Select Role' : 'User ID'}
                 </label>
                 {permForm.targetType === 'role' ? (
                   <select
                     value={permForm.targetId}
                     onChange={e => setPermForm(p => ({ ...p, targetId: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     <option value="">Select Role</option>
                     {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
@@ -1891,21 +1891,21 @@ export default function DocumentationHubPage() {
                     value={permForm.targetId}
                     onChange={e => setPermForm(p => ({ ...p, targetId: e.target.value }))}
                     placeholder="Enter user ID"
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 )}
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" checked={permForm.canView} onChange={e => setPermForm(p => ({ ...p, canView: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border" />
+                  <input type="checkbox" checked={permForm.canView} onChange={e => setPermForm(p => ({ ...p, canView: e.target.checked }))} className="w-4 h-4 rounded border-thb-border" />
                   View
                 </label>
                 <label className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" checked={permForm.canEdit} onChange={e => setPermForm(p => ({ ...p, canEdit: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border" />
+                  <input type="checkbox" checked={permForm.canEdit} onChange={e => setPermForm(p => ({ ...p, canEdit: e.target.checked }))} className="w-4 h-4 rounded border-thb-border" />
                   Edit
                 </label>
                 <label className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" checked={permForm.canShare} onChange={e => setPermForm(p => ({ ...p, canShare: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border" />
+                  <input type="checkbox" checked={permForm.canShare} onChange={e => setPermForm(p => ({ ...p, canShare: e.target.checked }))} className="w-4 h-4 rounded border-thb-border" />
                   Share
                 </label>
               </div>
@@ -1920,20 +1920,20 @@ export default function DocumentationHubPage() {
             {/* Permissions List */}
             {localPermissions.length === 0 ? (
               <div className="text-center py-8">
-                <FiLock className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" />
-                <p className="text-sm text-nexus-text-secondary">No restrictions — this document is visible to all users</p>
-                <p className="text-xs text-nexus-text-muted mt-1">Add permissions to restrict access to specific roles or users</p>
+                <FiLock className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
+                <p className="text-sm text-thb-text-secondary">No restrictions — this document is visible to all users</p>
+                <p className="text-xs text-thb-text-muted mt-1">Add permissions to restrict access to specific roles or users</p>
               </div>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {localPermissions.map(perm => (
-                  <div key={perm.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-nexus-border">
+                  <div key={perm.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-thb-border">
                     <div className="flex items-center gap-3">
-                      <span className={`nexus-badge ${perm.targetType === 'role' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}`}>
+                      <span className={`thb-badge ${perm.targetType === 'role' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}`}>
                         {perm.targetType === 'role' ? 'Role' : 'User'}
                       </span>
-                      <span className="text-sm font-medium text-nexus-text-primary">{perm.targetId.replace('_', ' ')}</span>
-                      <div className="flex items-center gap-2 text-xs text-nexus-text-muted">
+                      <span className="text-sm font-medium text-thb-text-primary">{perm.targetId.replace('_', ' ')}</span>
+                      <div className="flex items-center gap-2 text-xs text-thb-text-muted">
                         {perm.canView && <span className="text-emerald-600">View</span>}
                         {perm.canEdit && <span className="text-blue-600">Edit</span>}
                         {perm.canShare && <span className="text-amber-600">Share</span>}
@@ -1941,7 +1941,7 @@ export default function DocumentationHubPage() {
                     </div>
                     <button
                       onClick={() => handleRemovePermission(perm.id)}
-                      className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                      className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
                       <FiTrash2 className="w-4 h-4" />
                     </button>
@@ -1955,65 +1955,65 @@ export default function DocumentationHubPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Document' : 'Create Document'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Title *</label>
-                <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Document title" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label>
+                <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Document title" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category *</label>
-                <select value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <select value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="">Select Category</option>
                   {CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Content * (Markdown)</label>
-                <textarea rows={10} value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-y" placeholder="# Document Title&#10;&#10;Write your content in Markdown..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Content * (Markdown)</label>
+                <textarea rows={10} value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-y" placeholder="# Document Title&#10;&#10;Write your content in Markdown..." />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Summary</label>
-                <textarea rows={2} value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Brief description of the document..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Summary</label>
+                <textarea rows={2} value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Brief description of the document..." />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tags (comma-separated)</label>
-                <input type="text" value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="api, integration, guide" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tags (comma-separated)</label>
+                <input type="text" value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="api, integration, guide" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Version</label>
-                <input type="text" value={form.version} onChange={e => setForm(p => ({ ...p, version: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="1.0" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Version</label>
+                <input type="text" value={form.version} onChange={e => setForm(p => ({ ...p, version: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="1.0" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Author</label>
-                <input type="text" value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Author name" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Author</label>
+                <input type="text" value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Author name" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
                   <option value="archived">Archived</option>
                 </select>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary mt-6">
-                  <input type="checkbox" checked={form.isFeatured} onChange={e => setForm(p => ({ ...p, isFeatured: e.target.checked }))} className="w-4 h-4 rounded border-nexus-border" />
+                <label className="flex items-center gap-2 text-xs font-medium text-thb-text-secondary mt-6">
+                  <input type="checkbox" checked={form.isFeatured} onChange={e => setForm(p => ({ ...p, isFeatured: e.target.checked }))} className="w-4 h-4 rounded border-thb-border" />
                   Featured Document
                 </label>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Document' : 'Create Document'}
               </button>
@@ -2024,17 +2024,17 @@ export default function DocumentationHubPage() {
 
       {/* Document Grid */}
       {filteredDocuments.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiBookOpen className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No documents found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Try adjusting your search or category filter</p>
+        <div className="thb-card p-12 text-center">
+          <FiBookOpen className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No documents found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Try adjusting your search or category filter</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredDocuments.map(doc => {
             const colors = colorMap[doc.category?.color || 'blue'];
             return (
-              <div key={doc.id} className="nexus-card p-4 hover:shadow-md transition-all group">
+              <div key={doc.id} className="thb-card p-4 hover:shadow-md transition-all group">
                 {/* Category badge */}
                 <div className="flex items-center justify-between mb-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${colors.light} ${colors.text}`}>
@@ -2050,25 +2050,25 @@ export default function DocumentationHubPage() {
                 </div>
 
                 {/* Title & Summary */}
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">{doc.title}</h3>
-                <p className="text-xs text-nexus-text-muted line-clamp-2 mb-3">{doc.summary}</p>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">{doc.title}</h3>
+                <p className="text-xs text-thb-text-muted line-clamp-2 mb-3">{doc.summary}</p>
 
                 {/* Tags */}
                 {doc.tags && (
                   <div className="flex flex-wrap gap-1 mb-3">
                     {doc.tags.split(',').slice(0, 3).map(tag => (
-                      <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 text-nexus-text-muted text-[10px] rounded">
+                      <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 text-thb-text-muted text-[10px] rounded">
                         <FiTag className="w-2.5 h-2.5" />{tag.trim()}
                       </span>
                     ))}
                     {doc.tags.split(',').length > 3 && (
-                      <span className="text-[10px] text-nexus-text-muted">+{doc.tags.split(',').length - 3}</span>
+                      <span className="text-[10px] text-thb-text-muted">+{doc.tags.split(',').length - 3}</span>
                     )}
                   </div>
                 )}
 
                 {/* Meta */}
-                <div className="flex items-center justify-between text-[11px] text-nexus-text-muted pt-3 border-t border-nexus-border">
+                <div className="flex items-center justify-between text-[11px] text-thb-text-muted pt-3 border-t border-thb-border">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1"><FiUser className="w-3 h-3" />{doc.author || '—'}</span>
                     <span className="flex items-center gap-1"><FiEye className="w-3 h-3" />{doc.viewCount}</span>
@@ -2077,7 +2077,7 @@ export default function DocumentationHubPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-nexus-border">
+                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-thb-border">
                   <button
                     onClick={() => { setViewingId(doc.id); setShowForm(false); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}
                     className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors"
@@ -2088,7 +2088,7 @@ export default function DocumentationHubPage() {
                     <>
                       <button
                         onClick={() => handleEdit(doc)}
-                        className="p-1.5 rounded-md text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                         title="Edit"
                       >
                         <FiEdit2 className="w-4 h-4" />
@@ -2096,7 +2096,7 @@ export default function DocumentationHubPage() {
                       {isSuperAdmin && (
                         <button
                           onClick={() => handleManagePermissions(doc.id)}
-                          className="p-1.5 rounded-md text-nexus-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors"
+                          className="p-1.5 rounded-md text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors"
                           title="Manage Permissions"
                         >
                           <FiLock className="w-4 h-4" />
@@ -2104,7 +2104,7 @@ export default function DocumentationHubPage() {
                       )}
                       <button
                         onClick={() => handleDelete(doc.id)}
-                        className="p-1.5 rounded-md text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="p-1.5 rounded-md text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                         title="Delete"
                       >
                         <FiTrash2 className="w-4 h-4" />

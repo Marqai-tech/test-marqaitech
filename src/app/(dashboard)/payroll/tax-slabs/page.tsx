@@ -44,22 +44,22 @@ interface TaxSlabTable {
 // --- Badge Helpers ---
 function getFilingStatusBadge(status: string) {
   const map: Record<string, string> = {
-    SINGLE: 'nexus-badge nexus-badge-info',
-    MARRIED_JOINT: 'nexus-badge nexus-badge-success',
-    MARRIED_SEPARATE: 'nexus-badge nexus-badge-warning',
-    HEAD_OF_HOUSEHOLD: 'nexus-badge nexus-badge-purple',
-    SENIOR_CITIZEN: 'nexus-badge nexus-badge-error',
+    SINGLE: 'thb-badge thb-badge-info',
+    MARRIED_JOINT: 'thb-badge thb-badge-success',
+    MARRIED_SEPARATE: 'thb-badge thb-badge-warning',
+    HEAD_OF_HOUSEHOLD: 'thb-badge thb-badge-purple',
+    SENIOR_CITIZEN: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getRegimeBadge(regime: string) {
   const map: Record<string, string> = {
-    OLD: 'nexus-badge nexus-badge-warning',
-    NEW: 'nexus-badge nexus-badge-success',
-    STANDARD: 'nexus-badge nexus-badge-info',
+    OLD: 'thb-badge thb-badge-warning',
+    NEW: 'thb-badge thb-badge-success',
+    STANDARD: 'thb-badge thb-badge-info',
   };
-  return map[regime] || 'nexus-badge nexus-badge-info';
+  return map[regime] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -114,11 +114,11 @@ const emptyForm = {
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -361,16 +361,16 @@ export default function TaxSlabsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiPercent className="w-6 h-6 text-emerald-500" />
             Tax Slabs
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage tax slab tables with rate lines across countries and regimes</p>
+          <p className="text-thb-text-secondary mt-1">Manage tax slab tables with rate lines across countries and regimes</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -388,69 +388,69 @@ export default function TaxSlabsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Slab Tables</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalSlabs}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Slab Tables</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalSlabs}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiGlobe className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Countries</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{uniqueCountries}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Countries</p>
+              <p className="text-xl font-bold text-thb-text-primary">{uniqueCountries}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiCalendar className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Tax Years</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{uniqueTaxYears}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Tax Years</p>
+              <p className="text-xl font-bold text-thb-text-primary">{uniqueTaxYears}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active Tables</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{activeSlabs}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active Tables</p>
+              <p className="text-xl font-bold text-thb-text-primary">{activeSlabs}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by name, country, tax year, filing status..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -458,7 +458,7 @@ export default function TaxSlabsPage() {
           <select
             value={taxYearFilter}
             onChange={(e) => setTaxYearFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
           >
             <option value="">All Tax Years</option>
             {[...new Set(slabs.map(s => s.taxYear))].sort().map(yr => (
@@ -470,7 +470,7 @@ export default function TaxSlabsPage() {
 
       {/* View Panel */}
       {viewingSlab && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -480,8 +480,8 @@ export default function TaxSlabsPage() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingSlab.name}</h2>
-                    <p className="text-sm text-nexus-text-secondary mt-0.5">
+                    <h2 className="text-lg font-semibold text-thb-text-primary">{viewingSlab.name}</h2>
+                    <p className="text-sm text-thb-text-secondary mt-0.5">
                       {viewingSlab.countryCode} &middot; {viewingSlab.taxYear}
                       {viewingSlab.filingStatus ? ` · ${viewingSlab.filingStatus.replace(/_/g, ' ')}` : ''}
                       {viewingSlab.regimeType ? ` · ${viewingSlab.regimeType} Regime` : ''}
@@ -498,7 +498,7 @@ export default function TaxSlabsPage() {
                     )}
                     <button
                       onClick={() => setViewingSlab(null)}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                     >
                       <FiX className="w-5 h-5" />
                     </button>
@@ -519,37 +519,37 @@ export default function TaxSlabsPage() {
 
                 {/* Rate Lines View Table */}
                 <div>
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">
                     Rate Lines ({(viewingSlab.rateLines || []).length})
                   </h3>
                   {(viewingSlab.rateLines || []).length === 0 ? (
-                    <p className="text-sm text-nexus-text-secondary text-center py-6">No rate lines defined</p>
+                    <p className="text-sm text-thb-text-secondary text-center py-6">No rate lines defined</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-nexus-border bg-slate-50/50">
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">#</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Income From</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Income To</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Rate %</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Fixed Amt</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Surcharge %</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Cess %</th>
+                          <tr className="border-b border-thb-border bg-slate-50/50">
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">#</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Income From</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Income To</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Rate %</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Fixed Amt</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Surcharge %</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Cess %</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-nexus-border/50">
+                        <tbody className="divide-y divide-thb-border/50">
                           {(viewingSlab.rateLines || []).map((rl, i) => (
                             <tr key={rl.id || i} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{rl.sequence || i + 1}</td>
-                              <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{formatCurrency(rl.incomeFrom, viewingSlab.countryCode)}</td>
-                              <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">
-                                {rl.incomeTo != null ? formatCurrency(rl.incomeTo, viewingSlab.countryCode) : <span className="text-nexus-text-muted">No limit</span>}
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{rl.sequence || i + 1}</td>
+                              <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{formatCurrency(rl.incomeFrom, viewingSlab.countryCode)}</td>
+                              <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">
+                                {rl.incomeTo != null ? formatCurrency(rl.incomeTo, viewingSlab.countryCode) : <span className="text-thb-text-muted">No limit</span>}
                               </td>
-                              <td className="px-3 py-2"><span className="nexus-badge nexus-badge-success">{rl.ratePercentage}%</span></td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{rl.fixedAmount != null ? formatCurrency(rl.fixedAmount, viewingSlab.countryCode) : '—'}</td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{rl.surchargeRate != null ? `${rl.surchargeRate}%` : '—'}</td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{rl.cessRate != null ? `${rl.cessRate}%` : '—'}</td>
+                              <td className="px-3 py-2"><span className="thb-badge thb-badge-success">{rl.ratePercentage}%</span></td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{rl.fixedAmount != null ? formatCurrency(rl.fixedAmount, viewingSlab.countryCode) : '—'}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{rl.surchargeRate != null ? `${rl.surchargeRate}%` : '—'}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{rl.cessRate != null ? `${rl.cessRate}%` : '—'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -565,15 +565,15 @@ export default function TaxSlabsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Tax Slab Table' : 'Create Tax Slab Table'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -582,79 +582,79 @@ export default function TaxSlabsPage() {
             {/* Slab Table Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slab Table Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slab Table Name *</label>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="e.g. India New Regime FY 2024-25"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country Code</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country Code</label>
                 <select
                   value={form.countryCode}
                   onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tax Year *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax Year *</label>
                 <input
                   required
                   value={form.taxYear}
                   onChange={(e) => setForm({ ...form, taxYear: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="e.g. 2024-25 or 2024"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Filing Status</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Status</label>
                 <select
                   value={form.filingStatus}
                   onChange={(e) => setForm({ ...form, filingStatus: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {FILING_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Regime Type</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Regime Type</label>
                 <select
                   value={form.regimeType}
                   onChange={(e) => setForm({ ...form, regimeType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {REGIME_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
                 <input
                   type="date"
                   value={form.effectiveFrom}
                   onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective To</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective To</label>
                 <input
                   type="date"
                   value={form.effectiveTo}
                   onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
             </div>
 
             {/* Rate Lines Sub-section */}
-            <div className="mt-6 pt-4 border-t border-nexus-border">
+            <div className="mt-6 pt-4 border-t border-thb-border">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-nexus-text-primary">Rate Lines</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary">Rate Lines</h3>
                 <button
                   type="button"
                   onClick={addRateLine}
@@ -668,40 +668,40 @@ export default function TaxSlabsPage() {
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full min-w-[700px]">
                   <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-nexus-border bg-slate-50">
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase w-8">#</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Income From *</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Income To</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Rate % *</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Fixed Amt</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Surcharge %</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Cess %</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-nexus-text-secondary uppercase w-8"></th>
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase w-8">#</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Income From *</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Income To</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Rate % *</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Fixed Amt</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Surcharge %</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Cess %</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-thb-text-secondary uppercase w-8"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-nexus-border/50">
+                  <tbody className="divide-y divide-thb-border/50">
                     {rateLines.map((rl, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-2 py-2">
-                          <span className="text-xs font-semibold text-nexus-text-muted">{idx + 1}</span>
+                          <span className="text-xs font-semibold text-thb-text-muted">{idx + 1}</span>
                         </td>
                         <td className="px-2 py-2">
                           <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-nexus-text-muted">{CURRENCY_SYMBOLS[form.countryCode] || '$'}</span>
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-thb-text-muted">{CURRENCY_SYMBOLS[form.countryCode] || '$'}</span>
                             <input
                               type="number"
                               min={0}
                               step="0.01"
                               value={rl.incomeFrom}
                               onChange={(e) => updateRateLine(idx, 'incomeFrom', parseFloat(e.target.value) || 0)}
-                              className="w-full pl-6 pr-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                              className="w-full pl-6 pr-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                               placeholder="0"
                             />
                           </div>
                         </td>
                         <td className="px-2 py-2">
                           <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-nexus-text-muted">{CURRENCY_SYMBOLS[form.countryCode] || '$'}</span>
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-thb-text-muted">{CURRENCY_SYMBOLS[form.countryCode] || '$'}</span>
                             <input
                               type="number"
                               min={0}
@@ -711,7 +711,7 @@ export default function TaxSlabsPage() {
                                 const val = e.target.value;
                                 updateRateLine(idx, 'incomeTo', val === '' ? null : parseFloat(val) || null);
                               }}
-                              className="w-full pl-6 pr-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                              className="w-full pl-6 pr-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                               placeholder="No limit"
                             />
                           </div>
@@ -724,7 +724,7 @@ export default function TaxSlabsPage() {
                             step="0.01"
                             value={rl.ratePercentage}
                             onChange={(e) => updateRateLine(idx, 'ratePercentage', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                             placeholder="0"
                           />
                         </td>
@@ -738,7 +738,7 @@ export default function TaxSlabsPage() {
                               const val = e.target.value;
                               updateRateLine(idx, 'fixedAmount', val === '' ? null : parseFloat(val) || null);
                             }}
-                            className="w-full px-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                             placeholder="—"
                           />
                         </td>
@@ -753,7 +753,7 @@ export default function TaxSlabsPage() {
                               const val = e.target.value;
                               updateRateLine(idx, 'surchargeRate', val === '' ? null : parseFloat(val) || null);
                             }}
-                            className="w-full px-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                             placeholder="—"
                           />
                         </td>
@@ -768,7 +768,7 @@ export default function TaxSlabsPage() {
                               const val = e.target.value;
                               updateRateLine(idx, 'cessRate', val === '' ? null : parseFloat(val) || null);
                             }}
-                            className="w-full px-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                             placeholder="—"
                           />
                         </td>
@@ -790,10 +790,10 @@ export default function TaxSlabsPage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -811,7 +811,7 @@ export default function TaxSlabsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -819,19 +819,19 @@ export default function TaxSlabsPage() {
           </div>
         </div>
       ) : filteredSlabs.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiPercent className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No tax slabs found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first tax slab table to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiPercent className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No tax slabs found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first tax slab table to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Name', 'Country', 'Tax Year', 'Filing Status', 'Regime', 'Effective From', 'Rate Lines', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -855,7 +855,7 @@ export default function TaxSlabsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -865,37 +865,37 @@ export default function TaxSlabsPage() {
                   ) : (
                     <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-nexus-text-primary">{s.name}</p>
+                        <p className="text-sm font-medium text-thb-text-primary">{s.name}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="nexus-badge nexus-badge-info">{s.countryCode}</span>
+                        <span className="thb-badge thb-badge-info">{s.countryCode}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{s.taxYear}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{s.taxYear}</td>
                       <td className="px-4 py-3">
                         {s.filingStatus ? (
                           <span className={getFilingStatusBadge(s.filingStatus)}>{s.filingStatus.replace(/_/g, ' ')}</span>
                         ) : (
-                          <span className="text-sm text-nexus-text-muted">—</span>
+                          <span className="text-sm text-thb-text-muted">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {s.regimeType ? (
                           <span className={getRegimeBadge(s.regimeType)}>{s.regimeType}</span>
                         ) : (
-                          <span className="text-sm text-nexus-text-muted">—</span>
+                          <span className="text-sm text-thb-text-muted">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">
                         {s.effectiveFrom ? new Date(s.effectiveFrom).toLocaleDateString() : '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="nexus-badge nexus-badge-purple">{(s.rateLines || []).length} lines</span>
+                        <span className="thb-badge thb-badge-purple">{(s.rateLines || []).length} lines</span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(s)}
-                            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />
@@ -903,7 +903,7 @@ export default function TaxSlabsPage() {
                           {isAdmin && (
                             <button
                               onClick={() => handleEdit(s)}
-                              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors"
+                              className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors"
                               title="Edit"
                             >
                               <FiEdit2 className="w-4 h-4" />
@@ -912,7 +912,7 @@ export default function TaxSlabsPage() {
                           {isAdmin && (
                             <button
                               onClick={() => setDeleteConfirmId(s.id)}
-                              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                              className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                               title="Delete"
                             >
                               <FiTrash2 className="w-4 h-4" />

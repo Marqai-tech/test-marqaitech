@@ -114,7 +114,7 @@ export default function RegularizePage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Submit missed-punch requests · AI-assisted · manager approval</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
           <FiPlus className="w-4 h-4" /> Request Regularization
         </button>
       </div>
@@ -124,7 +124,7 @@ export default function RegularizePage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="nexus-card p-6 border-l-4 border-l-cyan-500">
+        <div className="thb-card p-6 border-l-4 border-l-cyan-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Regularization</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -132,22 +132,22 @@ export default function RegularizePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
-              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="nexus-input w-full" />
+              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Punch Type *</label>
-              <select value={form.punchType} onChange={e => setForm({ ...form, punchType: e.target.value })} className="nexus-input w-full">
+              <select value={form.punchType} onChange={e => setForm({ ...form, punchType: e.target.value })} className="3boxes-input w-full">
                 <option value="check_in">Check-In (forgot to clock in)</option>
                 <option value="check_out">Check-Out (forgot to clock out)</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Actual Time *</label>
-              <input type="time" value={form.requestedTime} onChange={e => setForm({ ...form, requestedTime: e.target.value })} className="nexus-input w-full" />
+              <input type="time" value={form.requestedTime} onChange={e => setForm({ ...form, requestedTime: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
-              <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="nexus-input w-full" placeholder="e.g. Forgot to punch in after meeting" />
+              <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Forgot to punch in after meeting" />
             </div>
           </div>
           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -157,8 +157,8 @@ export default function RegularizePage() {
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary flex items-center gap-2">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
               {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
               Submit Request
             </button>
@@ -166,7 +166,7 @@ export default function RegularizePage() {
         </div>
       )}
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -207,9 +207,9 @@ export default function RegularizePage() {
                     {r.isHoliday && <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded">Holiday</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`nexus-badge ${
-                      r.status === 'approved' ? 'nexus-badge-success' :
-                      r.status === 'rejected' ? 'nexus-badge-error' : 'nexus-badge-warning'
+                    <span className={`thb-badge ${
+                      r.status === 'approved' ? 'thb-badge-success' :
+                      r.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.status}</span>
                   </td>
                   {isAdmin && (

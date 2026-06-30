@@ -44,23 +44,23 @@ interface EmployeePaymentMethod {
 // --- Badge Helpers ---
 function getPaymentTypeBadge(type: string) {
   const map: Record<string, string> = {
-    DIRECT_DEPOSIT: 'nexus-badge nexus-badge-info',
-    CHEQUE: 'nexus-badge nexus-badge-warning',
-    CASH: 'nexus-badge nexus-badge-success',
+    DIRECT_DEPOSIT: 'thb-badge thb-badge-info',
+    CHEQUE: 'thb-badge thb-badge-warning',
+    CASH: 'thb-badge thb-badge-success',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getSplitTypeBadge(type: string) {
   const map: Record<string, string> = {
-    PERCENTAGE: 'nexus-badge nexus-badge-purple',
-    FIXED_AMOUNT: 'nexus-badge nexus-badge-warning',
+    PERCENTAGE: 'thb-badge thb-badge-purple',
+    FIXED_AMOUNT: 'thb-badge thb-badge-warning',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getStatusBadge(status: string) {
-  return status === 'active' ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error';
+  return status === 'active' ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error';
 }
 
 // --- Constants ---
@@ -95,11 +95,11 @@ const SPLIT_TYPE_OPTIONS = [
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -340,16 +340,16 @@ export default function EmployeePaymentMethodsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiCreditCard className="w-6 h-6 text-blue-500" />
             Employee Payment Methods
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage bank details and split payment configurations for employees</p>
+          <p className="text-thb-text-secondary mt-1">Manage bank details and split payment configurations for employees</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -367,69 +367,69 @@ export default function EmployeePaymentMethodsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiCreditCard className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Methods</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalMethods}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Methods</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalMethods}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiStar className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Primary</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{primaryCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Primary</p>
+              <p className="text-xl font-bold text-thb-text-primary">{primaryCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center">
               <FiCreditCard className="w-5 h-5 text-slate-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Secondary</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{secondaryCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Secondary</p>
+              <p className="text-xl font-bold text-thb-text-primary">{secondaryCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiCreditCard className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Direct Deposit</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{depositCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Direct Deposit</p>
+              <p className="text-xl font-bold text-thb-text-primary">{depositCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by employee name, ID, or bank..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[180px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[180px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeId})</option>)}
@@ -437,7 +437,7 @@ export default function EmployeePaymentMethodsPage() {
           <select
             value={paymentTypeFilter}
             onChange={(e) => setPaymentTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Types</option>
             {PAYMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -445,7 +445,7 @@ export default function EmployeePaymentMethodsPage() {
           <select
             value={primaryFilter}
             onChange={(e) => setPrimaryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
           >
             <option value="">All Priority</option>
             <option value="true">Primary</option>
@@ -454,7 +454,7 @@ export default function EmployeePaymentMethodsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -465,7 +465,7 @@ export default function EmployeePaymentMethodsPage() {
 
       {/* View Panel */}
       {viewingMethod && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -475,13 +475,13 @@ export default function EmployeePaymentMethodsPage() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                       {getEmployeeName(viewingMethod)}
                       {viewingMethod.isPrimary && (
-                        <span className="nexus-badge nexus-badge-warning text-[10px]">Primary</span>
+                        <span className="thb-badge thb-badge-warning text-[10px]">Primary</span>
                       )}
                     </h2>
-                    <p className="text-sm text-nexus-text-secondary mt-0.5">
+                    <p className="text-sm text-thb-text-secondary mt-0.5">
                       {formatPaymentType(viewingMethod.paymentType)} &middot; {viewingMethod.currencyCode}
                     </p>
                   </div>
@@ -496,7 +496,7 @@ export default function EmployeePaymentMethodsPage() {
                     )}
                     <button
                       onClick={() => setViewingMethod(null)}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                     >
                       <FiX className="w-5 h-5" />
                     </button>
@@ -515,7 +515,7 @@ export default function EmployeePaymentMethodsPage() {
                   <DetailItem label="Currency" value={viewingMethod.currencyCode} />
                   <DetailItem label="Split Type" value={viewingMethod.splitType ? formatPaymentType(viewingMethod.splitType) : null} badge={viewingMethod.splitType ? getSplitTypeBadge(viewingMethod.splitType) : undefined} />
                   <DetailItem label="Split Value" value={viewingMethod.splitValue} />
-                  <DetailItem label="Is Primary" value={viewingMethod.isPrimary} badge={viewingMethod.isPrimary ? 'nexus-badge nexus-badge-warning' : undefined} />
+                  <DetailItem label="Is Primary" value={viewingMethod.isPrimary} badge={viewingMethod.isPrimary ? 'thb-badge thb-badge-warning' : undefined} />
                   <DetailItem label="Priority" value={viewingMethod.priority} />
                   <DetailItem label="Status" value={viewingMethod.status} badge={getStatusBadge(viewingMethod.status)} />
                   <DetailItem label="Effective From" value={viewingMethod.effectiveFrom ? new Date(viewingMethod.effectiveFrom).toLocaleDateString() : null} />
@@ -529,15 +529,15 @@ export default function EmployeePaymentMethodsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Payment Method' : 'Create Payment Method'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -545,35 +545,35 @@ export default function EmployeePaymentMethodsPage() {
 
             {/* Employee & Payment Type */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Employee &amp; Payment Type</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Employee &amp; Payment Type</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                   <select
                     value={form.employeeId}
                     onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     <option value="">Select Employee</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeId})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Payment Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payment Type</label>
                   <select
                     value={form.paymentType}
                     onChange={(e) => setForm({ ...form, paymentType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {PAYMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -584,50 +584,50 @@ export default function EmployeePaymentMethodsPage() {
             {/* Bank Details */}
             {form.paymentType === 'DIRECT_DEPOSIT' && (
               <div className="mb-5">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Bank Details</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Bank Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Bank Name</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Bank Name</label>
                     <input
                       value={form.bankName}
                       onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="e.g. HDFC Bank"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Account Number</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Account Number</label>
                     <input
                       value={form.bankAccountNo}
                       onChange={(e) => setForm({ ...form, bankAccountNo: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="e.g. 1234567890"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">IFSC Code</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">IFSC Code</label>
                     <input
                       value={form.bankIfscCode}
                       onChange={(e) => setForm({ ...form, bankIfscCode: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="e.g. HDFC0001234"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Branch</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
                     <input
                       value={form.bankBranch}
                       onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="e.g. Mumbai Branch"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Account Type</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Account Type</label>
                     <select
                       value={form.accountType}
                       onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       {ACCOUNT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -638,21 +638,21 @@ export default function EmployeePaymentMethodsPage() {
 
             {/* Split Payment */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Split Payment Configuration</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Split Payment Configuration</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Split Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Split Type</label>
                   <select
                     value={form.splitType}
                     onChange={(e) => setForm({ ...form, splitType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {SPLIT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 {form.splitType && (
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                       Split Value {form.splitType === 'PERCENTAGE' ? '(%)' : '(Amount)'}
                     </label>
                     <input
@@ -661,7 +661,7 @@ export default function EmployeePaymentMethodsPage() {
                       min={0}
                       value={form.splitValue}
                       onChange={(e) => setForm({ ...form, splitValue: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder={form.splitType === 'PERCENTAGE' ? 'e.g. 80' : 'e.g. 50000'}
                     />
                   </div>
@@ -671,57 +671,57 @@ export default function EmployeePaymentMethodsPage() {
 
             {/* Priority & Effective Dates */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Priority &amp; Effective Dates</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Priority &amp; Effective Dates</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.isPrimary}
                       onChange={(e) => setForm({ ...form, isPrimary: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Primary Payment Method</span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Priority</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority</label>
                   <input
                     type="number"
                     min={1}
                     max={10}
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="1 = highest"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
                   <input
                     type="date"
                     value={form.effectiveFrom}
                     onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective To</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective To</label>
                   <input
                     type="date"
                     value={form.effectiveTo}
                     onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
               </div>
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -739,7 +739,7 @@ export default function EmployeePaymentMethodsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -747,19 +747,19 @@ export default function EmployeePaymentMethodsPage() {
           </div>
         </div>
       ) : filteredMethods.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiCreditCard className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No payment methods found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Add a payment method for an employee to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiCreditCard className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No payment methods found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Add a payment method for an employee to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Employee', 'Type', 'Bank / Details', 'Split', 'Currency', 'Primary', 'Priority', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -783,7 +783,7 @@ export default function EmployeePaymentMethodsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -798,8 +798,8 @@ export default function EmployeePaymentMethodsPage() {
                             <FiUser className="w-3.5 h-3.5 text-blue-500" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-nexus-text-primary">{getEmployeeName(m)}</p>
-                            <p className="text-xs text-nexus-text-muted">{m.employee?.employeeId}</p>
+                            <p className="text-sm font-medium text-thb-text-primary">{getEmployeeName(m)}</p>
+                            <p className="text-xs text-thb-text-muted">{m.employee?.employeeId}</p>
                           </div>
                         </div>
                       </td>
@@ -809,32 +809,32 @@ export default function EmployeePaymentMethodsPage() {
                       <td className="px-4 py-3">
                         {m.paymentType === 'DIRECT_DEPOSIT' ? (
                           <div>
-                            <p className="text-sm text-nexus-text-primary">{m.bankName || '—'}</p>
-                            <p className="text-xs text-nexus-text-muted">{m.bankAccountNo ? `••••${m.bankAccountNo.slice(-4)}` : ''}</p>
+                            <p className="text-sm text-thb-text-primary">{m.bankName || '—'}</p>
+                            <p className="text-xs text-thb-text-muted">{m.bankAccountNo ? `••••${m.bankAccountNo.slice(-4)}` : ''}</p>
                           </div>
                         ) : (
-                          <p className="text-sm text-nexus-text-secondary">{formatPaymentType(m.paymentType)}</p>
+                          <p className="text-sm text-thb-text-secondary">{formatPaymentType(m.paymentType)}</p>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {m.splitType ? (
                           <div className="flex items-center gap-1">
                             <span className={getSplitTypeBadge(m.splitType)}>{formatPaymentType(m.splitType)}</span>
-                            <span className="text-xs text-nexus-text-secondary">{m.splitValue}{m.splitType === 'PERCENTAGE' ? '%' : ''}</span>
+                            <span className="text-xs text-thb-text-secondary">{m.splitValue}{m.splitType === 'PERCENTAGE' ? '%' : ''}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-nexus-text-muted">Full</span>
+                          <span className="text-xs text-thb-text-muted">Full</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{m.currencyCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{m.currencyCode}</td>
                       <td className="px-4 py-3">
                         {m.isPrimary ? (
-                          <span className="nexus-badge nexus-badge-warning">Primary</span>
+                          <span className="thb-badge thb-badge-warning">Primary</span>
                         ) : (
-                          <span className="nexus-badge nexus-badge-info">Secondary</span>
+                          <span className="thb-badge thb-badge-info">Secondary</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{m.priority}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{m.priority}</td>
                       <td className="px-4 py-3">
                         <span className={getStatusBadge(m.status)}>{m.status}</span>
                       </td>
@@ -842,7 +842,7 @@ export default function EmployeePaymentMethodsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(m)}
-                            className="p-1.5 rounded-md text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />
@@ -851,14 +851,14 @@ export default function EmployeePaymentMethodsPage() {
                             <>
                               <button
                                 onClick={() => handleEdit(m)}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors"
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => setDeleteConfirmId(m.id)}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                                 title="Delete"
                               >
                                 <FiTrash2 className="w-4 h-4" />

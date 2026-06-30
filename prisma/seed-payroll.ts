@@ -1,5 +1,5 @@
 /**
- * Nexus HRMS — Payroll Module Seed Script
+ * 3Boxes HRMS — Payroll Module Seed Script
  *
  * Seeds comprehensive sample data for the payroll module:
  *   1. Payroll Components (India + US)

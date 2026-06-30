@@ -106,7 +106,7 @@ export default function DashboardLayout({
   // Show loading while checking auth
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-nexus-background">
+      <div className="min-h-screen flex items-center justify-center bg-thb-background">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 mb-4 shadow-lg shadow-blue-500/25 animate-pulse-subtle ring-2 ring-blue-400/20">
             <svg viewBox="0 0 30 30" className="w-7 h-7" fill="none">
@@ -114,7 +114,7 @@ export default function DashboardLayout({
               <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
             </svg>
           </div>
-          <p className="text-sm text-nexus-text-secondary font-medium">Loading Nexus HRMS...</p>
+          <p className="text-sm text-thb-text-secondary font-medium">Loading 3Boxes HRMS...</p>
         </div>
       </div>
     );
@@ -130,7 +130,7 @@ export default function DashboardLayout({
   // ========= MOBILE LAYOUT =========
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-nexus-background flex flex-col">
+      <div className="min-h-screen bg-thb-background flex flex-col">
         <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
         <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
         <Toaster
@@ -162,7 +162,7 @@ export default function DashboardLayout({
               </svg>
             </div>
             <span className="text-sm font-extrabold text-slate-800 truncate">
-              Nexus <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span>
+              3Boxes <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span>
             </span>
           </div>
           <button
@@ -289,7 +289,7 @@ export default function DashboardLayout({
 
   // ========= DESKTOP LAYOUT =========
   return (
-    <div className="min-h-screen bg-nexus-background">
+    <div className="min-h-screen bg-thb-background">
       <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
       <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
       <Toaster

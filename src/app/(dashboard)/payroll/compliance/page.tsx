@@ -100,47 +100,47 @@ const FILING_STATUS_OPTIONS = [
 // --- Badge Helpers ---
 function getFilingTypeBadge(type: string) {
   const map: Record<string, string> = {
-    RETURN: 'nexus-badge nexus-badge-info',
-    CHALLAN: 'nexus-badge nexus-badge-warning',
-    CERTIFICATE: 'nexus-badge nexus-badge-success',
-    REGISTRATION: 'nexus-badge nexus-badge-purple',
-    REPORT: 'nexus-badge nexus-badge-info',
-    DECLARATION: 'nexus-badge nexus-badge-warning',
+    RETURN: 'thb-badge thb-badge-info',
+    CHALLAN: 'thb-badge thb-badge-warning',
+    CERTIFICATE: 'thb-badge thb-badge-success',
+    REGISTRATION: 'thb-badge thb-badge-purple',
+    REPORT: 'thb-badge thb-badge-info',
+    DECLARATION: 'thb-badge thb-badge-warning',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getFrequencyBadge(freq: string) {
   const map: Record<string, string> = {
-    MONTHLY: 'nexus-badge nexus-badge-info',
-    QUARTERLY: 'nexus-badge nexus-badge-success',
-    HALF_YEARLY: 'nexus-badge nexus-badge-warning',
-    ANNUAL: 'nexus-badge nexus-badge-purple',
-    ONE_TIME: 'nexus-badge nexus-badge-error',
+    MONTHLY: 'thb-badge thb-badge-info',
+    QUARTERLY: 'thb-badge thb-badge-success',
+    HALF_YEARLY: 'thb-badge thb-badge-warning',
+    ANNUAL: 'thb-badge thb-badge-purple',
+    ONE_TIME: 'thb-badge thb-badge-error',
   };
-  return map[freq] || 'nexus-badge nexus-badge-info';
+  return map[freq] || 'thb-badge thb-badge-info';
 }
 
 function getFilingStatusBadge(status: string) {
   const map: Record<string, string> = {
-    GENERATED: 'nexus-badge nexus-badge-info',
-    UNDER_REVIEW: 'nexus-badge nexus-badge-warning',
-    SUBMITTED: 'nexus-badge nexus-badge-purple',
-    ACKNOWLEDGED: 'nexus-badge nexus-badge-success',
-    REJECTED: 'nexus-badge nexus-badge-error',
-    PENALTY_APPLIED: 'nexus-badge nexus-badge-error',
+    GENERATED: 'thb-badge thb-badge-info',
+    UNDER_REVIEW: 'thb-badge thb-badge-warning',
+    SUBMITTED: 'thb-badge thb-badge-purple',
+    ACKNOWLEDGED: 'thb-badge thb-badge-success',
+    REJECTED: 'thb-badge thb-badge-error',
+    PENALTY_APPLIED: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -356,14 +356,14 @@ export default function CompliancePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiCalendar className="w-6 h-6 text-violet-500" />
             Compliance Management
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Track statutory filing obligations and compliance status across countries</p>
+          <p className="text-thb-text-secondary mt-1">Track statutory filing obligations and compliance status across countries</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
+          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
           {isAdmin && (
             <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Obligation
@@ -374,50 +374,50 @@ export default function CompliancePage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiCalendar className="w-5 h-5 text-violet-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Total Obligations</p><p className="text-xl font-bold text-nexus-text-primary">{totalObligations}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Total Obligations</p><p className="text-xl font-bold text-thb-text-primary">{totalObligations}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center"><FiCheckCircle className="w-5 h-5 text-emerald-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Active</p><p className="text-xl font-bold text-nexus-text-primary">{activeObligations}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Active</p><p className="text-xl font-bold text-thb-text-primary">{activeObligations}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><FiClock className="w-5 h-5 text-amber-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Pending Filings</p><p className="text-xl font-bold text-nexus-text-primary">{pendingFilings}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Pending Filings</p><p className="text-xl font-bold text-thb-text-primary">{pendingFilings}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center"><FiAlertTriangle className="w-5 h-5 text-red-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Overdue/Rejected</p><p className="text-xl font-bold text-nexus-text-primary">{overdueFilings}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Overdue/Rejected</p><p className="text-xl font-bold text-thb-text-primary">{overdueFilings}</p></div>
           </div>
         </div>
       </div>
 
       {/* Tab Switcher */}
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-        <button onClick={() => setActiveTab('obligations')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'obligations' ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>Obligations</button>
-        <button onClick={() => setActiveTab('filings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'filings' ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>Filings</button>
+        <button onClick={() => setActiveTab('obligations')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'obligations' ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>Obligations</button>
+        <button onClick={() => setActiveTab('filings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'filings' ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>Filings</button>
       </div>
 
       {/* Filters */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-            <input type="text" placeholder={`Search ${activeTab === 'obligations' ? 'by name, country, authority' : 'by period, status'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+            <input type="text" placeholder={`Search ${activeTab === 'obligations' ? 'by name, country, authority' : 'by period, status'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </div>
-          <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+          <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <select value={frequencyFilter} onChange={(e) => setFrequencyFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+          <select value={frequencyFilter} onChange={(e) => setFrequencyFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
             <option value="">All Frequencies</option>
             {FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -426,16 +426,16 @@ export default function CompliancePage() {
 
       {/* View Panel */}
       {viewingObligation && (
-        <div className="nexus-card border-l-4 border-l-violet-500">
+        <div className="thb-card border-l-4 border-l-violet-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingObligation.name}</h2>
-                <p className="text-sm text-nexus-text-secondary mt-0.5">{viewingObligation.countryCode} &middot; {viewingObligation.authorityName}</p>
+                <h2 className="text-lg font-semibold text-thb-text-primary">{viewingObligation.name}</h2>
+                <p className="text-sm text-thb-text-secondary mt-0.5">{viewingObligation.countryCode} &middot; {viewingObligation.authorityName}</p>
               </div>
               <div className="flex items-center gap-2">
                 {isAdmin && <button onClick={() => handleEdit(viewingObligation)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
-                <button onClick={() => setViewingObligation(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                <button onClick={() => setViewingObligation(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -453,25 +453,25 @@ export default function CompliancePage() {
               <DetailItem label="Reminder Days" value={viewingObligation.reminderDaysBefore} />
               <DetailItem label="Auto Generate" value={viewingObligation.autoGenerate} />
               <DetailItem label="Filing Format" value={viewingObligation.filingFormat} />
-              <DetailItem label="Active" value={viewingObligation.isActive} badge={viewingObligation.isActive ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error'} />
+              <DetailItem label="Active" value={viewingObligation.isActive} badge={viewingObligation.isActive ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error'} />
               <DetailItem label="Filings" value={viewingObligation.filings?.length || 0} />
             </div>
             {viewingObligation.filings && viewingObligation.filings.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-nexus-border">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Recent Filings</h3>
+              <div className="mt-6 pt-4 border-t border-thb-border">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Recent Filings</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-nexus-border">
-                      <tr>{['Period', 'Status', 'Amount', 'Generated', 'Submitted'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>)}</tr>
+                    <thead className="bg-slate-50 border-b border-thb-border">
+                      <tr>{['Period', 'Status', 'Amount', 'Generated', 'Submitted'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {viewingObligation.filings.map(f => (
                         <tr key={f.id} className="hover:bg-slate-50/50">
-                          <td className="px-3 py-2 text-nexus-text-primary">{f.filingPeriod}</td>
+                          <td className="px-3 py-2 text-thb-text-primary">{f.filingPeriod}</td>
                           <td className="px-3 py-2"><span className={getFilingStatusBadge(f.filingStatus)}>{formatStr(f.filingStatus)}</span></td>
-                          <td className="px-3 py-2 text-nexus-text-secondary">{f.filingAmount ?? '—'}</td>
-                          <td className="px-3 py-2 text-nexus-text-secondary">{f.generatedDate ? new Date(f.generatedDate).toLocaleDateString() : '—'}</td>
-                          <td className="px-3 py-2 text-nexus-text-secondary">{f.submittedDate ? new Date(f.submittedDate).toLocaleDateString() : '—'}</td>
+                          <td className="px-3 py-2 text-thb-text-secondary">{f.filingAmount ?? '—'}</td>
+                          <td className="px-3 py-2 text-thb-text-secondary">{f.generatedDate ? new Date(f.generatedDate).toLocaleDateString() : '—'}</td>
+                          <td className="px-3 py-2 text-thb-text-secondary">{f.submittedDate ? new Date(f.submittedDate).toLocaleDateString() : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -485,92 +485,92 @@ export default function CompliancePage() {
 
       {/* Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit Compliance Obligation' : 'Create Compliance Obligation'}</h2>
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Compliance Obligation' : 'Create Compliance Obligation'}</h2>
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Obligation Details</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Obligation Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
-                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Monthly PF ECR Filing" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Monthly PF ECR Filing" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country *</label>
-                  <select value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country *</label>
+                  <select value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Authority Name *</label>
-                  <input value={form.authorityName} onChange={(e) => setForm({ ...form, authorityName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. EPFO, IRS, HMRC" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Authority Name *</label>
+                  <input value={form.authorityName} onChange={(e) => setForm({ ...form, authorityName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. EPFO, IRS, HMRC" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Filing Type</label>
-                  <select value={form.filingType} onChange={(e) => setForm({ ...form, filingType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Type</label>
+                  <select value={form.filingType} onChange={(e) => setForm({ ...form, filingType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {FILING_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Frequency</label>
-                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Frequency</label>
+                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Due Date Rule *</label>
-                  <input value={form.dueDateRule} onChange={(e) => setForm({ ...form, dueDateRule: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "D+15", "Q_END+30"' />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Due Date Rule *</label>
+                  <input value={form.dueDateRule} onChange={(e) => setForm({ ...form, dueDateRule: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "D+15", "Q_END+30"' />
                 </div>
               </div>
             </div>
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Penalty & Responsibility</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Penalty & Responsibility</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Penalty Type</label>
-                  <select value={form.penaltyType} onChange={(e) => setForm({ ...form, penaltyType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Penalty Type</label>
+                  <select value={form.penaltyType} onChange={(e) => setForm({ ...form, penaltyType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     <option value="">None</option>
                     {PENALTY_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Penalty Value</label>
-                  <input type="number" step="0.01" value={form.penaltyValue} onChange={(e) => setForm({ ...form, penaltyValue: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Amount or percentage" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Penalty Value</label>
+                  <input type="number" step="0.01" value={form.penaltyValue} onChange={(e) => setForm({ ...form, penaltyValue: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Amount or percentage" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Grace Days</label>
-                  <input type="number" value={form.graceDays} onChange={(e) => setForm({ ...form, graceDays: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. 5" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Grace Days</label>
+                  <input type="number" value={form.graceDays} onChange={(e) => setForm({ ...form, graceDays: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. 5" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Responsible Role</label>
-                  <input value={form.responsibleRole} onChange={(e) => setForm({ ...form, responsibleRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. PAYROLL_ADMIN" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Responsible Role</label>
+                  <input value={form.responsibleRole} onChange={(e) => setForm({ ...form, responsibleRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. PAYROLL_ADMIN" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Escalation Role</label>
-                  <input value={form.escalationRole} onChange={(e) => setForm({ ...form, escalationRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. HR_MANAGER" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Escalation Role</label>
+                  <input value={form.escalationRole} onChange={(e) => setForm({ ...form, escalationRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. HR_MANAGER" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reminder Days Before</label>
-                  <input value={form.reminderDaysBefore} onChange={(e) => setForm({ ...form, reminderDaysBefore: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "7,3,1"' />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reminder Days Before</label>
+                  <input value={form.reminderDaysBefore} onChange={(e) => setForm({ ...form, reminderDaysBefore: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "7,3,1"' />
                 </div>
               </div>
             </div>
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Automation</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Automation</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer"><input type="checkbox" checked={form.autoGenerate} onChange={(e) => setForm({ ...form, autoGenerate: e.target.checked })} className="rounded border-nexus-border" /><span className="font-medium">Auto-Generate on Payroll Close</span></label></div>
+                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.autoGenerate} onChange={(e) => setForm({ ...form, autoGenerate: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Auto-Generate on Payroll Close</span></label></div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Filing Format</label>
-                  <input value={form.filingFormat} onChange={(e) => setForm({ ...form, filingFormat: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "ECR_CSV", "RTI_XML"' />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Format</label>
+                  <input value={form.filingFormat} onChange={(e) => setForm({ ...form, filingFormat: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "ECR_CSV", "RTI_XML"' />
                 </div>
-                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="rounded border-nexus-border" /><span className="font-medium">Active</span></label></div>
+                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Active</span></label></div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Obligation' : 'Create Obligation'}
               </button>
@@ -581,20 +581,20 @@ export default function CompliancePage() {
 
       {/* Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div></div>
+        <div className="thb-card overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div></div>
       ) : activeTab === 'obligations' ? (
         filteredObligations.length === 0 ? (
-          <div className="nexus-card p-12 text-center">
-            <FiCalendar className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-            <p className="text-nexus-text-secondary font-medium">No compliance obligations found</p>
-            <p className="text-sm text-nexus-text-muted mt-1">Create your first compliance obligation</p>
+          <div className="thb-card p-12 text-center">
+            <FiCalendar className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+            <p className="text-thb-text-secondary font-medium">No compliance obligations found</p>
+            <p className="text-sm text-thb-text-muted mt-1">Create your first compliance obligation</p>
           </div>
         ) : (
-          <div className="nexus-card overflow-hidden">
+          <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-slate-50 border-b border-nexus-border">
-                  <tr>{['Name', 'Country', 'Authority', 'Filing Type', 'Frequency', 'Due Rule', 'Active', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>)}</tr>
+                <thead className="bg-slate-50 border-b border-thb-border">
+                  <tr>{['Name', 'Country', 'Authority', 'Filing Type', 'Frequency', 'Due Rule', 'Active', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredObligations.map(o => (
@@ -604,24 +604,24 @@ export default function CompliancePage() {
                           <p className="text-sm text-red-700 font-medium mb-2">Delete &quot;{o.name}&quot; and all {o.filings?.length || 0} filings?</p>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleDelete(o.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
                           </div>
                         </td>
                       </tr>
                     ) : (
                       <tr key={o.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{o.name}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{o.countryCode}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{o.authorityName}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{o.name}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{o.countryCode}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{o.authorityName}</td>
                         <td className="px-4 py-3"><span className={getFilingTypeBadge(o.filingType)}>{formatStr(o.filingType)}</span></td>
                         <td className="px-4 py-3"><span className={getFrequencyBadge(o.frequency)}>{formatStr(o.frequency)}</span></td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{o.dueDateRule}</td>
-                        <td className="px-4 py-3">{o.isActive ? <span className="nexus-badge nexus-badge-success">Active</span> : <span className="nexus-badge nexus-badge-error">Inactive</span>}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{o.dueDateRule}</td>
+                        <td className="px-4 py-3">{o.isActive ? <span className="thb-badge thb-badge-success">Active</span> : <span className="thb-badge thb-badge-error">Inactive</span>}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => setViewingObligation(o)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                            {isAdmin && <button onClick={() => handleEdit(o)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
-                            {isAdmin && <button onClick={() => setDeleteConfirmId(o.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
+                            <button onClick={() => setViewingObligation(o)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            {isAdmin && <button onClick={() => handleEdit(o)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
+                            {isAdmin && <button onClick={() => setDeleteConfirmId(o.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                           </div>
                         </td>
                       </tr>
@@ -633,27 +633,27 @@ export default function CompliancePage() {
           </div>
         )
       ) : filteredFilings.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No compliance filings found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Filings are auto-generated when payroll runs are closed</p>
+        <div className="thb-card p-12 text-center">
+          <FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No compliance filings found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Filings are auto-generated when payroll runs are closed</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
-                <tr>{['Period', 'Status', 'Amount', 'Penalty', 'Generated', 'Submitted', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>)}</tr>
+              <thead className="bg-slate-50 border-b border-thb-border">
+                <tr>{['Period', 'Status', 'Amount', 'Penalty', 'Generated', 'Submitted', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredFilings.map(f => (
                   <tr key={f.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{f.filingPeriod}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{f.filingPeriod}</td>
                     <td className="px-4 py-3"><span className={getFilingStatusBadge(f.filingStatus)}>{formatStr(f.filingStatus)}</span></td>
-                    <td className="px-4 py-3 text-sm text-nexus-text-secondary">{f.filingAmount != null ? `₹${f.filingAmount.toLocaleString()}` : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary">{f.filingAmount != null ? `₹${f.filingAmount.toLocaleString()}` : '—'}</td>
                     <td className="px-4 py-3 text-sm">{f.penaltyAmount ? <span className="text-red-600 font-medium">₹{f.penaltyAmount.toLocaleString()}</span> : '—'}</td>
-                    <td className="px-4 py-3 text-sm text-nexus-text-secondary">{f.generatedDate ? new Date(f.generatedDate).toLocaleDateString() : '—'}</td>
-                    <td className="px-4 py-3 text-sm text-nexus-text-secondary">{f.submittedDate ? new Date(f.submittedDate).toLocaleDateString() : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary">{f.generatedDate ? new Date(f.generatedDate).toLocaleDateString() : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-thb-text-secondary">{f.submittedDate ? new Date(f.submittedDate).toLocaleDateString() : '—'}</td>
                     <td className="px-4 py-3">
                       {isAdmin && FILING_TRANSITIONS[f.filingStatus]?.length > 0 && (
                         <div className="flex items-center gap-1">
@@ -662,7 +662,7 @@ export default function CompliancePage() {
                               key={nextStatus}
                               onClick={() => handleFilingTransition(f.id, nextStatus)}
                               disabled={transitioningFilingId === f.id}
-                              className="px-2 py-1 rounded text-xs font-medium border border-nexus-border hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                              className="px-2 py-1 rounded text-xs font-medium border border-thb-border hover:bg-slate-50 disabled:opacity-50 transition-colors"
                             >
                               {nextStatus === 'SUBMITTED' ? 'Submit' : nextStatus === 'UNDER_REVIEW' ? 'Review' : nextStatus === 'ACKNOWLEDGED' ? 'Acknowledge' : formatStr(nextStatus)}
                             </button>

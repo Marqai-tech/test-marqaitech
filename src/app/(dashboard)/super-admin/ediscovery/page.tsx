@@ -120,11 +120,11 @@ export default function EdiscoveryPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiShield className="w-6 h-6 text-red-500" />
             eDiscovery & Legal Holds
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Place a &quot;Legal Hold&quot; on a specific user across any tenant, freezing their chats and files from deletion
           </p>
         </div>
@@ -146,21 +146,21 @@ export default function EdiscoveryPage() {
         </div>
       </div>
 
-      <div className="nexus-card overflow-hidden">
-        <div className="p-3 border-b border-nexus-border">
-          <h2 className="text-sm font-semibold text-nexus-text-primary">Active Legal Holds ({holds.length})</h2>
+      <div className="thb-card overflow-hidden">
+        <div className="p-3 border-b border-thb-border">
+          <h2 className="text-sm font-semibold text-thb-text-primary">Active Legal Holds ({holds.length})</h2>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+          <div className="p-8 text-center text-sm text-thb-text-muted">Loading...</div>
         ) : holds.length === 0 ? (
           <div className="p-8 text-center">
-            <FiShield className="w-10 h-10 text-nexus-text-muted mx-auto mb-2" />
-            <p className="text-sm text-nexus-text-muted">No active legal holds</p>
+            <FiShield className="w-10 h-10 text-thb-text-muted mx-auto mb-2" />
+            <p className="text-sm text-thb-text-muted">No active legal holds</p>
           </div>
         ) : (
           <table className="w-full">
             <thead className="bg-slate-50">
-              <tr className="text-left text-xs text-nexus-text-muted uppercase tracking-wider">
+              <tr className="text-left text-xs text-thb-text-muted uppercase tracking-wider">
                 <th className="px-4 py-2 font-medium">Case Ref</th>
                 <th className="px-4 py-2 font-medium">Target</th>
                 <th className="px-4 py-2 font-medium">Reason</th>
@@ -169,17 +169,17 @@ export default function EdiscoveryPage() {
                 <th className="px-4 py-2 font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-nexus-border">
+            <tbody className="divide-y divide-thb-border">
               {holds.map((hold) => (
                 <tr key={hold.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-xs font-mono text-nexus-text-secondary">{hold.caseReference || '—'}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary">
+                  <td className="px-4 py-3 text-xs font-mono text-thb-text-secondary">{hold.caseReference || '—'}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary">
                     {hold.targetUserId && <div>User: {hold.targetUserId.substring(0, 12)}...</div>}
                     {hold.targetRoomId && <div>Room: {hold.targetRoomId.substring(0, 12)}...</div>}
                     {hold.targetFileId && <div>File: {hold.targetFileId.substring(0, 12)}...</div>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary max-w-xs truncate">{hold.reason}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-muted">{new Date(hold.startDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary max-w-xs truncate">{hold.reason}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-muted">{new Date(hold.startDate).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded bg-red-50 text-red-700 border border-red-200">
                       <FiLock className="w-2.5 h-2.5" />
@@ -204,71 +204,71 @@ export default function EdiscoveryPage() {
 
       {showNewHoldModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="nexus-card p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-nexus-text-primary mb-4">Place Legal Hold</h3>
+          <div className="thb-card p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Place Legal Hold</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Tenant ID *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Tenant ID *</label>
                 <input
                   type="text"
                   value={newHold.tenantId}
                   onChange={(e) => setNewHold({ ...newHold, tenantId: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Case Reference (optional)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Case Reference (optional)</label>
                 <input
                   type="text"
                   value={newHold.caseReference}
                   onChange={(e) => setNewHold({ ...newHold, caseReference: e.target.value })}
                   placeholder="e.g. Case #2026-001"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Target User ID</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Target User ID</label>
                 <input
                   type="text"
                   value={newHold.targetUserId}
                   onChange={(e) => setNewHold({ ...newHold, targetUserId: e.target.value })}
                   placeholder="Employee ID"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Target Room ID (optional)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Target Room ID (optional)</label>
                 <input
                   type="text"
                   value={newHold.targetRoomId}
                   onChange={(e) => setNewHold({ ...newHold, targetRoomId: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Target File ID (optional)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Target File ID (optional)</label>
                 <input
                   type="text"
                   value={newHold.targetFileId}
                   onChange={(e) => setNewHold({ ...newHold, targetFileId: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Reason *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Reason *</label>
                 <textarea
                   value={newHold.reason}
                   onChange={(e) => setNewHold({ ...newHold, reason: e.target.value })}
                   rows={3}
                   placeholder="Document the legal basis for this hold..."
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 mt-5">
               <button
                 onClick={() => setShowNewHoldModal(false)}
-                className="px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md"
+                className="px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md"
               >
                 Cancel
               </button>

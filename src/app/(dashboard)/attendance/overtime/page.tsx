@@ -125,7 +125,7 @@ export default function OvertimeRequestPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Pre-OT approval workflow · Convert OT to Comp-Off or payout</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
           <FiPlus className="w-4 h-4" /> Request Overtime
         </button>
       </div>
@@ -135,7 +135,7 @@ export default function OvertimeRequestPage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="nexus-card p-6 border-l-4 border-l-violet-500">
+        <div className="thb-card p-6 border-l-4 border-l-violet-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Overtime Request</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -143,20 +143,20 @@ export default function OvertimeRequestPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
-              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="nexus-input w-full" />
+              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Start Time *</label>
-              <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="nexus-input w-full" />
+              <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">End Time *</label>
-              <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="nexus-input w-full" />
+              <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
-            <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="nexus-input w-full" placeholder="e.g. Production release support" />
+            <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Production release support" />
           </div>
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Payout Preference *</label>
@@ -183,8 +183,8 @@ export default function OvertimeRequestPage() {
             </div>
           )}
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary flex items-center gap-2">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
               {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
               Submit Request
             </button>
@@ -192,7 +192,7 @@ export default function OvertimeRequestPage() {
         </div>
       )}
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -226,9 +226,9 @@ export default function OvertimeRequestPage() {
                     {r.compOffCreditedAt && <span className="ml-1 text-[9px] text-emerald-600">✓ credited</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`nexus-badge ${
-                      r.status === 'approved' ? 'nexus-badge-success' :
-                      r.status === 'rejected' ? 'nexus-badge-error' : 'nexus-badge-warning'
+                    <span className={`thb-badge ${
+                      r.status === 'approved' ? 'thb-badge-success' :
+                      r.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.status}</span>
                   </td>
                   {isAdmin && (

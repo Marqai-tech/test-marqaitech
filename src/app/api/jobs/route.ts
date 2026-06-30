@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         postedDate: new Date('2025-01-15'), closingDate: new Date('2025-03-31'),
         companyId: companyId || 'comp-1',
         createdAt: new Date('2025-01-10'), updatedAt: new Date('2025-01-15'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         _count: { candidates: 3, interviews: 2 },
       },
       {
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
         postedDate: new Date('2025-01-20'), closingDate: new Date('2025-04-15'),
         companyId: companyId || 'comp-1',
         createdAt: new Date('2025-01-18'), updatedAt: new Date('2025-01-20'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         _count: { candidates: 2, interviews: 1 },
       },
       {
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
         postedDate: null, closingDate: null,
         companyId: companyId || 'comp-1',
         createdAt: new Date('2025-02-01'), updatedAt: new Date('2025-02-01'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         _count: { candidates: 1, interviews: 0 },
       },
       {
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
         postedDate: new Date('2025-02-10'), closingDate: new Date('2025-04-30'),
         companyId: companyId || 'comp-1',
         createdAt: new Date('2025-02-08'), updatedAt: new Date('2025-02-10'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         _count: { candidates: 4, interviews: 2 },
       },
       {
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
         postedDate: new Date('2024-11-01'), closingDate: new Date('2025-01-15'),
         companyId: companyId || 'comp-1',
         createdAt: new Date('2024-10-25'), updatedAt: new Date('2025-01-16'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         _count: { candidates: 6, interviews: 4 },
       },
       {
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
         postedDate: new Date('2025-02-15'), closingDate: new Date('2025-05-15'),
         companyId: companyId || 'comp-1',
         createdAt: new Date('2025-02-12'), updatedAt: new Date('2025-02-15'),
-        company: { id: companyId || 'comp-1', name: 'Nexus Technologies' },
+        company: { id: companyId || 'comp-1', name: '3Boxes Technologies' },
         _count: { candidates: 2, interviews: 1 },
       },
     ];

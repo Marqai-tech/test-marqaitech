@@ -89,32 +89,32 @@ function getAuthHeaders() {
 
 function getTenantStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'nexus-badge nexus-badge-success',
-    trial: 'nexus-badge nexus-badge-info',
-    suspended: 'nexus-badge nexus-badge-warning',
-    churned: 'nexus-badge nexus-badge-error',
-    pending_approval: 'nexus-badge nexus-badge-info',
-    inactive: 'nexus-badge nexus-badge-error',
+    active: 'thb-badge thb-badge-success',
+    trial: 'thb-badge thb-badge-info',
+    suspended: 'thb-badge thb-badge-warning',
+    churned: 'thb-badge thb-badge-error',
+    pending_approval: 'thb-badge thb-badge-info',
+    inactive: 'thb-badge thb-badge-error',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status.replace('_', ' ') };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: status.replace('_', ' ') };
 }
 
 function getInvoiceStatusBadge(status: string) {
   const map: Record<string, string> = {
-    paid: 'nexus-badge nexus-badge-success',
-    pending: 'nexus-badge nexus-badge-info',
-    overdue: 'nexus-badge nexus-badge-error',
+    paid: 'thb-badge thb-badge-success',
+    pending: 'thb-badge thb-badge-info',
+    overdue: 'thb-badge thb-badge-error',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: status };
 }
 
 function getUserStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'nexus-badge nexus-badge-success',
-    inactive: 'nexus-badge nexus-badge-error',
-    invited: 'nexus-badge nexus-badge-info',
+    active: 'thb-badge thb-badge-success',
+    inactive: 'thb-badge thb-badge-error',
+    invited: 'thb-badge thb-badge-info',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: status };
 }
 
 function formatCurrency(amount: number, currency = 'INR') {
@@ -222,8 +222,8 @@ export default function TenantAdminPage() {
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
           <FiShield className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Super admins use the Super Admin page</h2>
-        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+        <h2 className="text-xl font-semibold text-thb-text-primary">Super admins use the Super Admin page</h2>
+        <p className="text-thb-text-secondary text-sm max-w-md leading-relaxed">
           The Tenant Admin page is scoped to a single tenant (the one the logged-in
           tenant admin belongs to). Since your super admin account is platform-level
           and not tied to any specific tenant, this page would show empty data.
@@ -249,8 +249,8 @@ export default function TenantAdminPage() {
         <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
           <FiInfo className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Your account is not linked to a tenant</h2>
-        <p className="text-nexus-text-secondary text-sm max-w-md leading-relaxed">
+        <h2 className="text-xl font-semibold text-thb-text-primary">Your account is not linked to a tenant</h2>
+        <p className="text-thb-text-secondary text-sm max-w-md leading-relaxed">
           You&rsquo;re signed in as a tenant admin, but your account isn&rsquo;t
           associated with any tenant. Please ask your super admin to assign you to
           a tenant, or sign out and sign back in with a different account.
@@ -332,21 +332,21 @@ export default function TenantAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiServer className="w-6 h-6 text-teal-500" />
             Tenant Admin
           </h1>
-          <p className="text-nexus-text-secondary mt-1 flex items-center gap-1.5 flex-wrap">
+          <p className="text-thb-text-secondary mt-1 flex items-center gap-1.5 flex-wrap">
             <FiHome className="w-3.5 h-3.5" />
             <span>Managing tenant:</span>
-            <span className="font-semibold text-nexus-text-primary">{tenantName}</span>
-            {tenantInfo?.slug && <span className="text-xs text-nexus-text-muted">({tenantInfo.slug})</span>}
+            <span className="font-semibold text-thb-text-primary">{tenantName}</span>
+            {tenantInfo?.slug && <span className="text-xs text-thb-text-muted">({tenantInfo.slug})</span>}
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => { fetchTenantInfo(); fetchGroups(); }}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
           >
             <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
@@ -362,38 +362,38 @@ export default function TenantAdminPage() {
 
       {/* Stats Cards — REAL data */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-violet-50"><FiLayers className="w-4 h-4 text-violet-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Group Companies</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalGroups}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Group Companies</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalGroups}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-indigo-50"><FiHome className="w-4 h-4 text-indigo-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Companies</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalCompanies}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Companies</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalCompanies}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50"><FiUsers className="w-4 h-4 text-amber-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Employees</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalEmployees}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Employees</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalEmployees}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50"><FiCheck className="w-4 h-4 text-emerald-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active Subscriptions</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active Subscriptions</p>
               <p className="text-xl font-bold text-emerald-600">{activeSubscriptions}</p>
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function TenantAdminPage() {
 
       {/* Quota Banner (if maxCompaniesAllowed is set) */}
       {tenantQuota && (
-        <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+        <div className="thb-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
           <div className="flex items-start gap-3">
             <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-amber-900">
@@ -419,9 +419,9 @@ export default function TenantAdminPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-nexus-border overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-teal-500 text-teal-600' : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-teal-500 text-teal-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
             <tab.icon className="w-4 h-4" />{tab.label}
           </button>
         ))}
@@ -430,8 +430,8 @@ export default function TenantAdminPage() {
       {/* Search */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, role..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, role..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
         </div>
       </div>
 
@@ -439,7 +439,7 @@ export default function TenantAdminPage() {
       {activeTab === 'overview' && (
         <div className="space-y-4">
           {loading ? (
-            <div className="nexus-card p-12 animate-pulse">
+            <div className="thb-card p-12 animate-pulse">
               <div className="h-4 w-32 bg-slate-200 rounded mb-4" />
               <div className="grid grid-cols-2 gap-4">
                 <div className="h-8 bg-slate-100 rounded" />
@@ -451,9 +451,9 @@ export default function TenantAdminPage() {
           ) : tenantInfo ? (
             <>
               {/* Tenant Info Card */}
-              <div className="nexus-card p-6">
+              <div className="thb-card p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                     <FiHome className="w-5 h-5 text-teal-500" /> Tenant Information
                   </h3>
                   <button
@@ -465,44 +465,44 @@ export default function TenantAdminPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Tenant Name</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.name}</p>
+                    <p className="text-xs text-thb-text-muted">Tenant Name</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{tenantInfo.name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Slug</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.slug}</p>
+                    <p className="text-xs text-thb-text-muted">Slug</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{tenantInfo.slug}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Domain</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.domain || '—'}</p>
+                    <p className="text-xs text-thb-text-muted">Domain</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{tenantInfo.domain || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Plan</p>
-                    <p className="text-sm font-medium text-nexus-text-primary capitalize">{tenantInfo.plan}</p>
+                    <p className="text-xs text-thb-text-muted">Plan</p>
+                    <p className="text-sm font-medium text-thb-text-primary capitalize">{tenantInfo.plan}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Status</p>
+                    <p className="text-xs text-thb-text-muted">Status</p>
                     <span className={getTenantStatusBadge(tenantInfo.status).className}>{getTenantStatusBadge(tenantInfo.status).label}</span>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Country</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.country || '—'}</p>
+                    <p className="text-xs text-thb-text-muted">Country</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{tenantInfo.country || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Currency</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.currency}</p>
+                    <p className="text-xs text-thb-text-muted">Currency</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{tenantInfo.currency}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-nexus-text-muted">Timezone</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{tenantInfo.timezone}</p>
+                    <p className="text-xs text-thb-text-muted">Timezone</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{tenantInfo.timezone}</p>
                   </div>
                 </div>
               </div>
 
               {/* Group Companies Summary */}
-              <div className="nexus-card p-6">
+              <div className="thb-card p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-nexus-text-secondary flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-thb-text-secondary flex items-center gap-2">
                     <FiLayers className="w-4 h-4 text-violet-500" /> Group Companies under this Tenant
                   </h3>
                   <Link href="/tenant-admin/group-companies" className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">
@@ -517,9 +517,9 @@ export default function TenantAdminPage() {
                   </div>
                 ) : filteredGroups.length === 0 ? (
                   <div className="text-center py-8">
-                    <FiLayers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-nexus-text-secondary font-medium">No group companies under your tenant yet</p>
-                    <p className="text-xs text-nexus-text-muted mt-1 mb-4">
+                    <FiLayers className="w-10 h-10 text-thb-text-muted mx-auto mb-3 opacity-50" />
+                    <p className="text-sm text-thb-text-secondary font-medium">No group companies under your tenant yet</p>
+                    <p className="text-xs text-thb-text-muted mt-1 mb-4">
                       Only your <b>super admin</b> can create group companies. Please ask them to create at least one
                       group under tenant <b>{tenantName}</b> so you can induct Companies under it.
                     </p>
@@ -542,8 +542,8 @@ export default function TenantAdminPage() {
                               <FiLayers className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-nexus-text-primary">{g.name}</p>
-                              <p className="text-xs text-nexus-text-muted">{coCount} companies · {empCount} employees</p>
+                              <p className="text-sm font-semibold text-thb-text-primary">{g.name}</p>
+                              <p className="text-xs text-thb-text-muted">{coCount} companies · {empCount} employees</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -570,10 +570,10 @@ export default function TenantAdminPage() {
               </div>
             </>
           ) : (
-            <div className="nexus-card p-12 text-center">
-              <FiInfo className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">No tenant information available</p>
-              <p className="text-xs text-nexus-text-muted mt-1">Your account is not linked to a tenant.</p>
+            <div className="thb-card p-12 text-center">
+              <FiInfo className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No tenant information available</p>
+              <p className="text-xs text-thb-text-muted mt-1">Your account is not linked to a tenant.</p>
             </div>
           )}
         </div>
@@ -583,7 +583,7 @@ export default function TenantAdminPage() {
       {activeTab === 'groups' && (
         <div className="space-y-4">
           {/* Educational banner */}
-          <div className="nexus-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
+          <div className="thb-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
             <div className="flex items-start gap-3">
               <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-indigo-900 flex-1">
@@ -616,7 +616,7 @@ export default function TenantAdminPage() {
             </div>
           </div>
 
-          <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+          <div className="thb-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
             <div className="flex items-start gap-3">
               <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900">
@@ -636,7 +636,7 @@ export default function TenantAdminPage() {
           {groupsLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="nexus-card p-5 animate-pulse">
+                <div key={i} className="thb-card p-5 animate-pulse">
                   <div className="flex justify-between">
                     <div className="space-y-2"><div className="h-4 w-40 bg-slate-200 rounded" /><div className="h-3 w-28 bg-slate-100 rounded" /></div>
                     <div className="h-6 w-24 bg-slate-100 rounded-full" />
@@ -645,10 +645,10 @@ export default function TenantAdminPage() {
               ))}
             </div>
           ) : filteredGroups.length === 0 ? (
-            <div className="nexus-card p-12 text-center">
-              <FiLayers className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" />
-              <p className="text-nexus-text-secondary font-medium">No group companies under your tenant yet</p>
-              <p className="text-xs text-nexus-text-muted mt-1 mb-4">
+            <div className="thb-card p-12 text-center">
+              <FiLayers className="w-12 h-12 text-thb-text-muted mx-auto mb-3 opacity-50" />
+              <p className="text-thb-text-secondary font-medium">No group companies under your tenant yet</p>
+              <p className="text-xs text-thb-text-muted mt-1 mb-4">
                 Only your <b>super admin</b> can create group companies. Please ask them to create at least one group
                 under tenant <b>{tenantName}</b> so you can induct Companies under it.
               </p>
@@ -667,20 +667,20 @@ export default function TenantAdminPage() {
                 const hasEmpCap = g.maxEmployees !== null && g.maxEmployees !== undefined && g.maxEmployees > 0;
                 const hasCoCap = g.maxCompanies !== null && g.maxCompanies !== undefined && g.maxCompanies > 0;
                 return (
-                  <div key={g.id} className="nexus-card p-5">
+                  <div key={g.id} className="thb-card p-5">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
                           <FiLayers className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-nexus-text-primary">{g.name}</h3>
-                          <p className="text-sm text-nexus-text-muted flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-semibold text-thb-text-primary">{g.name}</h3>
+                          <p className="text-sm text-thb-text-muted flex items-center gap-1.5 flex-wrap">
                             <FiHome className="w-3 h-3" /> {tenantName}
                             <span className="opacity-50">·</span> {coCount} companies
                             <span className="opacity-50">·</span> {empCount} employees
                           </p>
-                          {g.notes && <p className="text-xs text-nexus-text-muted italic mt-1">“{g.notes}”</p>}
+                          {g.notes && <p className="text-xs text-thb-text-muted italic mt-1">“{g.notes}”</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -718,9 +718,9 @@ export default function TenantAdminPage() {
                           const cPlan = c.plannedEmployeeCount;
                           const atCap = cCap !== null && cCap !== undefined && (cCap as number) > 0 && cEmp >= (cCap as number);
                           return (
-                            <div key={c.id} className="flex items-center gap-3 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
+                            <div key={c.id} className="flex items-center gap-3 text-xs text-thb-text-secondary bg-slate-50 rounded-lg p-2.5">
                               <FiHome className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="font-medium text-nexus-text-primary">{c.name}</span>
+                              <span className="font-medium text-thb-text-primary">{c.name}</span>
                               {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold">{c.code}</span>}
                               <span className="ml-auto flex items-center gap-1.5">
                                 <span className={atCap ? 'text-red-600 font-semibold' : ''}>{cEmp} emp</span>
@@ -761,9 +761,9 @@ export default function TenantAdminPage() {
 
       {/* ═══ SETTINGS TAB ═══ */}
       {activeTab === 'settings' && tenantInfo && (
-        <div className="nexus-card p-6">
+        <div className="thb-card p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
               <FiSettings className="w-5 h-5 text-teal-500" /> Tenant Settings
             </h3>
             {!settingsEditing ? (
@@ -787,7 +787,7 @@ export default function TenantAdminPage() {
                     });
                     setSettingsEditing(false);
                   }}
-                  className="px-4 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                  className="px-4 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -804,97 +804,97 @@ export default function TenantAdminPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tenant Name</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tenant Name</label>
               {settingsEditing ? (
                 <input
                   type="text"
                   value={settingsForm.name}
                   onChange={e => setSettingsForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.name}</p>
+                <p className="text-sm text-thb-text-primary py-2.5">{tenantInfo.name}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slug (read-only)</label>
-              <p className="text-sm text-nexus-text-muted py-2.5">{tenantInfo.slug}</p>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slug (read-only)</label>
+              <p className="text-sm text-thb-text-muted py-2.5">{tenantInfo.slug}</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Domain</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Domain</label>
               {settingsEditing ? (
                 <input
                   type="text"
                   value={settingsForm.domain}
                   onChange={e => setSettingsForm(p => ({ ...p, domain: e.target.value }))}
                   placeholder="example.com"
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.domain || '—'}</p>
+                <p className="text-sm text-thb-text-primary py-2.5">{tenantInfo.domain || '—'}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
               {settingsEditing ? (
                 <input
                   type="text"
                   value={settingsForm.country}
                   onChange={e => setSettingsForm(p => ({ ...p, country: e.target.value }))}
                   placeholder="US"
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.country || '—'}</p>
+                <p className="text-sm text-thb-text-primary py-2.5">{tenantInfo.country || '—'}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
               {settingsEditing ? (
                 <select
                   value={settingsForm.currency}
                   onChange={e => setSettingsForm(p => ({ ...p, currency: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 >
                   <option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
                 </select>
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.currency}</p>
+                <p className="text-sm text-thb-text-primary py-2.5">{tenantInfo.currency}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Timezone</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Timezone</label>
               {settingsEditing ? (
                 <input
                   type="text"
                   value={settingsForm.timezone}
                   onChange={e => setSettingsForm(p => ({ ...p, timezone: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               ) : (
-                <p className="text-sm text-nexus-text-primary py-2.5">{tenantInfo.timezone}</p>
+                <p className="text-sm text-thb-text-primary py-2.5">{tenantInfo.timezone}</p>
               )}
             </div>
           </div>
 
           {/* Read-only fields managed by super admin */}
-          <div className="mt-6 pt-6 border-t border-nexus-border">
-            <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+          <div className="mt-6 pt-6 border-t border-thb-border">
+            <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
               <FiShield className="w-4 h-4 text-amber-500" /> Super Admin Managed
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-nexus-text-muted">Plan</p>
-                <p className="text-sm font-medium text-nexus-text-primary capitalize">{tenantInfo.plan}</p>
-                <p className="text-[10px] text-nexus-text-muted mt-0.5">Contact super admin to change</p>
+                <p className="text-xs text-thb-text-muted">Plan</p>
+                <p className="text-sm font-medium text-thb-text-primary capitalize">{tenantInfo.plan}</p>
+                <p className="text-[10px] text-thb-text-muted mt-0.5">Contact super admin to change</p>
               </div>
               <div>
-                <p className="text-xs text-nexus-text-muted">Status</p>
+                <p className="text-xs text-thb-text-muted">Status</p>
                 <span className={getTenantStatusBadge(tenantInfo.status).className}>{getTenantStatusBadge(tenantInfo.status).label}</span>
               </div>
               <div>
-                <p className="text-xs text-nexus-text-muted">Max Companies Allowed</p>
-                <p className="text-sm font-medium text-nexus-text-primary">
+                <p className="text-xs text-thb-text-muted">Max Companies Allowed</p>
+                <p className="text-sm font-medium text-thb-text-primary">
                   {tenantInfo.maxCompaniesAllowed && tenantInfo.maxCompaniesAllowed > 0
                     ? `${tenantInfo.maxCompaniesAllowed} companies`
                     : 'Unlimited'}
@@ -909,8 +909,8 @@ export default function TenantAdminPage() {
       {activeTab === 'billing' && (
         <div className="space-y-4">
           {/* Current Plan */}
-          <div className="nexus-card p-6">
-            <h3 className="text-sm font-semibold text-nexus-text-secondary mb-4 flex items-center gap-2">
+          <div className="thb-card p-6">
+            <h3 className="text-sm font-semibold text-thb-text-secondary mb-4 flex items-center gap-2">
               <FiCreditCard className="w-4 h-4 text-teal-500" /> Current Subscription
             </h3>
             {tenantInfo?.subscriptions && tenantInfo.subscriptions.length > 0 ? (
@@ -926,38 +926,38 @@ export default function TenantAdminPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-teal-700">{formatCurrency(sub.amount, tenantInfo.currency)}</p>
-                      <span className={`nexus-badge ${sub.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-info'}`}>{sub.status}</span>
+                      <span className={`thb-badge ${sub.status === 'active' ? 'thb-badge-success' : 'thb-badge-info'}`}>{sub.status}</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8">
-                <FiCreditCard className="w-10 h-10 text-nexus-text-muted mx-auto mb-3 opacity-50" />
-                <p className="text-sm text-nexus-text-secondary font-medium">No active subscriptions</p>
-                <p className="text-xs text-nexus-text-muted mt-1">Contact your super admin to apply a subscription plan.</p>
+                <FiCreditCard className="w-10 h-10 text-thb-text-muted mx-auto mb-3 opacity-50" />
+                <p className="text-sm text-thb-text-secondary font-medium">No active subscriptions</p>
+                <p className="text-xs text-thb-text-muted mt-1">Contact your super admin to apply a subscription plan.</p>
               </div>
             )}
           </div>
 
           {/* Invoice History (demo) */}
-          <div className="nexus-card overflow-hidden">
-            <div className="p-4 border-b border-nexus-border">
-              <h3 className="text-sm font-semibold text-nexus-text-secondary">Invoice History</h3>
+          <div className="thb-card overflow-hidden">
+            <div className="p-4 border-b border-thb-border">
+              <h3 className="text-sm font-semibold text-thb-text-secondary">Invoice History</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Invoice</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Plan</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Amount</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+                  <tr className="border-b border-thb-border bg-slate-50/50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Invoice</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Plan</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Amount</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-nexus-text-muted">
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-thb-text-muted">
                     <FiInfo className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     Invoices will appear here once a subscription is active.
                   </td></tr>
@@ -970,9 +970,9 @@ export default function TenantAdminPage() {
 
       {/* ═══ USERS TAB ═══ */}
       {activeTab === 'users' && (
-        <div className="nexus-card overflow-hidden">
-          <div className="p-4 border-b border-nexus-border flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-nexus-text-secondary">Users in this Tenant ({filteredUsers.length})</h3>
+        <div className="thb-card overflow-hidden">
+          <div className="p-4 border-b border-thb-border flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-thb-text-secondary">Users in this Tenant ({filteredUsers.length})</h3>
             <Link href="/tenant-admin/rbac" className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">
               <FiShield className="w-3.5 h-3.5" /> Manage RBAC
             </Link>
@@ -980,30 +980,30 @@ export default function TenantAdminPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Email</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Role</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Last Login</th>
+                <tr className="border-b border-thb-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Role</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Last Login</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={5} className="px-4 py-12 text-center">
-                    <FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No users found</p>
+                    <FiUsers className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No users found</p>
                   </td></tr>
                 ) : (
                   filteredUsers.map(u => {
                     const statusBadge = getUserStatusBadge(u.status);
                     return (
-                      <tr key={u.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{u.name}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{u.email}</td>
-                        <td className="px-4 py-3"><span className="nexus-badge nexus-badge-primary">{u.role}</span></td>
+                      <tr key={u.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{u.name}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{u.email}</td>
+                        <td className="px-4 py-3"><span className="thb-badge thb-badge-primary">{u.role}</span></td>
                         <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
-                        <td className="px-4 py-3 text-xs text-nexus-text-secondary">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-3 text-xs text-thb-text-secondary">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}</td>
                       </tr>
                     );
                   })
@@ -1018,29 +1018,29 @@ export default function TenantAdminPage() {
       {activeTab === 'workflows' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-nexus-text-secondary">Workflow Configuration</h3>
-            <span className="text-xs text-nexus-text-muted">Demo workflows — full engine coming soon</span>
+            <h3 className="text-sm font-semibold text-thb-text-secondary">Workflow Configuration</h3>
+            <span className="text-xs text-thb-text-muted">Demo workflows — full engine coming soon</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredWorkflows.map(w => (
-              <div key={w.id} className="nexus-card p-4">
+              <div key={w.id} className="thb-card p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{w.name}</p>
-                    <p className="text-xs text-nexus-text-muted mt-0.5">Trigger: {w.trigger}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{w.name}</p>
+                    <p className="text-xs text-thb-text-muted mt-0.5">Trigger: {w.trigger}</p>
                   </div>
                   <button onClick={() => toggleWorkflow(w.id)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${w.enabled ? 'bg-teal-500' : 'bg-slate-300'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${w.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="nexus-badge nexus-badge-purple">{w.type}</span>
-                  <span className={`nexus-badge ${w.enabled ? 'nexus-badge-success' : 'bg-slate-100 text-slate-600 nexus-badge'}`}>
+                  <span className="thb-badge thb-badge-purple">{w.type}</span>
+                  <span className={`thb-badge ${w.enabled ? 'thb-badge-success' : 'bg-slate-100 text-slate-600 thb-badge'}`}>
                     {w.enabled ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>
                 {w.lastRun && (
-                  <p className="text-xs text-nexus-text-muted mt-2 flex items-center gap-1">
+                  <p className="text-xs text-thb-text-muted mt-2 flex items-center gap-1">
                     <FiClock className="w-3 h-3" /> Last run: {w.lastRun}
                   </p>
                 )}

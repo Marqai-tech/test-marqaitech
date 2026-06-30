@@ -628,7 +628,7 @@ export default function CareersPage() {
               <FiBriefcase className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="font-extrabold text-base leading-tight">Nexus HRMS</p>
+              <p className="font-extrabold text-base leading-tight">3Boxes HRMS</p>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Career Portal</p>
             </div>
           </div>
@@ -947,7 +947,7 @@ export default function CareersPage() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
                   <FiBriefcase className="w-4 h-4 text-white" />
                 </div>
-                <p className="font-extrabold text-white">Nexus HRMS</p>
+                <p className="font-extrabold text-white">3Boxes HRMS</p>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 A unified talent platform connecting candidates with opportunities across
@@ -974,8 +974,8 @@ export default function CareersPage() {
             </div>
           </div>
           <div className="border-t border-slate-800 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Nexus HRMS — Career Portal. All rights reserved.</p>
-            <p className="text-xs text-slate-500">Powered by Nexus HRMS</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} 3Boxes HRMS — Career Portal. All rights reserved.</p>
+            <p className="text-xs text-slate-500">Powered by 3Boxes HRMS</p>
           </div>
         </div>
       </footer>
@@ -1756,7 +1756,7 @@ function JobPostingJsonLd({ jobs }: { jobs: PublicJob[] }) {
 
   if (valid.length === 0) return null;
 
-  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://nexushrms.com';
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://3boxeshrms.com';
 
   return (
     <>
@@ -1816,7 +1816,7 @@ function JobPostingJsonLd({ jobs }: { jobs: PublicJob[] }) {
         const orgSameAs =
           job.tenant?.slug
             ? `${appUrl}/careers/${job.tenant.slug}`
-            : 'https://nexushrms.com';
+            : 'https://3boxeshrms.com';
 
         const jsonLd = {
           '@context': 'https://schema.org/',

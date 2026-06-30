@@ -52,30 +52,30 @@ const POSTING_TYPE_OPTIONS = [
 // --- Badge Helpers ---
 function getPostingTypeBadge(type: string) {
   const map: Record<string, string> = {
-    ACCRUAL: 'nexus-badge nexus-badge-warning',
-    ACTUAL: 'nexus-badge nexus-badge-success',
-    BOTH: 'nexus-badge nexus-badge-info',
+    ACCRUAL: 'thb-badge thb-badge-warning',
+    ACTUAL: 'thb-badge thb-badge-success',
+    BOTH: 'thb-badge thb-badge-info',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getCostCenterBadge(source: string) {
   const map: Record<string, string> = {
-    EMPLOYEE_DEFAULT: 'nexus-badge nexus-badge-info',
-    COMPONENT_SPECIFIC: 'nexus-badge nexus-badge-warning',
-    DIMENSION_SPLIT: 'nexus-badge nexus-badge-purple',
+    EMPLOYEE_DEFAULT: 'thb-badge thb-badge-info',
+    COMPONENT_SPECIFIC: 'thb-badge thb-badge-warning',
+    DIMENSION_SPLIT: 'thb-badge thb-badge-purple',
   };
-  return map[source] || 'nexus-badge nexus-badge-info';
+  return map[source] || 'thb-badge thb-badge-info';
 }
 
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -228,14 +228,14 @@ export default function GLMappingPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBook className="w-6 h-6 text-indigo-500" />
             GL Account Mapping
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Map payroll components to general ledger accounts for accounting integration</p>
+          <p className="text-thb-text-secondary mt-1">Map payroll components to general ledger accounts for accounting integration</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
+          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
           {isAdmin && (
             <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Mapping
@@ -246,52 +246,52 @@ export default function GLMappingPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center"><FiBook className="w-5 h-5 text-indigo-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Total Mappings</p><p className="text-xl font-bold text-nexus-text-primary">{totalMappings}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Total Mappings</p><p className="text-xl font-bold text-thb-text-primary">{totalMappings}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><FiBook className="w-5 h-5 text-amber-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Accrual</p><p className="text-xl font-bold text-nexus-text-primary">{accrualCount}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Accrual</p><p className="text-xl font-bold text-thb-text-primary">{accrualCount}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center"><FiBook className="w-5 h-5 text-emerald-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Actual</p><p className="text-xl font-bold text-nexus-text-primary">{actualCount}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Actual</p><p className="text-xl font-bold text-thb-text-primary">{actualCount}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><FiBook className="w-5 h-5 text-blue-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Both</p><p className="text-xl font-bold text-nexus-text-primary">{bothCount}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Both</p><p className="text-xl font-bold text-thb-text-primary">{bothCount}</p></div>
           </div>
         </div>
       </div>
 
       {/* Search */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input type="text" placeholder="Search by GL account, component code/name, entity..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+          <input type="text" placeholder="Search by GL account, component code/name, entity..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
         </div>
       </div>
 
       {/* View Panel */}
       {viewingMapping && (
-        <div className="nexus-card border-l-4 border-l-indigo-500">
+        <div className="thb-card border-l-4 border-l-indigo-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingMapping.component?.name || 'GL Mapping'}</h2>
-                <p className="text-sm text-nexus-text-secondary mt-0.5">{viewingMapping.component?.code} &middot; {viewingMapping.legalEntityId}</p>
+                <h2 className="text-lg font-semibold text-thb-text-primary">{viewingMapping.component?.name || 'GL Mapping'}</h2>
+                <p className="text-sm text-thb-text-secondary mt-0.5">{viewingMapping.component?.code} &middot; {viewingMapping.legalEntityId}</p>
               </div>
               <div className="flex items-center gap-2">
                 {isAdmin && <button onClick={() => handleEdit(viewingMapping)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
-                <button onClick={() => setViewingMapping(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                <button onClick={() => setViewingMapping(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -313,22 +313,22 @@ export default function GLMappingPage() {
 
       {/* Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit GL Mapping' : 'Create GL Mapping'}</h2>
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit GL Mapping' : 'Create GL Mapping'}</h2>
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Entity & Component</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Entity & Component</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Legal Entity ID *</label>
-                  <input value={form.legalEntityId} onChange={(e) => setForm({ ...form, legalEntityId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. LE-001" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID *</label>
+                  <input value={form.legalEntityId} onChange={(e) => setForm({ ...form, legalEntityId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. LE-001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Payroll Component *</label>
-                  <select value={form.componentId} onChange={(e) => setForm({ ...form, componentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Component *</label>
+                  <select value={form.componentId} onChange={(e) => setForm({ ...form, componentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     <option value="">Select Component</option>
                     {components.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
                   </select>
@@ -336,55 +336,55 @@ export default function GLMappingPage() {
               </div>
             </div>
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">GL Accounts</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">GL Accounts</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Debit Account *</label>
-                  <input value={form.debitAccount} onChange={(e) => setForm({ ...form, debitAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-5001" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Debit Account *</label>
+                  <input value={form.debitAccount} onChange={(e) => setForm({ ...form, debitAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-5001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Credit Account *</label>
-                  <input value={form.creditAccount} onChange={(e) => setForm({ ...form, creditAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-2001" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Credit Account *</label>
+                  <input value={form.creditAccount} onChange={(e) => setForm({ ...form, creditAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-2001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Posting Type</label>
-                  <select value={form.postingType} onChange={(e) => setForm({ ...form, postingType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Posting Type</label>
+                  <select value={form.postingType} onChange={(e) => setForm({ ...form, postingType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {POSTING_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>
             </div>
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Cost Center & Intercompany</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Cost Center & Intercompany</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Cost Center Source</label>
-                  <select value={form.costCenterSource} onChange={(e) => setForm({ ...form, costCenterSource: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Cost Center Source</label>
+                  <select value={form.costCenterSource} onChange={(e) => setForm({ ...form, costCenterSource: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {COST_CENTER_SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 {form.costCenterSource === 'COMPONENT_SPECIFIC' && (
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Specific Cost Center</label>
-                    <input value={form.specificCostCenter} onChange={(e) => setForm({ ...form, specificCostCenter: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. CC-1001" />
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Specific Cost Center</label>
+                    <input value={form.specificCostCenter} onChange={(e) => setForm({ ...form, specificCostCenter: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. CC-1001" />
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Intercompany Account</label>
-                  <input value={form.intercompanyAccount} onChange={(e) => setForm({ ...form, intercompanyAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-IC-001" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Intercompany Account</label>
+                  <input value={form.intercompanyAccount} onChange={(e) => setForm({ ...form, intercompanyAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-IC-001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
-                  <input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
+                  <input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective To</label>
-                  <input type="date" value={form.effectiveTo} onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective To</label>
+                  <input type="date" value={form.effectiveTo} onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Mapping' : 'Create Mapping'}
               </button>
@@ -395,19 +395,19 @@ export default function GLMappingPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div></div>
+        <div className="thb-card overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div></div>
       ) : filteredMappings.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiBook className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No GL mappings found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first GL account mapping</p>
+        <div className="thb-card p-12 text-center">
+          <FiBook className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No GL mappings found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first GL account mapping</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
-                <tr>{['Component', 'Debit GL', 'Credit GL', 'Posting', 'Cost Center Src', 'Effective', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>)}</tr>
+              <thead className="bg-slate-50 border-b border-thb-border">
+                <tr>{['Component', 'Debit GL', 'Credit GL', 'Posting', 'Cost Center Src', 'Effective', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredMappings.map(m => (
@@ -417,7 +417,7 @@ export default function GLMappingPage() {
                         <p className="text-sm text-red-700 font-medium mb-2">Delete GL mapping for &quot;{m.component?.name || m.componentId}&quot;?</p>
                         <div className="flex items-center gap-2">
                           <button onClick={() => handleDelete(m.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                          <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                          <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
                         </div>
                       </td>
                     </tr>
@@ -425,20 +425,20 @@ export default function GLMappingPage() {
                     <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
                         <div>
-                          <p className="text-sm font-medium text-nexus-text-primary">{m.component?.name || '—'}</p>
-                          <p className="text-xs text-nexus-text-muted">{m.component?.code}</p>
+                          <p className="text-sm font-medium text-thb-text-primary">{m.component?.name || '—'}</p>
+                          <p className="text-xs text-thb-text-muted">{m.component?.code}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-nexus-text-primary">{m.debitAccount}</td>
-                      <td className="px-4 py-3 text-sm font-mono text-nexus-text-secondary">{m.creditAccount}</td>
+                      <td className="px-4 py-3 text-sm font-mono text-thb-text-primary">{m.debitAccount}</td>
+                      <td className="px-4 py-3 text-sm font-mono text-thb-text-secondary">{m.creditAccount}</td>
                       <td className="px-4 py-3"><span className={getPostingTypeBadge(m.postingType)}>{formatStr(m.postingType)}</span></td>
                       <td className="px-4 py-3"><span className={getCostCenterBadge(m.costCenterSource)}>{formatStr(m.costCenterSource)}</span></td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{m.effectiveFrom ? new Date(m.effectiveFrom).toLocaleDateString() : '—'}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{m.effectiveFrom ? new Date(m.effectiveFrom).toLocaleDateString() : '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => setViewingMapping(m)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                          {isAdmin && <button onClick={() => handleEdit(m)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
-                          {isAdmin && <button onClick={() => setDeleteConfirmId(m.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
+                          <button onClick={() => setViewingMapping(m)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                          {isAdmin && <button onClick={() => handleEdit(m)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
+                          {isAdmin && <button onClick={() => setDeleteConfirmId(m.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                         </div>
                       </td>
                     </tr>

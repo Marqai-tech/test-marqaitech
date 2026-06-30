@@ -110,20 +110,20 @@ export default function PayrollApprovalsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiUserCheck className="w-6 h-6 text-emerald-500" />
             Payroll Approvals
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Tenant Admin approval workflow with Segregation of Duties enforcement</p>
+          <p className="text-thb-text-secondary mt-1">Tenant Admin approval workflow with Segregation of Duties enforcement</p>
         </div>
         <div className="flex items-center gap-2">
-          <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="px-3 py-2 text-sm border border-nexus-border rounded-lg bg-white text-nexus-text-primary">
+          <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary">
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
             <option value="ALL">All</option>
           </select>
-          <button onClick={fetchApprovals} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={fetchApprovals} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -141,12 +141,12 @@ export default function PayrollApprovalsPage() {
       )}
 
       {/* SoD Notice */}
-      <div className="nexus-card p-4 border-l-4 border-violet-500 bg-violet-50/30">
+      <div className="thb-card p-4 border-l-4 border-violet-500 bg-violet-50/30">
         <div className="flex items-start gap-3">
           <FiShield className="w-5 h-5 text-violet-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-nexus-text-primary">Segregation of Duties (SoD) — REQ-SEC-PAY-02</p>
-            <p className="text-xs text-nexus-text-secondary mt-1">
+            <p className="text-sm font-semibold text-thb-text-primary">Segregation of Duties (SoD) — REQ-SEC-PAY-02</p>
+            <p className="text-xs text-thb-text-secondary mt-1">
               The user who initiates a payroll run cannot approve its disbursement. The system enforces this at approval time and refuses to record an approval if <code className="px-1 bg-slate-100 rounded">requestedBy</code> matches the approver, or if the approver's role doesn't match <code className="px-1 bg-slate-100 rounded">approverRole</code>.
               {user && (
                 <> Your current role: <strong className="text-violet-700">{(user as { role?: string }).role || 'unknown'}</strong></>
@@ -158,16 +158,16 @@ export default function PayrollApprovalsPage() {
 
       {/* Approval list */}
       {loading ? (
-        <div className="nexus-card p-12 text-center text-nexus-text-secondary">Loading…</div>
+        <div className="thb-card p-12 text-center text-thb-text-secondary">Loading…</div>
       ) : approvals.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
+        <div className="thb-card p-12 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 text-slate-400 mb-3"><FiClock className="w-8 h-8" /></div>
-          <p className="text-sm text-nexus-text-secondary">No {filter !== 'ALL' ? filter.toLowerCase() : ''} approvals.</p>
+          <p className="text-sm text-thb-text-secondary">No {filter !== 'ALL' ? filter.toLowerCase() : ''} approvals.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {approvals.map((a) => (
-            <div key={a.id} className="nexus-card p-4 hover:shadow-md transition-shadow">
+            <div key={a.id} className="thb-card p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -178,7 +178,7 @@ export default function PayrollApprovalsPage() {
                   </div>
                   {a.payrollRun && (
                     <div className="mt-2">
-                      <p className="text-sm font-semibold text-nexus-text-primary">
+                      <p className="text-sm font-semibold text-thb-text-primary">
                         {a.payrollRun.company?.name || 'Unknown Company'} — Period {a.payrollRun.payrollPeriod}
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-xs">
@@ -194,13 +194,13 @@ export default function PayrollApprovalsPage() {
               </div>
 
               {a.status === 'PENDING' && (
-                <div className="border-t border-nexus-border pt-3 mt-3">
+                <div className="border-t border-thb-border pt-3 mt-3">
                   <textarea
                     value={notesById[a.id] || ''}
                     onChange={(e) => setNotesById((p) => ({ ...p, [a.id]: e.target.value }))}
                     placeholder={filter === 'PENDING' ? 'Notes / rejection reason (mandatory for reject)' : 'Notes'}
                     rows={2}
-                    className="w-full px-3 py-2 text-sm border border-nexus-border rounded-lg bg-white text-nexus-text-primary mb-2"
+                    className="w-full px-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary mb-2"
                   />
                   <div className="flex items-center gap-2">
                     <button
@@ -222,7 +222,7 @@ export default function PayrollApprovalsPage() {
               )}
 
               {a.status !== 'PENDING' && a.approvalNotes && (
-                <div className="border-t border-nexus-border pt-3 mt-3 text-xs text-nexus-text-secondary">
+                <div className="border-t border-thb-border pt-3 mt-3 text-xs text-thb-text-secondary">
                   <strong>{a.status === 'APPROVED' ? 'Approval' : 'Rejection'} notes:</strong> {a.approvalNotes}
                   {a.approvedAt && <span className="block mt-1">at {new Date(a.approvedAt).toLocaleString()}</span>}
                 </div>
@@ -244,7 +244,7 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
     violet: 'bg-violet-50 text-violet-700',
   };
   return (
-    <div className={`nexus-card p-3 ${colorMap[color] || colorMap.slate}`}>
+    <div className={`thb-card p-3 ${colorMap[color] || colorMap.slate}`}>
       <p className="text-xs font-medium opacity-70">{label}</p>
       <p className="text-2xl font-bold">{value}</p>
     </div>

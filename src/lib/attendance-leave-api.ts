@@ -1,5 +1,5 @@
 /**
- * Nexus HRMS — Shared API helpers for the Attendance & Leave Addendum APIs.
+ * 3Boxes HRMS — Shared API helpers for the Attendance & Leave Addendum APIs.
  *
  * These helpers reduce boilerplate across the new endpoints
  * (regularization, permission, gatepass, OT request, comp-off, geofence,

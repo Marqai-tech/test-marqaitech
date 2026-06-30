@@ -291,16 +291,16 @@ export default function BankFilesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFile className="w-6 h-6 text-blue-500" />
             Bank File Generation
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Generate and manage bank payment files for salary disbursement</p>
+          <p className="text-thb-text-secondary mt-1">Generate and manage bank payment files for salary disbursement</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchBankFiles()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -316,47 +316,47 @@ export default function BankFilesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiFile className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Files</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalFiles}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Files</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalFiles}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiSend className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Submitted</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{submittedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Submitted</p>
+              <p className="text-xl font-bold text-thb-text-primary">{submittedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Acknowledged</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{acknowledgedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Acknowledged</p>
+              <p className="text-xl font-bold text-thb-text-primary">{acknowledgedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiSend className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Amount</p>
-              <p className="text-lg font-bold text-nexus-text-primary">{formatCurrency(totalAmount)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Amount</p>
+              <p className="text-lg font-bold text-thb-text-primary">{formatCurrency(totalAmount)}</p>
             </div>
           </div>
         </div>
@@ -364,15 +364,15 @@ export default function BankFilesPage() {
 
       {/* Generate Form */}
       {showGenerateForm && (
-        <div className="nexus-card p-6 border-l-4 border-l-blue-500">
-          <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Generate New Bank File</h3>
+        <div className="thb-card p-6 border-l-4 border-l-blue-500">
+          <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Generate New Bank File</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Payroll Run *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Run *</label>
               <select
                 value={formPayrollRunId}
                 onChange={(e) => setFormPayrollRunId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               >
                 <option value="">Select Payroll Run</option>
                 {availableRuns.map(r => (
@@ -388,11 +388,11 @@ export default function BankFilesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">File Format</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">File Format</label>
               <select
                 value={formFileFormat}
                 onChange={(e) => setFormFileFormat(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               >
                 <option value="NACH">NACH</option>
                 <option value="NEFT">NEFT</option>
@@ -401,20 +401,20 @@ export default function BankFilesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Bank Code</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Bank Code</label>
               <input
                 value={formBankCode}
                 onChange={(e) => setFormBankCode(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 placeholder="e.g. HDFC, SBI"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
               <select
                 value={formCompanyId}
                 onChange={(e) => setFormCompanyId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               >
                 <option value="">Select Company</option>
                 {companies.map(c => (
@@ -434,7 +434,7 @@ export default function BankFilesPage() {
             </button>
             <button
               onClick={() => setShowGenerateForm(false)}
-              className="px-4 py-2.5 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+              className="px-4 py-2.5 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
@@ -443,22 +443,22 @@ export default function BankFilesPage() {
       )}
 
       {/* Filters */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by filename, format, status..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
           >
             <option value="">All Statuses</option>
             <option value="generated">Generated</option>
@@ -469,7 +469,7 @@ export default function BankFilesPage() {
           <select
             value={formatFilter}
             onChange={(e) => setFormatFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
           >
             <option value="">All Formats</option>
             <option value="NACH">NACH</option>
@@ -482,9 +482,9 @@ export default function BankFilesPage() {
 
       {/* Bank File Detail */}
       {selectedFile && (
-        <div className="nexus-card p-6 border-l-4 border-l-blue-500">
+        <div className="thb-card p-6 border-l-4 border-l-blue-500">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-nexus-text-primary">{selectedFile.fileName}</h3>
+            <h3 className="text-lg font-semibold text-thb-text-primary">{selectedFile.fileName}</h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleDownload(selectedFile)}
@@ -522,7 +522,7 @@ export default function BankFilesPage() {
               )}
               <button
                 onClick={() => setSelectedFile(null)}
-                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-1.5 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiChevronUp className="w-4 h-4" />
               </button>
@@ -531,26 +531,26 @@ export default function BankFilesPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Format</p>
-              <p className="text-sm font-medium text-nexus-text-primary mt-0.5"><span className={`px-2 py-0.5 rounded text-xs ${getFormatBadge(selectedFile.fileFormat)}`}>{selectedFile.fileFormat}</span></p>
+              <p className="text-xs font-medium text-thb-text-secondary">Format</p>
+              <p className="text-sm font-medium text-thb-text-primary mt-0.5"><span className={`px-2 py-0.5 rounded text-xs ${getFormatBadge(selectedFile.fileFormat)}`}>{selectedFile.fileFormat}</span></p>
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Status</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Status</p>
               <p className="text-sm font-medium mt-0.5"><span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getStatusBadge(selectedFile.status)}`}>{selectedFile.status}</span></p>
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Amount</p>
-              <p className="text-sm font-semibold text-nexus-text-primary mt-0.5">{formatCurrency(selectedFile.totalAmount)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Amount</p>
+              <p className="text-sm font-semibold text-thb-text-primary mt-0.5">{formatCurrency(selectedFile.totalAmount)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Records</p>
-              <p className="text-sm font-semibold text-nexus-text-primary mt-0.5">{selectedFile.totalRecords}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Records</p>
+              <p className="text-sm font-semibold text-thb-text-primary mt-0.5">{selectedFile.totalRecords}</p>
             </div>
           </div>
 
           {selectedFile.fileContent && (
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary mb-2">File Content Preview</p>
+              <p className="text-xs font-medium text-thb-text-secondary mb-2">File Content Preview</p>
               <pre className="bg-slate-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto max-h-64 overflow-y-auto font-mono">
                 {selectedFile.fileContent.substring(0, 3000)}{selectedFile.fileContent.length > 3000 ? '\n... (truncated)' : ''}
               </pre>
@@ -561,15 +561,15 @@ export default function BankFilesPage() {
 
       {/* Bank Files List */}
       {loading ? (
-        <div className="nexus-card p-12 text-center">
+        <div className="thb-card p-12 text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-nexus-text-secondary">Loading bank files...</p>
+          <p className="text-thb-text-secondary">Loading bank files...</p>
         </div>
       ) : filteredFiles.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFile className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No bank files found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Generate a bank file from an approved payroll run</p>
+        <div className="thb-card p-12 text-center">
+          <FiFile className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No bank files found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Generate a bank file from an approved payroll run</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -577,7 +577,7 @@ export default function BankFilesPage() {
             <button
               key={file.id}
               onClick={() => handleViewDetail(file)}
-              className={`w-full nexus-card p-4 text-left transition-colors hover:shadow-md ${
+              className={`w-full thb-card p-4 text-left transition-colors hover:shadow-md ${
                 selectedFile?.id === file.id ? 'ring-2 ring-blue-500/30 border-blue-200' : ''
               }`}
             >
@@ -587,20 +587,20 @@ export default function BankFilesPage() {
                     <FiFile className="w-5 h-5 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{file.fileName}</p>
-                    <p className="text-xs text-nexus-text-muted">
+                    <p className="text-sm font-semibold text-thb-text-primary">{file.fileName}</p>
+                    <p className="text-xs text-thb-text-muted">
                       {new Date(file.createdAt).toLocaleString()} &middot; {file.totalRecords} records
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`px-2 py-0.5 rounded text-xs ${getFormatBadge(file.fileFormat)}`}>{file.fileFormat}</span>
-                  <span className="text-sm font-semibold text-nexus-text-primary">{formatCurrency(file.totalAmount)}</span>
+                  <span className="text-sm font-semibold text-thb-text-primary">{formatCurrency(file.totalAmount)}</span>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getStatusBadge(file.status)}`}>{file.status}</span>
                   {selectedFile?.id === file.id ? (
-                    <FiChevronUp className="w-4 h-4 text-nexus-text-muted" />
+                    <FiChevronUp className="w-4 h-4 text-thb-text-muted" />
                   ) : (
-                    <FiChevronDown className="w-4 h-4 text-nexus-text-muted" />
+                    <FiChevronDown className="w-4 h-4 text-thb-text-muted" />
                   )}
                 </div>
               </div>

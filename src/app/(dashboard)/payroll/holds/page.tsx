@@ -47,20 +47,20 @@ interface PayrollHold {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'nexus-badge nexus-badge-warning',
-    released: 'nexus-badge nexus-badge-success',
-    cancelled: 'nexus-badge nexus-badge-error',
+    active: 'thb-badge thb-badge-warning',
+    released: 'thb-badge thb-badge-success',
+    cancelled: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getHoldTypeBadge(type: string) {
   const map: Record<string, string> = {
-    FULL_HOLD: 'nexus-badge nexus-badge-error',
-    PARTIAL_HOLD: 'nexus-badge nexus-badge-warning',
-    DEDUCTION_ONLY: 'nexus-badge nexus-badge-info',
+    FULL_HOLD: 'thb-badge thb-badge-error',
+    PARTIAL_HOLD: 'thb-badge thb-badge-warning',
+    DEDUCTION_ONLY: 'thb-badge thb-badge-info',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 const HOLD_TYPE_OPTIONS = [
@@ -295,14 +295,14 @@ export default function PayrollHoldsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiPause className="w-6 h-6 text-amber-500" />
             Payroll Holds
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage payroll holds for employees</p>
+          <p className="text-thb-text-secondary mt-1">Manage payroll holds for employees</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors" title="Refresh">
+          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh">
             <FiRefreshCw className="w-4 h-4" />
           </button>
           {isAdmin && (
@@ -315,66 +315,66 @@ export default function PayrollHoldsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-slate-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiAlertCircle className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active</p>
               <p className="text-xl font-bold text-amber-600">{activeCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Released</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{releasedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Released</p>
+              <p className="text-xl font-bold text-thb-text-primary">{releasedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
               <FiPause className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Cancelled</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{cancelledCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Cancelled</p>
+              <p className="text-xl font-bold text-thb-text-primary">{cancelledCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input type="text" placeholder="Search by employee, reason, hold type..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
             <option value="">All Employees</option>
             {employees.map(e => (
               <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -385,23 +385,23 @@ export default function PayrollHoldsPage() {
 
       {/* Create/Edit Form */}
       {showForm && (
-        <div id="hold-form" className="nexus-card border-l-4 border-l-amber-500">
+        <div id="hold-form" className="thb-card border-l-4 border-l-amber-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Payroll Hold' : 'Create Payroll Hold'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                 {employees.length > 0 ? (
                   <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     <option value="">Select Employee...</option>
                     {employees.map(e => (
                       <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -409,33 +409,33 @@ export default function PayrollHoldsPage() {
                   </select>
                 ) : (
                   <input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Enter Employee ID" />
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Hold Type *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hold Type *</label>
                 <select value={form.holdType} onChange={(e) => setForm({ ...form, holdType: e.target.value, heldComponents: e.target.value === 'FULL_HOLD' ? [] : form.heldComponents })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {HOLD_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Hold From Period *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hold From Period *</label>
                 <input type="month" value={form.holdFromPeriod} onChange={(e) => setForm({ ...form, holdFromPeriod: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="e.g. 2026-06" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Hold To Period</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hold To Period</label>
                 <input type="month" value={form.holdToPeriod} onChange={(e) => setForm({ ...form, holdToPeriod: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="Leave empty for indefinite" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason *</label>
                 <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={2}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                   placeholder="Reason for payroll hold..." />
               </div>
             </div>
@@ -443,11 +443,11 @@ export default function PayrollHoldsPage() {
             {/* Held Components for Partial Hold */}
             {form.holdType !== 'FULL_HOLD' && (
               <div className="mb-5">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Held Components</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Held Components</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {COMPONENT_OPTIONS.map(comp => (
-                    <label key={comp.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${form.heldComponents.includes(comp.value) ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-nexus-border text-nexus-text-secondary hover:bg-slate-50'}`}>
-                      <input type="checkbox" checked={form.heldComponents.includes(comp.value)} onChange={() => toggleComponent(comp.value)} className="rounded border-nexus-border" />
+                    <label key={comp.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${form.heldComponents.includes(comp.value) ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'}`}>
+                      <input type="checkbox" checked={form.heldComponents.includes(comp.value)} onChange={() => toggleComponent(comp.value)} className="rounded border-thb-border" />
                       <span className="text-sm">{comp.label}</span>
                     </label>
                   ))}
@@ -456,8 +456,8 @@ export default function PayrollHoldsPage() {
             )}
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
               <button onClick={handleSubmit} disabled={submitting}
@@ -471,7 +471,7 @@ export default function PayrollHoldsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -479,19 +479,19 @@ export default function PayrollHoldsPage() {
           </div>
         </div>
       ) : filteredHolds.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiPause className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No payroll holds found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create a payroll hold to prevent salary processing</p>
+        <div className="thb-card p-12 text-center">
+          <FiPause className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No payroll holds found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create a payroll hold to prevent salary processing</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Employee', 'Hold Type', 'Reason', 'Period', 'Components', 'Status', 'Released', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -513,8 +513,8 @@ export default function PayrollHoldsPage() {
                             <FiUser className="w-3.5 h-3.5 text-slate-500" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-nexus-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
-                            <p className="text-xs text-nexus-text-muted">{item.employeeId}</p>
+                            <p className="text-sm font-medium text-thb-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
+                            <p className="text-xs text-thb-text-muted">{item.employeeId}</p>
                           </div>
                         </div>
                       </td>
@@ -524,11 +524,11 @@ export default function PayrollHoldsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-nexus-text-primary truncate max-w-[200px]" title={item.reason}>{item.reason}</p>
+                        <p className="text-sm text-thb-text-primary truncate max-w-[200px]" title={item.reason}>{item.reason}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-nexus-text-primary">{item.holdFromPeriod}</p>
-                        {item.holdToPeriod && <p className="text-xs text-nexus-text-muted">to {item.holdToPeriod}</p>}
+                        <p className="text-sm text-thb-text-primary">{item.holdFromPeriod}</p>
+                        {item.holdToPeriod && <p className="text-xs text-thb-text-muted">to {item.holdToPeriod}</p>}
                         {!item.holdToPeriod && <p className="text-xs text-amber-500">Indefinite</p>}
                       </td>
                       <td className="px-4 py-3">
@@ -540,32 +540,32 @@ export default function PayrollHoldsPage() {
                               <span key={c} className="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded">{c}</span>
                             ))}
                             {heldCompLabels.length > 2 && (
-                              <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-nexus-text-muted rounded">+{heldCompLabels.length - 2}</span>
+                              <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-thb-text-muted rounded">+{heldCompLabels.length - 2}</span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-nexus-text-muted">—</span>
+                          <span className="text-xs text-thb-text-muted">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={getStatusBadge(item.status)}>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">{formatDate(item.releasedDate)}</span>
+                        <span className="text-sm text-thb-text-secondary">{formatDate(item.releasedDate)}</span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           {isAdmin && item.status === 'active' && (
                             <>
-                              <button onClick={() => handleEdit(item)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
+                              <button onClick={() => handleEdit(item)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
                                 <FiEdit2 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => handleRelease(item.id)} disabled={releasingId === item.id}
-                                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors disabled:opacity-50" title="Release Hold">
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors disabled:opacity-50" title="Release Hold">
                                 <FiPlay className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => handleCancel(item.id)}
-                                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel Hold">
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel Hold">
                                 <FiX className="w-3.5 h-3.5" />
                               </button>
                             </>

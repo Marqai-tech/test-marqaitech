@@ -21,16 +21,16 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'nexus-badge bg-slate-100 text-slate-600',
-    issued: 'nexus-badge nexus-badge-info',
-    sent: 'nexus-badge nexus-badge-info',
-    partial: 'nexus-badge nexus-badge-warning',
-    paid: 'nexus-badge nexus-badge-success',
-    overdue: 'nexus-badge nexus-badge-error',
-    disputed: 'nexus-badge nexus-badge-error',
-    cancelled: 'nexus-badge bg-slate-200 text-slate-500',
+    draft: 'thb-badge bg-slate-100 text-slate-600',
+    issued: 'thb-badge thb-badge-info',
+    sent: 'thb-badge thb-badge-info',
+    partial: 'thb-badge thb-badge-warning',
+    paid: 'thb-badge thb-badge-success',
+    overdue: 'thb-badge thb-badge-error',
+    disputed: 'thb-badge thb-badge-error',
+    cancelled: 'thb-badge bg-slate-200 text-slate-500',
   };
-  return map[status] || 'nexus-badge bg-slate-100 text-slate-600';
+  return map[status] || 'thb-badge bg-slate-100 text-slate-600';
 }
 
 interface LineItem {
@@ -288,7 +288,7 @@ export default function InvoiceDetailPage() {
     return (
       <div className="p-6">
         <p className="text-slate-500">Invoice not found.</p>
-        <button onClick={() => router.push('/invoices')} className="nexus-btn-secondary mt-4">
+        <button onClick={() => router.push('/invoices')} className="3boxes-btn-secondary mt-4">
           ← Back to Invoices
         </button>
       </div>
@@ -327,23 +327,23 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2">
           {isDraft && (
             <>
-              <button onClick={() => setShowGen(true)} className="nexus-btn-secondary flex items-center gap-2">
+              <button onClick={() => setShowGen(true)} className="3boxes-btn-secondary flex items-center gap-2">
                 <FiRefreshCw className="w-4 h-4" /> Generate from Timesheets
               </button>
-              <button onClick={() => setShowAddLine(true)} className="nexus-btn-secondary flex items-center gap-2">
+              <button onClick={() => setShowAddLine(true)} className="3boxes-btn-secondary flex items-center gap-2">
                 <FiPlus className="w-4 h-4" /> Add Line
               </button>
-              <button onClick={handleFinalize} className="nexus-btn-primary flex items-center gap-2">
+              <button onClick={handleFinalize} className="3boxes-btn-primary flex items-center gap-2">
                 <FiLock className="w-4 h-4" /> Finalize
               </button>
             </>
           )}
           {['issued', 'sent', 'partial'].includes(invoice.status) && (
             <>
-              <button onClick={() => handleStatusChange('sent')} className="nexus-btn-secondary flex items-center gap-2">
+              <button onClick={() => handleStatusChange('sent')} className="3boxes-btn-secondary flex items-center gap-2">
                 <FiSend className="w-4 h-4" /> Mark Sent
               </button>
-              <button onClick={() => handleStatusChange('paid')} className="nexus-btn-primary flex items-center gap-2">
+              <button onClick={() => handleStatusChange('paid')} className="3boxes-btn-primary flex items-center gap-2">
                 <FiDollarSign className="w-4 h-4" /> Mark Paid
               </button>
             </>
@@ -351,7 +351,7 @@ export default function InvoiceDetailPage() {
           {isCancelled && (
             <button
               onClick={() => router.push('/invoices')}
-              className="nexus-btn-secondary flex items-center gap-2"
+              className="3boxes-btn-secondary flex items-center gap-2"
             >
               <FiArrowLeft className="w-4 h-4" /> Back
             </button>
@@ -469,7 +469,7 @@ export default function InvoiceDetailPage() {
             <span className="ml-2 text-xs text-slate-500">({Array.isArray(invoice.lineItems) ? invoice.lineItems.length : 0})</span>
           </h2>
           {isDraft && (
-            <button onClick={() => setShowAddLine(true)} className="nexus-btn-secondary flex items-center gap-2 text-sm">
+            <button onClick={() => setShowAddLine(true)} className="3boxes-btn-secondary flex items-center gap-2 text-sm">
               <FiPlus className="w-4 h-4" /> Add Manual Line
             </button>
           )}
@@ -499,10 +499,10 @@ export default function InvoiceDetailPage() {
                       <p>No line items yet.</p>
                       {isDraft && (
                         <div className="flex gap-2 mt-2">
-                          <button onClick={() => setShowGen(true)} className="nexus-btn-secondary text-sm flex items-center gap-2">
+                          <button onClick={() => setShowGen(true)} className="3boxes-btn-secondary text-sm flex items-center gap-2">
                             <FiRefreshCw className="w-4 h-4" /> Generate from Timesheets
                           </button>
-                          <button onClick={() => setShowAddLine(true)} className="nexus-btn-secondary text-sm flex items-center gap-2">
+                          <button onClick={() => setShowAddLine(true)} className="3boxes-btn-secondary text-sm flex items-center gap-2">
                             <FiPlus className="w-4 h-4" /> Add Manual Line
                           </button>
                         </div>
@@ -519,7 +519,7 @@ export default function InvoiceDetailPage() {
                     )}
                   </td>
                   <td className="px-4 py-2">
-                    <span className="nexus-badge bg-slate-100 text-slate-600 capitalize">{li.sourceType}</span>
+                    <span className="thb-badge bg-slate-100 text-slate-600 capitalize">{li.sourceType}</span>
                   </td>
                   <td className="px-4 py-2 text-slate-600">{formatDate(li.date)}</td>
                   <td className="px-4 py-2 text-right text-slate-600">{li.hours > 0 ? li.hours.toFixed(2) : '—'}</td>
@@ -607,7 +607,7 @@ export default function InvoiceDetailPage() {
                     type="date"
                     value={genForm.dateFrom}
                     onChange={e => setGenForm({ ...genForm, dateFrom: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
                 <div>
@@ -616,7 +616,7 @@ export default function InvoiceDetailPage() {
                     type="date"
                     value={genForm.dateTo}
                     onChange={e => setGenForm({ ...genForm, dateTo: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
               </div>
@@ -626,7 +626,7 @@ export default function InvoiceDetailPage() {
                   type="text"
                   value={invoice.project?.name || '(no project linked)'}
                   disabled
-                  className="nexus-input w-full bg-slate-50"
+                  className="3boxes-input w-full bg-slate-50"
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   Timesheets matching the project name will be used. Link a project to the invoice first to use this feature.
@@ -649,8 +649,8 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
-              <button onClick={() => setShowGen(false)} className="nexus-btn-secondary">Cancel</button>
-              <button onClick={handleGenerate} disabled={generating} className="nexus-btn-primary flex items-center gap-2">
+              <button onClick={() => setShowGen(false)} className="3boxes-btn-secondary">Cancel</button>
+              <button onClick={handleGenerate} disabled={generating} className="3boxes-btn-primary flex items-center gap-2">
                 {generating ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiRefreshCw className="w-4 h-4" />}
                 Generate Lines
               </button>
@@ -676,7 +676,7 @@ export default function InvoiceDetailPage() {
                   type="text"
                   value={lineForm.description}
                   onChange={e => setLineForm({ ...lineForm, description: e.target.value })}
-                  className="nexus-input w-full"
+                  className="3boxes-input w-full"
                   placeholder="e.g. Project management, Additional consultancy, ..."
                 />
               </div>
@@ -687,7 +687,7 @@ export default function InvoiceDetailPage() {
                     type="date"
                     value={lineForm.date}
                     onChange={e => setLineForm({ ...lineForm, date: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
                 <div>
@@ -695,7 +695,7 @@ export default function InvoiceDetailPage() {
                   <select
                     value={lineForm.sourceType}
                     onChange={e => setLineForm({ ...lineForm, sourceType: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="manual">Manual</option>
                     <option value="milestone">Milestone</option>
@@ -711,7 +711,7 @@ export default function InvoiceDetailPage() {
                     step="0.25"
                     value={lineForm.hours}
                     onChange={e => setLineForm({ ...lineForm, hours: Number(e.target.value) })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
                 <div>
@@ -721,7 +721,7 @@ export default function InvoiceDetailPage() {
                     step="0.01"
                     value={lineForm.rate}
                     onChange={e => setLineForm({ ...lineForm, rate: Number(e.target.value) })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
               </div>
@@ -731,7 +731,7 @@ export default function InvoiceDetailPage() {
                   <select
                     value={lineForm.rateSourceCurrency}
                     onChange={e => setLineForm({ ...lineForm, rateSourceCurrency: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="">Same as invoice</option>
                     <option value="INR">INR</option>
@@ -749,7 +749,7 @@ export default function InvoiceDetailPage() {
                     step="0.01"
                     value={lineForm.rateSourceAmount}
                     onChange={e => setLineForm({ ...lineForm, rateSourceAmount: Number(e.target.value) })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                     placeholder="Original rate in source currency"
                     disabled={!lineForm.rateSourceCurrency || lineForm.rateSourceCurrency === invoice.currency}
                   />
@@ -766,8 +766,8 @@ export default function InvoiceDetailPage() {
               </label>
             </div>
             <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
-              <button onClick={() => setShowAddLine(false)} className="nexus-btn-secondary">Cancel</button>
-              <button onClick={handleAddLine} disabled={addingLine} className="nexus-btn-primary flex items-center gap-2">
+              <button onClick={() => setShowAddLine(false)} className="3boxes-btn-secondary">Cancel</button>
+              <button onClick={handleAddLine} disabled={addingLine} className="3boxes-btn-primary flex items-center gap-2">
                 {addingLine ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
                 Add Line Item
               </button>

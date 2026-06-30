@@ -65,27 +65,27 @@ const STANDARD_DIMENSIONS = [
 
 // --- Badge Helpers ---
 function getDimTypeBadge(type: string) {
-  return type === 'STANDARD' ? 'nexus-badge nexus-badge-info' : 'nexus-badge nexus-badge-purple';
+  return type === 'STANDARD' ? 'thb-badge thb-badge-info' : 'thb-badge thb-badge-purple';
 }
 
 function getAllocMethodBadge(method: string) {
   const map: Record<string, string> = {
-    PERCENTAGE: 'nexus-badge nexus-badge-success',
-    AMOUNT: 'nexus-badge nexus-badge-warning',
-    HEADCOUNT: 'nexus-badge nexus-badge-info',
-    FTE: 'nexus-badge nexus-badge-purple',
+    PERCENTAGE: 'thb-badge thb-badge-success',
+    AMOUNT: 'thb-badge thb-badge-warning',
+    HEADCOUNT: 'thb-badge thb-badge-info',
+    FTE: 'thb-badge thb-badge-purple',
   };
-  return map[method] || 'nexus-badge nexus-badge-info';
+  return map[method] || 'thb-badge thb-badge-info';
 }
 
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -232,14 +232,14 @@ export default function DimensionsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiGrid className="w-6 h-6 text-orange-500" />
             Multi-Dimensional Allocation
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Configure cost allocation dimensions across departments, cost centers, projects, and more</p>
+          <p className="text-thb-text-secondary mt-1">Configure cost allocation dimensions across departments, cost centers, projects, and more</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
+          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
           {isAdmin && (
             <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Dimension
@@ -250,40 +250,40 @@ export default function DimensionsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><FiGrid className="w-5 h-5 text-blue-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Total Dimensions</p><p className="text-xl font-bold text-nexus-text-primary">{totalDimensions}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Total Dimensions</p><p className="text-xl font-bold text-thb-text-primary">{totalDimensions}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center"><FiLayers className="w-5 h-5 text-emerald-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Standard</p><p className="text-xl font-bold text-nexus-text-primary">{standardCount}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Standard</p><p className="text-xl font-bold text-thb-text-primary">{standardCount}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center"><FiGrid className="w-5 h-5 text-purple-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Custom</p><p className="text-xl font-bold text-nexus-text-primary">{customCount}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Custom</p><p className="text-xl font-bold text-thb-text-primary">{customCount}</p></div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><FiLayers className="w-5 h-5 text-amber-500" /></div>
-            <div><p className="text-xs font-medium text-nexus-text-secondary">Allocations</p><p className="text-xl font-bold text-nexus-text-primary">{totalAllocations}</p></div>
+            <div><p className="text-xs font-medium text-thb-text-secondary">Allocations</p><p className="text-xl font-bold text-thb-text-primary">{totalAllocations}</p></div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-            <input type="text" placeholder="Search by code or name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+            <input type="text" placeholder="Search by code or name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </div>
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
             <option value="">All Types</option>
             {DIMENSION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -292,16 +292,16 @@ export default function DimensionsPage() {
 
       {/* View Panel */}
       {viewingDimension && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-orange-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-orange-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingDimension.name}</h2>
-                <p className="text-sm text-nexus-text-secondary mt-0.5">{viewingDimension.code}</p>
+                <h2 className="text-lg font-semibold text-thb-text-primary">{viewingDimension.name}</h2>
+                <p className="text-sm text-thb-text-secondary mt-0.5">{viewingDimension.code}</p>
               </div>
               <div className="flex items-center gap-2">
                 {isAdmin && <button onClick={() => handleEdit(viewingDimension)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
-                <button onClick={() => setViewingDimension(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                <button onClick={() => setViewingDimension(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -317,26 +317,26 @@ export default function DimensionsPage() {
               <DetailItem label="Employee Allocations" value={viewingDimension.allocations?.length || 0} />
             </div>
             {viewingDimension.allocations && viewingDimension.allocations.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-nexus-border">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Employee Allocations</h3>
+              <div className="mt-6 pt-4 border-t border-thb-border">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Employee Allocations</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-nexus-border">
+                    <thead className="bg-slate-50 border-b border-thb-border">
                       <tr>
                         {['Employee', 'Value', 'Allocation %', 'Amount', 'Primary', 'Effective'].map(h => (
-                          <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>
+                          <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {viewingDimension.allocations.map(a => (
                         <tr key={a.id} className="hover:bg-slate-50/50">
-                          <td className="px-3 py-2 text-nexus-text-primary">{a.employeeId}</td>
-                          <td className="px-3 py-2 text-nexus-text-secondary">{a.dimensionValueId}</td>
-                          <td className="px-3 py-2 text-nexus-text-primary">{a.allocationPct}%</td>
-                          <td className="px-3 py-2 text-nexus-text-secondary">{a.allocationAmount ?? '—'}</td>
-                          <td className="px-3 py-2">{a.isPrimary ? <span className="nexus-badge nexus-badge-success">Primary</span> : '—'}</td>
-                          <td className="px-3 py-2 text-nexus-text-secondary">{a.effectiveFrom ? new Date(a.effectiveFrom).toLocaleDateString() : '—'}</td>
+                          <td className="px-3 py-2 text-thb-text-primary">{a.employeeId}</td>
+                          <td className="px-3 py-2 text-thb-text-secondary">{a.dimensionValueId}</td>
+                          <td className="px-3 py-2 text-thb-text-primary">{a.allocationPct}%</td>
+                          <td className="px-3 py-2 text-thb-text-secondary">{a.allocationAmount ?? '—'}</td>
+                          <td className="px-3 py-2">{a.isPrimary ? <span className="thb-badge thb-badge-success">Primary</span> : '—'}</td>
+                          <td className="px-3 py-2 text-thb-text-secondary">{a.effectiveFrom ? new Date(a.effectiveFrom).toLocaleDateString() : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -350,19 +350,19 @@ export default function DimensionsPage() {
 
       {/* Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit Dimension' : 'Create Dimension'}</h2>
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Dimension' : 'Create Dimension'}</h2>
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
 
             {!editingId && (
               <div className="mb-5">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Quick Presets</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Quick Presets</h3>
                 <div className="flex flex-wrap gap-2">
                   {STANDARD_DIMENSIONS.map(preset => (
-                    <button key={preset.code} onClick={() => handlePresetSelect(preset)} className="px-3 py-1.5 rounded-lg border border-nexus-border text-xs font-medium text-nexus-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                    <button key={preset.code} onClick={() => handlePresetSelect(preset)} className="px-3 py-1.5 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors">
                       {preset.code} — {preset.name}
                     </button>
                   ))}
@@ -372,39 +372,39 @@ export default function DimensionsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code *</label>
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. DEPT, CC, PROJ" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code *</label>
+                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. DEPT, CC, PROJ" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Department, Cost Center" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Department, Cost Center" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Dimension Type</label>
-                <select value={form.dimensionType} onChange={(e) => setForm({ ...form, dimensionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Dimension Type</label>
+                <select value={form.dimensionType} onChange={(e) => setForm({ ...form, dimensionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {DIMENSION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Allocation Method</label>
-                <select value={form.allocationMethod} onChange={(e) => setForm({ ...form, allocationMethod: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Allocation Method</label>
+                <select value={form.allocationMethod} onChange={(e) => setForm({ ...form, allocationMethod: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {ALLOCATION_METHOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
-                <input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
+                <input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Max Allocations</label>
-                <input type="number" value={form.maxAllocations} onChange={(e) => setForm({ ...form, maxAllocations: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Leave empty for unlimited" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Max Allocations</label>
+                <input type="number" value={form.maxAllocations} onChange={(e) => setForm({ ...form, maxAllocations: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Leave empty for unlimited" />
               </div>
-              <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer"><input type="checkbox" checked={form.hierarchyEnabled} onChange={(e) => setForm({ ...form, hierarchyEnabled: e.target.checked })} className="rounded border-nexus-border" /><span className="font-medium">Hierarchy Enabled</span></label></div>
-              <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer"><input type="checkbox" checked={form.isMandatory} onChange={(e) => setForm({ ...form, isMandatory: e.target.checked })} className="rounded border-nexus-border" /><span className="font-medium">Mandatory</span></label></div>
-              <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer"><input type="checkbox" checked={form.allowMultiple} onChange={(e) => setForm({ ...form, allowMultiple: e.target.checked })} className="rounded border-nexus-border" /><span className="font-medium">Allow Multiple</span></label></div>
+              <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.hierarchyEnabled} onChange={(e) => setForm({ ...form, hierarchyEnabled: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Hierarchy Enabled</span></label></div>
+              <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.isMandatory} onChange={(e) => setForm({ ...form, isMandatory: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Mandatory</span></label></div>
+              <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.allowMultiple} onChange={(e) => setForm({ ...form, allowMultiple: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Allow Multiple</span></label></div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Dimension' : 'Create Dimension'}
               </button>
@@ -415,21 +415,21 @@ export default function DimensionsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div></div>
+        <div className="thb-card overflow-hidden"><div className="p-5 space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div></div>
       ) : filteredDimensions.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiGrid className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No dimensions found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first cost allocation dimension</p>
+        <div className="thb-card p-12 text-center">
+          <FiGrid className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No dimensions found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first cost allocation dimension</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Code', 'Name', 'Type', 'Method', 'Mandatory', 'Multiple', 'Allocations', 'Actions'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -441,24 +441,24 @@ export default function DimensionsPage() {
                         <p className="text-sm text-red-700 font-medium mb-2">Delete &quot;{d.name}&quot; and all {d.allocations?.length || 0} allocations?</p>
                         <div className="flex items-center gap-2">
                           <button onClick={() => handleDelete(d.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                          <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                          <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     <tr key={d.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{d.code}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{d.name}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{d.code}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{d.name}</td>
                       <td className="px-4 py-3"><span className={getDimTypeBadge(d.dimensionType)}>{formatStr(d.dimensionType)}</span></td>
                       <td className="px-4 py-3"><span className={getAllocMethodBadge(d.allocationMethod)}>{formatStr(d.allocationMethod)}</span></td>
-                      <td className="px-4 py-3 text-sm">{d.isMandatory ? <span className="nexus-badge nexus-badge-success">Yes</span> : 'No'}</td>
-                      <td className="px-4 py-3 text-sm">{d.allowMultiple ? <span className="nexus-badge nexus-badge-info">Yes</span> : 'No'}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{d.allocations?.length || 0}</td>
+                      <td className="px-4 py-3 text-sm">{d.isMandatory ? <span className="thb-badge thb-badge-success">Yes</span> : 'No'}</td>
+                      <td className="px-4 py-3 text-sm">{d.allowMultiple ? <span className="thb-badge thb-badge-info">Yes</span> : 'No'}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{d.allocations?.length || 0}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => setViewingDimension(d)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                          {isAdmin && <button onClick={() => handleEdit(d)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
-                          {isAdmin && <button onClick={() => setDeleteConfirmId(d.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
+                          <button onClick={() => setViewingDimension(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                          {isAdmin && <button onClick={() => handleEdit(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
+                          {isAdmin && <button onClick={() => setDeleteConfirmId(d.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                         </div>
                       </td>
                     </tr>

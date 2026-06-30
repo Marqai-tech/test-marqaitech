@@ -75,7 +75,7 @@ export default function ModuleHome() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Home className="w-6 h-6 text-emerald-400" />
-            Nexus HRMS Modules
+            3Boxes HRMS Modules
           </h1>
           <p className="text-slate-400 mt-1">Navigate to any module from here. Click a card to open.</p>
         </div>

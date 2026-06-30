@@ -297,7 +297,7 @@ export default function ReportsPage() {
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('nexus_report_favorites');
+        const saved = localStorage.getItem('3boxes_report_favorites');
         return saved ? new Set(JSON.parse(saved)) : new Set();
       } catch { return new Set(); }
     }
@@ -359,7 +359,7 @@ export default function ReportsPage() {
 
   // Save favorites
   useEffect(() => {
-    try { localStorage.setItem('nexus_report_favorites', JSON.stringify([...favorites])); } catch { /* ignore */ }
+    try { localStorage.setItem('3boxes_report_favorites', JSON.stringify([...favorites])); } catch { /* ignore */ }
   }, [favorites]);
 
   const toggleFavorite = (reportId: string) => {
@@ -642,28 +642,28 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">Headcount</p>
-              <p className="text-2xl font-bold text-nexus-text-primary">{(d.headcount as number) || 0}</p>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">Headcount</p>
+              <p className="text-2xl font-bold text-thb-text-primary">{(d.headcount as number) || 0}</p>
             </div>
-            <div className="nexus-card p-4 text-center">
+            <div className="thb-card p-4 text-center">
               <p className="text-xs font-medium text-emerald-700">New Hires (30d)</p>
               <p className="text-2xl font-bold text-emerald-700">{(d.newHires as number) || 0}</p>
             </div>
-            <div className="nexus-card p-4 text-center">
+            <div className="thb-card p-4 text-center">
               <p className="text-xs font-medium text-red-700">Attrition</p>
               <p className="text-2xl font-bold text-red-700">{(d.attrition as number) || 0}</p>
             </div>
           </div>
           {Object.keys(deptDist).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Department Distribution</h3>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Department Distribution</h3>
               <div className="space-y-3">
                 {Object.entries(deptDist).map(([name, count]) => {
                   const max = Math.max(...Object.values(deptDist), 1);
                   return (
                     <div key={name}>
-                      <div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium text-nexus-text-primary">{count}</span></div>
+                      <div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium text-thb-text-primary">{count}</span></div>
                       <div className="w-full h-5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${((count as number) / max) * 100}%` }} /></div>
                     </div>
                   );
@@ -672,26 +672,26 @@ export default function ReportsPage() {
             </div>
           )}
           {employees.length > 0 && (
-            <div className="nexus-card overflow-hidden">
+            <div className="thb-card overflow-hidden">
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full min-w-[600px]">
                   <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-nexus-border bg-slate-50">
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">ID</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Designation</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Status</th>
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">ID</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Name</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Department</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Designation</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-nexus-border/50">
+                  <tbody className="divide-y divide-thb-border/50">
                     {employees.slice(0, 50).map((emp, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{emp.employeeId}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-primary">{emp.firstName} {emp.lastName}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{emp.department?.name || '—'}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{emp.designation?.title || '—'}</td>
-                        <td className="px-3 py-2"><span className={`nexus-badge ${emp.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-warning'}`}>{emp.status}</span></td>
+                        <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{emp.employeeId}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-primary">{emp.firstName} {emp.lastName}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-secondary">{emp.department?.name || '—'}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-secondary">{emp.designation?.title || '—'}</td>
+                        <td className="px-3 py-2"><span className={`thb-badge ${emp.status === 'active' ? 'thb-badge-success' : 'thb-badge-warning'}`}>{emp.status}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -699,7 +699,7 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(employees.map(e => ({ EmployeeID: e.employeeId, Name: `${e.firstName} ${e.lastName}`, Email: e.email, Department: e.department?.name || '', Designation: e.designation?.title || '', Status: e.status })), `employee_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV(employees.map(e => ({ EmployeeID: e.employeeId, Name: `${e.firstName} ${e.lastName}`, Email: e.email, Department: e.department?.name || '', Designation: e.designation?.title || '', Status: e.status })), `employee_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -713,26 +713,26 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Requests</p>
-              <p className="text-2xl font-bold text-nexus-text-primary">{(d.total as number) || 0}</p>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">Total Requests</p>
+              <p className="text-2xl font-bold text-thb-text-primary">{(d.total as number) || 0}</p>
             </div>
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">By Type</p>
-              <div className="mt-2 space-y-1">{Object.entries(byType).map(([k, v]) => (<p key={k} className="text-xs text-nexus-text-secondary">{k}: <span className="font-medium">{v as number}</span></p>))}</div>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">By Type</p>
+              <div className="mt-2 space-y-1">{Object.entries(byType).map(([k, v]) => (<p key={k} className="text-xs text-thb-text-secondary">{k}: <span className="font-medium">{v as number}</span></p>))}</div>
             </div>
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">By Status</p>
-              <div className="mt-2 space-y-1">{Object.entries(byStatus).map(([k, v]) => (<p key={k} className="text-xs text-nexus-text-secondary">{k}: <span className="font-medium">{v as number}</span></p>))}</div>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">By Status</p>
+              <div className="mt-2 space-y-1">{Object.entries(byStatus).map(([k, v]) => (<p key={k} className="text-xs text-thb-text-secondary">{k}: <span className="font-medium">{v as number}</span></p>))}</div>
             </div>
           </div>
           {Object.keys(byType).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Leave Usage by Type</h3>
-              <div className="space-y-3">{Object.entries(byType).map(([name, count]) => { const max = Math.max(...Object.values(byType), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Leave Usage by Type</h3>
+              <div className="space-y-3">{Object.entries(byType).map(([name, count]) => { const max = Math.max(...Object.values(byType), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), `leave_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV(Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), `leave_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -745,26 +745,26 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">Attendance Rate</p>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">Attendance Rate</p>
               <p className="text-2xl font-bold text-emerald-700">{(d.attendanceRate as number) || 0}%</p>
             </div>
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">Late Arrivals</p>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">Late Arrivals</p>
               <p className="text-2xl font-bold text-amber-700">{(d.lateArrivals as number) || 0}</p>
             </div>
-            <div className="nexus-card p-4 text-center">
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Overtime (h)</p>
+            <div className="thb-card p-4 text-center">
+              <p className="text-xs font-medium text-thb-text-secondary">Total Overtime (h)</p>
               <p className="text-2xl font-bold text-blue-700">{((d.totalOvertime as number) || 0).toFixed(1)}</p>
             </div>
           </div>
           {Object.keys(byStatus).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Attendance by Status</h3>
-              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Attendance by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v })), `attendance_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV(Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v })), `attendance_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -781,41 +781,41 @@ export default function ReportsPage() {
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Employees</p><p className="text-xl font-bold text-nexus-text-primary">{summary.totalEmployees}</p></div>
-              <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Gross Pay</p><p className="text-lg font-bold text-emerald-700">{fmtCurrency(summary.totalGrossPay)}</p></div>
-              <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-red-700">Deductions</p><p className="text-lg font-bold text-red-700">{fmtCurrency(summary.totalDeductions)}</p></div>
-              <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-blue-700">Net Pay</p><p className="text-lg font-bold text-blue-700">{fmtCurrency(summary.totalNetPay)}</p></div>
-              <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-purple-700">Employer Contrib</p><p className="text-lg font-bold text-purple-700">{fmtCurrency(summary.totalEmployerContrib)}</p></div>
+              <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Employees</p><p className="text-xl font-bold text-thb-text-primary">{summary.totalEmployees}</p></div>
+              <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Gross Pay</p><p className="text-lg font-bold text-emerald-700">{fmtCurrency(summary.totalGrossPay)}</p></div>
+              <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-red-700">Deductions</p><p className="text-lg font-bold text-red-700">{fmtCurrency(summary.totalDeductions)}</p></div>
+              <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-blue-700">Net Pay</p><p className="text-lg font-bold text-blue-700">{fmtCurrency(summary.totalNetPay)}</p></div>
+              <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-purple-700">Employer Contrib</p><p className="text-lg font-bold text-purple-700">{fmtCurrency(summary.totalEmployerContrib)}</p></div>
             </div>
-            <div className="nexus-card overflow-hidden">
+            <div className="thb-card overflow-hidden">
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full min-w-[700px]">
                   <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-nexus-border bg-slate-50">
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Code</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Dept</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Gross</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Deductions</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Net Pay</th>
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Code</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Name</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Dept</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Gross</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Deductions</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Net Pay</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-nexus-border/50">
+                  <tbody className="divide-y divide-thb-border/50">
                     {registerData.map((row, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{row.empCode}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-primary">{row.name}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{row.department}</td>
+                        <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{row.empCode}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-primary">{row.name}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-secondary">{row.department}</td>
                         <td className="px-3 py-2 text-sm text-right text-emerald-700 font-medium">{fmtCurrency(row.grossPay)}</td>
                         <td className="px-3 py-2 text-sm text-right text-red-700">{fmtCurrency(row.totalDeductions)}</td>
-                        <td className="px-3 py-2 text-sm text-right font-semibold text-nexus-text-primary">{fmtCurrency(row.netPay)}</td>
+                        <td className="px-3 py-2 text-sm text-right font-semibold text-thb-text-primary">{fmtCurrency(row.netPay)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <button onClick={() => handleExportCSV(registerData.map(r => ({ Code: r.empCode, Name: r.name, Department: r.department, Designation: r.designation, GrossPay: r.grossPay, Deductions: r.totalDeductions, NetPay: r.netPay })), `payroll_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <button onClick={() => handleExportCSV(registerData.map(r => ({ Code: r.empCode, Name: r.name, Department: r.department, Designation: r.designation, GrossPay: r.grossPay, Deductions: r.totalDeductions, NetPay: r.netPay })), `payroll_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
               <FiDownload className="w-4 h-4" /> Export CSV
             </button>
           </div>
@@ -828,26 +828,26 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Gross</p><p className="text-2xl font-bold text-nexus-text-primary">{fmtCurrency((d.totalGross as number) || 0)}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Total Net</p><p className="text-2xl font-bold text-emerald-700">{fmtCurrency((d.totalNet as number) || 0)}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total Gross</p><p className="text-2xl font-bold text-thb-text-primary">{fmtCurrency((d.totalGross as number) || 0)}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Total Net</p><p className="text-2xl font-bold text-emerald-700">{fmtCurrency((d.totalNet as number) || 0)}</p></div>
           </div>
           {Object.keys(deptCosts).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Salary Costs by Department</h3>
-              <div className="space-y-3">{Object.entries(deptCosts).map(([name, cost]) => { const max = Math.max(...Object.values(deptCosts), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{fmtCurrency(cost)}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(cost / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Salary Costs by Department</h3>
+              <div className="space-y-3">{Object.entries(deptCosts).map(([name, cost]) => { const max = Math.max(...Object.values(deptCosts), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{fmtCurrency(cost)}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(cost / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(monthOverMonth).length > 0 && (
-            <div className="nexus-card overflow-hidden">
+            <div className="thb-card overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead><tr className="border-b border-nexus-border bg-slate-50">{['Month', 'Gross', 'Net', 'Deductions'].map((h) => (<th key={h} className="px-3 py-2 text-left text-xs font-semibold text-nexus-text-secondary">{h}</th>))}</tr></thead>
-                  <tbody>{Object.entries(monthOverMonth).sort().map(([month, vals]) => (<tr key={month} className="border-b border-nexus-border/30 hover:bg-slate-50/50"><td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{month}</td><td className="px-3 py-2 text-sm text-nexus-text-secondary">{fmtCurrency(vals.gross)}</td><td className="px-3 py-2 text-sm text-emerald-700 font-medium">{fmtCurrency(vals.net)}</td><td className="px-3 py-2 text-sm text-red-700">{fmtCurrency(vals.deductions)}</td></tr>))}</tbody>
+                  <thead><tr className="border-b border-thb-border bg-slate-50">{['Month', 'Gross', 'Net', 'Deductions'].map((h) => (<th key={h} className="px-3 py-2 text-left text-xs font-semibold text-thb-text-secondary">{h}</th>))}</tr></thead>
+                  <tbody>{Object.entries(monthOverMonth).sort().map(([month, vals]) => (<tr key={month} className="border-b border-thb-border/30 hover:bg-slate-50/50"><td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{month}</td><td className="px-3 py-2 text-sm text-thb-text-secondary">{fmtCurrency(vals.gross)}</td><td className="px-3 py-2 text-sm text-emerald-700 font-medium">{fmtCurrency(vals.net)}</td><td className="px-3 py-2 text-sm text-red-700">{fmtCurrency(vals.deductions)}</td></tr>))}</tbody>
                 </table>
               </div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(deptCosts).map(([k, v]) => ({ Department: k, Cost: v })), `payroll_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV(Object.entries(deptCosts).map(([k, v]) => ({ Department: k, Cost: v })), `payroll_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -861,23 +861,23 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Open Positions</p><p className="text-2xl font-bold text-blue-700">{(d.openPositions as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Applications</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalApplications as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Time to Fill</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.timeToFill as string) || 'N/A'}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Open Positions</p><p className="text-2xl font-bold text-blue-700">{(d.openPositions as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total Applications</p><p className="text-2xl font-bold text-thb-text-primary">{(d.totalApplications as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Time to Fill</p><p className="text-2xl font-bold text-thb-text-primary">{(d.timeToFill as string) || 'N/A'}</p></div>
           </div>
           {Object.keys(bySource).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Source Effectiveness</h3>
-              <div className="space-y-3">{Object.entries(bySource).map(([name, count]) => { const max = Math.max(...Object.values(bySource), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-purple-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Source Effectiveness</h3>
+              <div className="space-y-3">{Object.entries(bySource).map(([name, count]) => { const max = Math.max(...Object.values(bySource), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-purple-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(byStatus).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Recruitment Funnel</h3>
-              <div className="space-y-2">{Object.entries(byStatus).map(([status, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={status} className="flex items-center gap-3"><span className="text-xs text-nexus-text-secondary w-24 capitalize">{status.replace('_', ' ')}</span><div className="flex-1 h-6 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div><span className="text-xs font-medium text-nexus-text-primary w-8">{count as number}</span></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Recruitment Funnel</h3>
+              <div className="space-y-2">{Object.entries(byStatus).map(([status, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={status} className="flex items-center gap-3"><span className="text-xs text-thb-text-secondary w-24 capitalize">{status.replace('_', ' ')}</span><div className="flex-1 h-6 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div><span className="text-xs font-medium text-thb-text-primary w-8">{count as number}</span></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(bySource).map(([k, v]) => ({ Source: k, Applications: v })), `recruitment_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV(Object.entries(bySource).map(([k, v]) => ({ Source: k, Applications: v })), `recruitment_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -892,23 +892,23 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Courses</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalCourses as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-teal-700">Completion Rate</p><p className="text-2xl font-bold text-teal-700">{(d.completionRate as number) || 0}%</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-amber-700">Overdue Training</p><p className="text-2xl font-bold text-amber-700">{(d.overdue as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total Courses</p><p className="text-2xl font-bold text-thb-text-primary">{(d.totalCourses as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-teal-700">Completion Rate</p><p className="text-2xl font-bold text-teal-700">{(d.completionRate as number) || 0}%</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-amber-700">Overdue Training</p><p className="text-2xl font-bold text-amber-700">{(d.overdue as number) || 0}</p></div>
           </div>
           {Object.keys(byCategory).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Training by Category</h3>
-              <div className="space-y-3">{Object.entries(byCategory).map(([name, count]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-teal-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Training by Category</h3>
+              <div className="space-y-3">{Object.entries(byCategory).map(([name, count]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-teal-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(byStatus).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Training by Status</h3>
-              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Training by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `training_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `training_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -923,23 +923,23 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Claims</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalClaims as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-orange-700">Total Amount</p><p className="text-2xl font-bold text-orange-700">{fmtCurrency((d.totalAmount as number) || 0)}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Approved</p><p className="text-2xl font-bold text-emerald-700">{(d.approved as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total Claims</p><p className="text-2xl font-bold text-thb-text-primary">{(d.totalClaims as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-orange-700">Total Amount</p><p className="text-2xl font-bold text-orange-700">{fmtCurrency((d.totalAmount as number) || 0)}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Approved</p><p className="text-2xl font-bold text-emerald-700">{(d.approved as number) || 0}</p></div>
           </div>
           {Object.keys(byCategory).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Expenses by Category</h3>
-              <div className="space-y-3">{Object.entries(byCategory).map(([name, amount]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{fmtCurrency(amount)}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-orange-500 rounded-full" style={{ width: `${(amount / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Expenses by Category</h3>
+              <div className="space-y-3">{Object.entries(byCategory).map(([name, amount]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{fmtCurrency(amount)}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-orange-500 rounded-full" style={{ width: `${(amount / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(byStatus).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Claims by Status</h3>
-              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Claims by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Amount: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `expense_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Amount: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `expense_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -954,23 +954,23 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Assets</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalAssets as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Allocated</p><p className="text-2xl font-bold text-emerald-700">{(d.allocated as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-slate-700">Available</p><p className="text-2xl font-bold text-slate-700">{(d.available as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total Assets</p><p className="text-2xl font-bold text-thb-text-primary">{(d.totalAssets as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Allocated</p><p className="text-2xl font-bold text-emerald-700">{(d.allocated as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-slate-700">Available</p><p className="text-2xl font-bold text-slate-700">{(d.available as number) || 0}</p></div>
           </div>
           {Object.keys(byType).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Assets by Type</h3>
-              <div className="space-y-3">{Object.entries(byType).map(([name, count]) => { const max = Math.max(...Object.values(byType), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-slate-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Assets by Type</h3>
+              <div className="space-y-3">{Object.entries(byType).map(([name, count]) => { const max = Math.max(...Object.values(byType), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-slate-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(byStatus).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Assets by Status</h3>
-              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Assets by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `asset_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV([...Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `asset_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -985,23 +985,23 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Active Projects</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.activeProjects as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-indigo-700">Avg Utilization</p><p className="text-2xl font-bold text-indigo-700">{(d.avgUtilization as number) || 0}%</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-blue-700">Team Members</p><p className="text-2xl font-bold text-blue-700">{(d.teamMembers as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Active Projects</p><p className="text-2xl font-bold text-thb-text-primary">{(d.activeProjects as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-indigo-700">Avg Utilization</p><p className="text-2xl font-bold text-indigo-700">{(d.avgUtilization as number) || 0}%</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-blue-700">Team Members</p><p className="text-2xl font-bold text-blue-700">{(d.teamMembers as number) || 0}</p></div>
           </div>
           {Object.keys(utilization).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Utilization by Project</h3>
-              <div className="space-y-3">{Object.entries(utilization).map(([name, pct]) => { return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{pct as number}%</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min((pct as number), 100)}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Utilization by Project</h3>
+              <div className="space-y-3">{Object.entries(utilization).map(([name, pct]) => { return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{pct as number}%</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min((pct as number), 100)}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(byStatus).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Projects by Status</h3>
-              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Projects by Status</h3>
+              <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(utilization).map(([k, v]) => ({ Project: k, Utilization: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `project_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV([...Object.entries(utilization).map(([k, v]) => ({ Project: k, Utilization: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `project_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -1016,23 +1016,23 @@ export default function ReportsPage() {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-nexus-text-secondary">Total Tickets</p><p className="text-2xl font-bold text-nexus-text-primary">{(d.totalTickets as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Resolved</p><p className="text-2xl font-bold text-emerald-700">{(d.resolved as number) || 0}</p></div>
-            <div className="nexus-card p-4 text-center"><p className="text-xs font-medium text-pink-700">Avg Resolution (h)</p><p className="text-2xl font-bold text-pink-700">{(d.avgResolutionTime as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total Tickets</p><p className="text-2xl font-bold text-thb-text-primary">{(d.totalTickets as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-emerald-700">Resolved</p><p className="text-2xl font-bold text-emerald-700">{(d.resolved as number) || 0}</p></div>
+            <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-pink-700">Avg Resolution (h)</p><p className="text-2xl font-bold text-pink-700">{(d.avgResolutionTime as number) || 0}</p></div>
           </div>
           {Object.keys(byCategory).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Tickets by Category</h3>
-              <div className="space-y-3">{Object.entries(byCategory).map(([name, count]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-pink-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Tickets by Category</h3>
+              <div className="space-y-3">{Object.entries(byCategory).map(([name, count]) => { const max = Math.max(...Object.values(byCategory), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-pink-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
           {Object.keys(byPriority).length > 0 && (
-            <div className="nexus-card p-6">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Tickets by Priority</h3>
-              <div className="space-y-3">{Object.entries(byPriority).map(([name, count]) => { const max = Math.max(...Object.values(byPriority), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-nexus-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+            <div className="thb-card p-6">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Tickets by Priority</h3>
+              <div className="space-y-3">{Object.entries(byPriority).map(([name, count]) => { const max = Math.max(...Object.values(byPriority), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byPriority).map(([k, v]) => ({ Priority: k, Count: v }))], `helpdesk_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byPriority).map(([k, v]) => ({ Priority: k, Count: v }))], `helpdesk_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -1040,9 +1040,9 @@ export default function ReportsPage() {
     }
 
     return (
-      <div className="nexus-card p-6 text-center">
-        <p className="text-nexus-text-secondary">Report generated. Export the data using the button below.</p>
-        <button onClick={() => { try { const d = data as Record<string, unknown>; const rows = Object.entries(d).map(([k, v]) => ({ Key: k, Value: typeof v === 'object' ? JSON.stringify(v) : String(v ?? '') })); handleExportCSV(rows, `${report.id}_${filterYear}_${filterMonth}`); } catch { toast.error('Export failed'); } }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+      <div className="thb-card p-6 text-center">
+        <p className="text-thb-text-secondary">Report generated. Export the data using the button below.</p>
+        <button onClick={() => { try { const d = data as Record<string, unknown>; const rows = Object.entries(d).map(([k, v]) => ({ Key: k, Value: typeof v === 'object' ? JSON.stringify(v) : String(v ?? '') })); handleExportCSV(rows, `${report.id}_${filterYear}_${filterMonth}`); } catch { toast.error('Export failed'); } }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
           <FiDownload className="w-4 h-4" /> Export CSV
         </button>
       </div>
@@ -1054,15 +1054,15 @@ export default function ReportsPage() {
     if (!selectedAIReport) return null;
     if (aiLoading) {
       return (
-        <div className="nexus-card p-12 text-center">
+        <div className="thb-card p-12 text-center">
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin" />
               <FiCpu className="w-6 h-6 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
             </div>
             <div>
-              <p className="text-nexus-text-primary font-semibold">AI is analyzing...</p>
-              <p className="text-sm text-nexus-text-muted mt-1">Processing {selectedAIReport.name} with machine learning models</p>
+              <p className="text-thb-text-primary font-semibold">AI is analyzing...</p>
+              <p className="text-sm text-thb-text-muted mt-1">Processing {selectedAIReport.name} with machine learning models</p>
             </div>
             <div className="flex gap-1">
               {[0, 1, 2].map(i => (
@@ -1092,7 +1092,7 @@ export default function ReportsPage() {
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${colors.badge}`}>
             <FiCpu className="w-3 h-3" /> AI Powered
           </span>
-          <h3 className="text-sm font-semibold text-nexus-text-primary">{selectedAIReport.name} — Insights</h3>
+          <h3 className="text-sm font-semibold text-thb-text-primary">{selectedAIReport.name} — Insights</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {aiInsights.map((insight, i) => {
@@ -1108,20 +1108,20 @@ export default function ReportsPage() {
             };
             const InsightIcon = insight.icon;
             return (
-              <div key={i} className={`nexus-card border-l-4 ${severityColors[insight.severity]} p-4`}>
+              <div key={i} className={`thb-card border-l-4 ${severityColors[insight.severity]} p-4`}>
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <InsightIcon className="w-4 h-4 text-nexus-text-primary" />
+                    <InsightIcon className="w-4 h-4 text-thb-text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-sm font-semibold text-nexus-text-primary truncate">{insight.title}</h4>
+                      <h4 className="text-sm font-semibold text-thb-text-primary truncate">{insight.title}</h4>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${severityBadge[insight.severity]}`}>{insight.severity}</span>
                     </div>
-                    <p className="text-sm text-nexus-text-secondary mb-2">{insight.description}</p>
+                    <p className="text-sm text-thb-text-secondary mb-2">{insight.description}</p>
                     <div className="flex items-start gap-1.5 p-2 bg-white rounded-lg">
                       <FiArrowRight className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-nexus-text-primary font-medium">{insight.recommendation}</p>
+                      <p className="text-xs text-thb-text-primary font-medium">{insight.recommendation}</p>
                     </div>
                   </div>
                 </div>
@@ -1140,11 +1140,11 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBarChart2 className="w-6 h-6 text-slate-500" />
             Reports & Analytics
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Comprehensive HR data insights and reporting hub</p>
+          <p className="text-thb-text-secondary mt-1">Comprehensive HR data insights and reporting hub</p>
         </div>
       </div>
 
@@ -1183,38 +1183,38 @@ export default function ReportsPage() {
       {/* Analytics Summary Cards */}
       {analyticsData && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="nexus-card nexus-card-hover p-4">
-            <div className="flex items-center gap-2 mb-1"><FiUsers className="w-4 h-4 text-blue-500" /><span className="text-xs text-nexus-text-secondary">Employees</span></div>
-            <p className="text-xl font-bold text-nexus-text-primary">{(analyticsData.employees?.total as number) || 0}</p>
+          <div className="thb-card thb-card-hover p-4">
+            <div className="flex items-center gap-2 mb-1"><FiUsers className="w-4 h-4 text-blue-500" /><span className="text-xs text-thb-text-secondary">Employees</span></div>
+            <p className="text-xl font-bold text-thb-text-primary">{(analyticsData.employees?.total as number) || 0}</p>
           </div>
-          <div className="nexus-card nexus-card-hover p-4">
-            <div className="flex items-center gap-2 mb-1"><FiCalendar className="w-4 h-4 text-amber-500" /><span className="text-xs text-nexus-text-secondary">Pending Leaves</span></div>
-            <p className="text-xl font-bold text-nexus-text-primary">{(analyticsData.leave?.pending as number) || 0}</p>
+          <div className="thb-card thb-card-hover p-4">
+            <div className="flex items-center gap-2 mb-1"><FiCalendar className="w-4 h-4 text-amber-500" /><span className="text-xs text-thb-text-secondary">Pending Leaves</span></div>
+            <p className="text-xl font-bold text-thb-text-primary">{(analyticsData.leave?.pending as number) || 0}</p>
           </div>
-          <div className="nexus-card nexus-card-hover p-4">
-            <div className="flex items-center gap-2 mb-1"><FiClock className="w-4 h-4 text-cyan-500" /><span className="text-xs text-nexus-text-secondary">Attendance</span></div>
-            <p className="text-xl font-bold text-nexus-text-primary">{(analyticsData.attendance?.rate as number) || 0}%</p>
+          <div className="thb-card thb-card-hover p-4">
+            <div className="flex items-center gap-2 mb-1"><FiClock className="w-4 h-4 text-cyan-500" /><span className="text-xs text-thb-text-secondary">Attendance</span></div>
+            <p className="text-xl font-bold text-thb-text-primary">{(analyticsData.attendance?.rate as number) || 0}%</p>
           </div>
-          <div className="nexus-card nexus-card-hover p-4">
-            <div className="flex items-center gap-2 mb-1"><FiBriefcase className="w-4 h-4 text-purple-500" /><span className="text-xs text-nexus-text-secondary">Open Positions</span></div>
-            <p className="text-xl font-bold text-nexus-text-primary">{(analyticsData.recruitment?.openPositions as number) || 0}</p>
+          <div className="thb-card thb-card-hover p-4">
+            <div className="flex items-center gap-2 mb-1"><FiBriefcase className="w-4 h-4 text-purple-500" /><span className="text-xs text-thb-text-secondary">Open Positions</span></div>
+            <p className="text-xl font-bold text-thb-text-primary">{(analyticsData.recruitment?.openPositions as number) || 0}</p>
           </div>
         </div>
       )}
 
       {/* Search Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search reports by name, description, or module..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-nexus-text-muted hover:text-nexus-text-primary">
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-thb-text-muted hover:text-thb-text-primary">
               <FiX className="w-4 h-4" />
             </button>
           )}
@@ -1234,7 +1234,7 @@ export default function ReportsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
               }`}
             >
               <IconComp className="w-4 h-4" />
@@ -1250,7 +1250,7 @@ export default function ReportsPage() {
           {/* Favorites Section */}
           {favoriteStandardReports.length > 0 && !searchQuery && (
             <div>
-              <h2 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiStar className="w-4 h-4 text-amber-500" />
                 Favorite Reports
               </h2>
@@ -1258,14 +1258,14 @@ export default function ReportsPage() {
                 {favoriteStandardReports.map(report => {
                   const ReportIcon = report.icon;
                   return (
-                    <div key={report.id} className="nexus-card nexus-card-hover p-4 border-l-4 border-l-amber-400 cursor-pointer" onClick={() => handleGenerateReport(report)}>
+                    <div key={report.id} className="thb-card thb-card-hover p-4 border-l-4 border-l-amber-400 cursor-pointer" onClick={() => handleGenerateReport(report)}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${moduleIconBg[report.module] || 'bg-slate-50 text-slate-500'}`}>
                             <ReportIcon className="w-4 h-4" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-nexus-text-primary">{report.name}</p>
+                            <p className="text-sm font-semibold text-thb-text-primary">{report.name}</p>
                             <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[report.module] || 'bg-slate-50 text-slate-700'}`}>{report.module}</span>
                           </div>
                         </div>
@@ -1285,7 +1285,7 @@ export default function ReportsPage() {
             const ModuleIcon = group.moduleIcon;
             const isExpanded = expandedModules.has(group.module);
             return (
-              <div key={group.module} className="nexus-card overflow-hidden">
+              <div key={group.module} className="thb-card overflow-hidden">
                 <button
                   onClick={() => toggleModule(group.module)}
                   className="w-full flex items-center justify-between p-4 hover:bg-slate-50/50 transition-colors"
@@ -1295,11 +1295,11 @@ export default function ReportsPage() {
                       <ModuleIcon className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <h2 className="text-sm font-semibold text-nexus-text-primary">{group.module} Reports</h2>
-                      <p className="text-xs text-nexus-text-muted">{group.reports.length} report{group.reports.length !== 1 ? 's' : ''} available</p>
+                      <h2 className="text-sm font-semibold text-thb-text-primary">{group.module} Reports</h2>
+                      <p className="text-xs text-thb-text-muted">{group.reports.length} report{group.reports.length !== 1 ? 's' : ''} available</p>
                     </div>
                   </div>
-                  {isExpanded ? <FiChevronUp className="w-5 h-5 text-nexus-text-muted" /> : <FiChevronDown className="w-5 h-5 text-nexus-text-muted" />}
+                  {isExpanded ? <FiChevronUp className="w-5 h-5 text-thb-text-muted" /> : <FiChevronDown className="w-5 h-5 text-thb-text-muted" />}
                 </button>
 
                 {isExpanded && (
@@ -1309,23 +1309,23 @@ export default function ReportsPage() {
                         const ReportIcon = report.icon;
                         const isFav = favorites.has(report.id);
                         return (
-                          <div key={report.id} className={`nexus-card nexus-card-hover p-4 border ${report.comingSoon ? 'opacity-70' : 'border-transparent'}`}>
+                          <div key={report.id} className={`thb-card thb-card-hover p-4 border ${report.comingSoon ? 'opacity-70' : 'border-transparent'}`}>
                             <div className="flex items-start justify-between mb-3">
                               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${moduleIconBg[report.module]}`}>
                                 <ReportIcon className="w-5 h-5" />
                               </div>
                               <div className="flex items-center gap-1">
-                                <button onClick={() => toggleFavorite(report.id)} className={`p-1.5 rounded-lg hover:bg-slate-100 transition-colors ${isFav ? 'text-amber-500' : 'text-nexus-text-muted hover:text-amber-500'}`}>
+                                <button onClick={() => toggleFavorite(report.id)} className={`p-1.5 rounded-lg hover:bg-slate-100 transition-colors ${isFav ? 'text-amber-500' : 'text-thb-text-muted hover:text-amber-500'}`}>
                                   <FiStar className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
                                 </button>
                               </div>
                             </div>
-                            <h3 className="text-sm font-semibold text-nexus-text-primary mb-1">{report.name}</h3>
-                            <p className="text-xs text-nexus-text-muted mb-3 line-clamp-2">{report.description}</p>
+                            <h3 className="text-sm font-semibold text-thb-text-primary mb-1">{report.name}</h3>
+                            <p className="text-xs text-thb-text-muted mb-3 line-clamp-2">{report.description}</p>
                             <div className="flex items-center justify-between">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[report.module]}`}>{report.module}</span>
                               {report.comingSoon ? (
-                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-nexus-text-muted">Coming Soon</span>
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-thb-text-muted">Coming Soon</span>
                               ) : (
                                 <button onClick={() => handleGenerateReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors">
                                   <FiSliders className="w-3 h-3" /> Generate
@@ -1346,11 +1346,11 @@ export default function ReportsPage() {
           {reportHistory && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiBarChart2 className="w-4 h-4 text-blue-500" />
                   {reportHistory.report.name} — Results
                 </h2>
-                <button onClick={() => setReportHistory(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+                <button onClick={() => setReportHistory(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                   <FiX className="w-4 h-4" />
                 </button>
               </div>
@@ -1372,20 +1372,20 @@ export default function ReportsPage() {
               return (
                 <div
                   key={report.id}
-                  className={`nexus-card nexus-card-hover p-4 cursor-pointer border-2 transition-colors ${
+                  className={`thb-card thb-card-hover p-4 cursor-pointer border-2 transition-colors ${
                     isSelected ? 'border-blue-400 bg-blue-50/30' : 'border-transparent'
                   } ${isComingSoon ? 'opacity-70' : ''}`}
                   onClick={() => !isComingSoon && setSelectedStatutory(report)}
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <ReportIcon className="w-5 h-5 text-nexus-text-primary" />
+                      <ReportIcon className="w-5 h-5 text-thb-text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary">{report.name}</h3>
-                      <p className="text-xs text-nexus-text-muted mt-0.5">{report.authorityShort} · {report.periodLabel}</p>
+                      <h3 className="text-sm font-semibold text-thb-text-primary">{report.name}</h3>
+                      <p className="text-xs text-thb-text-muted mt-0.5">{report.authorityShort} · {report.periodLabel}</p>
                       {isComingSoon ? (
-                        <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-nexus-text-muted">Coming Soon</span>
+                        <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-thb-text-muted">Coming Soon</span>
                       ) : null}
                     </div>
                   </div>
@@ -1397,21 +1397,21 @@ export default function ReportsPage() {
           {/* Statutory Filters & Results */}
           {!('comingSoon' in selectedStatutory && selectedStatutory.comingSoon) && (
             <div className="space-y-4">
-              <div className="nexus-card p-4">
+              <div className="thb-card p-4">
                 <div className="flex flex-col sm:flex-row gap-3 items-end">
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Month</label>
-                    <select value={statutoryMonth} onChange={e => setStatutoryMonth(parseInt(e.target.value))} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]">
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Month</label>
+                    <select value={statutoryMonth} onChange={e => setStatutoryMonth(parseInt(e.target.value))} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]">
                       {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Year</label>
-                    <input type="number" value={statutoryYear} onChange={e => setStatutoryYear(parseInt(e.target.value))} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24" />
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Year</label>
+                    <input type="number" value={statutoryYear} onChange={e => setStatutoryYear(parseInt(e.target.value))} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
-                    <select value={statutoryCompanyId} onChange={e => setStatutoryCompanyId(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]">
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
+                    <select value={statutoryCompanyId} onChange={e => setStatutoryCompanyId(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]">
                       <option value="">All Companies</option>
                       {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -1421,7 +1421,7 @@ export default function ReportsPage() {
                     Generate
                   </button>
                   {statutoryData.length > 0 && (
-                    <button onClick={() => handleExportCSV(statutoryData as unknown as Record<string, unknown>[], `${selectedStatutory.apiType}_report_${statutoryYear}_${statutoryMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                    <button onClick={() => handleExportCSV(statutoryData as unknown as Record<string, unknown>[], `${selectedStatutory.apiType}_report_${statutoryYear}_${statutoryMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiDownload className="w-4 h-4" /> Export CSV
                     </button>
                   )}
@@ -1432,9 +1432,9 @@ export default function ReportsPage() {
               {Object.keys(statutoryTotals).length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {Object.entries(statutoryTotals).map(([key, value]) => (
-                    <div key={key} className="nexus-card p-4 text-center">
-                      <p className="text-xs font-medium text-nexus-text-secondary">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                      <p className="text-lg font-bold text-nexus-text-primary">{typeof value === 'number' ? fmtCurrency(value) : String(value)}</p>
+                    <div key={key} className="thb-card p-4 text-center">
+                      <p className="text-xs font-medium text-thb-text-secondary">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                      <p className="text-lg font-bold text-thb-text-primary">{typeof value === 'number' ? fmtCurrency(value) : String(value)}</p>
                     </div>
                   ))}
                 </div>
@@ -1442,27 +1442,27 @@ export default function ReportsPage() {
 
               {/* Table */}
               {statutoryData.length > 0 ? (
-                <div className="nexus-card overflow-hidden">
+                <div className="thb-card overflow-hidden">
                   <div className="overflow-x-auto max-h-96 overflow-y-auto">
                     <table className="w-full min-w-[600px]">
                       <thead className="sticky top-0 z-10">
-                        <tr className="border-b border-nexus-border bg-slate-50">
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Code</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
+                        <tr className="border-b border-thb-border bg-slate-50">
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Code</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Name</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Department</th>
                           {statutoryColumns.map(col => (
-                            <th key={col} className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">{col.replace(/([A-Z])/g, ' $1').trim()}</th>
+                            <th key={col} className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">{col.replace(/([A-Z])/g, ' $1').trim()}</th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-nexus-border/50">
+                      <tbody className="divide-y divide-thb-border/50">
                         {statutoryData.map((row) => (
                           <tr key={row.employeeId} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{row.empCode}</td>
-                            <td className="px-3 py-2 text-sm text-nexus-text-primary">{row.name}</td>
-                            <td className="px-3 py-2 text-sm text-nexus-text-secondary">{row.department}</td>
+                            <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{row.empCode}</td>
+                            <td className="px-3 py-2 text-sm text-thb-text-primary">{row.name}</td>
+                            <td className="px-3 py-2 text-sm text-thb-text-secondary">{row.department}</td>
                             {statutoryColumns.map(col => (
-                              <td key={col} className="px-3 py-2 text-sm text-right text-nexus-text-primary">
+                              <td key={col} className="px-3 py-2 text-sm text-right text-thb-text-primary">
                                 {typeof row[col] === 'number' ? fmtCurrency(row[col] as number) : String(row[col] ?? '—')}
                               </td>
                             ))}
@@ -1473,10 +1473,10 @@ export default function ReportsPage() {
                   </div>
                 </div>
               ) : !statutoryLoading && selectedStatutory && (
-                <div className="nexus-card p-12 text-center">
-                  <FiShield className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-                  <p className="text-nexus-text-secondary font-medium">No data loaded</p>
-                  <p className="text-sm text-nexus-text-muted mt-1">Select period and click Generate to view {selectedStatutory.name}</p>
+                <div className="thb-card p-12 text-center">
+                  <FiShield className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                  <p className="text-thb-text-secondary font-medium">No data loaded</p>
+                  <p className="text-sm text-thb-text-muted mt-1">Select period and click Generate to view {selectedStatutory.name}</p>
                 </div>
               )}
             </div>
@@ -1504,7 +1504,7 @@ export default function ReportsPage() {
               return (
                 <div
                   key={report.id}
-                  className={`nexus-card nexus-card-hover p-4 cursor-pointer border-2 transition-colors ${
+                  className={`thb-card thb-card-hover p-4 cursor-pointer border-2 transition-colors ${
                     isActive ? 'border-blue-400' : 'border-transparent'
                   }`}
                   onClick={() => { setSelectedAIReport(report); setAiInsights([]); }}
@@ -1515,12 +1515,12 @@ export default function ReportsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-nexus-text-primary">{report.name}</h3>
+                        <h3 className="text-sm font-semibold text-thb-text-primary">{report.name}</h3>
                         <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                           <FiCpu className="w-2.5 h-2.5" /> AI
                         </span>
                       </div>
-                      <p className="text-xs text-nexus-text-muted mt-1 line-clamp-2">{report.description}</p>
+                      <p className="text-xs text-thb-text-muted mt-1 line-clamp-2">{report.description}</p>
                     </div>
                   </div>
                   <button
@@ -1539,10 +1539,10 @@ export default function ReportsPage() {
 
           {/* Empty State for AI Reports */}
           {!selectedAIReport && !aiLoading && (
-            <div className="nexus-card p-12 text-center">
-              <FiCpu className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">Select an AI report to generate</p>
-              <p className="text-sm text-nexus-text-muted mt-1">AI-powered analytics will provide predictive insights and recommendations</p>
+            <div className="thb-card p-12 text-center">
+              <FiCpu className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">Select an AI report to generate</p>
+              <p className="text-sm text-thb-text-muted mt-1">AI-powered analytics will provide predictive insights and recommendations</p>
             </div>
           )}
         </div>
@@ -1552,38 +1552,38 @@ export default function ReportsPage() {
       {showFilterDialog && selectedReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowFilterDialog(false)}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-nexus-border">
-              <h2 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+            <div className="flex items-center justify-between p-4 border-b border-thb-border">
+              <h2 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
                 <FiSliders className="w-4 h-4 text-blue-500" />
                 Generate: {selectedReport.name}
               </h2>
-              <button onClick={() => setShowFilterDialog(false)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={() => setShowFilterDialog(false)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Month</label>
-                  <select value={filterMonth} onChange={e => setFilterMonth(parseInt(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Month</label>
+                  <select value={filterMonth} onChange={e => setFilterMonth(parseInt(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Year</label>
-                  <input type="number" value={filterYear} onChange={e => setFilterYear(parseInt(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Year</label>
+                  <input type="number" value={filterYear} onChange={e => setFilterYear(parseInt(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
-                <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
+                <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="">All Companies</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department</label>
-                <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
+                <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="">All Departments</option>
                   <option value="engineering">Engineering</option>
                   <option value="sales">Sales</option>
@@ -1594,8 +1594,8 @@ export default function ReportsPage() {
                 </select>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-nexus-border">
-              <button onClick={() => setShowFilterDialog(false)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-thb-border">
+              <button onClick={() => setShowFilterDialog(false)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
               <button

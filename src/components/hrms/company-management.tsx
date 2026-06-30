@@ -90,9 +90,9 @@ const gradeCode = (level: number) => { if (level <= 1) return 'E1'; if (level ==
 const gradeName = (level: number) => { if (level <= 1) return 'E1 - Junior'; if (level === 2) return 'E2 - Mid Level'; if (level === 3) return 'E3 - Senior'; if (level >= 4) return 'M1 - Manager'; return `Level ${level}` }
 
 function getStatusBadge(status: string) {
-  const map: Record<string, string> = { active: 'nexus-badge nexus-badge-success', inactive: 'bg-slate-100 text-slate-600 nexus-badge', draft: 'nexus-badge nexus-badge-warning' }
+  const map: Record<string, string> = { active: 'thb-badge thb-badge-success', inactive: 'bg-slate-100 text-slate-600 thb-badge', draft: 'thb-badge thb-badge-warning' }
   const labels: Record<string, string> = { active: 'Active', inactive: 'Inactive', draft: 'Draft' }
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status }
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status }
 }
 
 /* ── Main Component ── */
@@ -374,20 +374,20 @@ export default function CompanyManagement() {
 
     const renderField = (label: string, value: unknown) => (
       <div>
-        <p className="text-xs font-medium text-nexus-text-muted mb-1">{label}</p>
-        <p className="text-sm font-medium text-nexus-text-primary">{value || '—'}</p>
+        <p className="text-xs font-medium text-thb-text-muted mb-1">{label}</p>
+        <p className="text-sm font-medium text-thb-text-primary">{value || '—'}</p>
       </div>
     )
 
     return (
-      <div id="view-detail" className="nexus-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+      <div id="view-detail" className="thb-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
               <FiEye className="w-5 h-5 text-violet-500" />
               Details
             </h2>
-            <button onClick={() => setViewingRecord(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+            <button onClick={() => setViewingRecord(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
               <FiX className="w-5 h-5" />
             </button>
           </div>
@@ -452,7 +452,7 @@ export default function CompanyManagement() {
 
   // ============ Form Renderer ============
   const renderForm = () => {
-    const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400'
+    const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400'
     const selectClass = inputClass
 
     return (
@@ -460,86 +460,86 @@ export default function CompanyManagement() {
         {activeTab === 'companies' && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. NEXUS" /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label><select value={form.currency || 'INR'} onChange={e => updateForm('currency', e.target.value)} className={selectClass}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
-              <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Website</label><input type="url" value={form.website || ''} onChange={e => updateForm('website', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tax ID / GST</label><input type="text" value={form.taxId || ''} onChange={e => updateForm('taxId', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">ZIP Code</label><input type="text" value={form.zipCode || ''} onChange={e => updateForm('zipCode', e.target.value)} className={inputClass} /></div>
-              <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. 3BOXES" /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label><select value={form.currency || 'INR'} onChange={e => updateForm('currency', e.target.value)} className={selectClass}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
+              <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Website</label><input type="url" value={form.website || ''} onChange={e => updateForm('website', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax ID / GST</label><input type="text" value={form.taxId || ''} onChange={e => updateForm('taxId', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label><input type="text" value={form.zipCode || ''} onChange={e => updateForm('zipCode', e.target.value)} className={inputClass} /></div>
+              <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             </div>
           </>
         )}
         {activeTab === 'branches' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Branch name" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. MUM" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={selectClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
-            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Branch name" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. MUM" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={selectClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
+            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
           </div>
         )}
         {activeTab === 'departments' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. ENG" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={selectClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. ENG" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={selectClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
           </div>
         )}
         {activeTab === 'designations' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Designation title" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department *</label><select value={form.departmentId || ''} onChange={e => updateForm('departmentId', e.target.value)} required className={selectClass}><option value="">Select Department</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Level</label><input type="number" value={form.level || '1'} onChange={e => updateForm('level', e.target.value)} className={inputClass} placeholder="1" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Min Salary (₹)</label><input type="number" value={form.minSalary || ''} onChange={e => updateForm('minSalary', e.target.value)} className={inputClass} placeholder="300000" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Max Salary (₹)</label><input type="number" value={form.maxSalary || ''} onChange={e => updateForm('maxSalary', e.target.value)} className={inputClass} placeholder="600000" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Designation title" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label><select value={form.departmentId || ''} onChange={e => updateForm('departmentId', e.target.value)} required className={selectClass}><option value="">Select Department</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Level</label><input type="number" value={form.level || '1'} onChange={e => updateForm('level', e.target.value)} className={inputClass} placeholder="1" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Min Salary (₹)</label><input type="number" value={form.minSalary || ''} onChange={e => updateForm('minSalary', e.target.value)} className={inputClass} placeholder="300000" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Max Salary (₹)</label><input type="number" value={form.maxSalary || ''} onChange={e => updateForm('maxSalary', e.target.value)} className={inputClass} placeholder="600000" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
           </div>
         )}
         {activeTab === 'shifts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Shift name" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Time</label><input type="time" value={form.startTime || '09:00'} onChange={e => updateForm('startTime', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">End Time</label><input type="time" value={form.endTime || '18:00'} onChange={e => updateForm('endTime', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Break (min)</label><input type="number" value={form.breakDuration || '60'} onChange={e => updateForm('breakDuration', e.target.value)} className={inputClass} placeholder="60" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Grace Time (min)</label><input type="number" value={form.graceTime || '15'} onChange={e => updateForm('graceTime', e.target.value)} className={inputClass} placeholder="15" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Shift name" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Time</label><input type="time" value={form.startTime || '09:00'} onChange={e => updateForm('startTime', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">End Time</label><input type="time" value={form.endTime || '18:00'} onChange={e => updateForm('endTime', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Break (min)</label><input type="number" value={form.breakDuration || '60'} onChange={e => updateForm('breakDuration', e.target.value)} className={inputClass} placeholder="60" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Grace Time (min)</label><input type="number" value={form.graceTime || '15'} onChange={e => updateForm('graceTime', e.target.value)} className={inputClass} placeholder="15" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
           </div>
         )}
         {activeTab === 'holidays' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Holiday name" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date *</label><input type="date" value={form.date || ''} onChange={e => updateForm('date', e.target.value)} required className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Type</label><select value={form.type || 'public'} onChange={e => updateForm('type', e.target.value)} className={selectClass}><option value="public">Public</option><option value="festival">Festival</option><option value="state">State</option><option value="company">Company</option><option value="optional">Optional</option></select></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
-            <div className="sm:col-span-2"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Holiday description" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Holiday name" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label><input type="date" value={form.date || ''} onChange={e => updateForm('date', e.target.value)} required className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Type</label><select value={form.type || 'public'} onChange={e => updateForm('type', e.target.value)} className={selectClass}><option value="public">Public</option><option value="festival">Festival</option><option value="state">State</option><option value="company">Company</option><option value="optional">Optional</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
+            <div className="sm:col-span-2"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Holiday description" /></div>
           </div>
         )}
         {activeTab === 'policies' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Policy title" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label><select value={form.category || 'hr'} onChange={e => updateForm('category', e.target.value)} className={selectClass}><option value="hr">HR</option><option value="it">IT</option><option value="leave">Leave</option><option value="attendance">Attendance</option><option value="finance">Finance</option><option value="work">Work</option><option value="safety">Safety</option><option value="code_of_conduct">Code of Conduct</option></select></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Version</label><input type="text" value={form.version || '1.0'} onChange={e => updateForm('version', e.target.value)} className={inputClass} placeholder="1.0" /></div>
-            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Brief description" /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective Date</label><input type="date" value={form.effectiveDate || ''} onChange={e => updateForm('effectiveDate', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Expiry Date</label><input type="date" value={form.expiryDate || ''} onChange={e => updateForm('expiryDate', e.target.value)} className={inputClass} /></div>
-            <div><label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="draft">Draft</option><option value="inactive">Inactive</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Policy title" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label><select value={form.category || 'hr'} onChange={e => updateForm('category', e.target.value)} className={selectClass}><option value="hr">HR</option><option value="it">IT</option><option value="leave">Leave</option><option value="attendance">Attendance</option><option value="finance">Finance</option><option value="work">Work</option><option value="safety">Safety</option><option value="code_of_conduct">Code of Conduct</option></select></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Version</label><input type="text" value={form.version || '1.0'} onChange={e => updateForm('version', e.target.value)} className={inputClass} placeholder="1.0" /></div>
+            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Brief description" /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective Date</label><input type="date" value={form.effectiveDate || ''} onChange={e => updateForm('effectiveDate', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Expiry Date</label><input type="date" value={form.expiryDate || ''} onChange={e => updateForm('expiryDate', e.target.value)} className={inputClass} /></div>
+            <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={selectClass}><option value="active">Active</option><option value="draft">Draft</option><option value="inactive">Inactive</option></select></div>
           </div>
         )}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
-          <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
+          <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
           <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
             {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
           </button>
@@ -554,11 +554,11 @@ export default function CompanyManagement() {
     const name = (record.name || record.title) as string
     return (
       <div className="flex items-center gap-1">
-        <button onClick={() => openView(type, record)} className="p-2 rounded-lg text-nexus-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+        <button onClick={() => openView(type, record)} className="p-2 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
         {isAdmin && (
           <>
-            <button onClick={() => openEdit(type, record)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-            <button onClick={() => { setDeleteConfirmId(record.id as string); setDeleteInfo({ type, name }); setViewingRecord(null) }} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+            <button onClick={() => openEdit(type, record)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+            <button onClick={() => { setDeleteConfirmId(record.id as string); setDeleteInfo({ type, name }); setViewingRecord(null) }} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
           </>
         )}
       </div>
@@ -578,18 +578,18 @@ export default function CompanyManagement() {
         <button onClick={handleDelete} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
           {deleting ? 'Deleting...' : 'Confirm Delete'}
         </button>
-        <button onClick={() => { setDeleteConfirmId(null); setDeleteInfo({ type: '', name: '' }) }} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+        <button onClick={() => { setDeleteConfirmId(null); setDeleteInfo({ type: '', name: '' }) }} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
       </div>
     </div>
   )
 
   // ============ Table Container ============
   const TableWrapper = ({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) => (
-    <div className="nexus-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-nexus-border bg-slate-50/50 flex items-center gap-2">
+    <div className="thb-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-thb-border bg-slate-50/50 flex items-center gap-2">
         {icon}
-        <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
-        <span className="text-xs text-nexus-text-muted">({count})</span>
+        <h3 className="text-sm font-semibold text-thb-text-primary">{title}</h3>
+        <span className="text-xs text-thb-text-muted">({count})</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -599,19 +599,19 @@ export default function CompanyManagement() {
     </div>
   )
 
-  const TH = ({ children }: { children: React.ReactNode }) => <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider border-b border-nexus-border bg-slate-50/50">{children}</th>
-  const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-nexus-text-secondary border-b border-nexus-border/50 ${className}`}>{children}</td>
+  const TH = ({ children }: { children: React.ReactNode }) => <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider border-b border-thb-border bg-slate-50/50">{children}</th>
+  const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiLayers className="w-6 h-6 text-violet-500" />
             Company Management
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage companies, branches, departments, and organizational structure</p>
+          <p className="text-thb-text-secondary mt-1">Manage companies, branches, departments, and organizational structure</p>
         </div>
         {/* The "Add Company" button is intentionally hidden on the 'companies' tab.
             Companies are created in the Super Admin or Tenant Admin modules
@@ -635,15 +635,15 @@ export default function CompanyManagement() {
       />
 
       {/* Getting Started Info Banner */}
-      <div className="nexus-card border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/50 to-blue-50/50">
+      <div className="thb-card border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/50 to-blue-50/50">
         <div className="p-5">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
               <FiCheckCircle className="w-5 h-5 text-violet-600" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-nexus-text-primary mb-1">Getting Started with Company Management</h3>
-              <p className="text-sm text-nexus-text-secondary leading-relaxed">
+              <h3 className="text-sm font-bold text-thb-text-primary mb-1">Getting Started with Company Management</h3>
+              <p className="text-sm text-thb-text-secondary leading-relaxed">
                 Follow this step-by-step workflow to set up your organizational structure. Start by creating your company profile, 
                 then add branches and departments. Define designations with grade levels and salary ranges, configure work shifts 
                 for attendance tracking, plan your holiday calendar, and set up company policies. Once your organization structure 
@@ -664,21 +664,21 @@ export default function CompanyManagement() {
       />
 
       {/* Search & Tabs */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, code, city..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
             />
           </div>
         </div>
 
-        <div className="mt-3 border-t border-nexus-border pt-3">
+        <div className="mt-3 border-t border-thb-border pt-3">
           <nav className="flex flex-wrap gap-1">
             {tabs.map(tab => {
               const Icon = tab.icon
@@ -689,7 +689,7 @@ export default function CompanyManagement() {
                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === tab.key
                       ? 'bg-violet-500 text-white shadow-sm'
-                      : 'text-nexus-text-secondary hover:bg-slate-100 hover:text-nexus-text-primary'
+                      : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -706,13 +706,13 @@ export default function CompanyManagement() {
 
       {/* Inline Add/Edit Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+        <div id="crud-form" className="thb-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit' : 'Add'} {tabs.find(t => t.key === activeTab)?.label.slice(0, -1) || activeTab.slice(0, -1)}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -728,7 +728,7 @@ export default function CompanyManagement() {
         ) : (
           <>
             {/* Info banner — explains where companies are created */}
-            <div className="nexus-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
+            <div className="thb-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
               <div className="p-4 flex items-start gap-3">
                 <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-slate-700 flex-1">
@@ -779,21 +779,21 @@ export default function CompanyManagement() {
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="nexus-card nexus-card-hover p-5">
+              <div className="thb-card thb-card-hover p-5">
                 <div className="flex items-start justify-between">
-                  <div><p className="text-xs font-medium text-nexus-text-secondary">Total Companies</p><p className="text-2xl font-bold text-nexus-text-primary mt-1">{companies.length}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-secondary">Total Companies</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{companies.length}</p></div>
                   <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 ring-1 ring-violet-100"><FiHome className="w-5 h-5" /></div>
                 </div>
               </div>
-              <div className="nexus-card nexus-card-hover p-5">
+              <div className="thb-card thb-card-hover p-5">
                 <div className="flex items-start justify-between">
-                  <div><p className="text-xs font-medium text-nexus-text-secondary">Total Branches</p><p className="text-2xl font-bold text-nexus-text-primary mt-1">{branches.length}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-secondary">Total Branches</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{branches.length}</p></div>
                   <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 ring-1 ring-blue-100"><FiMapPin className="w-5 h-5" /></div>
                 </div>
               </div>
-              <div className="nexus-card nexus-card-hover p-5">
+              <div className="thb-card thb-card-hover p-5">
                 <div className="flex items-start justify-between">
-                  <div><p className="text-xs font-medium text-nexus-text-secondary">Total Departments</p><p className="text-2xl font-bold text-violet-600 mt-1">{departments.length}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-secondary">Total Departments</p><p className="text-2xl font-bold text-violet-600 mt-1">{departments.length}</p></div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 ring-1 ring-emerald-100"><FiBriefcase className="w-5 h-5" /></div>
                 </div>
               </div>
@@ -802,9 +802,9 @@ export default function CompanyManagement() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {fCompanies.length === 0 ? (
                 <div className="col-span-full text-center py-12">
-                  <FiHome className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                  <p className="text-nexus-text-secondary font-medium">No companies found</p>
-                  <p className="text-xs text-nexus-text-muted mt-1 max-w-sm mx-auto">
+                  <FiHome className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                  <p className="text-thb-text-secondary font-medium">No companies found</p>
+                  <p className="text-xs text-thb-text-muted mt-1 max-w-sm mx-auto">
                     {selectedCompanyId
                       ? 'No company matches the header dropdown selection. Pick "All companies" in the dropdown to see the full list.'
                       : selectedGroupId
@@ -819,7 +819,7 @@ export default function CompanyManagement() {
                 const groupName = c.companyGroup?.name
                 const tenantName = c.companyGroup?.tenant?.name
                 return (
-                  <div key={c.id} className={`nexus-card nexus-card-hover transition-colors ${deleteConfirmId === c.id ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
+                  <div key={c.id} className={`thb-card thb-card-hover transition-colors ${deleteConfirmId === c.id ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
                     <div className="p-5">
                       {deleteConfirmId === c.id ? (
                         renderDeleteConfirm(c.id, c.name)
@@ -829,9 +829,9 @@ export default function CompanyManagement() {
                             <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiHome className="w-5 h-5 text-violet-500" /></div>
                             {renderActions('companies', c as unknown as Record<string, unknown>)}
                           </div>
-                          <h3 className="text-nexus-text-primary font-semibold text-lg">{c.name}</h3>
-                          <p className="text-nexus-text-muted text-sm mb-1">{c.code || '—'} · {c.city || '—'}, {c.state || ''}</p>
-                          <p className="text-nexus-text-muted text-xs mb-2">{c.taxId ? `GST: ${c.taxId}` : ''} {c.phone ? `· ${c.phone}` : ''}</p>
+                          <h3 className="text-thb-text-primary font-semibold text-lg">{c.name}</h3>
+                          <p className="text-thb-text-muted text-sm mb-1">{c.code || '—'} · {c.city || '—'}, {c.state || ''}</p>
+                          <p className="text-thb-text-muted text-xs mb-2">{c.taxId ? `GST: ${c.taxId}` : ''} {c.phone ? `· ${c.phone}` : ''}</p>
                           {/* Parent group company + tenant badge — makes it obvious
                               where this company sits in the Tenant → Group → Company
                               hierarchy. For tenant_admin, the tenant name is the same
@@ -852,9 +852,9 @@ export default function CompanyManagement() {
                               )}
                             </div>
                           )}
-                          <div className="grid grid-cols-3 gap-2 text-center border-t border-nexus-border pt-3">
-                            <div><p className="text-lg font-bold text-nexus-text-primary">{c._count?.branches || 0}</p><p className="text-xs text-nexus-text-muted">Branches</p></div>
-                            <div><p className="text-lg font-bold text-nexus-text-primary">{c._count?.departments || 0}</p><p className="text-xs text-nexus-text-muted">Depts</p></div>
+                          <div className="grid grid-cols-3 gap-2 text-center border-t border-thb-border pt-3">
+                            <div><p className="text-lg font-bold text-thb-text-primary">{c._count?.branches || 0}</p><p className="text-xs text-thb-text-muted">Branches</p></div>
+                            <div><p className="text-lg font-bold text-thb-text-primary">{c._count?.departments || 0}</p><p className="text-xs text-thb-text-muted">Depts</p></div>
                             <div><span className={badge.className}>{badge.label}</span></div>
                           </div>
                         </>
@@ -873,7 +873,7 @@ export default function CompanyManagement() {
         loading.branches ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
           <>
             {companies.length === 0 && (
-              <div className="nexus-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
+              <div className="thb-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
                 <div className="p-4 flex items-start gap-3">
                   <FiInfo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-slate-700">
@@ -892,7 +892,7 @@ export default function CompanyManagement() {
             <thead><tr><TH>Branch</TH><TH>Company</TH><TH>Location</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fBranches.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center"><FiMapPin className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No branches found</p></td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center"><FiMapPin className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No branches found</p></td></tr>
               ) : fBranches.map(b => {
                 const badge = getStatusBadge(b.status)
                 return (
@@ -901,7 +901,7 @@ export default function CompanyManagement() {
                       <td colSpan={5} className="px-4 py-3">{renderDeleteConfirm(b.id, b.name)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-nexus-text-primary"><FiMapPin className="w-4 h-4 inline mr-2 text-violet-400" />{b.name}</TD>
+                        <TD className="font-medium text-thb-text-primary"><FiMapPin className="w-4 h-4 inline mr-2 text-violet-400" />{b.name}</TD>
                         <TD>{b.company?.name || '—'}</TD>
                         <TD>{b.city || '—'}, {b.state || ''}</TD>
                         <TD><span className={badge.className}>{badge.label}</span></TD>
@@ -922,7 +922,7 @@ export default function CompanyManagement() {
         loading.departments ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
           <>
             {companies.length === 0 && (
-              <div className="nexus-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
+              <div className="thb-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
                 <div className="p-4 flex items-start gap-3">
                   <FiInfo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-slate-700">
@@ -941,7 +941,7 @@ export default function CompanyManagement() {
             <thead><tr><TH>Department</TH><TH>Company</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fDepartments.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiBriefcase className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No departments found</p></td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiBriefcase className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No departments found</p></td></tr>
               ) : fDepartments.map(d => {
                 const badge = getStatusBadge(d.status)
                 return (
@@ -950,7 +950,7 @@ export default function CompanyManagement() {
                       <td colSpan={6} className="px-4 py-3">{renderDeleteConfirm(d.id, d.name)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-nexus-text-primary">{d.name}</TD>
+                        <TD className="font-medium text-thb-text-primary">{d.name}</TD>
                         <TD>{d.company?.name || '—'}</TD>
                         <TD>{d._count?.employees || 0}</TD>
                         <TD>{d._count?.designations || 0}</TD>
@@ -974,7 +974,7 @@ export default function CompanyManagement() {
             <thead><tr><TH>Designation</TH><TH>Grade</TH><TH>Department</TH><TH>Salary Range</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fDesignations.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiAward className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No designations found</p></td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiAward className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No designations found</p></td></tr>
               ) : fDesignations.map(d => {
                 const badge = getStatusBadge(d.status)
                 return (
@@ -983,8 +983,8 @@ export default function CompanyManagement() {
                       <td colSpan={6} className="px-4 py-3">{renderDeleteConfirm(d.id, d.title)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-nexus-text-primary">{d.title}</TD>
-                        <TD><span className="nexus-badge nexus-badge-info">{gradeCode(d.level)}</span></TD>
+                        <TD className="font-medium text-thb-text-primary">{d.title}</TD>
+                        <TD><span className="thb-badge thb-badge-info">{gradeCode(d.level)}</span></TD>
                         <TD>{d.department?.name || '—'}</TD>
                         <TD className="text-emerald-600 font-medium">{fmtSalary(d.minSalary)} - {fmtSalary(d.maxSalary)}</TD>
                         <TD><span className={badge.className}>{badge.label}</span></TD>
@@ -1015,20 +1015,20 @@ export default function CompanyManagement() {
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {gradeList.length === 0 ? (
-                  <div className="col-span-full text-center py-12"><FiLayers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No grades found</p><p className="text-xs text-nexus-text-muted mt-1">Grades are derived from designation levels</p></div>
+                  <div className="col-span-full text-center py-12"><FiLayers className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No grades found</p><p className="text-xs text-thb-text-muted mt-1">Grades are derived from designation levels</p></div>
                 ) : gradeList.map(g => (
-                  <div key={g.code} className="nexus-card nexus-card-hover p-5 transition-colors">
+                  <div key={g.code} className="thb-card thb-card-hover p-5 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="nexus-badge nexus-badge-info text-base px-3 py-1">{g.code}</span>
-                      <span className="nexus-badge nexus-badge-success">{g.status}</span>
+                      <span className="thb-badge thb-badge-info text-base px-3 py-1">{g.code}</span>
+                      <span className="thb-badge thb-badge-success">{g.status}</span>
                     </div>
-                    <p className="text-nexus-text-primary font-semibold text-lg">{g.name}</p>
+                    <p className="text-thb-text-primary font-semibold text-lg">{g.name}</p>
                     <p className="text-violet-600 text-2xl font-bold mt-2">₹{(g.min / 100000).toFixed(0)}-{(g.max / 100000).toFixed(0)}L</p>
-                    <p className="text-nexus-text-muted text-sm mt-1">Per annum</p>
-                    <div className="mt-3 pt-3 border-t border-nexus-border space-y-1">
-                      <div className="flex justify-between text-sm"><span className="text-nexus-text-muted">Employees</span><span className="text-nexus-text-primary font-medium">{g.employees}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-nexus-text-muted">Min</span><span className="text-nexus-text-secondary">₹{(g.min / 100000).toFixed(0)}L</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-nexus-text-muted">Max</span><span className="text-nexus-text-secondary">₹{(g.max / 100000).toFixed(0)}L</span></div>
+                    <p className="text-thb-text-muted text-sm mt-1">Per annum</p>
+                    <div className="mt-3 pt-3 border-t border-thb-border space-y-1">
+                      <div className="flex justify-between text-sm"><span className="text-thb-text-muted">Employees</span><span className="text-thb-text-primary font-medium">{g.employees}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-thb-text-muted">Min</span><span className="text-thb-text-secondary">₹{(g.min / 100000).toFixed(0)}L</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-thb-text-muted">Max</span><span className="text-thb-text-secondary">₹{(g.max / 100000).toFixed(0)}L</span></div>
                     </div>
                   </div>
                 ))}
@@ -1045,7 +1045,7 @@ export default function CompanyManagement() {
             <thead><tr><TH>Shift</TH><TH>Start</TH><TH>End</TH><TH>Break</TH><TH>Grace</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fShifts.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center"><FiClock className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No shifts found</p></td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center"><FiClock className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No shifts found</p></td></tr>
               ) : fShifts.map(s => {
                 const badge = getStatusBadge(s.status)
                 return (
@@ -1054,7 +1054,7 @@ export default function CompanyManagement() {
                       <td colSpan={7} className="px-4 py-3">{renderDeleteConfirm(s.id, s.name)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-nexus-text-primary">
+                        <TD className="font-medium text-thb-text-primary">
                           <span className="inline-flex items-center gap-2">
                             {s.name.toLowerCase().includes('night') ? <FiMoon className="w-4 h-4 text-indigo-400" /> : <FiSun className="w-4 h-4 text-amber-400" />}
                             {s.name}
@@ -1083,19 +1083,19 @@ export default function CompanyManagement() {
             <thead><tr><TH>Holiday</TH><TH>Date</TH><TH>Day</TH><TH>Type</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fHolidays.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No holidays found</p></td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center"><FiCalendar className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No holidays found</p></td></tr>
               ) : fHolidays.map(h => {
-                const typeMap: Record<string, string> = { public: 'nexus-badge nexus-badge-warning', festival: 'nexus-badge nexus-badge-info', state: 'nexus-badge nexus-badge-success', company: 'bg-slate-100 text-slate-600 nexus-badge', optional: 'nexus-badge nexus-badge-info' }
+                const typeMap: Record<string, string> = { public: 'thb-badge thb-badge-warning', festival: 'thb-badge thb-badge-info', state: 'thb-badge thb-badge-success', company: 'bg-slate-100 text-slate-600 thb-badge', optional: 'thb-badge thb-badge-info' }
                 return (
                   <tr key={h.id} className={`transition-colors ${deleteConfirmId === h.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
                     {deleteConfirmId === h.id ? (
                       <td colSpan={5} className="px-4 py-3">{renderDeleteConfirm(h.id, h.name)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-nexus-text-primary">{h.name}</TD>
+                        <TD className="font-medium text-thb-text-primary">{h.name}</TD>
                         <TD>{fmtDate(h.date)}</TD>
                         <TD>{fmtDay(h.date)}</TD>
-                        <TD><span className={typeMap[h.type] || 'nexus-badge nexus-badge-info'}>{h.type}</span></TD>
+                        <TD><span className={typeMap[h.type] || 'thb-badge thb-badge-info'}>{h.type}</span></TD>
                         <TD className="text-right">{renderActions('holidays', h as unknown as Record<string, unknown>)}</TD>
                       </>
                     )}
@@ -1114,7 +1114,7 @@ export default function CompanyManagement() {
             <thead><tr><TH>Policy</TH><TH>Category</TH><TH>Version</TH><TH>Effective</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fPolicies.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No policies found</p></td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No policies found</p></td></tr>
               ) : fPolicies.map(p => {
                 const badge = getStatusBadge(p.status)
                 return (
@@ -1123,8 +1123,8 @@ export default function CompanyManagement() {
                       <td colSpan={6} className="px-4 py-3">{renderDeleteConfirm(p.id, p.title)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-nexus-text-primary">{p.title}</TD>
-                        <TD><span className="nexus-badge nexus-badge-info">{p.category}</span></TD>
+                        <TD className="font-medium text-thb-text-primary">{p.title}</TD>
+                        <TD><span className="thb-badge thb-badge-info">{p.category}</span></TD>
                         <TD>v{p.version}</TD>
                         <TD>{p.effectiveDate ? fmtDate(p.effectiveDate) : '—'}</TD>
                         <TD><span className={badge.className}>{badge.label}</span></TD>

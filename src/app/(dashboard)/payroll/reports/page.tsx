@@ -98,7 +98,7 @@ function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; 
 
   return (
     <div>
-      <h4 className="text-xs font-semibold text-nexus-text-secondary mb-2">{label}</h4>
+      <h4 className="text-xs font-semibold text-thb-text-secondary mb-2">{label}</h4>
       <div className="flex items-end gap-1 h-24">
         {data.map((d, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-1">
@@ -107,7 +107,7 @@ function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; 
               style={{ height: `${Math.max((d.value / maxVal) * 80, 2)}px` }}
               title={`${d.label}: ${fmtCurrency(d.value)}`}
             />
-            <span className="text-[9px] text-nexus-text-muted truncate w-full text-center">{d.label.slice(5)}</span>
+            <span className="text-[9px] text-thb-text-muted truncate w-full text-center">{d.label.slice(5)}</span>
           </div>
         ))}
       </div>
@@ -291,11 +291,11 @@ export default function PayrollReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-slate-500" />
             Payroll Reports & Dashboard
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Salary register, statutory reports, and payroll analytics</p>
+          <p className="text-thb-text-secondary mt-1">Salary register, statutory reports, and payroll analytics</p>
         </div>
       </div>
 
@@ -313,7 +313,7 @@ export default function PayrollReportsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
               }`}
             >
               <IconComp className="w-4 h-4" />
@@ -327,33 +327,33 @@ export default function PayrollReportsPage() {
       {activeTab === 'register' && (
         <div className="space-y-4">
           {/* Filters */}
-          <div className="nexus-card p-4">
+          <div className="thb-card p-4">
             <div className="flex flex-col sm:flex-row gap-3 items-end">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Month</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Month</label>
                 <select
                   value={registerMonth}
                   onChange={(e) => setRegisterMonth(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
                 >
                   {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Year</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Year</label>
                 <input
                   type="number"
                   value={registerYear}
                   onChange={(e) => setRegisterYear(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
                 <select
                   value={registerCompanyId}
                   onChange={(e) => setRegisterCompanyId(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
                   {companies.map(c => (
@@ -362,11 +362,11 @@ export default function PayrollReportsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Mode</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Mode</label>
                 <select
                   value={registerMode}
                   onChange={(e) => setRegisterMode(e.target.value as 'summary' | 'detailed')}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
                 >
                   <option value="summary">Summary</option>
                   <option value="detailed">Detailed</option>
@@ -386,23 +386,23 @@ export default function PayrollReportsPage() {
           {/* Summary Cards */}
           {registerData.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              <div className="nexus-card p-4 text-center">
-                <p className="text-xs font-medium text-nexus-text-secondary">Employees</p>
-                <p className="text-xl font-bold text-nexus-text-primary">{registerSummary.totalEmployees}</p>
+              <div className="thb-card p-4 text-center">
+                <p className="text-xs font-medium text-thb-text-secondary">Employees</p>
+                <p className="text-xl font-bold text-thb-text-primary">{registerSummary.totalEmployees}</p>
               </div>
-              <div className="nexus-card p-4 text-center">
+              <div className="thb-card p-4 text-center">
                 <p className="text-xs font-medium text-emerald-700">Gross Pay</p>
                 <p className="text-lg font-bold text-emerald-700">{fmtCurrency(registerSummary.totalGrossPay)}</p>
               </div>
-              <div className="nexus-card p-4 text-center">
+              <div className="thb-card p-4 text-center">
                 <p className="text-xs font-medium text-red-700">Deductions</p>
                 <p className="text-lg font-bold text-red-700">{fmtCurrency(registerSummary.totalDeductions)}</p>
               </div>
-              <div className="nexus-card p-4 text-center">
+              <div className="thb-card p-4 text-center">
                 <p className="text-xs font-medium text-blue-700">Net Pay</p>
                 <p className="text-lg font-bold text-blue-700">{fmtCurrency(registerSummary.totalNetPay)}</p>
               </div>
-              <div className="nexus-card p-4 text-center">
+              <div className="thb-card p-4 text-center">
                 <p className="text-xs font-medium text-purple-700">Employer Contrib</p>
                 <p className="text-lg font-bold text-purple-700">{fmtCurrency(registerSummary.totalEmployerContrib)}</p>
               </div>
@@ -426,7 +426,7 @@ export default function PayrollReportsPage() {
                   }));
                   handleExportCSV(exportRows, `salary_register_${registerYear}_${registerMonth}`);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 <FiDownload className="w-4 h-4" /> Export CSV
               </button>
@@ -435,29 +435,29 @@ export default function PayrollReportsPage() {
 
           {/* Table */}
           {registerData.length > 0 ? (
-            <div className="nexus-card overflow-hidden">
+            <div className="thb-card overflow-hidden">
               <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                 <table className="w-full min-w-[800px]">
                   <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-nexus-border bg-slate-50">
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Emp Code</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Gross Pay</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Deductions</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Net Pay</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Employer Contrib</th>
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Emp Code</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Name</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Department</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Gross Pay</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Deductions</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Net Pay</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Employer Contrib</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-nexus-border/50">
+                  <tbody className="divide-y divide-thb-border/50">
                     {registerData.map((row) => (
                       <tr key={row.employeeId} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{row.empCode}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-primary">{row.name}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{row.department}</td>
+                        <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{row.empCode}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-primary">{row.name}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-secondary">{row.department}</td>
                         <td className="px-3 py-2 text-sm text-right text-emerald-700 font-medium">{fmtCurrency(row.grossPay)}</td>
                         <td className="px-3 py-2 text-sm text-right text-red-700">{fmtCurrency(row.totalDeductions)}</td>
-                        <td className="px-3 py-2 text-sm text-right font-semibold text-nexus-text-primary">{fmtCurrency(row.netPay)}</td>
+                        <td className="px-3 py-2 text-sm text-right font-semibold text-thb-text-primary">{fmtCurrency(row.netPay)}</td>
                         <td className="px-3 py-2 text-sm text-right text-purple-700">{fmtCurrency(row.totalEmployerContrib)}</td>
                       </tr>
                     ))}
@@ -466,10 +466,10 @@ export default function PayrollReportsPage() {
               </div>
             </div>
           ) : !loading && (
-            <div className="nexus-card p-12 text-center">
-              <FiDatabase className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">No data loaded</p>
-              <p className="text-sm text-nexus-text-muted mt-1">Select filters and click Load to view salary register</p>
+            <div className="thb-card p-12 text-center">
+              <FiDatabase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No data loaded</p>
+              <p className="text-sm text-thb-text-muted mt-1">Select filters and click Load to view salary register</p>
             </div>
           )}
         </div>
@@ -485,7 +485,7 @@ export default function PayrollReportsPage() {
                 key={type}
                 onClick={() => setStatutoryType(type)}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  statutoryType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                  statutoryType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
                 }`}
               >
                 {type}
@@ -494,33 +494,33 @@ export default function PayrollReportsPage() {
           </div>
 
           {/* Filters */}
-          <div className="nexus-card p-4">
+          <div className="thb-card p-4">
             <div className="flex flex-col sm:flex-row gap-3 items-end">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Month</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Month</label>
                 <select
                   value={statutoryMonth}
                   onChange={(e) => setStatutoryMonth(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
                 >
                   {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Year</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Year</label>
                 <input
                   type="number"
                   value={statutoryYear}
                   onChange={(e) => setStatutoryYear(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
                 <select
                   value={statutoryCompanyId}
                   onChange={(e) => setStatutoryCompanyId(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
                   {companies.map(c => (
@@ -539,7 +539,7 @@ export default function PayrollReportsPage() {
               {statutoryData.length > 0 && (
                 <button
                   onClick={() => handleExportCSV(statutoryData as unknown as Record<string, unknown>[], `${statutoryType}_report_${statutoryYear}_${statutoryMonth}`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
                 >
                   <FiDownload className="w-4 h-4" /> Export CSV
                 </button>
@@ -551,9 +551,9 @@ export default function PayrollReportsPage() {
           {Object.keys(statutoryTotals).length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {Object.entries(statutoryTotals).map(([key, value]) => (
-                <div key={key} className="nexus-card p-4 text-center">
-                  <p className="text-xs font-medium text-nexus-text-secondary">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                  <p className="text-lg font-bold text-nexus-text-primary">{typeof value === 'number' ? fmtCurrency(value) : String(value)}</p>
+                <div key={key} className="thb-card p-4 text-center">
+                  <p className="text-xs font-medium text-thb-text-secondary">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                  <p className="text-lg font-bold text-thb-text-primary">{typeof value === 'number' ? fmtCurrency(value) : String(value)}</p>
                 </div>
               ))}
             </div>
@@ -561,27 +561,27 @@ export default function PayrollReportsPage() {
 
           {/* Table */}
           {statutoryData.length > 0 ? (
-            <div className="nexus-card overflow-hidden">
+            <div className="thb-card overflow-hidden">
               <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                 <table className="w-full min-w-[600px]">
                   <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-nexus-border bg-slate-50">
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Emp Code</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Emp Code</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Name</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Department</th>
                       {statutoryColumns.map(col => (
-                        <th key={col} className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">{col.replace(/([A-Z])/g, ' $1').trim()}</th>
+                        <th key={col} className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">{col.replace(/([A-Z])/g, ' $1').trim()}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-nexus-border/50">
+                  <tbody className="divide-y divide-thb-border/50">
                     {statutoryData.map((row) => (
                       <tr key={row.employeeId} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{row.empCode}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-primary">{row.name}</td>
-                        <td className="px-3 py-2 text-sm text-nexus-text-secondary">{row.department}</td>
+                        <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{row.empCode}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-primary">{row.name}</td>
+                        <td className="px-3 py-2 text-sm text-thb-text-secondary">{row.department}</td>
                         {statutoryColumns.map(col => (
-                          <td key={col} className="px-3 py-2 text-sm text-right text-nexus-text-primary">
+                          <td key={col} className="px-3 py-2 text-sm text-right text-thb-text-primary">
                             {typeof row[col] === 'number' ? fmtCurrency(row[col] as number) : String(row[col] ?? '—')}
                           </td>
                         ))}
@@ -592,10 +592,10 @@ export default function PayrollReportsPage() {
               </div>
             </div>
           ) : !loading && (
-            <div className="nexus-card p-12 text-center">
-              <FiShield className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">No data loaded</p>
-              <p className="text-sm text-nexus-text-muted mt-1">Select type and period, then click Load</p>
+            <div className="thb-card p-12 text-center">
+              <FiShield className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No data loaded</p>
+              <p className="text-sm text-thb-text-muted mt-1">Select type and period, then click Load</p>
             </div>
           )}
         </div>
@@ -624,24 +624,24 @@ export default function PayrollReportsPage() {
               const c = colorMap[report.color] || colorMap.blue;
               const IconComp = report.icon;
               return (
-                <div key={report.title} className="nexus-card nexus-card-hover p-5 group cursor-pointer">
+                <div key={report.title} className="thb-card thb-card-hover p-5 group cursor-pointer">
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center ${c.icon} ring-1 ${c.ring} flex-shrink-0`}>
                       <IconComp className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary">{report.title}</h3>
-                      <p className="text-xs text-nexus-text-muted mt-1">{report.desc}</p>
+                      <h3 className="text-sm font-semibold text-thb-text-primary">{report.title}</h3>
+                      <p className="text-xs text-thb-text-muted mt-1">{report.desc}</p>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="nexus-card p-8 text-center">
-            <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-            <p className="text-nexus-text-secondary font-medium">Standard Reports</p>
-            <p className="text-sm text-nexus-text-muted mt-1">Select a report type above to generate. Each report supports filtering by month/year/company and can be exported to CSV or printed.</p>
+          <div className="thb-card p-8 text-center">
+            <FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+            <p className="text-thb-text-secondary font-medium">Standard Reports</p>
+            <p className="text-sm text-thb-text-muted mt-1">Select a report type above to generate. Each report supports filtering by month/year/company and can be exported to CSV or printed.</p>
           </div>
         </div>
       )}
@@ -650,14 +650,14 @@ export default function PayrollReportsPage() {
       {activeTab === 'dashboard' && (
         <div className="space-y-4">
           {/* Company Filter */}
-          <div className="nexus-card p-4">
+          <div className="thb-card p-4">
             <div className="flex flex-col sm:flex-row gap-3 items-end">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
                 <select
                   value={dashboardCompanyId}
                   onChange={(e) => setDashboardCompanyId(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
                   {companies.map(c => (
@@ -680,46 +680,46 @@ export default function PayrollReportsPage() {
             <>
               {/* Key Metrics Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
                       <FiUsers className="w-5 h-5 text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Employees Processed</p>
-                      <p className="text-xl font-bold text-nexus-text-primary">{dashboardMetrics.totalEmployeesProcessed}</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Employees Processed</p>
+                      <p className="text-xl font-bold text-thb-text-primary">{dashboardMetrics.totalEmployeesProcessed}</p>
                     </div>
                   </div>
                 </div>
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                       <FiDollarSign className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Total Gross Pay</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Total Gross Pay</p>
                       <p className="text-lg font-bold text-emerald-700">{fmtCurrency(dashboardMetrics.totalGrossPay)}</p>
                     </div>
                   </div>
                 </div>
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
                       <FiTrendingUp className="w-5 h-5 text-red-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Total Deductions</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Total Deductions</p>
                       <p className="text-lg font-bold text-red-700">{fmtCurrency(dashboardMetrics.totalDeductions)}</p>
                     </div>
                   </div>
                 </div>
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
                       <FiCheckCircle className="w-5 h-5 text-green-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Total Net Pay</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Total Net Pay</p>
                       <p className="text-lg font-bold text-green-700">{fmtCurrency(dashboardMetrics.totalNetPay)}</p>
                     </div>
                   </div>
@@ -727,46 +727,46 @@ export default function PayrollReportsPage() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
                       <FiShield className="w-5 h-5 text-purple-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Employer Contrib</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Employer Contrib</p>
                       <p className="text-lg font-bold text-purple-700">{fmtCurrency(dashboardMetrics.totalEmployerContrib)}</p>
                     </div>
                   </div>
                 </div>
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
                       <FiClock className="w-5 h-5 text-amber-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Pending Approvals</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Pending Approvals</p>
                       <p className="text-xl font-bold text-amber-700">{dashboardMetrics.pendingApprovals}</p>
                     </div>
                   </div>
                 </div>
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center">
                       <FiAlertTriangle className="w-5 h-5 text-rose-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Active Holds</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Active Holds</p>
                       <p className="text-xl font-bold text-rose-700">{dashboardMetrics.activeHolds}</p>
                     </div>
                   </div>
                 </div>
-                <div className="nexus-card nexus-card-hover p-4">
+                <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center">
                       <FiUsers className="w-5 h-5 text-sky-500" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-secondary">Active Employees</p>
+                      <p className="text-xs font-medium text-thb-text-secondary">Active Employees</p>
                       <p className="text-xl font-bold text-sky-700">{dashboardMetrics.totalActiveEmployees}</p>
                     </div>
                   </div>
@@ -776,8 +776,8 @@ export default function PayrollReportsPage() {
               {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Monthly Trend */}
-                <div className="nexus-card p-6">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Monthly Payroll Trend (6 months)</h3>
+                <div className="thb-card p-6">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Monthly Payroll Trend (6 months)</h3>
                   {monthlyTrend.length > 0 ? (
                     <MiniBarChart
                       data={monthlyTrend.map(t => ({ label: t.period, value: t.netPay }))}
@@ -785,27 +785,27 @@ export default function PayrollReportsPage() {
                       color="green"
                     />
                   ) : (
-                    <p className="text-sm text-nexus-text-muted text-center py-8">No trend data available</p>
+                    <p className="text-sm text-thb-text-muted text-center py-8">No trend data available</p>
                   )}
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-nexus-border">
-                          <th className="text-left px-2 py-1 text-xs font-medium text-nexus-text-secondary">Period</th>
-                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Gross</th>
-                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Deductions</th>
-                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Net</th>
-                          <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Emp Count</th>
+                        <tr className="border-b border-thb-border">
+                          <th className="text-left px-2 py-1 text-xs font-medium text-thb-text-secondary">Period</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Gross</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Deductions</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Net</th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Emp Count</th>
                         </tr>
                       </thead>
                       <tbody>
                         {monthlyTrend.map(t => (
-                          <tr key={t.period} className="border-b border-nexus-border/30 hover:bg-slate-50/50">
-                            <td className="px-2 py-1.5 font-medium text-nexus-text-primary">{t.period}</td>
+                          <tr key={t.period} className="border-b border-thb-border/30 hover:bg-slate-50/50">
+                            <td className="px-2 py-1.5 font-medium text-thb-text-primary">{t.period}</td>
                             <td className="px-2 py-1.5 text-right text-emerald-700">{fmtCurrency(t.grossPay)}</td>
                             <td className="px-2 py-1.5 text-right text-red-700">{fmtCurrency(t.deductions)}</td>
-                            <td className="px-2 py-1.5 text-right font-semibold text-nexus-text-primary">{fmtCurrency(t.netPay)}</td>
-                            <td className="px-2 py-1.5 text-right text-nexus-text-secondary">{t.employees}</td>
+                            <td className="px-2 py-1.5 text-right font-semibold text-thb-text-primary">{fmtCurrency(t.netPay)}</td>
+                            <td className="px-2 py-1.5 text-right text-thb-text-secondary">{t.employees}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -814,8 +814,8 @@ export default function PayrollReportsPage() {
                 </div>
 
                 {/* Department Breakdown */}
-                <div className="nexus-card p-6">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-4">Department-wise Salary Breakdown</h3>
+                <div className="thb-card p-6">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Department-wise Salary Breakdown</h3>
                   {deptBreakdown.length > 0 ? (
                     <>
                       <MiniBarChart
@@ -826,20 +826,20 @@ export default function PayrollReportsPage() {
                       <div className="mt-4 overflow-x-auto max-h-64 overflow-y-auto">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="border-b border-nexus-border">
-                              <th className="text-left px-2 py-1 text-xs font-medium text-nexus-text-secondary">Department</th>
-                              <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Headcount</th>
-                              <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Total Salary</th>
-                              <th className="text-right px-2 py-1 text-xs font-medium text-nexus-text-secondary">Avg Salary</th>
+                            <tr className="border-b border-thb-border">
+                              <th className="text-left px-2 py-1 text-xs font-medium text-thb-text-secondary">Department</th>
+                              <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Headcount</th>
+                              <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Total Salary</th>
+                              <th className="text-right px-2 py-1 text-xs font-medium text-thb-text-secondary">Avg Salary</th>
                             </tr>
                           </thead>
                           <tbody>
                             {deptBreakdown.map(d => (
-                              <tr key={d.departmentId} className="border-b border-nexus-border/30 hover:bg-slate-50/50">
-                                <td className="px-2 py-1.5 font-medium text-nexus-text-primary">{d.departmentName}</td>
-                                <td className="px-2 py-1.5 text-right text-nexus-text-secondary">{d.headcount}</td>
-                                <td className="px-2 py-1.5 text-right font-semibold text-nexus-text-primary">{fmtCurrency(d.totalSalary)}</td>
-                                <td className="px-2 py-1.5 text-right text-nexus-text-secondary">{fmtCurrency(d.avgSalary)}</td>
+                              <tr key={d.departmentId} className="border-b border-thb-border/30 hover:bg-slate-50/50">
+                                <td className="px-2 py-1.5 font-medium text-thb-text-primary">{d.departmentName}</td>
+                                <td className="px-2 py-1.5 text-right text-thb-text-secondary">{d.headcount}</td>
+                                <td className="px-2 py-1.5 text-right font-semibold text-thb-text-primary">{fmtCurrency(d.totalSalary)}</td>
+                                <td className="px-2 py-1.5 text-right text-thb-text-secondary">{fmtCurrency(d.avgSalary)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -847,16 +847,16 @@ export default function PayrollReportsPage() {
                       </div>
                     </>
                   ) : (
-                    <p className="text-sm text-nexus-text-muted text-center py-8">No department data available</p>
+                    <p className="text-sm text-thb-text-muted text-center py-8">No department data available</p>
                   )}
                 </div>
               </div>
             </>
           ) : !loading && (
-            <div className="nexus-card p-12 text-center">
-              <FiBarChart2 className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">Dashboard not loaded</p>
-              <p className="text-sm text-nexus-text-muted mt-1">Click Load Dashboard to view payroll metrics</p>
+            <div className="thb-card p-12 text-center">
+              <FiBarChart2 className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">Dashboard not loaded</p>
+              <p className="text-sm text-thb-text-muted mt-1">Click Load Dashboard to view payroll metrics</p>
             </div>
           )}
         </div>

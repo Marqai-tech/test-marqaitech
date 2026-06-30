@@ -113,13 +113,13 @@ export default function CandidateFlowAnalyticsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <Link href="/recruitment" className="inline-flex items-center gap-1 text-xs text-nexus-text-secondary hover:text-nexus-text-primary mb-2">
+          <Link href="/recruitment" className="inline-flex items-center gap-1 text-xs text-thb-text-secondary hover:text-thb-text-primary mb-2">
             <FiArrowLeft className="w-3 h-3" /> Back to Recruitment
           </Link>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBarChart2 className="w-6 h-6 text-violet-600" /> Candidate Flow Analytics
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Track registrations, applications, resume uploads, and the candidate-to-hire funnel
           </p>
         </div>
@@ -127,7 +127,7 @@ export default function CandidateFlowAnalyticsPage() {
           <select
             value={days}
             onChange={(e) => setDays(parseInt(e.target.value, 10))}
-            className="px-3 py-2 border border-nexus-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-2 border border-thb-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             <option value={7}>Last 7 days</option>
             <option value={30}>Last 30 days</option>
@@ -138,7 +138,7 @@ export default function CandidateFlowAnalyticsPage() {
           <button
             onClick={() => fetchData(days)}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 disabled:opacity-50"
           >
             <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
@@ -164,9 +164,9 @@ export default function CandidateFlowAnalyticsPage() {
       />
 
       {loading || !data ? (
-        <div className="nexus-card p-12 text-center">
+        <div className="thb-card p-12 text-center">
           <div className="w-10 h-10 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-nexus-text-secondary">Loading candidate flow analytics…</p>
+          <p className="text-sm text-thb-text-secondary">Loading candidate flow analytics…</p>
         </div>
       ) : (
         <>
@@ -217,11 +217,11 @@ export default function CandidateFlowAnalyticsPage() {
           </div>
 
           {/* Conversion funnel */}
-          <div className="nexus-card p-5">
-            <h3 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+          <div className="thb-card p-5">
+            <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
               <FiActivity className="w-4 h-4 text-violet-600" /> Candidate Conversion Funnel
             </h3>
-            <p className="text-xs text-nexus-text-muted mb-4">
+            <p className="text-xs text-thb-text-muted mb-4">
               How candidates progress through each stage of the hiring pipeline
             </p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -264,7 +264,7 @@ export default function CandidateFlowAnalyticsPage() {
                 />
                 <div className="pt-3 mt-3 border-t border-slate-100">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-nexus-text-primary">Overall: Applied → Hired</span>
+                    <span className="text-sm font-semibold text-thb-text-primary">Overall: Applied → Hired</span>
                     <span className={`text-lg font-bold ${data.conversion.overall_applied_to_hire >= 10 ? 'text-emerald-600' : data.conversion.overall_applied_to_hire >= 5 ? 'text-amber-600' : 'text-rose-600'}`}>
                       {data.conversion.overall_applied_to_hire}%
                     </span>
@@ -276,11 +276,11 @@ export default function CandidateFlowAnalyticsPage() {
 
           {/* Time-series: registrations + applications over time */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
                 <FiUsers className="w-4 h-4 text-blue-500" /> Candidate Registrations Over Time
               </h3>
-              <p className="text-xs text-nexus-text-muted mb-4">New unique candidate emails (first application date)</p>
+              <p className="text-xs text-thb-text-muted mb-4">New unique candidate emails (first application date)</p>
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={data.registrationsOverTime} margin={{ left: -10, right: 10 }}>
                   <defs>
@@ -298,11 +298,11 @@ export default function CandidateFlowAnalyticsPage() {
               </ResponsiveContainer>
             </div>
 
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
                 <FiBriefcase className="w-4 h-4 text-violet-500" /> Applications Over Time
               </h3>
-              <p className="text-xs text-nexus-text-muted mb-4">All job applications submitted (daily)</p>
+              <p className="text-xs text-thb-text-muted mb-4">All job applications submitted (daily)</p>
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={data.applicationsOverTime} margin={{ left: -10, right: 10 }}>
                   <defs>
@@ -324,8 +324,8 @@ export default function CandidateFlowAnalyticsPage() {
           {/* Applications by company / department / job / source / tenant */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* By company */}
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiBriefcase className="w-4 h-4 text-emerald-600" /> Applications by Company
               </h3>
               <ResponsiveContainer width="100%" height={280}>
@@ -340,8 +340,8 @@ export default function CandidateFlowAnalyticsPage() {
             </div>
 
             {/* By department */}
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiUsers className="w-4 h-4 text-blue-600" /> Applications by Department
               </h3>
               <ResponsiveContainer width="100%" height={280}>
@@ -356,12 +356,12 @@ export default function CandidateFlowAnalyticsPage() {
             </div>
 
             {/* By source */}
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiTarget className="w-4 h-4 text-amber-600" /> Application Sources
               </h3>
               {data.bySource.length === 0 ? (
-                <p className="text-sm text-nexus-text-muted text-center py-12">No source data</p>
+                <p className="text-sm text-thb-text-muted text-center py-12">No source data</p>
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
@@ -397,12 +397,12 @@ export default function CandidateFlowAnalyticsPage() {
             </div>
 
             {/* Resume parse by format */}
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiFileText className="w-4 h-4 text-rose-600" /> Resume Uploads by Format
               </h3>
               {data.resumeBySourceFormat.length === 0 ? (
-                <p className="text-sm text-nexus-text-muted text-center py-12">No resumes parsed yet</p>
+                <p className="text-sm text-thb-text-muted text-center py-12">No resumes parsed yet</p>
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
@@ -429,25 +429,25 @@ export default function CandidateFlowAnalyticsPage() {
 
           {/* Top job postings + Top skills */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiBriefcase className="w-4 h-4 text-violet-600" /> Top Job Postings by Applications
               </h3>
               {data.byJobPosting.length === 0 ? (
-                <p className="text-sm text-nexus-text-muted text-center py-12">No applications yet</p>
+                <p className="text-sm text-thb-text-muted text-center py-12">No applications yet</p>
               ) : (
                 <div className="space-y-2">
                   {data.byJobPosting.map((job, i) => (
                     <div key={job.id} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                      <span className="text-xs font-mono text-nexus-text-muted w-6">#{i + 1}</span>
+                      <span className="text-xs font-mono text-thb-text-muted w-6">#{i + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <Link href={`/recruitment/${job.id}`} className="text-sm font-medium text-nexus-text-primary hover:text-violet-600 hover:underline truncate block">
+                        <Link href={`/recruitment/${job.id}`} className="text-sm font-medium text-thb-text-primary hover:text-violet-600 hover:underline truncate block">
                           {job.title}
                         </Link>
-                        {job.company && <p className="text-xs text-nexus-text-muted">{job.company}</p>}
+                        {job.company && <p className="text-xs text-thb-text-muted">{job.company}</p>}
                       </div>
                       <span className="text-sm font-bold text-violet-600">{job.count}</span>
-                      <Link href={`/recruitment/${job.id}`} className="text-nexus-text-muted hover:text-violet-600">
+                      <Link href={`/recruitment/${job.id}`} className="text-thb-text-muted hover:text-violet-600">
                         <FiExternalLink className="w-3.5 h-3.5" />
                       </Link>
                     </div>
@@ -456,12 +456,12 @@ export default function CandidateFlowAnalyticsPage() {
               )}
             </div>
 
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiAward className="w-4 h-4 text-amber-600" /> Top Skills (from parsed resumes)
               </h3>
               {data.topSkills.length === 0 ? (
-                <p className="text-sm text-nexus-text-muted text-center py-12">No parsed resumes with skills yet</p>
+                <p className="text-sm text-thb-text-muted text-center py-12">No parsed resumes with skills yet</p>
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={data.topSkills.slice(0, 12)} layout="vertical" margin={{ left: 20, right: 20 }}>
@@ -478,16 +478,16 @@ export default function CandidateFlowAnalyticsPage() {
 
           {/* Tenant breakdown (only useful if multiple tenants) */}
           {data.byTenant.length > 1 && (
-            <div className="nexus-card p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+            <div className="thb-card p-5">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiUsers className="w-4 h-4 text-indigo-600" /> Applications by Tenant
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {data.byTenant.map(t => (
                   <div key={t.id} className="p-3 rounded-lg border border-slate-200 bg-slate-50">
-                    <p className="text-xs font-medium text-nexus-text-secondary truncate">{t.name}</p>
-                    <p className="text-xl font-bold text-nexus-text-primary mt-1">{t.count}</p>
-                    <p className="text-[10px] text-nexus-text-muted">applications</p>
+                    <p className="text-xs font-medium text-thb-text-secondary truncate">{t.name}</p>
+                    <p className="text-xl font-bold text-thb-text-primary mt-1">{t.count}</p>
+                    <p className="text-[10px] text-thb-text-muted">applications</p>
                   </div>
                 ))}
               </div>
@@ -503,14 +503,14 @@ function KpiCard({
   icon, label, value, sublabel, accent,
 }: { icon: React.ReactNode; label: string; value: string; sublabel?: string; accent: string }) {
   return (
-    <div className="nexus-card p-4 flex items-start gap-3">
+    <div className="thb-card p-4 flex items-start gap-3">
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-medium text-nexus-text-secondary uppercase tracking-wider truncate">{label}</p>
-        <p className="text-xl font-bold text-nexus-text-primary mt-0.5 truncate">{value}</p>
-        {sublabel && <p className="text-[10px] text-nexus-text-muted mt-0.5 truncate">{sublabel}</p>}
+        <p className="text-[10px] font-medium text-thb-text-secondary uppercase tracking-wider truncate">{label}</p>
+        <p className="text-xl font-bold text-thb-text-primary mt-0.5 truncate">{value}</p>
+        {sublabel && <p className="text-[10px] text-thb-text-muted mt-0.5 truncate">{sublabel}</p>}
       </div>
     </div>
   );
@@ -521,8 +521,8 @@ function ConversionRow({ label, rate, from, to }: { label: string; rate: number;
   return (
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-xs font-medium text-nexus-text-primary">{label}</p>
-        <p className="text-[10px] text-nexus-text-muted">{from} → {to}</p>
+        <p className="text-xs font-medium text-thb-text-primary">{label}</p>
+        <p className="text-[10px] text-thb-text-muted">{from} → {to}</p>
       </div>
       <span className={`text-sm font-bold ${color}`}>{rate}%</span>
     </div>

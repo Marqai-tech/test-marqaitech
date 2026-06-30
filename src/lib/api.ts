@@ -1,4 +1,4 @@
-// API helper functions for Nexus HRMS
+// API helper functions for 3Boxes HRMS
 import type { UserRole } from '@/lib/types';
 
 const API_BASE = '/api';

@@ -100,7 +100,7 @@ interface WizardState {
 
 // ─── Constants ───────────────────────────────────────────────────────
 
-const WIZARD_STORAGE_KEY = 'nexus_setup_wizard_state';
+const WIZARD_STORAGE_KEY = '3boxes_setup_wizard_state';
 
 const STEPS = [
   { id: 1, title: 'Welcome', icon: FiHome },
@@ -548,7 +548,7 @@ export default function SetupWizardPage() {
 
   const saveAttendanceAndPayroll = () => {
     // Save to localStorage (same pattern as Settings page)
-    const settingsKey = 'nexus_hrms_settings';
+    const settingsKey = '3boxes_hrms_settings';
     try {
       const existing = localStorage.getItem(settingsKey);
       const settings = existing ? JSON.parse(existing) : {};
@@ -647,7 +647,7 @@ export default function SetupWizardPage() {
       {showCelebration && <CelebrationOverlay />}
 
       {/* ─── Stepper ──────────────────────────────────────────────────── */}
-      <div className="nexus-card p-4 mb-6">
+      <div className="thb-card p-4 mb-6">
         <div className="flex items-center justify-between overflow-x-auto gap-1">
           {STEPS.map((step, idx) => {
             const StepIcon = step.icon;
@@ -754,7 +754,7 @@ export default function SetupWizardPage() {
 
       {/* ─── Navigation Buttons ────────────────────────────────────────── */}
       {!wizard.completed && (
-        <div className="nexus-card p-4 mt-6 flex items-center justify-between">
+        <div className="thb-card p-4 mt-6 flex items-center justify-between">
           <button
             onClick={goBack}
             disabled={wizard.currentStep === 1}
@@ -796,7 +796,7 @@ export default function SetupWizardPage() {
 
       {/* ─── Completed State ────────────────────────────────────────────── */}
       {wizard.completed && (
-        <div className="nexus-card p-8 mt-6 text-center">
+        <div className="thb-card p-8 mt-6 text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
             <FiCheckCircle className="w-8 h-8 text-emerald-600" />
           </div>
@@ -820,7 +820,7 @@ export default function SetupWizardPage() {
 
 function StepWelcome({ tenantName }: { tenantName: string }) {
   return (
-    <div className="nexus-card p-8 text-center">
+    <div className="thb-card p-8 text-center">
       {/* Logo placeholder */}
       <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-violet-500/25">
         <FiStar className="w-10 h-10 text-white" />
@@ -870,7 +870,7 @@ function StepCompanyDetails({
   onUpdate: (field: string, value: string) => void;
 }) {
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
           <FiBriefcase className="w-5 h-5 text-blue-500" />
@@ -1050,7 +1050,7 @@ function StepOrganizationStructure({
   ];
 
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
           <FiUsers className="w-5 h-5 text-emerald-500" />
@@ -1313,7 +1313,7 @@ function StepEmployeeImport() {
   };
 
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
           <FiUpload className="w-5 h-5 text-amber-500" />
@@ -1410,7 +1410,7 @@ function StepLeavePolicies({
   };
 
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center">
           <FiCalendar className="w-5 h-5 text-rose-500" />
@@ -1523,7 +1523,7 @@ function StepAttendanceRules({
   };
 
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
           <FiClock className="w-5 h-5 text-cyan-500" />
@@ -1647,7 +1647,7 @@ function StepPayrollSettings({
   onUpdate: (field: string, value: string | number) => void;
 }) {
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
           <FiDollarSign className="w-5 h-5 text-green-500" />
@@ -1770,7 +1770,7 @@ function StepInviteComplete({
   const emailCount = emails.split(/[,\n]/).filter((e) => e.trim().includes('@')).length;
 
   return (
-    <div className="nexus-card p-6">
+    <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
           <FiMail className="w-5 h-5 text-violet-500" />

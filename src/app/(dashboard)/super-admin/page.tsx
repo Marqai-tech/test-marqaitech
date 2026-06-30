@@ -77,19 +77,19 @@ interface DashboardData {
 
 // ─── Badge Helpers ────────────────────────────────────────
 const planBadgeCls: Record<string, string> = {
-  starter: 'nexus-badge nexus-badge-info',
-  professional: 'nexus-badge nexus-badge-primary',
-  enterprise: 'nexus-badge nexus-badge-purple',
-  global_enterprise: 'nexus-badge nexus-badge-purple',
-  staffing: 'nexus-badge nexus-badge-warning',
-  white_label: 'nexus-badge nexus-badge-error',
+  starter: 'thb-badge thb-badge-info',
+  professional: 'thb-badge thb-badge-primary',
+  enterprise: 'thb-badge thb-badge-purple',
+  global_enterprise: 'thb-badge thb-badge-purple',
+  staffing: 'thb-badge thb-badge-warning',
+  white_label: 'thb-badge thb-badge-error',
 };
 
 const statusBadgeCls: Record<string, string> = {
-  active: 'nexus-badge nexus-badge-success',
-  suspended: 'nexus-badge nexus-badge-warning',
-  inactive: 'nexus-badge nexus-badge-error',
-  pending_approval: 'nexus-badge nexus-badge-info',
+  active: 'thb-badge thb-badge-success',
+  suspended: 'thb-badge thb-badge-warning',
+  inactive: 'thb-badge thb-badge-error',
+  pending_approval: 'thb-badge thb-badge-info',
 };
 
 const planTypeLabel: Record<string, string> = {
@@ -653,9 +653,9 @@ export default function SuperAdminPage() {
   if (user?.role !== 'super_admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <FiShield className="w-16 h-16 text-nexus-text-muted" />
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Access Restricted</h2>
-        <p className="text-nexus-text-secondary">This page is only accessible to Super Admins.</p>
+        <FiShield className="w-16 h-16 text-thb-text-muted" />
+        <h2 className="text-xl font-semibold text-thb-text-primary">Access Restricted</h2>
+        <p className="text-thb-text-secondary">This page is only accessible to Super Admins.</p>
       </div>
     );
   }
@@ -670,9 +670,9 @@ export default function SuperAdminPage() {
   ];
 
   // ─── Input/Select helpers ───────────────────────────────
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
-  const labelCls = 'block text-xs font-medium text-nexus-text-secondary mb-1';
-  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const labelCls = 'block text-xs font-medium text-thb-text-secondary mb-1';
+  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
 
   // ═════════════════════════════════════════════════════════
   //  RENDER
@@ -722,7 +722,7 @@ export default function SuperAdminPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="nexus-badge nexus-badge-success text-[10px] flex-shrink-0">{t.slug}</span>
+                    <span className="thb-badge thb-badge-success text-[10px] flex-shrink-0">{t.slug}</span>
                   </div>
                 </div>
               ))}
@@ -754,19 +754,19 @@ export default function SuperAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary">Super Admin Dashboard</h1>
-          <p className="text-nexus-text-secondary mt-1">Platform management &amp; tenant administration</p>
+          <h1 className="text-2xl font-bold text-thb-text-primary">Super Admin Dashboard</h1>
+          <p className="text-thb-text-secondary mt-1">Platform management &amp; tenant administration</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           {/* Quick tenant switcher — visible on every tab so super admin can
               quickly switch the "active tenant" they're inspecting. */}
           {tenants.length > 0 && (
             <div className="flex items-center gap-1.5">
-              <label className="text-[11px] font-semibold text-nexus-text-muted uppercase tracking-wider">Viewing tenant:</label>
+              <label className="text-[11px] font-semibold text-thb-text-muted uppercase tracking-wider">Viewing tenant:</label>
               <select
                 value={groupTenantFilter}
                 onChange={(e) => setGroupTenantFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-nexus-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer max-w-[220px]"
+                className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer max-w-[220px]"
                 title="Filter Group Companies tab by tenant"
               >
                 <option value="">All tenants ({tenants.length})</option>
@@ -820,7 +820,7 @@ export default function SuperAdminPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit overflow-x-auto">
         {tabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.key ? 'bg-white shadow-sm text-nexus-text-primary' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.key ? 'bg-white shadow-sm text-thb-text-primary' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
             {tab.icon} {tab.label}
           </button>
         ))}
@@ -835,7 +835,7 @@ export default function SuperAdminPage() {
               complaint: instead of just rendering zeroed KPI cards, we tell
               the user exactly what to do next. */}
           {dashboard && dashboard.totalTenants === 0 && (
-            <div className="nexus-card p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
+            <div className="thb-card p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center flex-shrink-0">
                   <FiDatabase className="w-6 h-6" />
@@ -863,7 +863,7 @@ export default function SuperAdminPage() {
           {dashLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="nexus-card p-5 animate-pulse">
+                <div key={i} className="thb-card p-5 animate-pulse">
                   <div className="h-4 w-24 bg-slate-200 rounded mb-2" />
                   <div className="h-8 w-16 bg-slate-100 rounded" />
                 </div>
@@ -873,68 +873,68 @@ export default function SuperAdminPage() {
             <>
               {/* KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="nexus-card p-5">
+                <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-muted">Total Tenants</p>
-                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.totalTenants}</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Tenants</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalTenants}</p>
                       <div className="flex gap-2 mt-2">
-                        <span className="nexus-badge nexus-badge-success text-[10px]">{dashboard.activeTenants} active</span>
-                        <span className="nexus-badge nexus-badge-warning text-[10px]">{dashboard.suspendedTenants} suspended</span>
-                        <span className="nexus-badge nexus-badge-error text-[10px]">{dashboard.inactiveTenants} inactive</span>
+                        <span className="thb-badge thb-badge-success text-[10px]">{dashboard.activeTenants} active</span>
+                        <span className="thb-badge thb-badge-warning text-[10px]">{dashboard.suspendedTenants} suspended</span>
+                        <span className="thb-badge thb-badge-error text-[10px]">{dashboard.inactiveTenants} inactive</span>
                       </div>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500"><FiServer className="w-5 h-5" /></div>
                   </div>
                 </div>
 
-                <div className="nexus-card p-5">
+                <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-muted">Total Group Companies</p>
-                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.totalGroupCompanies ?? 0}</p>
-                      <p className="text-[10px] text-nexus-text-muted mt-2">Parent groups created under tenants</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Group Companies</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalGroupCompanies ?? 0}</p>
+                      <p className="text-[10px] text-thb-text-muted mt-2">Parent groups created under tenants</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50 text-violet-500"><FiLayers className="w-5 h-5" /></div>
                   </div>
                 </div>
 
-                <div className="nexus-card p-5">
+                <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-muted">Total Companies</p>
-                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.totalCompanies}</p>
-                      <p className="text-[10px] text-nexus-text-muted mt-2">Inducted under group companies</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Companies</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalCompanies}</p>
+                      <p className="text-[10px] text-thb-text-muted mt-2">Inducted under group companies</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-500"><FiHome className="w-5 h-5" /></div>
                   </div>
                 </div>
 
-                <div className="nexus-card p-5">
+                <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-muted">Total Employees</p>
-                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.totalEmployees}</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Employees</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalEmployees}</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-50 text-amber-500"><FiUsers className="w-5 h-5" /></div>
                   </div>
                 </div>
 
-                <div className="nexus-card p-5">
+                <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-nexus-text-muted">Total Revenue</p>
-                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">${dashboard.totalRevenue.toLocaleString()}</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Revenue</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">${dashboard.totalRevenue.toLocaleString()}</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-500"><FiDollarSign className="w-5 h-5" /></div>
                   </div>
                 </div>
 
-                <div className="nexus-card p-5">
+                <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="text-xs font-medium text-nexus-text-muted">Platform Health</p>
-                      <p className="text-2xl font-bold text-nexus-text-primary mt-1">{dashboard.platformHealth}%</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Platform Health</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.platformHealth}%</p>
                       <div className="mt-2 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${dashboard.platformHealth}%` }} />
                       </div>
@@ -945,10 +945,10 @@ export default function SuperAdminPage() {
               </div>
 
               {/* Recent Activity */}
-              <div className="nexus-card p-5">
-                <h3 className="font-semibold text-nexus-text-primary mb-4 flex items-center gap-2"><FiClock className="w-4 h-4" /> Recent Activity</h3>
+              <div className="thb-card p-5">
+                <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiClock className="w-4 h-4" /> Recent Activity</h3>
                 {dashboard.recentActivity.length === 0 ? (
-                  <div className="text-center py-8 text-nexus-text-muted"><FiFileText className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No recent activity</p></div>
+                  <div className="text-center py-8 text-thb-text-muted"><FiFileText className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No recent activity</p></div>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {dashboard.recentActivity.map((log) => (
@@ -957,11 +957,11 @@ export default function SuperAdminPage() {
                           {log.user?.name?.[0] || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-nexus-text-primary font-medium">{log.user?.name || 'System'}</p>
-                          <p className="text-xs text-nexus-text-secondary truncate">{log.details || log.action}</p>
-                          <p className="text-[10px] text-nexus-text-muted mt-0.5">{new Date(log.createdAt).toLocaleString()}</p>
+                          <p className="text-sm text-thb-text-primary font-medium">{log.user?.name || 'System'}</p>
+                          <p className="text-xs text-thb-text-secondary truncate">{log.details || log.action}</p>
+                          <p className="text-[10px] text-thb-text-muted mt-0.5">{new Date(log.createdAt).toLocaleString()}</p>
                         </div>
-                        <span className="nexus-badge nexus-badge-info text-[10px] flex-shrink-0">{log.action.replace(/_/g, ' ')}</span>
+                        <span className="thb-badge thb-badge-info text-[10px] flex-shrink-0">{log.action.replace(/_/g, ' ')}</span>
                       </div>
                     ))}
                   </div>
@@ -977,32 +977,32 @@ export default function SuperAdminPage() {
         <div className="space-y-4">
           {/* View Tenant Panel */}
           {viewingTenantId && viewingTenant && (
-            <div ref={viewRef} className="nexus-card border-l-4 border-l-emerald-500 p-6">
+            <div ref={viewRef} className="thb-card border-l-4 border-l-emerald-500 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary">Tenant Details</h3>
+                <h3 className="text-lg font-semibold text-thb-text-primary">Tenant Details</h3>
                 <div className="flex gap-2">
                   <button onClick={handleEditTenantFromView} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
-                  <button onClick={() => { setViewingTenantId(null); setViewingTenant(null); }} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+                  <button onClick={() => { setViewingTenantId(null); setViewingTenant(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div><p className="text-xs text-nexus-text-muted">Name</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.name}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Slug</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.slug}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Domain</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.domain || '—'}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Plan</p><span className={planBadgeCls[viewingTenant.plan] || 'nexus-badge nexus-badge-info'}>{planTypeLabel[viewingTenant.plan] || viewingTenant.plan}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">Status</p><span className={statusBadgeCls[viewingTenant.status] || 'nexus-badge nexus-badge-info'}>{viewingTenant.status}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">Country</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.country || '—'}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Currency</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.currency}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Timezone</p><p className="text-sm font-medium text-nexus-text-primary">{viewingTenant.timezone}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Created</p><p className="text-sm font-medium text-nexus-text-primary">{new Date(viewingTenant.createdAt).toLocaleDateString()}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Name</p><p className="text-sm font-medium text-thb-text-primary">{viewingTenant.name}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Slug</p><p className="text-sm font-medium text-thb-text-primary">{viewingTenant.slug}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Domain</p><p className="text-sm font-medium text-thb-text-primary">{viewingTenant.domain || '—'}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Plan</p><span className={planBadgeCls[viewingTenant.plan] || 'thb-badge thb-badge-info'}>{planTypeLabel[viewingTenant.plan] || viewingTenant.plan}</span></div>
+                <div><p className="text-xs text-thb-text-muted">Status</p><span className={statusBadgeCls[viewingTenant.status] || 'thb-badge thb-badge-info'}>{viewingTenant.status}</span></div>
+                <div><p className="text-xs text-thb-text-muted">Country</p><p className="text-sm font-medium text-thb-text-primary">{viewingTenant.country || '—'}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Currency</p><p className="text-sm font-medium text-thb-text-primary">{viewingTenant.currency}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Timezone</p><p className="text-sm font-medium text-thb-text-primary">{viewingTenant.timezone}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Created</p><p className="text-sm font-medium text-thb-text-primary">{new Date(viewingTenant.createdAt).toLocaleDateString()}</p></div>
                 <div className="sm:col-span-2 lg:col-span-2">
-                  <p className="text-xs text-nexus-text-muted">Max companies allowed for tenant admin</p>
-                  <p className="text-sm font-medium text-nexus-text-primary flex items-center gap-2">
+                  <p className="text-xs text-thb-text-muted">Max companies allowed for tenant admin</p>
+                  <p className="text-sm font-medium text-thb-text-primary flex items-center gap-2">
                     <FiShield className="w-3.5 h-3.5 text-amber-500" />
                     {viewingTenant.maxCompaniesAllowed && viewingTenant.maxCompaniesAllowed > 0
                       ? `${viewingTenant.maxCompaniesAllowed} companies max`
                       : 'Unlimited (no cap)'}
-                    <span className="text-xs text-nexus-text-muted font-normal">
+                    <span className="text-xs text-thb-text-muted font-normal">
                       · {viewingTenant._count?.companyGroups || 0} groups created so far
                     </span>
                   </p>
@@ -1012,7 +1012,7 @@ export default function SuperAdminPage() {
               {/* Company Groups */}
               {viewingTenant.companyGroups && viewingTenant.companyGroups.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiGlobe className="w-4 h-4" /> Company Groups</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiGlobe className="w-4 h-4" /> Company Groups</h4>
                   <div className="space-y-3">
                     {viewingTenant.companyGroups.map((cg) => {
                       // Defensive: `companies` may be missing in some fallback
@@ -1020,8 +1020,8 @@ export default function SuperAdminPage() {
                       // throw "Cannot read properties of undefined (reading 'length')".
                       const companies = Array.isArray(cg.companies) ? cg.companies : [];
                       return (
-                        <div key={cg.id} className="border border-nexus-border rounded-lg p-4">
-                          <p className="text-sm font-semibold text-nexus-text-primary mb-2">{cg.name}</p>
+                        <div key={cg.id} className="border border-thb-border rounded-lg p-4">
+                          <p className="text-sm font-semibold text-thb-text-primary mb-2">{cg.name}</p>
                           {companies.length > 0 ? (
                             <div className="space-y-2">
                               {companies.map((comp) => {
@@ -1029,9 +1029,9 @@ export default function SuperAdminPage() {
                                 const branches = comp._count?.branches ?? 0;
                                 const employees = comp._count?.employees ?? 0;
                                 return (
-                                  <div key={comp.id} className="flex items-center gap-4 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
-                                    <span className="font-medium text-nexus-text-primary">{comp.name}</span>
-                                    {comp.code && <span className="nexus-badge nexus-badge-info text-[10px]">{comp.code}</span>}
+                                  <div key={comp.id} className="flex items-center gap-4 text-xs text-thb-text-secondary bg-slate-50 rounded-lg p-2.5">
+                                    <span className="font-medium text-thb-text-primary">{comp.name}</span>
+                                    {comp.code && <span className="thb-badge thb-badge-info text-[10px]">{comp.code}</span>}
                                     <span>{depts} depts</span>
                                     <span>{branches} branches</span>
                                     <span>{employees} employees</span>
@@ -1039,7 +1039,7 @@ export default function SuperAdminPage() {
                                 );
                               })}
                             </div>
-                          ) : <p className="text-xs text-nexus-text-muted">No companies inducted under this group yet</p>}
+                          ) : <p className="text-xs text-thb-text-muted">No companies inducted under this group yet</p>}
                         </div>
                       );
                     })}
@@ -1050,20 +1050,20 @@ export default function SuperAdminPage() {
               {/* Users */}
               {viewingTenant.users && viewingTenant.users.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiUsers className="w-4 h-4" /> Users ({viewingTenant.users.length})</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiUsers className="w-4 h-4" /> Users ({viewingTenant.users.length})</h4>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-nexus-text-muted border-b border-nexus-border">
+                      <thead><tr className="text-left text-xs text-thb-text-muted border-b border-thb-border">
                         <th className="pb-2 pr-4">Name</th><th className="pb-2 pr-4">Email</th><th className="pb-2 pr-4">Role</th><th className="pb-2 pr-4">Status</th><th className="pb-2">Last Login</th>
                       </tr></thead>
                       <tbody>
                         {viewingTenant.users.map((u) => (
                           <tr key={u.id} className="border-b border-slate-50">
-                            <td className="py-2 pr-4 text-nexus-text-primary font-medium">{u.name}</td>
-                            <td className="py-2 pr-4 text-nexus-text-secondary">{u.email}</td>
-                            <td className="py-2 pr-4"><span className="nexus-badge nexus-badge-info text-[10px]">{u.role}</span></td>
-                            <td className="py-2 pr-4"><span className={statusBadgeCls[u.status] || 'nexus-badge nexus-badge-info'}>{u.status}</span></td>
-                            <td className="py-2 text-nexus-text-muted">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}</td>
+                            <td className="py-2 pr-4 text-thb-text-primary font-medium">{u.name}</td>
+                            <td className="py-2 pr-4 text-thb-text-secondary">{u.email}</td>
+                            <td className="py-2 pr-4"><span className="thb-badge thb-badge-info text-[10px]">{u.role}</span></td>
+                            <td className="py-2 pr-4"><span className={statusBadgeCls[u.status] || 'thb-badge thb-badge-info'}>{u.status}</span></td>
+                            <td className="py-2 text-thb-text-muted">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1075,14 +1075,14 @@ export default function SuperAdminPage() {
               {/* Subscriptions */}
               {viewingTenant.subscriptions && viewingTenant.subscriptions.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiCreditCard className="w-4 h-4" /> Subscriptions</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiCreditCard className="w-4 h-4" /> Subscriptions</h4>
                   <div className="space-y-2">
                     {viewingTenant.subscriptions.map((sub) => (
                       <div key={sub.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg text-sm">
-                        <span className="font-medium text-nexus-text-primary">{sub.plan.name}</span>
-                        <span className="nexus-badge nexus-badge-info text-[10px]">{sub.status}</span>
-                        <span className="text-nexus-text-muted text-xs">{new Date(sub.startDate).toLocaleDateString()} — {new Date(sub.endDate).toLocaleDateString()}</span>
-                        <span className="text-nexus-text-primary font-medium ml-auto">${sub.amount}</span>
+                        <span className="font-medium text-thb-text-primary">{sub.plan.name}</span>
+                        <span className="thb-badge thb-badge-info text-[10px]">{sub.status}</span>
+                        <span className="text-thb-text-muted text-xs">{new Date(sub.startDate).toLocaleDateString()} — {new Date(sub.endDate).toLocaleDateString()}</span>
+                        <span className="text-thb-text-primary font-medium ml-auto">${sub.amount}</span>
                       </div>
                     ))}
                   </div>
@@ -1093,10 +1093,10 @@ export default function SuperAdminPage() {
 
           {/* Tenant Form */}
           {showTenantForm && (
-            <div ref={formRef} className="nexus-card border-l-4 border-l-blue-500 p-6">
+            <div ref={formRef} className="thb-card border-l-4 border-l-blue-500 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary">{editingTenantId ? 'Edit Tenant' : 'Create Tenant'}</h3>
-                <button onClick={handleCancelTenantForm} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+                <h3 className="text-lg font-semibold text-thb-text-primary">{editingTenantId ? 'Edit Tenant' : 'Create Tenant'}</h3>
+                <button onClick={handleCancelTenantForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
               </div>
               <form onSubmit={handleSubmitTenant} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1118,11 +1118,11 @@ export default function SuperAdminPage() {
                 </div>
 
                 {/* ─── Multi-tenancy questionnaire: max companies allowed for tenant admin ─── */}
-                <div className="pt-4 border-t border-nexus-border">
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+                <div className="pt-4 border-t border-thb-border">
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
                     <FiShield className="w-4 h-4 text-amber-500" /> Company Quota for Tenant Admin
                   </h4>
-                  <p className="text-xs text-nexus-text-muted mb-3">
+                  <p className="text-xs text-thb-text-muted mb-3">
                     How many companies should this tenant admin be allowed to create under their tenant?
                     Set <b>0</b> for unlimited. Once the limit is reached, the tenant admin will be blocked
                     from creating more companies.
@@ -1140,7 +1140,7 @@ export default function SuperAdminPage() {
                       />
                     </div>
                     <div className="flex items-end">
-                      <p className="text-[11px] text-nexus-text-muted leading-snug pb-2.5">
+                      <p className="text-[11px] text-thb-text-muted leading-snug pb-2.5">
                         {Number(tenantForm.maxCompaniesAllowed) === 0
                           ? 'Unlimited companies allowed for this tenant.'
                           : `Tenant admin can create up to ${tenantForm.maxCompaniesAllowed} compan${tenantForm.maxCompaniesAllowed === 1 ? 'y' : 'ies'} under this tenant.`}
@@ -1152,8 +1152,8 @@ export default function SuperAdminPage() {
 
                 {/* Admin User (create only) */}
                 {!editingTenantId && (
-                  <div className="pt-4 border-t border-nexus-border">
-                    <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiSettings className="w-4 h-4" /> Admin User</h4>
+                  <div className="pt-4 border-t border-thb-border">
+                    <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiSettings className="w-4 h-4" /> Admin User</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div><label className={labelCls}>Admin Name *</label><input required value={tenantForm.adminName} onChange={(e) => setTenantForm({ ...tenantForm, adminName: e.target.value })} className={inputCls} placeholder="Admin name" /></div>
                       <div><label className={labelCls}>Admin Email *</label><input required type="email" value={tenantForm.adminEmail} onChange={(e) => setTenantForm({ ...tenantForm, adminEmail: e.target.value })} className={inputCls} placeholder="admin@company.com" /></div>
@@ -1163,7 +1163,7 @@ export default function SuperAdminPage() {
                 )}
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={handleCancelTenantForm} className="px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
+                  <button type="button" onClick={handleCancelTenantForm} className="px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
                   <button type="submit" disabled={submittingTenant} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg disabled:opacity-50">
                     {submittingTenant ? 'Saving...' : editingTenantId ? 'Update Tenant' : 'Create Tenant'}
                   </button>
@@ -1175,29 +1175,29 @@ export default function SuperAdminPage() {
           {/* Search + Filter */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 max-w-sm w-full">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
               <input value={tenantSearch} onChange={(e) => setTenantSearch(e.target.value)} placeholder="Search tenants..." className={inputCls.replace('w-full', 'w-full pl-9')} />
             </div>
             <select value={tenantStatusFilter} onChange={(e) => setTenantStatusFilter(e.target.value)} className={selectCls.replace('w-full', 'w-auto min-w-[140px]')}>
               <option value="">All Status</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option><option value="pending_approval">Pending</option>
             </select>
-            <button onClick={() => fetchTenants()} className="p-2.5 border border-nexus-border rounded-lg hover:bg-slate-50"><FiRefreshCw className="w-4 h-4 text-nexus-text-muted" /></button>
+            <button onClick={() => fetchTenants()} className="p-2.5 border border-thb-border rounded-lg hover:bg-slate-50"><FiRefreshCw className="w-4 h-4 text-thb-text-muted" /></button>
           </div>
 
           {/* Tenant List */}
           {tenantsLoading ? (
-            <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => (<div key={i} className="nexus-card p-5 animate-pulse"><div className="flex justify-between"><div className="space-y-2"><div className="h-4 w-32 bg-slate-200 rounded" /><div className="h-3 w-24 bg-slate-100 rounded" /></div><div className="h-6 w-20 bg-slate-100 rounded-full" /></div></div>))}</div>
+            <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => (<div key={i} className="thb-card p-5 animate-pulse"><div className="flex justify-between"><div className="space-y-2"><div className="h-4 w-32 bg-slate-200 rounded" /><div className="h-3 w-24 bg-slate-100 rounded" /></div><div className="h-6 w-20 bg-slate-100 rounded-full" /></div></div>))}</div>
           ) : tenants.length === 0 ? (
-            <div className="nexus-card p-12 text-center"><FiServer className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" /><p className="text-nexus-text-secondary">No tenants found</p><p className="text-xs text-nexus-text-muted mt-1">Create a new tenant to get started</p></div>
+            <div className="thb-card p-12 text-center"><FiServer className="w-12 h-12 text-thb-text-muted mx-auto mb-3 opacity-50" /><p className="text-thb-text-secondary">No tenants found</p><p className="text-xs text-thb-text-muted mt-1">Create a new tenant to get started</p></div>
           ) : (
             <div className="space-y-3">
               {tenants.map((t) => (
-                <div key={t.id} className="nexus-card p-5">
+                <div key={t.id} className="thb-card p-5">
                   {deleteConfirmId === t.id ? (
                     <div className="flex items-center justify-between bg-red-50 -m-5 p-5 rounded-xl">
                       <div><p className="text-sm font-semibold text-red-800">Delete &ldquo;{t.name}&rdquo;?</p><p className="text-xs text-red-600">This action cannot be undone.</p></div>
                       <div className="flex gap-2">
-                        <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 text-xs font-medium text-nexus-text-secondary bg-white rounded-lg hover:bg-slate-50">Cancel</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 text-xs font-medium text-thb-text-secondary bg-white rounded-lg hover:bg-slate-50">Cancel</button>
                         <button onClick={() => handleDeleteTenant(t.id)} disabled={deletingTenant} className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-50">{deletingTenant ? 'Deleting...' : 'Delete'}</button>
                       </div>
                     </div>
@@ -1207,14 +1207,14 @@ export default function SuperAdminPage() {
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{t.name[0]}</div>
                           <div>
-                            <h3 className="font-semibold text-nexus-text-primary">{t.name}</h3>
-                            <p className="text-sm text-nexus-text-muted">{t.slug} {t.domain ? `· ${t.domain}` : ''}</p>
+                            <h3 className="font-semibold text-thb-text-primary">{t.name}</h3>
+                            <p className="text-sm text-thb-text-muted">{t.slug} {t.domain ? `· ${t.domain}` : ''}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={planBadgeCls[t.plan] || 'nexus-badge nexus-badge-info'}>{planTypeLabel[t.plan] || t.plan}</span>
-                          <span className={statusBadgeCls[t.status] || 'nexus-badge nexus-badge-info'}>{t.status}</span>
-                          {t.country && <span className="text-xs text-nexus-text-muted">{t.country}</span>}
+                          <span className={planBadgeCls[t.plan] || 'thb-badge thb-badge-info'}>{planTypeLabel[t.plan] || t.plan}</span>
+                          <span className={statusBadgeCls[t.status] || 'thb-badge thb-badge-info'}>{t.status}</span>
+                          {t.country && <span className="text-xs text-thb-text-muted">{t.country}</span>}
                           {t.maxCompaniesAllowed !== undefined && t.maxCompaniesAllowed > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-[10px] font-semibold" title="Max companies this tenant admin can create">
                               <FiShield className="w-2.5 h-2.5" /> cap: {t.maxCompaniesAllowed} cos
@@ -1223,13 +1223,13 @@ export default function SuperAdminPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-                        <span className="text-xs text-nexus-text-muted">{new Date(t.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-thb-text-muted">{new Date(t.createdAt).toLocaleDateString()}</span>
                         <span className="text-slate-200">·</span>
-                        <span className="text-xs text-nexus-text-muted">{t._count?.users || 0} users</span>
+                        <span className="text-xs text-thb-text-muted">{t._count?.users || 0} users</span>
                         <div className="ml-auto flex items-center gap-1">
-                          <button onClick={() => handleViewTenant(t.id)} className="p-1.5 text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleEditTenant(t)} className="p-1.5 text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 text-nexus-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleViewTenant(t.id)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleEditTenant(t)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                           {t.status === 'active' ? (
                             <button onClick={() => handleTenantStatusChange(t.id, 'suspended')} className="px-2.5 py-1 text-[11px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">Suspend</button>
                           ) : t.status === 'suspended' || t.status === 'pending_approval' ? (
@@ -1250,7 +1250,7 @@ export default function SuperAdminPage() {
       {activeTab === 'groups' && (
         <div className="space-y-4">
           {/* Data model hierarchy banner — explains the Tenant → Group Company → Company relationship */}
-          <div className="nexus-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
+          <div className="thb-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
             <div className="flex items-start gap-3">
               <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-indigo-900 flex-1">
@@ -1283,7 +1283,7 @@ export default function SuperAdminPage() {
           </div>
 
           {/* Educational banner */}
-          <div className="nexus-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+          <div className="thb-card p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
             <div className="flex items-start gap-3">
               <FiShield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900">
@@ -1300,13 +1300,13 @@ export default function SuperAdminPage() {
 
           {/* Create/Edit Group Form */}
           {showGroupForm && (
-            <div className="nexus-card border-l-4 border-l-violet-500 p-6">
+            <div className="thb-card border-l-4 border-l-violet-500 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiLayers className="w-4 h-4 text-violet-500" />
                   {editingGroupId ? 'Edit Group Company' : 'Create Group Company'}
                 </h3>
-                <button onClick={handleCancelGroupForm} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+                <button onClick={handleCancelGroupForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
               </div>
               <form onSubmit={handleSubmitGroup} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1324,7 +1324,7 @@ export default function SuperAdminPage() {
                         <option key={t.id} value={t.id}>{t.name} ({t.slug})</option>
                       ))}
                     </select>
-                    {editingGroupId && <p className="text-[11px] text-nexus-text-muted mt-1">Tenant cannot be changed after creation.</p>}
+                    {editingGroupId && <p className="text-[11px] text-thb-text-muted mt-1">Tenant cannot be changed after creation.</p>}
                   </div>
                   <div>
                     <label className={labelCls}>Group Company Name *</label>
@@ -1338,11 +1338,11 @@ export default function SuperAdminPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-nexus-border">
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+                <div className="pt-4 border-t border-thb-border">
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
                     <FiUsers className="w-4 h-4 text-amber-500" /> Employee Strength Barrier
                   </h4>
-                  <p className="text-xs text-nexus-text-muted mb-3">
+                  <p className="text-xs text-thb-text-muted mb-3">
                     Set a cap on how many employees can be loaded under this group. Leave 0 for unlimited.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1371,11 +1371,11 @@ export default function SuperAdminPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-nexus-border">
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-1 flex items-center gap-2">
+                <div className="pt-4 border-t border-thb-border">
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
                     <FiLayers className="w-4 h-4 text-blue-500" /> Company Cap (optional)
                   </h4>
-                  <p className="text-xs text-nexus-text-muted mb-3">
+                  <p className="text-xs text-thb-text-muted mb-3">
                     Optionally cap how many companies can be inducted under this group. Leave 0 for unlimited.
                     (The tenant-level maxCompaniesAllowed still applies on top of this.)
                   </p>
@@ -1404,7 +1404,7 @@ export default function SuperAdminPage() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={handleCancelGroupForm} className="px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
+                  <button type="button" onClick={handleCancelGroupForm} className="px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
                   <button type="submit" disabled={submittingGroup} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-500 hover:bg-violet-600 shadow-sm shadow-violet-500/25 rounded-lg disabled:opacity-50">
                     {submittingGroup ? 'Saving...' : editingGroupId ? 'Update Group' : 'Create Group'}
                   </button>
@@ -1417,7 +1417,7 @@ export default function SuperAdminPage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-2 flex-1">
               <div className="relative flex-1 max-w-md">
-                <FiHome className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted pointer-events-none" />
+                <FiHome className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted pointer-events-none" />
                 <select
                   value={groupTenantFilter}
                   onChange={(e) => {
@@ -1426,7 +1426,7 @@ export default function SuperAdminPage() {
                     // but since we're already on the tab, we need to trigger it manually.
                     // The useCallback dependency on groupTenantFilter will refresh on next render.
                   }}
-                  className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-nexus-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
+                  className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
                 >
                   <option value="">All tenants ({tenants.length})</option>
                   {tenants.map((t) => (
@@ -1437,11 +1437,11 @@ export default function SuperAdminPage() {
                 </select>
                 <FiChevronRightIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 rotate-90 pointer-events-none" />
               </div>
-              <button onClick={() => fetchGroups()} className="p-2.5 border border-nexus-border rounded-lg hover:bg-slate-50" title="Refresh">
-                <FiRefreshCw className="w-4 h-4 text-nexus-text-muted" />
+              <button onClick={() => fetchGroups()} className="p-2.5 border border-thb-border rounded-lg hover:bg-slate-50" title="Refresh">
+                <FiRefreshCw className="w-4 h-4 text-thb-text-muted" />
               </button>
             </div>
-            <p className="text-xs text-nexus-text-muted">
+            <p className="text-xs text-thb-text-muted">
               {groupTenantFilter
                 ? `Showing groups for: ${tenants.find(t => t.id === groupTenantFilter)?.name || 'selected tenant'}`
                 : `${groups.length} group companies across all tenants`}
@@ -1452,7 +1452,7 @@ export default function SuperAdminPage() {
           {groupsLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="nexus-card p-5 animate-pulse">
+                <div key={i} className="thb-card p-5 animate-pulse">
                   <div className="flex justify-between">
                     <div className="space-y-2"><div className="h-4 w-40 bg-slate-200 rounded" /><div className="h-3 w-28 bg-slate-100 rounded" /></div>
                     <div className="h-6 w-24 bg-slate-100 rounded-full" />
@@ -1461,28 +1461,28 @@ export default function SuperAdminPage() {
               ))}
             </div>
           ) : groups.length === 0 ? (
-            <div className="nexus-card p-12 text-center">
-              <FiLayers className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" />
-              <p className="text-nexus-text-secondary">No group companies created yet</p>
-              <p className="text-xs text-nexus-text-muted mt-1">Create a group company under a tenant to set employee-strength barriers.</p>
+            <div className="thb-card p-12 text-center">
+              <FiLayers className="w-12 h-12 text-thb-text-muted mx-auto mb-3 opacity-50" />
+              <p className="text-thb-text-secondary">No group companies created yet</p>
+              <p className="text-xs text-thb-text-muted mt-1">Create a group company under a tenant to set employee-strength barriers.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {groups.map((g) => (
-                <div key={g.id} className="nexus-card p-5">
+                <div key={g.id} className="thb-card p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                         <FiLayers className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-nexus-text-primary">{g.name}</h3>
-                        <p className="text-sm text-nexus-text-muted flex items-center gap-1.5 flex-wrap">
-                          <FiHome className="w-3 h-3" /> Tenant: <span className="font-medium text-nexus-text-secondary">{g.tenantName || g.tenantId}</span>
+                        <h3 className="font-semibold text-thb-text-primary">{g.name}</h3>
+                        <p className="text-sm text-thb-text-muted flex items-center gap-1.5 flex-wrap">
+                          <FiHome className="w-3 h-3" /> Tenant: <span className="font-medium text-thb-text-secondary">{g.tenantName || g.tenantId}</span>
                           <span className="opacity-50">·</span> {g._count?.companies || 0} companies
                           <span className="opacity-50">·</span> {g._count?.employees || 0} employees
                         </p>
-                        {g.notes && <p className="text-xs text-nexus-text-muted italic mt-1">“{g.notes}”</p>}
+                        {g.notes && <p className="text-xs text-thb-text-muted italic mt-1">“{g.notes}”</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1503,8 +1503,8 @@ export default function SuperAdminPage() {
                           <FiLayers className="w-3 h-3" /> co cap: {g._count?.companies || 0}/{g.maxCompanies}
                         </span>
                       )}
-                      <button onClick={() => handleEditGroup(g)} className="p-1.5 text-nexus-text-muted hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDeleteGroup(g.id, g.name)} className="p-1.5 text-nexus-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleEditGroup(g)} className="p-1.5 text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDeleteGroup(g.id, g.name)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
 
@@ -1517,10 +1517,10 @@ export default function SuperAdminPage() {
                         const plan = c.plannedEmployeeCount;
                         const atCap = cap !== null && cap !== undefined && cap > 0 && empCount >= cap;
                         return (
-                          <div key={c.id} className="flex items-center gap-3 text-xs text-nexus-text-secondary bg-slate-50 rounded-lg p-2.5">
+                          <div key={c.id} className="flex items-center gap-3 text-xs text-thb-text-secondary bg-slate-50 rounded-lg p-2.5">
                             <FiServer className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="font-medium text-nexus-text-primary">{c.name}</span>
-                            {c.code && <span className="nexus-badge nexus-badge-info text-[10px]">{c.code}</span>}
+                            <span className="font-medium text-thb-text-primary">{c.name}</span>
+                            {c.code && <span className="thb-badge thb-badge-info text-[10px]">{c.code}</span>}
                             <span className="ml-auto flex items-center gap-1.5">
                               <span className={atCap ? 'text-red-600 font-semibold' : ''}>{empCount} emp</span>
                               {plan !== null && plan !== undefined && plan > 0 && (
@@ -1532,7 +1532,7 @@ export default function SuperAdminPage() {
                                 </span>
                               )}
                             </span>
-                            <span className={`nexus-badge text-[10px] ${c.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-info'}`}>{c.status}</span>
+                            <span className={`thb-badge text-[10px] ${c.status === 'active' ? 'thb-badge-success' : 'thb-badge-info'}`}>{c.status}</span>
                           </div>
                         );
                       })}
@@ -1550,32 +1550,32 @@ export default function SuperAdminPage() {
         <div className="space-y-4">
           {/* View Plan Panel */}
           {viewingPlanId && viewingPlan && (
-            <div ref={viewRef} className="nexus-card border-l-4 border-l-emerald-500 p-6">
+            <div ref={viewRef} className="thb-card border-l-4 border-l-emerald-500 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary">Plan Details</h3>
+                <h3 className="text-lg font-semibold text-thb-text-primary">Plan Details</h3>
                 <div className="flex gap-2">
                   <button onClick={handleEditPlanFromView} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
-                  <button onClick={() => { setViewingPlanId(null); setViewingPlan(null); }} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+                  <button onClick={() => { setViewingPlanId(null); setViewingPlan(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                <div><p className="text-xs text-nexus-text-muted">Name</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.name}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Type</p><span className={planBadgeCls[viewingPlan.planType] || 'nexus-badge nexus-badge-info'}>{planTypeLabel[viewingPlan.planType] || viewingPlan.planType}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">Status</p><span className={statusBadgeCls[viewingPlan.status] || 'nexus-badge nexus-badge-info'}>{viewingPlan.status}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">Monthly Price</p><p className="text-sm font-medium text-nexus-text-primary">${viewingPlan.monthlyPrice}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Annual Price</p><p className="text-sm font-medium text-nexus-text-primary">${viewingPlan.annualPrice}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Subscribers</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan._count?.subscriptions || 0}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Employee Limit</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.employeeLimit}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Company Limit</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.companyLimit}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Branch Limit</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.branchLimit}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Storage</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.storageLimit} MB</p></div>
-                <div><p className="text-xs text-nexus-text-muted">AI Interview Limit</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.aiInterviewLimit}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">AI Chatbot Limit</p><p className="text-sm font-medium text-nexus-text-primary">{viewingPlan.aiChatbotLimit}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Support Level</p><p className="text-sm font-medium text-nexus-text-primary capitalize">{viewingPlan.supportLevel}</p></div>
-                {viewingPlan.description && <div className="sm:col-span-2 lg:col-span-3"><p className="text-xs text-nexus-text-muted">Description</p><p className="text-sm text-nexus-text-secondary">{viewingPlan.description}</p></div>}
+                <div><p className="text-xs text-thb-text-muted">Name</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.name}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Type</p><span className={planBadgeCls[viewingPlan.planType] || 'thb-badge thb-badge-info'}>{planTypeLabel[viewingPlan.planType] || viewingPlan.planType}</span></div>
+                <div><p className="text-xs text-thb-text-muted">Status</p><span className={statusBadgeCls[viewingPlan.status] || 'thb-badge thb-badge-info'}>{viewingPlan.status}</span></div>
+                <div><p className="text-xs text-thb-text-muted">Monthly Price</p><p className="text-sm font-medium text-thb-text-primary">${viewingPlan.monthlyPrice}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Annual Price</p><p className="text-sm font-medium text-thb-text-primary">${viewingPlan.annualPrice}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Subscribers</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan._count?.subscriptions || 0}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Employee Limit</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.employeeLimit}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Company Limit</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.companyLimit}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Branch Limit</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.branchLimit}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Storage</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.storageLimit} MB</p></div>
+                <div><p className="text-xs text-thb-text-muted">AI Interview Limit</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.aiInterviewLimit}</p></div>
+                <div><p className="text-xs text-thb-text-muted">AI Chatbot Limit</p><p className="text-sm font-medium text-thb-text-primary">{viewingPlan.aiChatbotLimit}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Support Level</p><p className="text-sm font-medium text-thb-text-primary capitalize">{viewingPlan.supportLevel}</p></div>
+                {viewingPlan.description && <div className="sm:col-span-2 lg:col-span-3"><p className="text-xs text-thb-text-muted">Description</p><p className="text-sm text-thb-text-secondary">{viewingPlan.description}</p></div>}
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Feature Flags</h4>
+                <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Feature Flags</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                   {[
                     ['Payroll', viewingPlan.payrollEnabled], ['Recruitment', viewingPlan.recruitmentEnabled],
@@ -1584,7 +1584,7 @@ export default function SuperAdminPage() {
                     ['Mobile App', viewingPlan.mobileAppEnabled], ['API Access', viewingPlan.apiAccessEnabled],
                     ['White Label', viewingPlan.whiteLabelEnabled],
                   ].map(([label, enabled]) => (
-                    <span key={String(label)} className={`nexus-badge ${enabled ? 'nexus-badge-success' : 'nexus-badge-error'}`}>{String(label)}: {enabled ? 'Yes' : 'No'}</span>
+                    <span key={String(label)} className={`thb-badge ${enabled ? 'thb-badge-success' : 'thb-badge-error'}`}>{String(label)}: {enabled ? 'Yes' : 'No'}</span>
                   ))}
                 </div>
               </div>
@@ -1593,15 +1593,15 @@ export default function SuperAdminPage() {
 
           {/* Plan Form */}
           {showPlanForm && (
-            <div ref={formRef} className="nexus-card border-l-4 border-l-blue-500 p-6">
+            <div ref={formRef} className="thb-card border-l-4 border-l-blue-500 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary">{editingPlanId ? 'Edit Plan' : 'Create Plan'}</h3>
-                <button onClick={handleCancelPlanForm} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+                <h3 className="text-lg font-semibold text-thb-text-primary">{editingPlanId ? 'Edit Plan' : 'Create Plan'}</h3>
+                <button onClick={handleCancelPlanForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
               </div>
               <form onSubmit={handleSubmitPlan} className="space-y-5">
                 {/* Basic Info */}
                 <div>
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Basic Info</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Info</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div><label className={labelCls}>Name *</label><input required value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} className={inputCls} placeholder="Plan name" /></div>
                     <div><label className={labelCls}>Plan Type *</label>
@@ -1615,7 +1615,7 @@ export default function SuperAdminPage() {
 
                 {/* Pricing */}
                 <div>
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Pricing</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Pricing</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className={labelCls}>Monthly Price ($)</label><input type="number" min="0" step="0.01" value={planForm.monthlyPrice} onChange={(e) => setPlanForm({ ...planForm, monthlyPrice: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
                     <div><label className={labelCls}>Annual Price ($)</label><input type="number" min="0" step="0.01" value={planForm.annualPrice} onChange={(e) => setPlanForm({ ...planForm, annualPrice: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
@@ -1624,7 +1624,7 @@ export default function SuperAdminPage() {
 
                 {/* Limits */}
                 <div>
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Limits</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Limits</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                     <div><label className={labelCls}>Employees</label><input type="number" min="1" value={planForm.employeeLimit} onChange={(e) => setPlanForm({ ...planForm, employeeLimit: parseInt(e.target.value) || 0 })} className={inputCls} /></div>
                     <div><label className={labelCls}>Companies</label><input type="number" min="1" value={planForm.companyLimit} onChange={(e) => setPlanForm({ ...planForm, companyLimit: parseInt(e.target.value) || 0 })} className={inputCls} /></div>
@@ -1637,7 +1637,7 @@ export default function SuperAdminPage() {
 
                 {/* Features */}
                 <div>
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Features</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Features</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     {([
                       ['payrollEnabled', 'Payroll'], ['recruitmentEnabled', 'Recruitment'],
@@ -1646,8 +1646,8 @@ export default function SuperAdminPage() {
                       ['mobileAppEnabled', 'Mobile App'], ['apiAccessEnabled', 'API Access'],
                       ['whiteLabelEnabled', 'White Label'],
                     ] as [keyof typeof planForm, string][]).map(([key, label]) => (
-                      <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-nexus-text-secondary hover:text-nexus-text-primary">
-                        <input type="checkbox" checked={planForm[key] as boolean} onChange={(e) => setPlanForm({ ...planForm, [key]: e.target.checked })} className="w-4 h-4 rounded border-nexus-border text-blue-500 focus:ring-blue-500/20" />
+                      <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-thb-text-secondary hover:text-thb-text-primary">
+                        <input type="checkbox" checked={planForm[key] as boolean} onChange={(e) => setPlanForm({ ...planForm, [key]: e.target.checked })} className="w-4 h-4 rounded border-thb-border text-blue-500 focus:ring-blue-500/20" />
                         {label}
                       </label>
                     ))}
@@ -1656,7 +1656,7 @@ export default function SuperAdminPage() {
 
                 {/* Support & Status */}
                 <div>
-                  <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Support &amp; Status</h4>
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Support &amp; Status</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className={labelCls}>Support Level</label>
                       <select value={planForm.supportLevel} onChange={(e) => setPlanForm({ ...planForm, supportLevel: e.target.value })} className={selectCls}>
@@ -1672,7 +1672,7 @@ export default function SuperAdminPage() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={handleCancelPlanForm} className="px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
+                  <button type="button" onClick={handleCancelPlanForm} className="px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
                   <button type="submit" disabled={submittingPlan} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg disabled:opacity-50">
                     {submittingPlan ? 'Saving...' : editingPlanId ? 'Update Plan' : 'Create Plan'}
                   </button>
@@ -1684,55 +1684,55 @@ export default function SuperAdminPage() {
           {/* Plan List */}
           {plansLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 3 }).map((_, i) => (<div key={i} className="nexus-card p-6 animate-pulse"><div className="h-4 w-24 bg-slate-200 rounded mb-3" /><div className="h-3 w-16 bg-slate-100 rounded mb-4" /><div className="space-y-2"><div className="h-3 w-full bg-slate-50 rounded" /><div className="h-3 w-3/4 bg-slate-50 rounded" /></div></div>))}
+              {Array.from({ length: 3 }).map((_, i) => (<div key={i} className="thb-card p-6 animate-pulse"><div className="h-4 w-24 bg-slate-200 rounded mb-3" /><div className="h-3 w-16 bg-slate-100 rounded mb-4" /><div className="space-y-2"><div className="h-3 w-full bg-slate-50 rounded" /><div className="h-3 w-3/4 bg-slate-50 rounded" /></div></div>))}
             </div>
           ) : plans.length === 0 ? (
-            <div className="nexus-card p-12 text-center"><FiCreditCard className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" /><p className="text-nexus-text-secondary">No subscription plans configured</p><p className="text-xs text-nexus-text-muted mt-1">Create a new plan to get started</p></div>
+            <div className="thb-card p-12 text-center"><FiCreditCard className="w-12 h-12 text-thb-text-muted mx-auto mb-3 opacity-50" /><p className="text-thb-text-secondary">No subscription plans configured</p><p className="text-xs text-thb-text-muted mt-1">Create a new plan to get started</p></div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((p) => (
-                <div key={p.id} className="nexus-card p-6">
+                <div key={p.id} className="thb-card p-6">
                   {deletePlanConfirmId === p.id ? (
                     <div className="bg-red-50 -m-6 p-6 rounded-xl">
                       <p className="text-sm font-semibold text-red-800 mb-1">Delete &ldquo;{p.name}&rdquo;?</p>
                       <p className="text-xs text-red-600 mb-3">This action cannot be undone.</p>
                       <div className="flex gap-2">
-                        <button onClick={() => setDeletePlanConfirmId(null)} className="px-3 py-1.5 text-xs font-medium text-nexus-text-secondary bg-white rounded-lg hover:bg-slate-50">Cancel</button>
+                        <button onClick={() => setDeletePlanConfirmId(null)} className="px-3 py-1.5 text-xs font-medium text-thb-text-secondary bg-white rounded-lg hover:bg-slate-50">Cancel</button>
                         <button onClick={() => handleDeletePlan(p.id)} disabled={deletingPlan} className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-50">{deletingPlan ? 'Deleting...' : 'Delete'}</button>
                       </div>
                     </div>
                   ) : (
                     <>
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-nexus-text-primary">{p.name}</h3>
-                        <span className={planBadgeCls[p.planType] || 'nexus-badge nexus-badge-info'}>{planTypeLabel[p.planType] || p.planType}</span>
+                        <h3 className="font-semibold text-thb-text-primary">{p.name}</h3>
+                        <span className={planBadgeCls[p.planType] || 'thb-badge thb-badge-info'}>{planTypeLabel[p.planType] || p.planType}</span>
                       </div>
                       <div className="space-y-2 mb-4">
-                        <div className="flex justify-between"><span className="text-sm text-nexus-text-secondary">Monthly</span><span className="text-sm font-semibold text-nexus-text-primary">${p.monthlyPrice}</span></div>
-                        <div className="flex justify-between"><span className="text-sm text-nexus-text-secondary">Annual</span><span className="text-sm font-semibold text-nexus-text-primary">${p.annualPrice}</span></div>
-                        <div className="flex justify-between"><span className="text-sm text-nexus-text-secondary">Employee Limit</span><span className="text-sm font-semibold text-nexus-text-primary">{p.employeeLimit}</span></div>
+                        <div className="flex justify-between"><span className="text-sm text-thb-text-secondary">Monthly</span><span className="text-sm font-semibold text-thb-text-primary">${p.monthlyPrice}</span></div>
+                        <div className="flex justify-between"><span className="text-sm text-thb-text-secondary">Annual</span><span className="text-sm font-semibold text-thb-text-primary">${p.annualPrice}</span></div>
+                        <div className="flex justify-between"><span className="text-sm text-thb-text-secondary">Employee Limit</span><span className="text-sm font-semibold text-thb-text-primary">{p.employeeLimit}</span></div>
                       </div>
                       {/* Feature checklist compact */}
                       <div className="flex flex-wrap gap-1 mb-4">
-                        {p.payrollEnabled && <span className="nexus-badge nexus-badge-success text-[10px]">Payroll</span>}
-                        {p.recruitmentEnabled && <span className="nexus-badge nexus-badge-success text-[10px]">Recruit</span>}
-                        {p.attendanceEnabled && <span className="nexus-badge nexus-badge-success text-[10px]">Attend.</span>}
-                        {p.projectEnabled && <span className="nexus-badge nexus-badge-success text-[10px]">Projects</span>}
-                        {p.clientPortalEnabled && <span className="nexus-badge nexus-badge-info text-[10px]">Client</span>}
-                        {p.vendorPortalEnabled && <span className="nexus-badge nexus-badge-info text-[10px]">Vendor</span>}
-                        {p.mobileAppEnabled && <span className="nexus-badge nexus-badge-info text-[10px]">Mobile</span>}
-                        {p.apiAccessEnabled && <span className="nexus-badge nexus-badge-purple text-[10px]">API</span>}
-                        {p.whiteLabelEnabled && <span className="nexus-badge nexus-badge-purple text-[10px]">WhiteLabel</span>}
+                        {p.payrollEnabled && <span className="thb-badge thb-badge-success text-[10px]">Payroll</span>}
+                        {p.recruitmentEnabled && <span className="thb-badge thb-badge-success text-[10px]">Recruit</span>}
+                        {p.attendanceEnabled && <span className="thb-badge thb-badge-success text-[10px]">Attend.</span>}
+                        {p.projectEnabled && <span className="thb-badge thb-badge-success text-[10px]">Projects</span>}
+                        {p.clientPortalEnabled && <span className="thb-badge thb-badge-info text-[10px]">Client</span>}
+                        {p.vendorPortalEnabled && <span className="thb-badge thb-badge-info text-[10px]">Vendor</span>}
+                        {p.mobileAppEnabled && <span className="thb-badge thb-badge-info text-[10px]">Mobile</span>}
+                        {p.apiAccessEnabled && <span className="thb-badge thb-badge-purple text-[10px]">API</span>}
+                        {p.whiteLabelEnabled && <span className="thb-badge thb-badge-purple text-[10px]">WhiteLabel</span>}
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                        <span className="text-xs text-nexus-text-muted">{p._count?.subscriptions || 0} subscribers</span>
+                        <span className="text-xs text-thb-text-muted">{p._count?.subscriptions || 0} subscribers</span>
                         <div className="flex items-center gap-1">
                           <button onClick={() => openApplyPlan(p)} className="px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 inline-flex items-center gap-1" title="Apply this plan to a tenant">
                             <FiCheck className="w-3 h-3" /> Apply
                           </button>
-                          <button onClick={() => handleViewPlan(p.id)} className="p-1.5 text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleEditPlan(p)} className="p-1.5 text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => setDeletePlanConfirmId(p.id)} className="p-1.5 text-nexus-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleViewPlan(p.id)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleEditPlan(p)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setDeletePlanConfirmId(p.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     </>
@@ -1748,7 +1748,7 @@ export default function SuperAdminPage() {
       {activeTab === 'audit' && (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="nexus-card p-4">
+          <div className="thb-card p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
               <div className="flex-1 min-w-0 w-full sm:w-auto">
                 <label className={labelCls}>Action</label>
@@ -1776,27 +1776,27 @@ export default function SuperAdminPage() {
               <div className="w-full sm:w-auto">
                 <label className={labelCls}>Search</label>
                 <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
                   <input value={auditSearch} onChange={(e) => setAuditSearch(e.target.value)} placeholder="Search details..." className={inputCls.replace('w-full', 'w-full pl-9')} />
                 </div>
               </div>
-              <button onClick={() => fetchAuditLogs()} className="p-2.5 border border-nexus-border rounded-lg hover:bg-slate-50 flex-shrink-0"><FiRefreshCw className="w-4 h-4 text-nexus-text-muted" /></button>
+              <button onClick={() => fetchAuditLogs()} className="p-2.5 border border-thb-border rounded-lg hover:bg-slate-50 flex-shrink-0"><FiRefreshCw className="w-4 h-4 text-thb-text-muted" /></button>
             </div>
           </div>
 
           {/* Logs Table */}
           {auditLoading ? (
-            <div className="nexus-card p-5">
+            <div className="thb-card p-5">
               <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => (<div key={i} className="flex gap-4 animate-pulse"><div className="h-4 w-32 bg-slate-200 rounded" /><div className="h-4 w-20 bg-slate-100 rounded" /><div className="h-4 w-24 bg-slate-100 rounded" /><div className="h-4 flex-1 bg-slate-50 rounded" /></div>))}</div>
             </div>
           ) : auditLogs.length === 0 ? (
-            <div className="nexus-card p-12 text-center"><FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3 opacity-50" /><p className="text-nexus-text-secondary">No audit logs found</p><p className="text-xs text-nexus-text-muted mt-1">Try adjusting your filters</p></div>
+            <div className="thb-card p-12 text-center"><FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3 opacity-50" /><p className="text-thb-text-secondary">No audit logs found</p><p className="text-xs text-thb-text-muted mt-1">Try adjusting your filters</p></div>
           ) : (
             <>
-              <div className="nexus-card overflow-hidden">
+              <div className="thb-card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="text-left text-xs text-nexus-text-muted bg-slate-50 border-b border-nexus-border">
+                    <thead><tr className="text-left text-xs text-thb-text-muted bg-slate-50 border-b border-thb-border">
                       <th className="px-4 py-3 font-medium">Timestamp</th>
                       <th className="px-4 py-3 font-medium">User</th>
                       <th className="px-4 py-3 font-medium">Action</th>
@@ -1808,16 +1808,16 @@ export default function SuperAdminPage() {
                         .filter((log) => !auditSearch || (log.details || '').toLowerCase().includes(auditSearch.toLowerCase()) || (log.user?.name || '').toLowerCase().includes(auditSearch.toLowerCase()))
                         .map((log) => (
                           <tr key={log.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                            <td className="px-4 py-3 text-nexus-text-muted text-xs whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-thb-text-muted text-xs whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{log.user?.name?.[0] || '?'}</div>
-                                <span className="text-nexus-text-primary text-xs">{log.user?.name || 'System'}</span>
+                                <span className="text-thb-text-primary text-xs">{log.user?.name || 'System'}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3"><span className="nexus-badge nexus-badge-info text-[10px]">{log.action.replace(/_/g, ' ')}</span></td>
-                            <td className="px-4 py-3"><span className="nexus-badge nexus-badge-purple text-[10px]">{log.module}</span></td>
-                            <td className="px-4 py-3 text-nexus-text-secondary text-xs max-w-xs truncate">{log.details || '—'}</td>
+                            <td className="px-4 py-3"><span className="thb-badge thb-badge-info text-[10px]">{log.action.replace(/_/g, ' ')}</span></td>
+                            <td className="px-4 py-3"><span className="thb-badge thb-badge-purple text-[10px]">{log.module}</span></td>
+                            <td className="px-4 py-3 text-thb-text-secondary text-xs max-w-xs truncate">{log.details || '—'}</td>
                           </tr>
                         ))}
                     </tbody>
@@ -1827,17 +1827,17 @@ export default function SuperAdminPage() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-nexus-text-muted">{auditTotal} total logs · Page {auditPage} of {auditTotalPages}</p>
+                <p className="text-xs text-thb-text-muted">{auditTotal} total logs · Page {auditPage} of {auditTotalPages}</p>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setAuditPage((p) => Math.max(1, p - 1))} disabled={auditPage <= 1} className="p-2 rounded-lg border border-nexus-border hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"><FiChevronLeft className="w-4 h-4 text-nexus-text-muted" /></button>
+                  <button onClick={() => setAuditPage((p) => Math.max(1, p - 1))} disabled={auditPage <= 1} className="p-2 rounded-lg border border-thb-border hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"><FiChevronLeft className="w-4 h-4 text-thb-text-muted" /></button>
                   {Array.from({ length: Math.min(5, auditTotalPages) }).map((_, i) => {
                     const pageNum = Math.max(1, Math.min(auditPage - 2, auditTotalPages - 4)) + i;
                     if (pageNum > auditTotalPages) return null;
                     return (
-                      <button key={pageNum} onClick={() => setAuditPage(pageNum)} className={`w-8 h-8 rounded-lg text-xs font-medium ${auditPage === pageNum ? 'bg-blue-500 text-white' : 'text-nexus-text-secondary hover:bg-slate-100'}`}>{pageNum}</button>
+                      <button key={pageNum} onClick={() => setAuditPage(pageNum)} className={`w-8 h-8 rounded-lg text-xs font-medium ${auditPage === pageNum ? 'bg-blue-500 text-white' : 'text-thb-text-secondary hover:bg-slate-100'}`}>{pageNum}</button>
                     );
                   })}
-                  <button onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))} disabled={auditPage >= auditTotalPages} className="p-2 rounded-lg border border-nexus-border hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"><FiChevronRightIcon className="w-4 h-4 text-nexus-text-muted" /></button>
+                  <button onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))} disabled={auditPage >= auditTotalPages} className="p-2 rounded-lg border border-thb-border hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"><FiChevronRightIcon className="w-4 h-4 text-thb-text-muted" /></button>
                 </div>
               </div>
             </>

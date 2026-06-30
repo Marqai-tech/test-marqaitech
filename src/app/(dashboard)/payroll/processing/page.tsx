@@ -140,24 +140,24 @@ function getStatusBadge(status: string) {
 
 function getRunTypeBadge(type: string) {
   const map: Record<string, string> = {
-    REGULAR: 'nexus-badge nexus-badge-info',
-    OFF_CYCLE: 'nexus-badge nexus-badge-warning',
-    SUPPLEMENTAL: 'nexus-badge nexus-badge-purple',
-    FINAL_SETTLEMENT: 'nexus-badge nexus-badge-error',
-    CORRECTION: 'nexus-badge nexus-badge-success',
+    REGULAR: 'thb-badge thb-badge-info',
+    OFF_CYCLE: 'thb-badge thb-badge-warning',
+    SUPPLEMENTAL: 'thb-badge thb-badge-purple',
+    FINAL_SETTLEMENT: 'thb-badge thb-badge-error',
+    CORRECTION: 'thb-badge thb-badge-success',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 // --- Detail Item ---
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -584,7 +584,7 @@ export default function PayrollProcessingPage() {
   // --- Transaction Summary (grouped by component) ---
   const renderTransactionSummary = (lines: PayrollTransactionLine[], currencyCode: string) => {
     if (!lines || lines.length === 0) {
-      return <p className="text-sm text-nexus-text-muted text-center py-6">No transaction lines. Run &quot;Calculate&quot; to generate.</p>;
+      return <p className="text-sm text-thb-text-muted text-center py-6">No transaction lines. Run &quot;Calculate&quot; to generate.</p>;
     }
 
     // Group by componentType and componentCode
@@ -610,8 +610,8 @@ export default function PayrollProcessingPage() {
           <div className="space-y-1">
             {items.sort((a, b) => b.total - a.total).map(item => (
               <div key={item.code} className="flex items-center justify-between text-sm">
-                <span className="text-nexus-text-secondary">{item.code.replace(/_/g, ' ')}</span>
-                <span className="font-medium text-nexus-text-primary">{formatCurrency(item.total, currencyCode)}</span>
+                <span className="text-thb-text-secondary">{item.code.replace(/_/g, ' ')}</span>
+                <span className="font-medium text-thb-text-primary">{formatCurrency(item.total, currencyCode)}</span>
               </div>
             ))}
           </div>
@@ -652,22 +652,22 @@ export default function PayrollProcessingPage() {
       <div className="overflow-x-auto max-h-64 overflow-y-auto">
         <table className="w-full min-w-[400px]">
           <thead className="sticky top-0 z-10">
-            <tr className="border-b border-nexus-border bg-slate-50">
-              <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Employee ID</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Gross Pay</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Deductions</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Net Pay</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Employer Contrib</th>
+            <tr className="border-b border-thb-border bg-slate-50">
+              <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Employee ID</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Gross Pay</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Deductions</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Net Pay</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Employer Contrib</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-nexus-border/50">
+          <tbody className="divide-y divide-thb-border/50">
             {sortedEmployees.map(([empId, data]) => (
               <tr key={empId} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{empId.substring(0, 8)}...</td>
-                <td className="px-3 py-2 text-sm text-right text-nexus-text-primary">{formatCurrency(data.gross, currencyCode)}</td>
+                <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{empId.substring(0, 8)}...</td>
+                <td className="px-3 py-2 text-sm text-right text-thb-text-primary">{formatCurrency(data.gross, currencyCode)}</td>
                 <td className="px-3 py-2 text-sm text-right text-red-600">{formatCurrency(data.deductions, currencyCode)}</td>
-                <td className="px-3 py-2 text-sm text-right font-medium text-nexus-text-primary">{formatCurrency(data.net, currencyCode)}</td>
-                <td className="px-3 py-2 text-sm text-right text-nexus-text-secondary">{formatCurrency(data.employer, currencyCode)}</td>
+                <td className="px-3 py-2 text-sm text-right font-medium text-thb-text-primary">{formatCurrency(data.net, currencyCode)}</td>
+                <td className="px-3 py-2 text-sm text-right text-thb-text-secondary">{formatCurrency(data.employer, currencyCode)}</td>
               </tr>
             ))}
           </tbody>
@@ -681,16 +681,16 @@ export default function PayrollProcessingPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiPlayCircle className="w-6 h-6 text-emerald-500" />
             Payroll Processing
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage payroll run lifecycle — from creation through disbursement</p>
+          <p className="text-thb-text-secondary mt-1">Manage payroll run lifecycle — from creation through disbursement</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -708,76 +708,76 @@ export default function PayrollProcessingPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiActivity className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Runs</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalRuns}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Runs</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalRuns}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">In Progress</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{inProgressCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">In Progress</p>
+              <p className="text-xl font-bold text-thb-text-primary">{inProgressCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Approved</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{approvedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Approved</p>
+              <p className="text-xl font-bold text-thb-text-primary">{approvedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiDollarSign className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Disbursed / Closed</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{disbursedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Disbursed / Closed</p>
+              <p className="text-xl font-bold text-thb-text-primary">{disbursedCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by period, run type, status, entity..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <input
             type="month"
             value={payrollPeriodFilter}
             onChange={(e) => setPayrollPeriodFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
             placeholder="Payroll Period"
           />
           <select
             value={runStatusFilter}
             onChange={(e) => setRunStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Statuses</option>
             {RUN_STATUS_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -785,7 +785,7 @@ export default function PayrollProcessingPage() {
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Companies</option>
             {companies.map(c => (
@@ -799,15 +799,15 @@ export default function PayrollProcessingPage() {
 
       {/* Create Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Payroll Run' : 'Create Payroll Run'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -815,20 +815,20 @@ export default function PayrollProcessingPage() {
 
             {/* Basic Information */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Basic Information</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Legal Entity ID *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID *</label>
                   <input
                     required
                     value={form.legalEntityId}
                     onChange={(e) => setForm({ ...form, legalEntityId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. LE-001"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Payroll Period *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Period *</label>
                   <input
                     required
                     type="month"
@@ -845,15 +845,15 @@ export default function PayrollProcessingPage() {
                         } : {}),
                       });
                     }}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Run Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Run Type</label>
                   <select
                     value={form.runType}
                     onChange={(e) => setForm({ ...form, runType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {RUN_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -863,36 +863,36 @@ export default function PayrollProcessingPage() {
 
             {/* Date Configuration */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Date Configuration</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Date Configuration</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Period Start Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Period Start Date *</label>
                   <input
                     type="date"
                     required
                     value={form.periodStartDate}
                     onChange={(e) => setForm({ ...form, periodStartDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Period End Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Period End Date *</label>
                   <input
                     type="date"
                     required
                     value={form.periodEndDate}
                     onChange={(e) => setForm({ ...form, periodEndDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Pay Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Pay Date *</label>
                   <input
                     type="date"
                     required
                     value={form.payDate}
                     onChange={(e) => setForm({ ...form, payDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
               </div>
@@ -900,56 +900,56 @@ export default function PayrollProcessingPage() {
 
             {/* Processing Configuration */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Processing Configuration</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Processing Configuration</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {CURRENCY_CODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tax Projection Method</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax Projection Method</label>
                   <select
                     value={form.taxProjectionMethod}
                     onChange={(e) => setForm({ ...form, taxProjectionMethod: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {TAX_METHOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Processing Mode</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Processing Mode</label>
                   <select
                     value={form.processingMode}
                     onChange={(e) => setForm({ ...form, processingMode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {PROCESSING_MODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.includeStatutory}
                       onChange={(e) => setForm({ ...form, includeStatutory: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Include Statutory</span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company ID</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company ID</label>
                   {companies.length > 0 ? (
                     <select
                       value={form.companyId}
                       onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       <option value="">Select Company (optional)</option>
                       {companies.map(c => (
@@ -960,7 +960,7 @@ export default function PayrollProcessingPage() {
                     <input
                       value={form.companyId}
                       onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="Company ID (optional)"
                     />
                   )}
@@ -969,10 +969,10 @@ export default function PayrollProcessingPage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -992,7 +992,7 @@ export default function PayrollProcessingPage() {
       {loading ? (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="nexus-card p-6">
+            <div key={i} className="thb-card p-6">
               <div className="animate-pulse space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="h-6 bg-slate-100 rounded w-48" />
@@ -1009,15 +1009,15 @@ export default function PayrollProcessingPage() {
           ))}
         </div>
       ) : filteredRuns.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiPlayCircle className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No payroll runs found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first payroll run to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiPlayCircle className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No payroll runs found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first payroll run to get started</p>
         </div>
       ) : (
         <div className="space-y-4">
           {filteredRuns.map((run) => (
-            <div key={run.id} className="nexus-card overflow-hidden">
+            <div key={run.id} className="thb-card overflow-hidden">
               {/* Delete Confirmation */}
               {deleteConfirmId === run.id ? (
                 <div className="p-6 bg-red-50">
@@ -1034,7 +1034,7 @@ export default function PayrollProcessingPage() {
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(null)}
-                      className="px-4 py-2 border border-nexus-border text-sm font-medium rounded-lg text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                      className="px-4 py-2 border border-thb-border text-sm font-medium rounded-lg text-thb-text-secondary hover:bg-slate-50 transition-colors"
                     >
                       Cancel
                     </button>
@@ -1062,10 +1062,10 @@ export default function PayrollProcessingPage() {
                           }`} />
                         </div>
                         <div>
-                          <h3 className="text-base font-semibold text-nexus-text-primary">
+                          <h3 className="text-base font-semibold text-thb-text-primary">
                             {run.payrollPeriod} &middot; {formatRunType(run.runType)}
                           </h3>
-                          <p className="text-xs text-nexus-text-secondary mt-0.5">
+                          <p className="text-xs text-thb-text-secondary mt-0.5">
                             Entity: {run.legalEntityId} &middot; Pay Date: {formatDate(run.payDate)} &middot; {run.currencyCode}
                           </p>
                         </div>
@@ -1083,8 +1083,8 @@ export default function PayrollProcessingPage() {
                     {/* Stats Row */}
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
                       <div className="bg-slate-50 rounded-lg p-3">
-                        <p className="text-[10px] font-medium text-nexus-text-muted uppercase">Employees</p>
-                        <p className="text-lg font-bold text-nexus-text-primary">{run.totalEmployees}</p>
+                        <p className="text-[10px] font-medium text-thb-text-muted uppercase">Employees</p>
+                        <p className="text-lg font-bold text-thb-text-primary">{run.totalEmployees}</p>
                       </div>
                       <div className="bg-emerald-50 rounded-lg p-3">
                         <p className="text-[10px] font-medium text-emerald-600 uppercase">Gross Pay</p>
@@ -1108,11 +1108,11 @@ export default function PayrollProcessingPage() {
                     {renderProgressBar(run.runStatus)}
 
                     {/* Action Buttons & View Details */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t border-nexus-border">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t border-thb-border">
                       {getActionButtons(run)}
                       <button
                         onClick={() => handleViewDetails(run)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-nexus-border text-nexus-text-secondary text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border text-thb-text-secondary text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                       >
                         <FiEye className="w-3.5 h-3.5" />
                         {expandedRunId === run.id ? 'Hide Details' : 'View Details'}
@@ -1123,17 +1123,17 @@ export default function PayrollProcessingPage() {
 
                   {/* Expanded Detail Panel */}
                   {expandedRunId === run.id && (
-                    <div className="border-t border-nexus-border bg-slate-50/50">
+                    <div className="border-t border-thb-border bg-slate-50/50">
                       {expandLoading ? (
                         <div className="flex items-center justify-center py-8">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
-                          <span className="ml-3 text-sm text-nexus-text-secondary">Loading details...</span>
+                          <span className="ml-3 text-sm text-thb-text-secondary">Loading details...</span>
                         </div>
                       ) : expandedRunData ? (
                         <div className="p-6">
                           {/* Run Configuration */}
                           <div className="mb-6">
-                            <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Run Configuration</h3>
+                            <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Run Configuration</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                               <DetailItem label="Legal Entity" value={expandedRunData.legalEntityId} />
                               <DetailItem label="Payroll Period" value={expandedRunData.payrollPeriod} />
@@ -1152,18 +1152,18 @@ export default function PayrollProcessingPage() {
 
                           {/* Transaction Summary */}
                           <div className="mb-6">
-                            <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Transaction Summary</h3>
-                            <div className="nexus-card p-4">
+                            <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Transaction Summary</h3>
+                            <div className="thb-card p-4">
                               {renderTransactionSummary(expandedRunData.transactionLines || [], expandedRunData.currencyCode)}
                             </div>
                           </div>
 
                           {/* Employee-wise Summary */}
                           <div>
-                            <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Employee-wise Net Pay Summary</h3>
-                            <div className="nexus-card overflow-hidden">
+                            <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Employee-wise Net Pay Summary</h3>
+                            <div className="thb-card overflow-hidden">
                               {renderEmployeeSummary(expandedRunData.transactionLines || [], expandedRunData.currencyCode) || (
-                                <p className="text-sm text-nexus-text-muted text-center py-6">No transaction lines available</p>
+                                <p className="text-sm text-thb-text-muted text-center py-6">No transaction lines available</p>
                               )}
                             </div>
                           </div>

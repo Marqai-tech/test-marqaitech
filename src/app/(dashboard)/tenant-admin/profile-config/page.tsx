@@ -116,11 +116,11 @@ export default function ProfileConfigPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiSettings className="w-6 h-6 text-violet-500" />
             Profile Configuration
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Create custom fields for employee profiles — global, country-specific (e.g. Blood Type for Japan), or company-specific (e.g. IRP5 for South Africa)
           </p>
         </div>
@@ -133,24 +133,24 @@ export default function ProfileConfigPage() {
         </button>
       </div>
 
-      <div className="nexus-card overflow-hidden">
-        <div className="p-3 border-b border-nexus-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-nexus-text-primary">Custom Fields ({fields.length})</h2>
-          <button onClick={fetchFields} className="inline-flex items-center gap-1 text-xs text-nexus-text-secondary hover:bg-slate-100 px-2 py-1 rounded">
+      <div className="thb-card overflow-hidden">
+        <div className="p-3 border-b border-thb-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-thb-text-primary">Custom Fields ({fields.length})</h2>
+          <button onClick={fetchFields} className="inline-flex items-center gap-1 text-xs text-thb-text-secondary hover:bg-slate-100 px-2 py-1 rounded">
             <FiRefreshCw className="w-3 h-3" />
             Refresh
           </button>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+          <div className="p-8 text-center text-sm text-thb-text-muted">Loading...</div>
         ) : fields.length === 0 ? (
-          <div className="p-8 text-center text-sm text-nexus-text-muted">
+          <div className="p-8 text-center text-sm text-thb-text-muted">
             No custom fields configured. Add one to extend employee profiles.
           </div>
         ) : (
           <table className="w-full">
             <thead className="bg-slate-50">
-              <tr className="text-left text-xs text-nexus-text-muted uppercase tracking-wider">
+              <tr className="text-left text-xs text-thb-text-muted uppercase tracking-wider">
                 <th className="px-4 py-2 font-medium">Label</th>
                 <th className="px-4 py-2 font-medium">Key</th>
                 <th className="px-4 py-2 font-medium">Type</th>
@@ -160,12 +160,12 @@ export default function ProfileConfigPage() {
                 <th className="px-4 py-2 font-medium">Locked</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-nexus-border">
+            <tbody className="divide-y divide-thb-border">
               {fields.map((f) => (
                 <tr key={f.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{f.label}</td>
-                  <td className="px-4 py-3 text-xs font-mono text-nexus-text-secondary">{f.key}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary capitalize">{f.fieldType}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{f.label}</td>
+                  <td className="px-4 py-3 text-xs font-mono text-thb-text-secondary">{f.key}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary capitalize">{f.fieldType}</td>
                   <td className="px-4 py-3 text-xs">
                     <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
                       {f.scope}
@@ -174,7 +174,7 @@ export default function ProfileConfigPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs">{f.isRequired ? 'Yes' : 'No'}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-muted">
+                  <td className="px-4 py-3 text-xs text-thb-text-muted">
                     {f.isVisibleToManager ? 'Manager · ' : ''}{f.isVisibleToPeer ? 'Peer' : ''}
                     {!f.isVisibleToManager && !f.isVisibleToPeer ? 'HR only' : ''}
                   </td>
@@ -188,36 +188,36 @@ export default function ProfileConfigPage() {
 
       {showNewModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="nexus-card p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-nexus-text-primary mb-4">Add Custom Field</h3>
+          <div className="thb-card p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Add Custom Field</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Label *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Label *</label>
                 <input
                   type="text"
                   value={newField.label}
                   onChange={(e) => setNewField({ ...newField, label: e.target.value })}
                   placeholder="e.g. Blood Type"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Key *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Key *</label>
                 <input
                   type="text"
                   value={newField.key}
                   onChange={(e) => setNewField({ ...newField, key: e.target.value })}
                   placeholder="e.g. blood_type"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm font-mono"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm font-mono"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Type *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Type *</label>
                   <select
                     value={newField.fieldType}
                     onChange={(e) => setNewField({ ...newField, fieldType: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   >
                     <option value="text">Text</option>
                     <option value="number">Number</option>
@@ -229,11 +229,11 @@ export default function ProfileConfigPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Scope *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Scope *</label>
                   <select
                     value={newField.scope}
                     onChange={(e) => setNewField({ ...newField, scope: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   >
                     <option value="global">Global (all employees)</option>
                     <option value="country">Country-specific</option>
@@ -243,37 +243,37 @@ export default function ProfileConfigPage() {
               </div>
               {newField.scope === 'country' && (
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Country Code (ISO 3166-1 alpha-2)</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Country Code (ISO 3166-1 alpha-2)</label>
                   <input
                     type="text"
                     value={newField.countryCode}
                     onChange={(e) => setNewField({ ...newField, countryCode: e.target.value.toUpperCase() })}
                     placeholder="e.g. JP, ZA, AE"
                     maxLength={2}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
               )}
               {newField.scope === 'company' && (
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Sub-Company ID</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Sub-Company ID</label>
                   <input
                     type="text"
                     value={newField.companyId}
                     onChange={(e) => setNewField({ ...newField, companyId: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
               )}
               {(newField.fieldType === 'select' || newField.fieldType === 'multiselect') && (
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Options (comma-separated)</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Options (comma-separated)</label>
                   <input
                     type="text"
                     value={newField.options}
                     onChange={(e) => setNewField({ ...newField, options: e.target.value })}
                     placeholder="A, B, O, AB"
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
               )}
@@ -310,7 +310,7 @@ export default function ProfileConfigPage() {
             <div className="flex items-center justify-end gap-2 mt-5">
               <button
                 onClick={() => setShowNewModal(false)}
-                className="px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md"
+                className="px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md"
               >
                 Cancel
               </button>

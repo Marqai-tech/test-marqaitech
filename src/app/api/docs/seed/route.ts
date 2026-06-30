@@ -53,14 +53,14 @@ export async function POST(request: Request) {
       // Technical Documentation
       {
         categoryId: createdCategories['technical'],
-        title: 'Nexus HRMS System Architecture',
+        title: '3Boxes HRMS System Architecture',
         slug: 'system-architecture',
-        summary: 'Comprehensive overview of the Nexus HRMS system architecture, including microservices design, database schema, and deployment strategy.',
-        content: `# Nexus HRMS System Architecture
+        summary: 'Comprehensive overview of the 3Boxes HRMS system architecture, including microservices design, database schema, and deployment strategy.',
+        content: `# 3Boxes HRMS System Architecture
 
 ## Overview
 
-Nexus HRMS is built on a modern, cloud-native architecture designed for scalability, security, and multi-tenancy. The system follows a microservices-inspired design pattern with a Next.js monorepo structure that enables rapid feature development while maintaining clean separation of concerns.
+3Boxes HRMS is built on a modern, cloud-native architecture designed for scalability, security, and multi-tenancy. The system follows a microservices-inspired design pattern with a Next.js monorepo structure that enables rapid feature development while maintaining clean separation of concerns.
 
 ## Architecture Principles
 
@@ -84,7 +84,7 @@ Nexus HRMS is built on a modern, cloud-native architecture designed for scalabil
 
 ## Database Design
 
-The Nexus HRMS database follows a hierarchical multi-tenant model:
+The 3Boxes HRMS database follows a hierarchical multi-tenant model:
 
 1. **Tenant** → Top-level organization
 2. **Company Group** → Group of companies under a tenant
@@ -106,7 +106,7 @@ All API endpoints follow the pattern \`/api/{module}/{resource}/{id}\` with:
 
 ## Deployment Architecture
 
-Nexus HRMS is deployed on Vercel with:
+3Boxes HRMS is deployed on Vercel with:
 - Edge functions for authentication middleware
 - Serverless functions for API routes
 - Neon PostgreSQL for serverless database
@@ -120,7 +120,7 @@ Nexus HRMS is deployed on Vercel with:
 3. **Data**: Encryption at rest, tenant isolation, audit logging
 4. **API**: Rate limiting, input validation, SQL injection prevention via Prisma
 
-This architecture ensures Nexus HRMS can handle organizations ranging from small businesses to large enterprises with thousands of employees.`,
+This architecture ensures 3Boxes HRMS can handle organizations ranging from small businesses to large enterprises with thousands of employees.`,
         docType: 'technical',
         moduleKey: 'platform',
         tags: 'architecture,system,infrastructure,deployment',
@@ -136,7 +136,7 @@ This architecture ensures Nexus HRMS can handle organizations ranging from small
 
 ## Overview
 
-The Employee module is the core data entity in Nexus HRMS. Almost every other module references employees, making it the central hub of the system. This guide covers the technical implementation details for developers building on or integrating with the Employee module.
+The Employee module is the core data entity in 3Boxes HRMS. Almost every other module references employees, making it the central hub of the system. This guide covers the technical implementation details for developers building on or integrating with the Employee module.
 
 ## Database Schema
 
@@ -206,12 +206,12 @@ Employees can be linked to User accounts via the \`userId\` field. This creates 
         categoryId: createdCategories['technical'],
         title: 'API Authentication & Authorization',
         slug: 'api-auth-technical',
-        summary: 'Technical reference for JWT-based authentication, token management, and role-based access control in Nexus HRMS APIs.',
+        summary: 'Technical reference for JWT-based authentication, token management, and role-based access control in 3Boxes HRMS APIs.',
         content: `# API Authentication & Authorization
 
 ## Authentication Flow
 
-Nexus HRMS uses JWT (JSON Web Tokens) for stateless authentication. The flow works as follows:
+3Boxes HRMS uses JWT (JSON Web Tokens) for stateless authentication. The flow works as follows:
 
 1. **Login**: User submits email/password to \`/api/auth/login\`
 2. **Token Generation**: Server validates credentials and returns a JWT
@@ -241,7 +241,7 @@ The JWT payload contains:
 
 ## Role-Based Access Control (RBAC)
 
-Nexus HRMS implements five role levels:
+3Boxes HRMS implements five role levels:
 
 | Role | Level | Access Scope |
 |------|-------|-------------|
@@ -294,7 +294,7 @@ Some resources use additional access control via the DocAccessRule model, which 
 
 ## Overview
 
-The Recruitment module in Nexus HRMS provides a comprehensive suite of tools for managing the entire hiring lifecycle — from job requisition to offer acceptance. This guide walks you through each feature and best practices.
+The Recruitment module in 3Boxes HRMS provides a comprehensive suite of tools for managing the entire hiring lifecycle — from job requisition to offer acceptance. This guide walks you through each feature and best practices.
 
 ## Key Features
 
@@ -322,7 +322,7 @@ Manage candidates through a structured pipeline:
 - **Rejected** → Candidate not selected
 
 ### 4. AI-Powered Interviews
-Leverage Nexus AI to conduct initial screening interviews:
+Leverage 3Boxes AI to conduct initial screening interviews:
 - Configurable interview questions per role
 - Automated scoring and feedback
 - Video interview support
@@ -373,7 +373,7 @@ Generate and track offer letters:
         categoryId: createdCategories['functional'],
         title: 'Payroll Processing Guide',
         slug: 'payroll-processing-guide',
-        summary: 'Step-by-step guide to processing payroll, managing salary structures, and generating payslips in Nexus HRMS.',
+        summary: 'Step-by-step guide to processing payroll, managing salary structures, and generating payslips in 3Boxes HRMS.',
         content: `# Payroll Processing Guide
 
 ## Overview
@@ -456,7 +456,7 @@ Payslips are auto-generated in PDF format containing:
 
 ## Tax Management
 
-Nexus HRMS supports:
+3Boxes HRMS supports:
 - **TDS Calculation**: Automated based on tax regime
 - **Tax Declarations**: Employee investment declarations
 - **Form 16 Generation**: Annual tax statement
@@ -571,7 +571,7 @@ The leave calendar shows:
 
 ## Overview
 
-This document outlines the standard recruitment workflow in Nexus HRMS, defining each stage, decision point, and role responsibility.
+This document outlines the standard recruitment workflow in 3Boxes HRMS, defining each stage, decision point, and role responsibility.
 
 ## Workflow Stages
 
@@ -664,7 +664,7 @@ Offer Accepted → Auto-create Employee → Assign Onboarding Tasks → Complete
         categoryId: createdCategories['workflows'],
         title: 'Leave Approval Workflow',
         slug: 'leave-approval-workflow',
-        summary: 'Workflow configuration and rules for leave request approval in Nexus HRMS.',
+        summary: 'Workflow configuration and rules for leave request approval in 3Boxes HRMS.',
         content: `# Leave Approval Workflow
 
 ## Overview
@@ -825,7 +825,7 @@ Approved claims enter the payment queue:
 
 ## Security Philosophy
 
-Nexus HRMS follows a defense-in-depth approach with multiple layers of security to protect sensitive HR data. Every design decision prioritizes data confidentiality, integrity, and availability.
+3Boxes HRMS follows a defense-in-depth approach with multiple layers of security to protect sensitive HR data. Every design decision prioritizes data confidentiality, integrity, and availability.
 
 ## Data Protection Measures
 
@@ -921,7 +921,7 @@ Logs are immutable, time-stamped, and retained for 7 years.
 
 ## Role Hierarchy
 
-Nexus HRMS implements a hierarchical RBAC system where higher roles inherit permissions from lower ones:
+3Boxes HRMS implements a hierarchical RBAC system where higher roles inherit permissions from lower ones:
 
 \`\`\`
 super_admin → tenant_admin → hr_admin → manager → employee
@@ -977,7 +977,7 @@ super_admin → tenant_admin → hr_admin → manager → employee
 
 ## Custom Access Rules
 
-Beyond the standard RBAC, Nexus HRMS supports:
+Beyond the standard RBAC, 3Boxes HRMS supports:
 - **Document-level access**: Restrict specific documents to certain roles
 - **Field-level access**: Hide sensitive fields from specific roles
 - **Temporary access**: Grant time-limited elevated permissions
@@ -1001,12 +1001,12 @@ All access decisions are logged:
         categoryId: createdCategories['security'],
         title: 'Data Backup & Recovery Procedures',
         slug: 'data-backup-recovery',
-        summary: 'Procedures for data backup, disaster recovery, and business continuity in Nexus HRMS.',
+        summary: 'Procedures for data backup, disaster recovery, and business continuity in 3Boxes HRMS.',
         content: `# Data Backup & Recovery Procedures
 
 ## Backup Strategy
 
-Nexus HRMS implements a comprehensive backup strategy to ensure data durability and recovery capability.
+3Boxes HRMS implements a comprehensive backup strategy to ensure data durability and recovery capability.
 
 ### Automated Backups
 
@@ -1091,7 +1091,7 @@ Nexus HRMS implements a comprehensive backup strategy to ensure data durability 
 
 ## Overview
 
-The AI Interview feature in Nexus HRMS leverages advanced language models to conduct automated screening interviews. This guide covers setup, configuration, and best practices for getting the most out of AI interviews.
+The AI Interview feature in 3Boxes HRMS leverages advanced language models to conduct automated screening interviews. This guide covers setup, configuration, and best practices for getting the most out of AI interviews.
 
 ## Prerequisites
 
@@ -1181,7 +1181,7 @@ Track these metrics in the AI Admin Console:
 
 ## Overview
 
-The Nexus AI Assistant provides 24/7 HR support to employees through an intelligent chatbot interface. It can answer policy questions, guide employees through processes, and escalate complex issues to human agents.
+The 3Boxes AI Assistant provides 24/7 HR support to employees through an intelligent chatbot interface. It can answer policy questions, guide employees through processes, and escalate complex issues to human agents.
 
 ## Features
 
@@ -1265,12 +1265,12 @@ Monitor chatbot performance:
         categoryId: createdCategories['ai'],
         title: 'AI Model Configuration Guide',
         slug: 'ai-model-configuration',
-        summary: 'Technical guide for configuring and managing AI models in the Nexus HRMS AI Admin Console.',
+        summary: 'Technical guide for configuring and managing AI models in the 3Boxes HRMS AI Admin Console.',
         content: `# AI Model Configuration Guide
 
 ## Overview
 
-The AI Admin Console provides centralized management of all AI models used across Nexus HRMS features. This guide covers model selection, configuration, and monitoring.
+The AI Admin Console provides centralized management of all AI models used across 3Boxes HRMS features. This guide covers model selection, configuration, and monitoring.
 
 ## Available Model Types
 
@@ -1302,7 +1302,7 @@ The AI Admin Console provides centralized management of all AI models used acros
 
 ### Prompt Templates
 Each feature uses system prompts that define:
-- **Role**: "You are an HR assistant for Nexus HRMS..."
+- **Role**: "You are an HR assistant for 3Boxes HRMS..."
 - **Context**: Company policies, current data
 - **Constraints**: What the AI should NOT do
 - **Format**: Expected response structure
@@ -1388,7 +1388,7 @@ This procedure applies to all new hires, including full-time employees, part-tim
 1. **HR Tasks**:
    - Send welcome email with first-day instructions
    - Prepare employee ID and access badge
-   - Create employee record in Nexus HRMS
+   - Create employee record in 3Boxes HRMS
    - Assign onboarding task checklist
 
 2. **IT Tasks**:
@@ -1421,7 +1421,7 @@ This procedure applies to all new hires, including full-time employees, part-tim
   - Role expectations and goals
   - Team structure and communication norms
   - First week schedule review
-- [ ] Setup Nexus HRMS profile and self-service
+- [ ] Setup 3Boxes HRMS profile and self-service
 
 ## Week 1: Orientation
 
@@ -1438,7 +1438,7 @@ This procedure applies to all new hires, including full-time employees, part-tim
 ### Day 4-5
 - [ ] Role-specific tool training
 - [ ] Shadow team members
-- [ ] Begin assigned onboarding tasks in Nexus HRMS
+- [ ] Begin assigned onboarding tasks in 3Boxes HRMS
 
 ## 30-Day Checkpoint
 
@@ -1465,7 +1465,7 @@ This procedure applies to all new hires, including full-time employees, part-tim
 
 ## Documentation Checklist
 
-All items must be completed in Nexus HRMS:
+All items must be completed in 3Boxes HRMS:
 - [ ] Employment contract signed
 - [ ] NDA signed
 - [ ] Tax documents submitted
@@ -1508,7 +1508,7 @@ Covers all types of separation: resignation, termination, retirement, and contra
 ### Upon Resignation Notice
 1. **Immediate Actions** (Day 0):
    - Acknowledge resignation in writing
-   - Create separation record in Nexus HRMS
+   - Create separation record in 3Boxes HRMS
    - Notify HR Admin, IT, and Finance
    - Assign clearance checklist
 
@@ -1722,7 +1722,7 @@ After each payroll run, generate:
 
 ## Welcome
 
-Congratulations on your new management role! This training module will help you get up to speed with the Nexus HRMS tools available to you as a manager.
+Congratulations on your new management role! This training module will help you get up to speed with the 3Boxes HRMS tools available to you as a manager.
 
 ## Module 1: Dashboard Overview
 
@@ -1836,7 +1836,7 @@ Complete the following to finish your manager training:
 
 ## Course Overview
 
-This training course equips HR administrators with the knowledge and skills to effectively manage Nexus HRMS. By the end of this course, you'll be proficient in all core HR modules.
+This training course equips HR administrators with the knowledge and skills to effectively manage 3Boxes HRMS. By the end of this course, you'll be proficient in all core HR modules.
 
 ## Module 1: Employee Management
 
@@ -1976,17 +1976,17 @@ Complete all items to earn your HR Admin certification:
         categoryId: createdCategories['training'],
         title: 'Employee Self-Service Training',
         slug: 'employee-self-service-training',
-        summary: 'Training guide for employees on using Nexus HRMS self-service features including profile, leave, attendance, and more.',
+        summary: 'Training guide for employees on using 3Boxes HRMS self-service features including profile, leave, attendance, and more.',
         content: `# Employee Self-Service Training
 
-## Welcome to Nexus HRMS
+## Welcome to 3Boxes HRMS
 
-Nexus HRMS gives you easy access to manage your employment information, request time off, view payslips, and more — all from a single, intuitive interface.
+3Boxes HRMS gives you easy access to manage your employment information, request time off, view payslips, and more — all from a single, intuitive interface.
 
 ## Getting Started
 
 ### Logging In
-1. Visit your company's Nexus HRMS URL
+1. Visit your company's 3Boxes HRMS URL
 2. Enter your email and password
 3. You'll see your personalized dashboard
 
@@ -2041,7 +2041,7 @@ You can cancel approved leave requests:
 ## Attendance
 
 ### Marking Attendance
-If your company uses Nexus HRMS for attendance:
+If your company uses 3Boxes HRMS for attendance:
 1. Click "Attendance" in sidebar
 2. Click "Check In" when you start work
 3. Click "Check Out" when you leave

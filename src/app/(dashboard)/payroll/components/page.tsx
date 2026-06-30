@@ -42,23 +42,23 @@ interface PayrollComponent {
 // --- Badge Helpers ---
 function getTypeBadge(type: string) {
   const map: Record<string, string> = {
-    EARNING: 'nexus-badge nexus-badge-success',
-    DEDUCTION: 'nexus-badge nexus-badge-error',
-    EMPLOYER_CONTRIB: 'nexus-badge nexus-badge-info',
-    EMPLOYEE_CONTRIB: 'nexus-badge nexus-badge-info',
-    REIMBURSEMENT: 'nexus-badge nexus-badge-warning',
-    BENEFIT_IN_KIND: 'nexus-badge nexus-badge-purple',
-    INFORMATIONAL: 'nexus-badge nexus-badge-info',
+    EARNING: 'thb-badge thb-badge-success',
+    DEDUCTION: 'thb-badge thb-badge-error',
+    EMPLOYER_CONTRIB: 'thb-badge thb-badge-info',
+    EMPLOYEE_CONTRIB: 'thb-badge thb-badge-info',
+    REIMBURSEMENT: 'thb-badge thb-badge-warning',
+    BENEFIT_IN_KIND: 'thb-badge thb-badge-purple',
+    INFORMATIONAL: 'thb-badge thb-badge-info',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
-    NORMAL: 'nexus-badge nexus-badge-info',
-    STATUTORY: 'nexus-badge nexus-badge-warning',
+    NORMAL: 'thb-badge thb-badge-info',
+    STATUTORY: 'thb-badge thb-badge-warning',
   };
-  return map[category] || 'nexus-badge nexus-badge-info';
+  return map[category] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -124,11 +124,11 @@ const ROUNDING_RULE_OPTIONS = [
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -354,16 +354,16 @@ export default function PayrollComponentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiDatabase className="w-6 h-6 text-blue-500" />
             Component Master
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Define and manage payroll components across countries</p>
+          <p className="text-thb-text-secondary mt-1">Define and manage payroll components across countries</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -381,69 +381,69 @@ export default function PayrollComponentsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiDatabase className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Components</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalComponents}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Components</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalComponents}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiPlus className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Earnings</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{earningsCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Earnings</p>
+              <p className="text-xl font-bold text-thb-text-primary">{earningsCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
               <FiTrash2 className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Deductions</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{deductionsCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Deductions</p>
+              <p className="text-xl font-bold text-thb-text-primary">{deductionsCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiDatabase className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Statutory</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{statutoryCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Statutory</p>
+              <p className="text-xl font-bold text-thb-text-primary">{statutoryCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by code, name, or country..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -451,7 +451,7 @@ export default function PayrollComponentsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Types</option>
             <option value="EARNING">Earning</option>
@@ -460,7 +460,7 @@ export default function PayrollComponentsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
           >
             <option value="">All Categories</option>
             <option value="NORMAL">Normal</option>
@@ -469,7 +469,7 @@ export default function PayrollComponentsPage() {
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
           >
             <option value="">All Status</option>
             <option value="true">Active</option>
@@ -480,7 +480,7 @@ export default function PayrollComponentsPage() {
 
       {/* View Panel */}
       {viewingComponent && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -490,8 +490,8 @@ export default function PayrollComponentsPage() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingComponent.name}</h2>
-                    <p className="text-sm text-nexus-text-secondary mt-0.5">
+                    <h2 className="text-lg font-semibold text-thb-text-primary">{viewingComponent.name}</h2>
+                    <p className="text-sm text-thb-text-secondary mt-0.5">
                       {viewingComponent.code} &middot; {viewingComponent.countryCode}
                     </p>
                   </div>
@@ -506,7 +506,7 @@ export default function PayrollComponentsPage() {
                     )}
                     <button
                       onClick={() => setViewingComponent(null)}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                     >
                       <FiX className="w-5 h-5" />
                     </button>
@@ -533,7 +533,7 @@ export default function PayrollComponentsPage() {
                   <DetailItem label="Payment Frequency" value={formatFrequency(viewingComponent.paymentFrequency)} />
                   <DetailItem label="Proration Applicable" value={viewingComponent.prorationApplicable} />
                   <DetailItem label="Rounding Rule" value={viewingComponent.roundingRule ? formatCalcType(viewingComponent.roundingRule) : null} />
-                  <DetailItem label="Active" value={viewingComponent.isActive} badge={viewingComponent.isActive ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error'} />
+                  <DetailItem label="Active" value={viewingComponent.isActive} badge={viewingComponent.isActive ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error'} />
                 </div>
               </>
             )}
@@ -543,15 +543,15 @@ export default function PayrollComponentsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Component' : 'Create Component'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -559,64 +559,64 @@ export default function PayrollComponentsPage() {
 
             {/* Basic Information */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Basic Information</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code *</label>
                   <input
                     required
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. BASIC, HRA, EPF_EE"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
                   <input
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. Basic Salary"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Component Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Type</label>
                   <select
                     value={form.componentType}
                     onChange={(e) => setForm({ ...form, componentType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {COMPONENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
                   <select
                     value={form.componentCategory}
                     onChange={(e) => setForm({ ...form, componentCategory: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {COMPONENT_CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
                   <select
                     value={form.countryCode}
                     onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Calculation Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Calculation Type</label>
                   <select
                     value={form.calculationType}
                     onChange={(e) => setForm({ ...form, calculationType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {CALCULATION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -626,34 +626,34 @@ export default function PayrollComponentsPage() {
 
             {/* Calculation & Value */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Calculation & Value</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Calculation & Value</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Default Value</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Default Value</label>
                   <input
                     type="number"
                     step="0.01"
                     value={form.defaultValue}
                     onChange={(e) => setForm({ ...form, defaultValue: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 50000 or 12"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Percentage Base</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Percentage Base</label>
                   <input
                     value={form.percentageBase}
                     onChange={(e) => setForm({ ...form, percentageBase: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. BASIC (component code)"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Rounding Rule</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rounding Rule</label>
                   <select
                     value={form.roundingRule}
                     onChange={(e) => setForm({ ...form, roundingRule: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {ROUNDING_RULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -663,46 +663,46 @@ export default function PayrollComponentsPage() {
 
             {/* Tax Configuration */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Tax Configuration</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Tax Configuration</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.isTaxable}
                       onChange={(e) => setForm({ ...form, isTaxable: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Taxable</span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tax Treatment</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax Treatment</label>
                   <select
                     value={form.taxTreatment}
                     onChange={(e) => setForm({ ...form, taxTreatment: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {TAX_TREATMENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Exemption Section</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Exemption Section</label>
                   <input
                     value={form.exemptionSection}
                     onChange={(e) => setForm({ ...form, exemptionSection: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder='e.g. "80C", "80D"'
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Max Exemption Amount</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Max Exemption Amount</label>
                   <input
                     type="number"
                     step="0.01"
                     value={form.maxExemptionAmt}
                     onChange={(e) => setForm({ ...form, maxExemptionAmt: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 150000"
                   />
                 </div>
@@ -711,69 +711,69 @@ export default function PayrollComponentsPage() {
 
             {/* Payroll Impact & Frequency */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Payroll Impact & Frequency</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Payroll Impact & Frequency</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Payment Frequency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payment Frequency</label>
                   <select
                     value={form.paymentFrequency}
                     onChange={(e) => setForm({ ...form, paymentFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {PAYMENT_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div className="flex items-end pb-1 gap-5">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.affectsGross}
                       onChange={(e) => setForm({ ...form, affectsGross: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Affects Gross</span>
                   </label>
                 </div>
                 <div className="flex items-end pb-1 gap-5">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.affectsNet}
                       onChange={(e) => setForm({ ...form, affectsNet: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Affects Net</span>
                   </label>
                 </div>
                 <div className="flex items-end pb-1 gap-5">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.affectsCTC}
                       onChange={(e) => setForm({ ...form, affectsCTC: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Affects CTC</span>
                   </label>
                 </div>
                 <div className="flex items-end pb-1 gap-5">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.prorationApplicable}
                       onChange={(e) => setForm({ ...form, prorationApplicable: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Proration Applicable</span>
                   </label>
                 </div>
                 <div className="flex items-end pb-1 gap-5">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.isActive}
                       onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Active</span>
                   </label>
@@ -782,10 +782,10 @@ export default function PayrollComponentsPage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -803,7 +803,7 @@ export default function PayrollComponentsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -811,19 +811,19 @@ export default function PayrollComponentsPage() {
           </div>
         </div>
       ) : filteredComponents.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiDatabase className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No payroll components found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first payroll component to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiDatabase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No payroll components found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first payroll component to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Code', 'Name', 'Type', 'Category', 'Country', 'Calculation', 'Taxable', 'Active', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -847,7 +847,7 @@ export default function PayrollComponentsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -856,23 +856,23 @@ export default function PayrollComponentsPage() {
                     </tr>
                   ) : (
                     <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-mono font-semibold text-nexus-text-primary">{c.code}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{c.name}</td>
+                      <td className="px-4 py-3 text-sm font-mono font-semibold text-thb-text-primary">{c.code}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{c.name}</td>
                       <td className="px-4 py-3">
                         <span className={getTypeBadge(c.componentType)}>{formatComponentType(c.componentType)}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={getCategoryBadge(c.componentCategory)}>{c.componentCategory}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{c.countryCode}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatCalcType(c.calculationType)}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{c.countryCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatCalcType(c.calculationType)}</td>
                       <td className="px-4 py-3">
-                        <span className={c.isTaxable ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error'}>
+                        <span className={c.isTaxable ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error'}>
                           {c.isTaxable ? 'Yes' : 'No'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={c.isActive ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error'}>
+                        <span className={c.isActive ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error'}>
                           {c.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -880,7 +880,7 @@ export default function PayrollComponentsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(c)}
-                            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />
@@ -889,14 +889,14 @@ export default function PayrollComponentsPage() {
                             <>
                               <button
                                 onClick={() => handleEdit(c)}
-                                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => setDeleteConfirmId(c.id)}
-                                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                                 title="Deactivate"
                               >
                                 <FiTrash2 className="w-4 h-4" />

@@ -159,7 +159,7 @@ export default function ModuleWorkflow({
   const roleFilteredSteps = userRole ? (getWorkflowForRole(moduleKey, userRole) || []) : [];
   const activeSteps = roleFilteredSteps.length > 0 ? roleFilteredSteps : (Array.isArray(steps) ? steps : []);
 
-  const dismissKey = `nexus_workflow_dismissed_${moduleKey}`;
+  const dismissKey = `3boxes_workflow_dismissed_${moduleKey}`;
 
   const mounted = useSyncExternalStore(
     emptySubscribe,
@@ -231,7 +231,7 @@ export default function ModuleWorkflow({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="nexus-card overflow-hidden border border-slate-100">
+      <div className="thb-card overflow-hidden border border-slate-100">
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-4 ${colors.headerBg} border-b ${colors.headerBorder}`}>
           <button
@@ -244,9 +244,9 @@ export default function ModuleWorkflow({
               <FiInfo className={`w-4 h-4 ${colors.headerIconColor}`} />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-nexus-text-primary truncate">{title}</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary truncate">{title}</h3>
               {subtitle && (
-                <p className="text-xs text-nexus-text-secondary mt-0.5 truncate">{subtitle}</p>
+                <p className="text-xs text-thb-text-secondary mt-0.5 truncate">{subtitle}</p>
               )}
             </div>
             <span className={`text-[10px] font-medium ${colors.badgeBg} px-2 py-0.5 rounded-full ml-2 whitespace-nowrap`}>
@@ -261,7 +261,7 @@ export default function ModuleWorkflow({
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={handleToggleCollapse}
-              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+              className="p-1.5 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-white/60 transition-colors"
               title={collapsed ? 'Expand' : 'Collapse'}
               aria-expanded={!collapsed}
             >
@@ -269,7 +269,7 @@ export default function ModuleWorkflow({
             </button>
             <button
               onClick={handleDismiss}
-              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Dismiss workflow"
             >
               <FiX className="w-4 h-4" />
@@ -404,7 +404,7 @@ export default function ModuleWorkflow({
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed">
+                        <p className="text-[11px] text-thb-text-muted mt-0.5 leading-relaxed">
                           {step.description}
                         </p>
                       </button>
@@ -419,17 +419,17 @@ export default function ModuleWorkflow({
                   <span className={`w-4 h-4 rounded-full ${colors.completeBg} flex items-center justify-center`}>
                     <FiCheck className="w-2.5 h-2.5 text-white" />
                   </span>
-                  <span className="text-[10px] text-nexus-text-muted">Complete</span>
+                  <span className="text-[10px] text-thb-text-muted">Complete</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
                     <span className="text-[8px] text-white font-bold">•</span>
                   </span>
-                  <span className="text-[10px] text-nexus-text-muted">Current Step</span>
+                  <span className="text-[10px] text-thb-text-muted">Current Step</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded-full bg-slate-100" />
-                  <span className="text-[10px] text-nexus-text-muted">Pending</span>
+                  <span className="text-[10px] text-thb-text-muted">Pending</span>
                 </div>
               </div>
             </div>
@@ -443,7 +443,7 @@ export default function ModuleWorkflow({
           className="absolute left-0 right-0 top-full z-40 mt-1"
           role="tooltip"
         >
-          <div className={`nexus-card border ${colors.previewBorder} shadow-xl rounded-xl overflow-hidden`}>
+          <div className={`thb-card border ${colors.previewBorder} shadow-xl rounded-xl overflow-hidden`}>
             <div className={`px-4 py-2 bg-gradient-to-r ${colors.previewHeader} border-b ${colors.previewBorder} flex items-center gap-2`}>
               <FiEye className="w-3.5 h-3.5" />
               <span className="text-[11px] font-semibold uppercase tracking-wider">Preview · click to pin open</span>
@@ -492,7 +492,7 @@ export default function ModuleWorkflow({
                             <span className="text-[9px] text-slate-400">→ click to open</span>
                           )}
                         </div>
-                        <p className="text-[11px] text-nexus-text-muted mt-0.5 leading-relaxed line-clamp-2">
+                        <p className="text-[11px] text-thb-text-muted mt-0.5 leading-relaxed line-clamp-2">
                           {step.description}
                         </p>
                       </div>

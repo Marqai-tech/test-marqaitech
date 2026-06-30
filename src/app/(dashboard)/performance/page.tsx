@@ -54,12 +54,12 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'nexus-badge nexus-badge-warning',
-    in_review: 'bg-cyan-50 text-cyan-700 nexus-badge',
-    completed: 'nexus-badge nexus-badge-success',
-    acknowledged: 'bg-emerald-50 text-emerald-700 nexus-badge',
-    pending: 'nexus-badge nexus-badge-warning',
-    in_progress: 'nexus-badge nexus-badge-info',
+    draft: 'thb-badge thb-badge-warning',
+    in_review: 'bg-cyan-50 text-cyan-700 thb-badge',
+    completed: 'thb-badge thb-badge-success',
+    acknowledged: 'bg-emerald-50 text-emerald-700 thb-badge',
+    pending: 'thb-badge thb-badge-warning',
+    in_progress: 'thb-badge thb-badge-info',
   };
   const labels: Record<string, string> = {
     draft: 'Draft',
@@ -69,7 +69,7 @@ function getStatusBadge(status: string) {
     pending: 'Pending',
     in_progress: 'In Progress',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 function renderStars(rating: number, size: string = 'w-3.5 h-3.5') {
@@ -78,7 +78,7 @@ function renderStars(rating: number, size: string = 'w-3.5 h-3.5') {
       {[1, 2, 3, 4, 5].map(s => (
         <FiStar key={s} className={`${size} ${s <= Math.round(rating) ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
       ))}
-      <span className="text-xs text-nexus-text-muted ml-1">{rating > 0 ? rating.toFixed(1) : '—'}</span>
+      <span className="text-xs text-thb-text-muted ml-1">{rating > 0 ? rating.toFixed(1) : '—'}</span>
     </div>
   );
 }
@@ -299,11 +299,11 @@ export default function PerformancePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiTrendingUp className="w-6 h-6 text-amber-500" />
             Performance
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Track performance reviews and ratings</p>
+          <p className="text-thb-text-secondary mt-1">Track performance reviews and ratings</p>
         </div>
         {isAdmin && (
           <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
@@ -334,25 +334,25 @@ export default function PerformancePage() {
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search employees, cycles..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
           />
         </div>
         <div className="flex items-center gap-2">
-          <FiFilter className="w-4 h-4 text-nexus-text-muted" />
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <FiFilter className="w-4 h-4 text-thb-text-muted" />
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
             <option value="">All Status</option>
             <option value="draft">Draft</option>
             <option value="in_review">In Review</option>
             <option value="completed">Completed</option>
             <option value="acknowledged">Acknowledged</option>
           </select>
-          <select value={filterCycle} onChange={e => setFilterCycle(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterCycle} onChange={e => setFilterCycle(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
             <option value="">All Cycles</option>
             {uniqueCycles.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -361,24 +361,24 @@ export default function PerformancePage() {
 
       {/* Embedded CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Review' : 'Create Review'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee {!editingId && '*'}</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee {!editingId && '*'}</label>
                 <select
                   value={form.employeeId}
                   onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
                   disabled={!!editingId}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-nexus-text-muted"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-thb-text-muted"
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
@@ -389,11 +389,11 @@ export default function PerformancePage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reviewer</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reviewer</label>
                 <select
                   value={form.reviewerId}
                   onChange={e => setForm(p => ({ ...p, reviewerId: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="">Select Reviewer</option>
                   {employees.map(emp => (
@@ -404,72 +404,72 @@ export default function PerformancePage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Review Cycle *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Review Cycle *</label>
                 <input
                   type="text"
                   value={form.reviewCycle}
                   onChange={e => setForm(p => ({ ...p, reviewCycle: e.target.value }))}
                   placeholder="e.g., Q1 2026, Annual 2026"
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Review Period</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Review Period</label>
                 <input
                   type="text"
                   value={form.reviewPeriod}
                   onChange={e => setForm(p => ({ ...p, reviewPeriod: e.target.value }))}
                   placeholder="e.g., Jan-Mar 2026"
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Goals Rating (1-5)</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Goals Rating (1-5)</label>
                 <select
                   value={form.goalsRating}
                   onChange={e => setForm(p => ({ ...p, goalsRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Competencies Rating (1-5)</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Competencies Rating (1-5)</label>
                 <select
                   value={form.competenciesRating}
                   onChange={e => setForm(p => ({ ...p, competenciesRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Behavior Rating (1-5)</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Behavior Rating (1-5)</label>
                 <select
                   value={form.behaviorRating}
                   onChange={e => setForm(p => ({ ...p, behaviorRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Overall Rating (1-5)</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Overall Rating (1-5)</label>
                 <select
                   value={form.overallRating}
                   onChange={e => setForm(p => ({ ...p, overallRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
               </div>
               {editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
                   <select
                     value={form.status}
                     onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     <option value="draft">Draft</option>
                     <option value="in_review">In Review</option>
@@ -479,18 +479,18 @@ export default function PerformancePage() {
                 </div>
               )}
               <div className={editingId ? '' : 'sm:col-span-2'}>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Comments</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Comments</label>
                 <textarea
                   rows={2}
                   value={form.comments}
                   onChange={e => setForm(p => ({ ...p, comments: e.target.value }))}
                   placeholder="Review comments..."
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
               </button>
@@ -500,26 +500,26 @@ export default function PerformancePage() {
       )}
 
       {/* Reviews Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Reviewer</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Cycle</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Overall Rating</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Comments</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Reviewer</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Cycle</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Overall Rating</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Comments</th>
                 {isAdmin && (
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     <td className="px-4 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
@@ -532,16 +532,16 @@ export default function PerformancePage() {
               ) : filteredReviews.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiTrendingUp className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No performance reviews found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Create reviews to track employee performance</p>
+                    <FiTrendingUp className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No performance reviews found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">Create reviews to track employee performance</p>
                   </td>
                 </tr>
               ) : (
                 filteredReviews.map(r => {
                   const statusBadge = getStatusBadge(r.status);
                   return (
-                    <tr key={r.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                    <tr key={r.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                       {deleteConfirmId === r.id ? (
                         <td colSpan={colCount} className="px-4 py-3 bg-red-50">
                           <div className="flex items-center justify-between">
@@ -550,32 +550,32 @@ export default function PerformancePage() {
                               <button onClick={() => handleDelete(r.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
                                 {deleting ? 'Deleting...' : 'Confirm'}
                               </button>
-                              <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                              <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                             </div>
                           </div>
                         </td>
                       ) : (
                         <>
                           <td className="px-4 py-3">
-                            <p className="text-sm font-medium text-nexus-text-primary">
+                            <p className="text-sm font-medium text-thb-text-primary">
                               {r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Unknown'}
                             </p>
-                            {r.employee && <p className="text-xs text-nexus-text-muted">{r.employee.employeeId}</p>}
+                            {r.employee && <p className="text-xs text-thb-text-muted">{r.employee.employeeId}</p>}
                           </td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">
                             {r.reviewer ? `${r.reviewer.firstName} ${r.reviewer.lastName}` : '—'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">{r.reviewCycle}</td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{r.reviewCycle}</td>
                           <td className="px-4 py-3">{renderStars(r.overallRating)}</td>
                           <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[150px]">{r.comments || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary truncate max-w-[150px]">{r.comments || '—'}</td>
                           {isAdmin && (
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => handleShowEditForm(r)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <button onClick={() => handleShowEditForm(r)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => setDeleteConfirmId(r.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                <button onClick={() => setDeleteConfirmId(r.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
                                   <FiTrash2 className="w-4 h-4" />
                                 </button>
                               </div>

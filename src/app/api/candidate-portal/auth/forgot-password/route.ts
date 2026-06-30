@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
     // Build the magic link
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-      (typeof request !== 'undefined' ? new URL(request.url).origin : 'https://nexus-hrms-mu.vercel.app');
+      (typeof request !== 'undefined' ? new URL(request.url).origin : 'https://3boxes-hrms-mu.vercel.app');
     const magicLink = `${baseUrl}/candidate-portal/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
     // Email provider (SendGrid/Postmark/SES) not yet wired up. Until it is,

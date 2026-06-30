@@ -72,14 +72,14 @@ export default function PWAInstallPrompt() {
   if (isIOS && !isStandalone) {
     return (
       <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm animate-slide-in-up">
-        <div className="bg-white rounded-2xl shadow-2xl border border-nexus-border p-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-thb-border p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
               <FiSmartphone className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-nexus-text-primary">Install Nexus HRMS App</p>
-              <p className="text-xs text-nexus-text-secondary mt-1">
+              <p className="text-sm font-semibold text-thb-text-primary">Install 3Boxes HRMS App</p>
+              <p className="text-xs text-thb-text-secondary mt-1">
                 Tap <span className="inline-flex items-center gap-0.5 font-medium">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                   Share
@@ -88,7 +88,7 @@ export default function PWAInstallPrompt() {
             </div>
             <button
               onClick={() => setShowPrompt(false)}
-              className="flex-shrink-0 text-nexus-text-muted hover:text-nexus-text-secondary"
+              className="flex-shrink-0 text-thb-text-muted hover:text-thb-text-secondary"
             >
               <FiX className="w-4 h-4" />
             </button>
@@ -102,14 +102,14 @@ export default function PWAInstallPrompt() {
   if (showPrompt && deferredPrompt) {
     return (
       <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm animate-slide-in-up">
-        <div className="bg-white rounded-2xl shadow-2xl border border-nexus-border p-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-thb-border p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
               <FiDownload className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-nexus-text-primary">Install Nexus HRMS</p>
-              <p className="text-xs text-nexus-text-secondary mt-1">
+              <p className="text-sm font-semibold text-thb-text-primary">Install 3Boxes HRMS</p>
+              <p className="text-xs text-thb-text-secondary mt-1">
                 Install the app on your device for quick access and offline support.
               </p>
               <div className="flex gap-2 mt-3">
@@ -121,7 +121,7 @@ export default function PWAInstallPrompt() {
                 </button>
                 <button
                   onClick={() => setShowPrompt(false)}
-                  className="px-3 py-1.5 rounded-lg border border-nexus-border text-xs text-nexus-text-secondary hover:bg-slate-50 transition-all"
+                  className="px-3 py-1.5 rounded-lg border border-thb-border text-xs text-thb-text-secondary hover:bg-slate-50 transition-all"
                 >
                   Not Now
                 </button>
@@ -129,7 +129,7 @@ export default function PWAInstallPrompt() {
             </div>
             <button
               onClick={() => setShowPrompt(false)}
-              className="flex-shrink-0 text-nexus-text-muted hover:text-nexus-text-secondary"
+              className="flex-shrink-0 text-thb-text-muted hover:text-thb-text-secondary"
             >
               <FiX className="w-4 h-4" />
             </button>

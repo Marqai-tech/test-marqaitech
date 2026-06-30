@@ -95,7 +95,7 @@ export default function OptionalHolidaysPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Choose which optional holidays you want to take this year (within your quota)</p>
         </div>
-        <button onClick={fetchData} className="nexus-btn-secondary flex items-center gap-2">
+        <button onClick={fetchData} className="3boxes-btn-secondary flex items-center gap-2">
           <FiRefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
@@ -124,7 +124,7 @@ export default function OptionalHolidaysPage() {
           </div>
 
           {data.optionalHolidays.length === 0 ? (
-            <div className="nexus-card p-12 text-center">
+            <div className="thb-card p-12 text-center">
               <FiCalendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-500">No optional holidays published for this year.</p>
               <p className="text-xs text-slate-400 mt-1">Ask HR to configure optional holidays in Settings.</p>
@@ -135,7 +135,7 @@ export default function OptionalHolidaysPage() {
                 const elected = data.elections.find(e => e.holidayId === h.id);
                 const canElect = !elected && data.remaining > 0;
                 return (
-                  <div key={h.id} className={`nexus-card p-5 ${elected ? 'border-violet-300 bg-violet-50/30' : ''}`}>
+                  <div key={h.id} className={`thb-card p-5 ${elected ? 'border-violet-300 bg-violet-50/30' : ''}`}>
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-800">{h.name}</h3>

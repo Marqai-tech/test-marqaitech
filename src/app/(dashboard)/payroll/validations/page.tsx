@@ -101,7 +101,7 @@ function CategoryCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="nexus-card overflow-hidden">
+    <div className="thb-card overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="w-full p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
@@ -111,8 +111,8 @@ function CategoryCard({
             <Icon className={`w-5 h-5 ${iconColor}`} />
           </div>
           <div className="text-left">
-            <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
-            <p className="text-xs text-nexus-text-muted">{count} employee(s)</p>
+            <h3 className="text-sm font-semibold text-thb-text-primary">{title}</h3>
+            <p className="text-xs text-thb-text-muted">{count} employee(s)</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -121,30 +121,30 @@ function CategoryCard({
           }`}>
             {count}
           </span>
-          {open ? <FiChevronUp className="w-4 h-4 text-nexus-text-muted" /> : <FiChevronDown className="w-4 h-4 text-nexus-text-muted" />}
+          {open ? <FiChevronUp className="w-4 h-4 text-thb-text-muted" /> : <FiChevronDown className="w-4 h-4 text-thb-text-muted" />}
         </div>
       </button>
       {open && employees.length > 0 && (
-        <div className="border-t border-nexus-border">
+        <div className="border-t border-thb-border">
           <div className="overflow-x-auto max-h-64 overflow-y-auto">
             <table className="w-full min-w-[500px]">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b border-nexus-border bg-slate-50">
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Emp Code</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Name</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Department</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Designation</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Details</th>
+                <tr className="border-b border-thb-border bg-slate-50">
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Emp Code</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Name</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Department</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Designation</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-nexus-border/50">
+              <tbody className="divide-y divide-thb-border/50">
                 {employees.map((emp) => (
                   <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{emp.employeeId}</td>
-                    <td className="px-3 py-2 text-sm text-nexus-text-primary">{emp.firstName} {emp.lastName}</td>
-                    <td className="px-3 py-2 text-sm text-nexus-text-secondary">{emp.department || '—'}</td>
-                    <td className="px-3 py-2 text-sm text-nexus-text-secondary">{emp.designation || '—'}</td>
-                    <td className="px-3 py-2 text-sm text-nexus-text-muted">
+                    <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{emp.employeeId}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-primary">{emp.firstName} {emp.lastName}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-secondary">{emp.department || '—'}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-secondary">{emp.designation || '—'}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-muted">
                       {emp.holdReason || emp.separationType || emp.dateOfJoining ? new Date(emp.dateOfJoining as string).toLocaleDateString() : '—'}
                     </td>
                   </tr>
@@ -298,16 +298,16 @@ export default function PayrollValidationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiShield className="w-6 h-6 text-emerald-500" />
             Pre-Payroll Validation
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Validate employee data before processing payroll runs</p>
+          <p className="text-thb-text-secondary mt-1">Validate employee data before processing payroll runs</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchValidations()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -316,13 +316,13 @@ export default function PayrollValidationsPage() {
       </div>
 
       {/* Run Validation Form */}
-      <div className="nexus-card p-4 border-l-4 border-l-emerald-500">
-        <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Run Pre-Payroll Validation</h3>
+      <div className="thb-card p-4 border-l-4 border-l-emerald-500">
+        <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Run Pre-Payroll Validation</h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <select
             value={selectedCompanyId}
             onChange={(e) => setSelectedCompanyId(e.target.value)}
-            className="flex-1 px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="flex-1 px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
           >
             <option value="">Select Company</option>
             {companies.map(c => (
@@ -344,9 +344,9 @@ export default function PayrollValidationsPage() {
       {selectedValidation && (
         <div className="space-y-4">
           {/* Validation Summary */}
-          <div className="nexus-card p-6">
+          <div className="thb-card p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">Validation Results</h2>
+              <h2 className="text-lg font-semibold text-thb-text-primary">Validation Results</h2>
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusBadge(selectedValidation.status)}`}>
                 {selectedValidation.status.replace(/_/g, ' ')}
               </span>
@@ -354,8 +354,8 @@ export default function PayrollValidationsPage() {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               <div className="p-3 bg-slate-50 rounded-lg text-center">
-                <p className="text-xs font-medium text-nexus-text-secondary">Total Employees</p>
-                <p className="text-xl font-bold text-nexus-text-primary">{selectedValidation.totalEmployees}</p>
+                <p className="text-xs font-medium text-thb-text-secondary">Total Employees</p>
+                <p className="text-xl font-bold text-thb-text-primary">{selectedValidation.totalEmployees}</p>
               </div>
               <div className="p-3 bg-emerald-50 rounded-lg text-center">
                 <p className="text-xs font-medium text-emerald-700">Valid</p>
@@ -459,39 +459,39 @@ export default function PayrollValidationsPage() {
       )}
 
       {/* Search */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
           <input
             type="text"
             placeholder="Search validation history..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
           />
         </div>
       </div>
 
       {/* Validation History */}
       {loading ? (
-        <div className="nexus-card p-12 text-center">
+        <div className="thb-card p-12 text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-nexus-text-secondary">Loading validation history...</p>
+          <p className="text-thb-text-secondary">Loading validation history...</p>
         </div>
       ) : filteredValidations.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiShield className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No validations found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Run a pre-payroll validation to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiShield className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No validations found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Run a pre-payroll validation to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-nexus-text-secondary uppercase tracking-wider">Validation History</h3>
+          <h3 className="text-sm font-semibold text-thb-text-secondary uppercase tracking-wider">Validation History</h3>
           {filteredValidations.map((v) => (
             <button
               key={v.id}
               onClick={() => handleViewDetail(v)}
-              className={`w-full nexus-card p-4 text-left transition-colors hover:shadow-md ${
+              className={`w-full thb-card p-4 text-left transition-colors hover:shadow-md ${
                 selectedValidation?.id === v.id ? 'ring-2 ring-emerald-500/30 border-emerald-200' : ''
               }`}
             >
@@ -509,26 +509,26 @@ export default function PayrollValidationsPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">
+                    <p className="text-sm font-semibold text-thb-text-primary">
                       {v.validationType.replace(/_/g, ' ')} Validation
                     </p>
-                    <p className="text-xs text-nexus-text-muted">
+                    <p className="text-xs text-thb-text-muted">
                       {new Date(v.createdAt).toLocaleString()} &middot; Company: {v.companyId || '—'}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-nexus-text-primary">{v.validEmployees}/{v.totalEmployees}</p>
-                    <p className="text-xs text-nexus-text-muted">Valid</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{v.validEmployees}/{v.totalEmployees}</p>
+                    <p className="text-xs text-thb-text-muted">Valid</p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getStatusBadge(v.status)}`}>
                     {v.status}
                   </span>
                   {selectedValidation?.id === v.id ? (
-                    <FiChevronUp className="w-4 h-4 text-nexus-text-muted" />
+                    <FiChevronUp className="w-4 h-4 text-thb-text-muted" />
                   ) : (
-                    <FiChevronDown className="w-4 h-4 text-nexus-text-muted" />
+                    <FiChevronDown className="w-4 h-4 text-thb-text-muted" />
                   )}
                 </div>
               </div>

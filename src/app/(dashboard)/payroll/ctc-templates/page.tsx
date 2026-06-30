@@ -47,22 +47,22 @@ interface CTCTemplate {
 // --- Badge Helpers ---
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    ACTIVE: 'nexus-badge nexus-badge-success',
-    DRAFT: 'nexus-badge nexus-badge-warning',
-    INACTIVE: 'nexus-badge nexus-badge-error',
+    ACTIVE: 'thb-badge thb-badge-success',
+    DRAFT: 'thb-badge thb-badge-warning',
+    INACTIVE: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
-    EARNING: 'nexus-badge nexus-badge-success',
-    DEDUCTION: 'nexus-badge nexus-badge-error',
-    EMPLOYER_CONTRIBUTION: 'nexus-badge nexus-badge-info',
-    REIMBURSEMENT: 'nexus-badge nexus-badge-warning',
-    BENEFIT_IN_KIND: 'nexus-badge nexus-badge-purple',
+    EARNING: 'thb-badge thb-badge-success',
+    DEDUCTION: 'thb-badge thb-badge-error',
+    EMPLOYER_CONTRIBUTION: 'thb-badge thb-badge-info',
+    REIMBURSEMENT: 'thb-badge thb-badge-warning',
+    BENEFIT_IN_KIND: 'thb-badge thb-badge-purple',
   };
-  return map[category] || 'nexus-badge nexus-badge-info';
+  return map[category] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -349,11 +349,11 @@ export default function CTCTemplatesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-emerald-500" />
             CTC Templates
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Configure CTC breakdown templates with component mappings</p>
+          <p className="text-thb-text-secondary mt-1">Configure CTC breakdown templates with component mappings</p>
         </div>
         {isAdmin && (
           <button
@@ -367,69 +367,69 @@ export default function CTCTemplatesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiFileText className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Templates</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalTemplates}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Templates</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalTemplates}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{activeTemplates}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active</p>
+              <p className="text-xl font-bold text-thb-text-primary">{activeTemplates}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Draft</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{draftTemplates}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Draft</p>
+              <p className="text-xl font-bold text-thb-text-primary">{draftTemplates}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
               <FiStar className="w-5 h-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Default</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{defaultTemplates}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Default</p>
+              <p className="text-xl font-bold text-thb-text-primary">{defaultTemplates}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search templates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -437,7 +437,7 @@ export default function CTCTemplatesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
           >
             <option value="">All Statuses</option>
             <option value="DRAFT">Draft</option>
@@ -449,7 +449,7 @@ export default function CTCTemplatesPage() {
 
       {/* View Panel */}
       {viewingTemplate && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -459,8 +459,8 @@ export default function CTCTemplatesPage() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingTemplate.name}</h2>
-                    <p className="text-sm text-nexus-text-secondary mt-0.5">
+                    <h2 className="text-lg font-semibold text-thb-text-primary">{viewingTemplate.name}</h2>
+                    <p className="text-sm text-thb-text-secondary mt-0.5">
                       {viewingTemplate.countryCode} &middot; {viewingTemplate.currencyCode} &middot; {viewingTemplate.ctcType}
                     </p>
                   </div>
@@ -475,7 +475,7 @@ export default function CTCTemplatesPage() {
                     )}
                     <button
                       onClick={() => setViewingTemplate(null)}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                     >
                       <FiX className="w-5 h-5" />
                     </button>
@@ -485,42 +485,42 @@ export default function CTCTemplatesPage() {
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Country</span>
-                    <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingTemplate.countryCode}</p>
+                    <span className="text-xs font-medium text-thb-text-secondary">Country</span>
+                    <p className="text-sm font-medium text-thb-text-primary mt-0.5">{viewingTemplate.countryCode}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Currency</span>
-                    <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingTemplate.currencyCode}</p>
+                    <span className="text-xs font-medium text-thb-text-secondary">Currency</span>
+                    <p className="text-sm font-medium text-thb-text-primary mt-0.5">{viewingTemplate.currencyCode}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">CTC Type</span>
-                    <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingTemplate.ctcType}</p>
+                    <span className="text-xs font-medium text-thb-text-secondary">CTC Type</span>
+                    <p className="text-sm font-medium text-thb-text-primary mt-0.5">{viewingTemplate.ctcType}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Base Pay %</span>
-                    <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{viewingTemplate.basePayPct ?? '—'}{viewingTemplate.basePayPct ? '%' : ''}</p>
+                    <span className="text-xs font-medium text-thb-text-secondary">Base Pay %</span>
+                    <p className="text-sm font-medium text-thb-text-primary mt-0.5">{viewingTemplate.basePayPct ?? '—'}{viewingTemplate.basePayPct ? '%' : ''}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Status</span>
+                    <span className="text-xs font-medium text-thb-text-secondary">Status</span>
                     <p className="mt-0.5"><span className={getStatusBadge(viewingTemplate.status)}>{viewingTemplate.status}</span></p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Default</span>
+                    <span className="text-xs font-medium text-thb-text-secondary">Default</span>
                     <p className="mt-0.5">
-                      <span className={viewingTemplate.isDefault ? 'nexus-badge nexus-badge-success' : 'nexus-badge bg-slate-100 text-slate-600'}>
+                      <span className={viewingTemplate.isDefault ? 'thb-badge thb-badge-success' : 'thb-badge bg-slate-100 text-slate-600'}>
                         {viewingTemplate.isDefault ? 'Yes' : 'No'}
                       </span>
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Effective From</span>
-                    <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+                    <span className="text-xs font-medium text-thb-text-secondary">Effective From</span>
+                    <p className="text-sm font-medium text-thb-text-primary mt-0.5">
                       {viewingTemplate.effectiveFrom ? new Date(viewingTemplate.effectiveFrom).toLocaleDateString() : '—'}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-nexus-text-secondary">Effective To</span>
-                    <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+                    <span className="text-xs font-medium text-thb-text-secondary">Effective To</span>
+                    <p className="text-sm font-medium text-thb-text-primary mt-0.5">
                       {viewingTemplate.effectiveTo ? new Date(viewingTemplate.effectiveTo).toLocaleDateString() : '—'}
                     </p>
                   </div>
@@ -528,37 +528,37 @@ export default function CTCTemplatesPage() {
 
                 {/* Component Mappings Mini-Table */}
                 <div>
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">
                     Component Mappings ({(viewingTemplate.componentMappings || []).length})
                   </h3>
                   {(viewingTemplate.componentMappings || []).length === 0 ? (
-                    <p className="text-sm text-nexus-text-secondary text-center py-6">No component mappings defined</p>
+                    <p className="text-sm text-thb-text-secondary text-center py-6">No component mappings defined</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-nexus-border bg-slate-50/50">
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">#</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Component</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Category</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Method</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Value</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Freq</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Statutory</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary uppercase">Taxable</th>
+                          <tr className="border-b border-thb-border bg-slate-50/50">
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">#</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Component</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Category</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Method</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Value</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Freq</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Statutory</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">Taxable</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-nexus-border/50">
+                        <tbody className="divide-y divide-thb-border/50">
                           {(viewingTemplate.componentMappings || []).map((c, i) => (
                             <tr key={c.id || i} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{c.calculationSequence || i + 1}</td>
-                              <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{c.componentName}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{c.calculationSequence || i + 1}</td>
+                              <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{c.componentName}</td>
                               <td className="px-3 py-2"><span className={getCategoryBadge(c.componentCategory)}>{c.componentCategory.replace(/_/g, ' ')}</span></td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{c.allocationMethod.replace(/_/g, ' ')}</td>
-                              <td className="px-3 py-2 text-sm font-medium text-nexus-text-primary">{formatAllocationValue(c.allocationMethod, c.allocationValue)}</td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{c.frequency}</td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{c.isStatutory ? 'Yes' : 'No'}</td>
-                              <td className="px-3 py-2 text-sm text-nexus-text-secondary">{c.isTaxable ? 'Yes' : 'No'}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{c.allocationMethod.replace(/_/g, ' ')}</td>
+                              <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{formatAllocationValue(c.allocationMethod, c.allocationValue)}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{c.frequency}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{c.isStatutory ? 'Yes' : 'No'}</td>
+                              <td className="px-3 py-2 text-sm text-thb-text-secondary">{c.isTaxable ? 'Yes' : 'No'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -574,15 +574,15 @@ export default function CTCTemplatesPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit CTC Template' : 'Create CTC Template'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -591,48 +591,48 @@ export default function CTCTemplatesPage() {
             {/* Template Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Template Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Template Name *</label>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="e.g. India Standard CTC"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country Code</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country Code</label>
                 <select
                   value={form.countryCode}
                   onChange={(e) => handleCountryChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency Code</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency Code</label>
                 <select
                   value={form.currencyCode}
                   onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">CTC Type</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">CTC Type</label>
                 <select
                   value={form.ctcType}
                   onChange={(e) => setForm({ ...form, ctcType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="ANNUAL">Annual</option>
                   <option value="MONTHLY">Monthly</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Base Pay % of CTC</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Base Pay % of CTC</label>
                 <input
                   type="number"
                   min={0}
@@ -640,16 +640,16 @@ export default function CTCTemplatesPage() {
                   step={0.5}
                   value={form.basePayPct}
                   onChange={(e) => setForm({ ...form, basePayPct: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="e.g. 40"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="DRAFT">Draft</option>
                   <option value="ACTIVE">Active</option>
@@ -657,30 +657,30 @@ export default function CTCTemplatesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
                 <input
                   type="date"
                   value={form.effectiveFrom}
                   onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective To</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective To</label>
                 <input
                   type="date"
                   value={form.effectiveTo}
                   onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div className="flex items-end pb-1">
-                <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.isDefault}
                     onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-                    className="rounded border-nexus-border"
+                    className="rounded border-thb-border"
                   />
                   <span className="font-medium">Set as Default Template</span>
                 </label>
@@ -688,9 +688,9 @@ export default function CTCTemplatesPage() {
             </div>
 
             {/* Component Mappings Sub-section */}
-            <div className="mt-6 pt-4 border-t border-nexus-border">
+            <div className="mt-6 pt-4 border-t border-thb-border">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-nexus-text-primary">Component Mappings</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary">Component Mappings</h3>
                 <button
                   type="button"
                   onClick={addMapping}
@@ -701,15 +701,15 @@ export default function CTCTemplatesPage() {
               </div>
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                 {mappings.map((comp, idx) => (
-                  <div key={idx} className="p-3 border border-nexus-border rounded-lg bg-slate-50/50 space-y-2">
+                  <div key={idx} className="p-3 border border-thb-border rounded-lg bg-slate-50/50 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 flex-1">
-                        <span className="text-xs font-semibold text-nexus-text-muted w-6">{idx + 1}.</span>
+                        <span className="text-xs font-semibold text-thb-text-muted w-6">{idx + 1}.</span>
                         <input
                           value={comp.componentName}
                           onChange={(e) => updateMapping(idx, 'componentName', e.target.value)}
                           placeholder="Component name"
-                          className="flex-1 px-2 py-1.5 border border-nexus-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                          className="flex-1 px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
                         />
                       </div>
                       <button
@@ -725,14 +725,14 @@ export default function CTCTemplatesPage() {
                       <select
                         value={comp.componentCategory}
                         onChange={(e) => updateMapping(idx, 'componentCategory', e.target.value)}
-                        className="px-2 py-1.5 border border-nexus-border rounded text-xs focus:outline-none bg-white"
+                        className="px-2 py-1.5 border border-thb-border rounded text-xs focus:outline-none bg-white"
                       >
                         {CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                       <select
                         value={comp.allocationMethod}
                         onChange={(e) => updateMapping(idx, 'allocationMethod', e.target.value)}
-                        className="px-2 py-1.5 border border-nexus-border rounded text-xs focus:outline-none bg-white"
+                        className="px-2 py-1.5 border border-thb-border rounded text-xs focus:outline-none bg-white"
                       >
                         {ALLOCATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
@@ -741,28 +741,28 @@ export default function CTCTemplatesPage() {
                         value={comp.allocationValue}
                         onChange={(e) => updateMapping(idx, 'allocationValue', parseFloat(e.target.value) || 0)}
                         placeholder="Value"
-                        className="px-2 py-1.5 border border-nexus-border rounded text-xs focus:outline-none bg-white"
+                        className="px-2 py-1.5 border border-thb-border rounded text-xs focus:outline-none bg-white"
                       />
                       <select
                         value={comp.frequency}
                         onChange={(e) => updateMapping(idx, 'frequency', e.target.value)}
-                        className="px-2 py-1.5 border border-nexus-border rounded text-xs focus:outline-none bg-white"
+                        className="px-2 py-1.5 border border-thb-border rounded text-xs focus:outline-none bg-white"
                       >
                         {FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
                       <div className="flex items-center gap-1">
-                        <label className="text-xs text-nexus-text-secondary">Seq:</label>
+                        <label className="text-xs text-thb-text-secondary">Seq:</label>
                         <input
                           type="number"
                           min={1}
                           value={comp.calculationSequence}
                           onChange={(e) => updateMapping(idx, 'calculationSequence', parseInt(e.target.value) || 1)}
-                          className="w-14 px-2 py-1 border border-nexus-border rounded text-xs focus:outline-none bg-white"
+                          className="w-14 px-2 py-1 border border-thb-border rounded text-xs focus:outline-none bg-white"
                         />
                       </div>
-                      <label className="flex items-center gap-1.5 text-xs text-nexus-text-secondary cursor-pointer">
+                      <label className="flex items-center gap-1.5 text-xs text-thb-text-secondary cursor-pointer">
                         <input
                           type="checkbox"
                           checked={comp.isStatutory}
@@ -771,7 +771,7 @@ export default function CTCTemplatesPage() {
                         />
                         Statutory
                       </label>
-                      <label className="flex items-center gap-1.5 text-xs text-nexus-text-secondary cursor-pointer">
+                      <label className="flex items-center gap-1.5 text-xs text-thb-text-secondary cursor-pointer">
                         <input
                           type="checkbox"
                           checked={comp.isTaxable}
@@ -787,10 +787,10 @@ export default function CTCTemplatesPage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -808,7 +808,7 @@ export default function CTCTemplatesPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -816,19 +816,19 @@ export default function CTCTemplatesPage() {
           </div>
         </div>
       ) : filteredTemplates.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No CTC templates found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first CTC template to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No CTC templates found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first CTC template to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Name', 'Country', 'Currency', 'CTC Type', 'Base Pay %', 'Status', 'Default', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -852,7 +852,7 @@ export default function CTCTemplatesPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -866,20 +866,20 @@ export default function CTCTemplatesPage() {
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold">
                             {t.name[0]}
                           </div>
-                          <span className="text-sm font-medium text-nexus-text-primary">{t.name}</span>
+                          <span className="text-sm font-medium text-thb-text-primary">{t.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.countryCode}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.currencyCode}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{t.ctcType}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{t.countryCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{t.currencyCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{t.ctcType}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">
                         {t.basePayPct != null ? `${t.basePayPct}%` : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span className={getStatusBadge(t.status)}>{t.status}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={t.isDefault ? 'nexus-badge nexus-badge-success' : 'nexus-badge bg-slate-100 text-slate-600'}>
+                        <span className={t.isDefault ? 'thb-badge thb-badge-success' : 'thb-badge bg-slate-100 text-slate-600'}>
                           {t.isDefault ? 'Default' : 'No'}
                         </span>
                       </td>
@@ -887,7 +887,7 @@ export default function CTCTemplatesPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(t)}
-                            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors"
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-3.5 h-3.5" />
@@ -896,14 +896,14 @@ export default function CTCTemplatesPage() {
                             <>
                               <button
                                 onClick={() => handleEdit(t)}
-                                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => setDeleteConfirmId(t.id)}
-                                className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                                 title="Delete"
                               >
                                 <FiTrash2 className="w-3.5 h-3.5" />

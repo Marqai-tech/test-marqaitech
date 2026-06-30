@@ -48,11 +48,11 @@ function SettingSection({ title, icon, enabled, onToggle, children }: {
   title: string; icon: React.ReactNode; enabled: boolean; onToggle: (v: boolean) => void; children: React.ReactNode;
 }) {
   return (
-    <div className="nexus-card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 bg-slate-50 border-b border-nexus-border">
+    <div className="thb-card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 bg-slate-50 border-b border-thb-border">
         <div className="flex items-center gap-3">
           {icon}
-          <h3 className="text-sm font-semibold text-nexus-text-primary">{title}</h3>
+          <h3 className="text-sm font-semibold text-thb-text-primary">{title}</h3>
         </div>
         <button onClick={() => onToggle(!enabled)} className="flex items-center gap-2 text-sm">
           {enabled ? (
@@ -122,8 +122,8 @@ export default function SalarySettingsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="nexus-card p-6 animate-pulse"><div className="h-40 bg-slate-200 rounded" /></div>
-        <div className="nexus-card p-6 animate-pulse"><div className="h-40 bg-slate-200 rounded" /></div>
+        <div className="thb-card p-6 animate-pulse"><div className="h-40 bg-slate-200 rounded" /></div>
+        <div className="thb-card p-6 animate-pulse"><div className="h-40 bg-slate-200 rounded" /></div>
       </div>
     );
   }
@@ -133,14 +133,14 @@ export default function SalarySettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiSettings className="w-6 h-6 text-blue-500" />
             Salary Settings
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Configure salary components, statutory deductions, and tax settings</p>
+          <p className="text-thb-text-secondary mt-1">Configure salary components, statutory deductions, and tax settings</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={fetchSettings} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50">
+          <button onClick={fetchSettings} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50">
             <FiRefreshCw className="w-4 h-4" />
           </button>
           {isAdmin && (
@@ -153,7 +153,7 @@ export default function SalarySettingsPage() {
       </div>
 
       {/* Info Banner */}
-      <div className="nexus-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white p-4">
+      <div className="thb-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white p-4">
         <div className="flex items-start gap-3">
           <FiInfo className="w-5 h-5 text-blue-500 mt-0.5" />
           <div>
@@ -176,18 +176,18 @@ export default function SalarySettingsPage() {
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">DA (%)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">DA (%)</label>
               <input type="number" step="0.01" value={settings.daHra.daPercentage}
                 onChange={e => updateSetting('daHra', 'daPercentage', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
-              <p className="text-[10px] text-nexus-text-muted mt-1">Dearness Allowance as % of Basic</p>
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              <p className="text-[10px] text-thb-text-muted mt-1">Dearness Allowance as % of Basic</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">HRA (%)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">HRA (%)</label>
               <input type="number" step="0.01" value={settings.daHra.hraPercentage}
                 onChange={e => updateSetting('daHra', 'hraPercentage', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
-              <p className="text-[10px] text-nexus-text-muted mt-1">House Rent Allowance as % of Basic (40% Non-Metro, 50% Metro)</p>
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              <p className="text-[10px] text-thb-text-muted mt-1">House Rent Allowance as % of Basic (40% Non-Metro, 50% Metro)</p>
             </div>
           </div>
         </SettingSection>
@@ -201,23 +201,23 @@ export default function SalarySettingsPage() {
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee Share (%)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Share (%)</label>
               <input type="number" step="0.01" value={settings.pf.employeeShare}
                 onChange={e => updateSetting('pf', 'employeeShare', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Organization Share (%)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Organization Share (%)</label>
               <input type="number" step="0.01" value={settings.pf.employerShare}
                 onChange={e => updateSetting('pf', 'employerShare', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Wage Ceiling (₹/month)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Wage Ceiling (₹/month)</label>
               <input type="number" value={settings.pf.wageCeiling}
                 onChange={e => updateSetting('pf', 'wageCeiling', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
-              <p className="text-[10px] text-nexus-text-muted mt-1">Max basic pay subject to PF (currently ₹15,000)</p>
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              <p className="text-[10px] text-thb-text-muted mt-1">Max basic pay subject to PF (currently ₹15,000)</p>
             </div>
           </div>
         </SettingSection>
@@ -231,23 +231,23 @@ export default function SalarySettingsPage() {
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee Share (%)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Share (%)</label>
               <input type="number" step="0.01" value={settings.esi.employeeShare}
                 onChange={e => updateSetting('esi', 'employeeShare', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Organization Share (%)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Organization Share (%)</label>
               <input type="number" step="0.01" value={settings.esi.employerShare}
                 onChange={e => updateSetting('esi', 'employerShare', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Wage Ceiling (₹/month)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Wage Ceiling (₹/month)</label>
               <input type="number" value={settings.esi.wageCeiling}
                 onChange={e => updateSetting('esi', 'wageCeiling', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
-              <p className="text-[10px] text-nexus-text-muted mt-1">ESI applicable for gross salary up to ₹21,000/month</p>
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              <p className="text-[10px] text-thb-text-muted mt-1">ESI applicable for gross salary up to ₹21,000/month</p>
             </div>
           </div>
         </SettingSection>
@@ -260,11 +260,11 @@ export default function SalarySettingsPage() {
           onToggle={v => updateSetting('professionalTax', 'enabled', v)}
         >
           <div>
-            <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Monthly Amount (₹)</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Monthly Amount (₹)</label>
             <input type="number" value={settings.professionalTax.monthlyAmount}
               onChange={e => updateSetting('professionalTax', 'monthlyAmount', Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
-            <p className="text-[10px] text-nexus-text-muted mt-1">Standard monthly PT deduction (varies by state, typically ₹200)</p>
+              className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+            <p className="text-[10px] text-thb-text-muted mt-1">Standard monthly PT deduction (varies by state, typically ₹200)</p>
           </div>
         </SettingSection>
 
@@ -277,17 +277,17 @@ export default function SalarySettingsPage() {
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Rate (% of Basic)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate (% of Basic)</label>
               <input type="number" step="0.01" value={settings.gratuity.rate}
                 onChange={e => updateSetting('gratuity', 'rate', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
-              <p className="text-[10px] text-nexus-text-muted mt-1">Standard ~4.81% of basic salary</p>
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
+              <p className="text-[10px] text-thb-text-muted mt-1">Standard ~4.81% of basic salary</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Denominator (working days)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Denominator (working days)</label>
               <select value={settings.gratuity.denominator}
                 onChange={e => updateSetting('gratuity', 'denominator', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm">
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                 <option value={26}>26 (Covered under Act)</option>
                 <option value={30}>30 (Not covered under Act)</option>
               </select>
@@ -304,22 +304,22 @@ export default function SalarySettingsPage() {
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee Share (₹)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Share (₹)</label>
               <input type="number" step="0.01" value={settings.lwf.employeeShare}
                 onChange={e => updateSetting('lwf', 'employeeShare', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Organization Share (₹)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Organization Share (₹)</label>
               <input type="number" step="0.01" value={settings.lwf.employerShare}
                 onChange={e => updateSetting('lwf', 'employerShare', Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm" />
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Frequency</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Frequency</label>
               <select value={settings.lwf.frequency}
                 onChange={e => updateSetting('lwf', 'frequency', e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm">
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                 <option value="MONTHLY">Monthly</option>
                 <option value="HALF_YEARLY">Half-Yearly</option>
                 <option value="ANNUAL">Annual</option>
@@ -336,20 +336,20 @@ export default function SalarySettingsPage() {
         enabled={settings.tds.enabled}
         onToggle={v => updateSetting('tds', 'enabled', v)}
       >
-        <p className="text-xs text-nexus-text-secondary mb-3">Configure TDS slabs for annual salary calculation</p>
+        <p className="text-xs text-thb-text-secondary mb-3">Configure TDS slabs for annual salary calculation</p>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border">
-                <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary">Salary From (₹)</th>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary">Salary To (₹)</th>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-nexus-text-secondary">Tax Rate (%)</th>
-                <th className="text-center px-3 py-2 text-xs font-semibold text-nexus-text-secondary w-16">Action</th>
+              <tr className="border-b border-thb-border">
+                <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary">Salary From (₹)</th>
+                <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary">Salary To (₹)</th>
+                <th className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary">Tax Rate (%)</th>
+                <th className="text-center px-3 py-2 text-xs font-semibold text-thb-text-secondary w-16">Action</th>
               </tr>
             </thead>
             <tbody>
               {settings.tds.slabs.map((slab, i) => (
-                <tr key={i} className="border-b border-nexus-border/50">
+                <tr key={i} className="border-b border-thb-border/50">
                   <td className="px-3 py-2">
                     <input type="number" value={slab.salaryFrom}
                       onChange={e => {
@@ -357,7 +357,7 @@ export default function SalarySettingsPage() {
                         newSlabs[i] = { ...newSlabs[i], salaryFrom: Number(e.target.value) };
                         updateSetting('tds', 'slabs', newSlabs);
                       }}
-                      className="w-full px-2 py-1.5 rounded border border-nexus-border text-sm" />
+                      className="w-full px-2 py-1.5 rounded border border-thb-border text-sm" />
                   </td>
                   <td className="px-3 py-2">
                     <input type="number" value={slab.salaryTo || ''}
@@ -367,7 +367,7 @@ export default function SalarySettingsPage() {
                         updateSetting('tds', 'slabs', newSlabs);
                       }}
                       placeholder="No limit"
-                      className="w-full px-2 py-1.5 rounded border border-nexus-border text-sm" />
+                      className="w-full px-2 py-1.5 rounded border border-thb-border text-sm" />
                   </td>
                   <td className="px-3 py-2">
                     <input type="number" step="0.01" value={slab.percentage}
@@ -376,7 +376,7 @@ export default function SalarySettingsPage() {
                         newSlabs[i] = { ...newSlabs[i], percentage: Number(e.target.value) };
                         updateSetting('tds', 'slabs', newSlabs);
                       }}
-                      className="w-full px-2 py-1.5 rounded border border-nexus-border text-sm" />
+                      className="w-full px-2 py-1.5 rounded border border-thb-border text-sm" />
                   </td>
                   <td className="px-3 py-2 text-center">
                     <button onClick={() => {

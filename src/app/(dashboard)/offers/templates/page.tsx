@@ -301,18 +301,18 @@ export default function OfferTemplatesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-blue-500" />
             Offer Letter Templates
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Country-specific offer letter templates with placeholder substitution
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/offers"
-            className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
           >
             Back to Offers
           </Link>
@@ -327,15 +327,15 @@ export default function OfferTemplatesPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Template' : 'Create New Template'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -345,25 +345,25 @@ export default function OfferTemplatesPage() {
               {/* Left: Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                     Template Name *
                   </label>
                   <input
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g., India Standard Offer"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
                     <select
                       value={form.country}
                       onChange={(e) => setForm({ ...form, country: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       {COUNTRY_OPTIONS.map((c) => (
                         <option key={c.value} value={c.value}>{c.label}</option>
@@ -371,11 +371,11 @@ export default function OfferTemplatesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Language</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Language</label>
                     <select
                       value={form.language}
                       onChange={(e) => setForm({ ...form, language: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       {LANGUAGE_OPTIONS.map((l) => (
                         <option key={l.value} value={l.value}>{l.label}</option>
@@ -385,7 +385,7 @@ export default function OfferTemplatesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                     Body * (HTML with placeholders)
                   </label>
                   <div className="mb-2 flex flex-wrap gap-1">
@@ -405,43 +405,43 @@ export default function OfferTemplatesPage() {
                     rows={14}
                     value={form.body}
                     onChange={(e) => setForm({ ...form, body: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Enter the offer letter body..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                     Header (HTML, optional)
                   </label>
                   <textarea
                     rows={2}
                     value={form.header}
                     onChange={(e) => setForm({ ...form, header: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="<h1>Marq AI Tech Pvt Ltd</h1>"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                     Footer (HTML, optional)
                   </label>
                   <textarea
                     rows={2}
                     value={form.footer}
                     onChange={(e) => setForm({ ...form, footer: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="<p>Marq AI Tech Pvt Ltd, Mumbai, India</p>"
                   />
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-nexus-text-secondary">
+                <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
                   <input
                     type="checkbox"
                     checked={form.isActive}
                     onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                    className="rounded border-nexus-border"
+                    className="rounded border-thb-border"
                   />
                   Active (available for selection when creating offers)
                 </label>
@@ -450,22 +450,22 @@ export default function OfferTemplatesPage() {
               {/* Right: Live Preview */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-medium text-nexus-text-secondary">Live Preview (with sample data)</label>
-                  <span className="text-[10px] text-nexus-text-muted font-mono">candidateName=Aarav Sharma, position=Senior SE, salary=150000 INR</span>
+                  <label className="block text-xs font-medium text-thb-text-secondary">Live Preview (with sample data)</label>
+                  <span className="text-[10px] text-thb-text-muted font-mono">candidateName=Aarav Sharma, position=Senior SE, salary=150000 INR</span>
                 </div>
                 <iframe
                   title="Template Preview"
                   srcDoc={previewHtml}
-                  className="w-full h-[560px] rounded-lg border border-nexus-border bg-white"
+                  className="w-full h-[560px] rounded-lg border border-thb-border bg-white"
                   sandbox="allow-same-origin"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -483,39 +483,39 @@ export default function OfferTemplatesPage() {
 
       {/* Templates grouped by country */}
       {loading ? (
-        <div className="nexus-card p-12 text-center text-nexus-text-muted">Loading templates...</div>
+        <div className="thb-card p-12 text-center text-thb-text-muted">Loading templates...</div>
       ) : templates.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No offer templates yet</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first template to standardize offer letters by country.</p>
+        <div className="thb-card p-12 text-center">
+          <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No offer templates yet</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first template to standardize offer letters by country.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {groupedByCountry.map(([country, list]) => {
             const countryLabel = COUNTRY_OPTIONS.find((c) => c.value === country)?.label || country;
             return (
-              <div key={country} className="nexus-card overflow-hidden">
-                <div className="px-4 py-2.5 bg-slate-50/70 border-b border-nexus-border flex items-center gap-2">
-                  <span className="text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">
+              <div key={country} className="thb-card overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50/70 border-b border-thb-border flex items-center gap-2">
+                  <span className="text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">
                     {countryLabel}
                   </span>
-                  <span className="text-[10px] text-nexus-text-muted">({list.length})</span>
+                  <span className="text-[10px] text-thb-text-muted">({list.length})</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-nexus-border bg-slate-50/30">
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Language</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Updated</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                      <tr className="border-b border-thb-border bg-slate-50/30">
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Name</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Language</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Updated</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {list.map((t) => (
-                        <tr key={t.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                        <tr key={t.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                           {deleteConfirmId === t.id ? (
                             <td colSpan={5} className="px-4 py-3 bg-red-50">
                               <div className="flex items-center justify-between">
@@ -524,14 +524,14 @@ export default function OfferTemplatesPage() {
                                   <button onClick={() => handleDelete(t.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
                                     {deleting ? 'Deleting...' : 'Confirm'}
                                   </button>
-                                  <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                                  <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                                 </div>
                               </div>
                             </td>
                           ) : (
                             <>
-                              <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{t.name}</td>
-                              <td className="px-4 py-3 text-sm text-nexus-text-secondary uppercase">{t.language}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{t.name}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary uppercase">{t.language}</td>
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => handleToggleActive(t)}
@@ -540,14 +540,14 @@ export default function OfferTemplatesPage() {
                                   {t.isActive ? 'Active' : 'Inactive'}
                                 </button>
                               </td>
-                              <td className="px-4 py-3 text-xs text-nexus-text-muted">
+                              <td className="px-4 py-3 text-xs text-thb-text-muted">
                                 {t.updatedAt ? new Date(t.updatedAt).toLocaleDateString() : '—'}
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-1">
-                                  <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                                  <button onClick={() => handleDuplicate(t)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Duplicate"><FiCopy className="w-4 h-4" /></button>
-                                  <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleDuplicate(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Duplicate"><FiCopy className="w-4 h-4" /></button>
+                                  <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 </div>
                               </td>
                             </>

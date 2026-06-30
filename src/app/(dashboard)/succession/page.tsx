@@ -49,21 +49,21 @@ function getAuthHeaders() {
 
 function getRiskBadge(risk: string) {
   const map: Record<string, string> = {
-    Low: 'nexus-badge nexus-badge-success',
-    Medium: 'nexus-badge nexus-badge-warning',
-    High: 'bg-orange-50 text-orange-700 nexus-badge',
-    Critical: 'nexus-badge nexus-badge-error',
+    Low: 'thb-badge thb-badge-success',
+    Medium: 'thb-badge thb-badge-warning',
+    High: 'bg-orange-50 text-orange-700 thb-badge',
+    Critical: 'thb-badge thb-badge-error',
   };
-  return { className: map[risk] || 'nexus-badge nexus-badge-info', label: risk };
+  return { className: map[risk] || 'thb-badge thb-badge-info', label: risk };
 }
 
 function getReadinessBadge(readiness: string) {
   const map: Record<string, string> = {
-    'Ready Now': 'nexus-badge nexus-badge-success',
-    '1-2 Years': 'nexus-badge nexus-badge-warning',
-    '3+ Years': 'bg-slate-100 text-slate-600 nexus-badge',
+    'Ready Now': 'thb-badge thb-badge-success',
+    '1-2 Years': 'thb-badge thb-badge-warning',
+    '3+ Years': 'bg-slate-100 text-slate-600 thb-badge',
   };
-  return { className: map[readiness] || 'nexus-badge nexus-badge-info', label: readiness };
+  return { className: map[readiness] || 'thb-badge thb-badge-info', label: readiness };
 }
 
 /* ── Demo Data ── */
@@ -240,11 +240,11 @@ export default function SuccessionPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiTarget className="w-6 h-6 text-violet-500" />
             Succession Planning
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage talent pipeline and succession readiness</p>
+          <p className="text-thb-text-secondary mt-1">Manage talent pipeline and succession readiness</p>
         </div>
         {isAdmin && (
           <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
@@ -259,38 +259,38 @@ export default function SuccessionPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-violet-50"><FiTarget className="w-4 h-4 text-violet-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Key Positions</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{keyPositions}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Key Positions</p>
+              <p className="text-xl font-bold text-thb-text-primary">{keyPositions}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-50"><FiUsers className="w-4 h-4 text-blue-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Identified Successors</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{identifiedSuccessors}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Identified Successors</p>
+              <p className="text-xl font-bold text-thb-text-primary">{identifiedSuccessors}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50"><FiTrendingUp className="w-4 h-4 text-emerald-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Ready Now</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Ready Now</p>
               <p className="text-xl font-bold text-emerald-600">{readyNow}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-red-50"><FiAlertTriangle className="w-4 h-4 text-red-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Critical Gaps</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Critical Gaps</p>
               <p className="text-xl font-bold text-red-600">{criticalGaps}</p>
             </div>
           </div>
@@ -298,9 +298,9 @@ export default function SuccessionPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-nexus-border overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-violet-500 text-violet-600' : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-violet-500 text-violet-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
             <tab.icon className="w-4 h-4" />{tab.label}
           </button>
         ))}
@@ -309,61 +309,61 @@ export default function SuccessionPage() {
       {/* Search */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search successors, positions..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search successors, positions..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
         </div>
       </div>
 
       {/* Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-violet-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-violet-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit Successor' : 'Add Successor Candidate'}</h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Successor' : 'Add Successor Candidate'}</h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Current Role *</label>
-                <input type="text" value={form.currentRole} onChange={e => setForm(p => ({ ...p, currentRole: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Current Role *</label>
+                <input type="text" value={form.currentRole} onChange={e => setForm(p => ({ ...p, currentRole: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department</label>
-                <input type="text" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} placeholder="e.g., Engineering" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
+                <input type="text" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} placeholder="e.g., Engineering" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Performance</label>
-                <select value={form.performance} onChange={e => setForm(p => ({ ...p, performance: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Performance</label>
+                <select value={form.performance} onChange={e => setForm(p => ({ ...p, performance: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
                   <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Potential</label>
-                <select value={form.potential} onChange={e => setForm(p => ({ ...p, potential: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Potential</label>
+                <select value={form.potential} onChange={e => setForm(p => ({ ...p, potential: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
                   <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Readiness</label>
-                <select value={form.readiness} onChange={e => setForm(p => ({ ...p, readiness: e.target.value as 'Ready Now' | '1-2 Years' | '3+ Years' }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Readiness</label>
+                <select value={form.readiness} onChange={e => setForm(p => ({ ...p, readiness: e.target.value as 'Ready Now' | '1-2 Years' | '3+ Years' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
                   <option value="Ready Now">Ready Now</option><option value="1-2 Years">1-2 Years</option><option value="3+ Years">3+ Years</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Skills Gap</label>
-                <input type="text" value={form.skillsGap} onChange={e => setForm(p => ({ ...p, skillsGap: e.target.value }))} placeholder="e.g., Leadership (20%)" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Skills Gap</label>
+                <input type="text" value={form.skillsGap} onChange={e => setForm(p => ({ ...p, skillsGap: e.target.value }))} placeholder="e.g., Leadership (20%)" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Development Needs</label>
-                <input type="text" value={form.developmentNeeds} onChange={e => setForm(p => ({ ...p, developmentNeeds: e.target.value }))} placeholder="e.g., Executive coaching" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Development Needs</label>
+                <input type="text" value={form.developmentNeeds} onChange={e => setForm(p => ({ ...p, developmentNeeds: e.target.value }))} placeholder="e.g., Executive coaching" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add'}</button>
             </div>
           </div>
@@ -372,36 +372,36 @@ export default function SuccessionPage() {
 
       {/* 9-Box Grid */}
       {activeTab === 'grid' && (
-        <div className="nexus-card p-6">
-          <h3 className="text-sm font-semibold text-nexus-text-secondary mb-4">9-Box Grid: Performance vs Potential</h3>
+        <div className="thb-card p-6">
+          <h3 className="text-sm font-semibold text-thb-text-secondary mb-4">9-Box Grid: Performance vs Potential</h3>
           <div className="overflow-x-auto">
             <div className="min-w-[500px]">
               {/* Column Headers */}
               <div className="grid grid-cols-4 gap-2 mb-2">
                 <div />
-                <div className="text-center text-xs font-semibold text-nexus-text-secondary">Low Potential</div>
-                <div className="text-center text-xs font-semibold text-nexus-text-secondary">Medium Potential</div>
-                <div className="text-center text-xs font-semibold text-nexus-text-secondary">High Potential</div>
+                <div className="text-center text-xs font-semibold text-thb-text-secondary">Low Potential</div>
+                <div className="text-center text-xs font-semibold text-thb-text-secondary">Medium Potential</div>
+                <div className="text-center text-xs font-semibold text-thb-text-secondary">High Potential</div>
               </div>
               {/* Grid rows: High perf at top, Low perf at bottom */}
               {(['High', 'Medium', 'Low'] as const).map(perf => (
                 <div key={perf} className="grid grid-cols-4 gap-2 mb-2">
                   <div className="flex items-center justify-end pr-2">
-                    <span className="text-xs font-semibold text-nexus-text-secondary">{perf} Perf</span>
+                    <span className="text-xs font-semibold text-thb-text-secondary">{perf} Perf</span>
                   </div>
                   {(['Low', 'Medium', 'High'] as const).map(pot => {
                     const cellCandidates = candidates.filter(c => c.performance === perf && c.potential === pot);
                     return (
                       <div key={`${perf}-${pot}`} className={`border rounded-lg p-3 min-h-[100px] ${getGridCellStyle(perf, pot)}`}>
-                        <p className="text-[10px] font-semibold text-nexus-text-muted mb-1">{getGridLabel(perf, pot)}</p>
+                        <p className="text-[10px] font-semibold text-thb-text-muted mb-1">{getGridLabel(perf, pot)}</p>
                         <div className="space-y-1">
                           {cellCandidates.map(c => (
-                            <div key={c.id} className="text-[11px] font-medium text-nexus-text-primary bg-white/70 rounded px-1.5 py-0.5 truncate" title={`${c.name} - ${c.currentRole}`}>
+                            <div key={c.id} className="text-[11px] font-medium text-thb-text-primary bg-white/70 rounded px-1.5 py-0.5 truncate" title={`${c.name} - ${c.currentRole}`}>
                               {c.name}
                             </div>
                           ))}
                         </div>
-                        {cellCandidates.length === 0 && <p className="text-[10px] text-nexus-text-muted italic">No candidates</p>}
+                        {cellCandidates.length === 0 && <p className="text-[10px] text-thb-text-muted italic">No candidates</p>}
                       </div>
                     );
                   })}
@@ -419,11 +419,11 @@ export default function SuccessionPage() {
           {filteredPositions.map(pos => {
             const riskBadge = getRiskBadge(pos.riskLevel);
             return (
-              <div key={pos.id} className="nexus-card p-4">
+              <div key={pos.id} className="thb-card p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{pos.title}</p>
-                    <p className="text-xs text-nexus-text-muted">{pos.department} &middot; Incumbent: {pos.incumbent}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{pos.title}</p>
+                    <p className="text-xs text-thb-text-muted">{pos.department} &middot; Incumbent: {pos.incumbent}</p>
                   </div>
                   <span className={riskBadge.className}>{riskBadge.label}</span>
                 </div>
@@ -436,46 +436,46 @@ export default function SuccessionPage() {
                       <div key={successor.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div>
-                            <p className="text-sm font-medium text-nexus-text-primary">{successor.name}</p>
-                            <p className="text-xs text-nexus-text-muted">{successor.currentRole}</p>
+                            <p className="text-sm font-medium text-thb-text-primary">{successor.name}</p>
+                            <p className="text-xs text-thb-text-muted">{successor.currentRole}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={readyBadge.className}>{readyBadge.label}</span>
                           {isAdmin && (
                             <div className="flex items-center gap-1">
-                              <button onClick={() => handleShowEditForm(successor)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => setDeleteConfirmId(successor.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleShowEditForm(successor)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => setDeleteConfirmId(successor.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           )}
                         </div>
                       </div>
                     );
                   })}
-                  {pos.successors.length === 0 && <p className="text-xs text-nexus-text-muted italic">No successors identified</p>}
+                  {pos.successors.length === 0 && <p className="text-xs text-thb-text-muted italic">No successors identified</p>}
                 </div>
               </div>
             );
           })}
 
           {/* Readiness Score Cards */}
-          <div className="nexus-card p-4">
-            <h3 className="text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider mb-3">Readiness Scoring</h3>
+          <div className="thb-card p-4">
+            <h3 className="text-xs font-semibold text-thb-text-secondary uppercase tracking-wider mb-3">Readiness Scoring</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredCandidates.map(c => (
-                <div key={c.id} className="p-3 border border-nexus-border rounded-lg">
+                <div key={c.id} className="p-3 border border-thb-border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-nexus-text-primary">{c.name}</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{c.name}</p>
                     <span className={getReadinessBadge(c.readiness).className}>{c.readiness}</span>
                   </div>
-                  <p className="text-xs text-nexus-text-muted mb-1">{c.currentRole} &middot; {c.department}</p>
+                  <p className="text-xs text-thb-text-muted mb-1">{c.currentRole} &middot; {c.department}</p>
                   <div className="space-y-1 mt-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-nexus-text-secondary">Skills Gap</span>
+                      <span className="text-thb-text-secondary">Skills Gap</span>
                       <span className="text-amber-600 font-medium">{c.skillsGap || 'None'}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-nexus-text-secondary">Development</span>
+                      <span className="text-thb-text-secondary">Development</span>
                       <span className="text-blue-600 font-medium truncate ml-2 max-w-[150px]">{c.developmentNeeds || 'None'}</span>
                     </div>
                   </div>
@@ -489,12 +489,12 @@ export default function SuccessionPage() {
             const c = candidates.find(x => x.id === deleteConfirmId);
             if (!c) return null;
             return (
-              <div className="nexus-card p-4 border-l-4 border-l-red-500 bg-red-50">
+              <div className="thb-card p-4 border-l-4 border-l-red-500 bg-red-50">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-red-700 font-medium">Remove &quot;{c.name}&quot; from succession pipeline?</span>
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleDelete(c.id)} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors">Confirm</button>
-                    <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                    <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -506,43 +506,43 @@ export default function SuccessionPage() {
       {/* Risk Assessment */}
       {activeTab === 'risk' && (
         <div className="space-y-4">
-          <div className="nexus-card overflow-hidden">
+          <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Position</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Department</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Successors</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Risk Level</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Impact if Vacant</th>
+                  <tr className="border-b border-thb-border bg-slate-50/50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Position</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Successors</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Risk Level</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Impact if Vacant</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPositions.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-12 text-center">
-                        <FiAlertTriangle className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                        <p className="text-nexus-text-secondary font-medium">No positions found</p>
+                        <FiAlertTriangle className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                        <p className="text-thb-text-secondary font-medium">No positions found</p>
                       </td>
                     </tr>
                   ) : (
                     filteredPositions.map(p => {
                       const riskBadge = getRiskBadge(p.riskLevel);
                       return (
-                        <tr key={p.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{p.title}</td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">{p.department}</td>
+                        <tr key={p.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{p.title}</td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{p.department}</td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1">
                               {p.successors.map(s => (
-                                <span key={s} className="nexus-badge nexus-badge-primary">{s}</span>
+                                <span key={s} className="thb-badge thb-badge-primary">{s}</span>
                               ))}
-                              {p.successors.length === 0 && <span className="text-xs text-nexus-text-muted italic">None identified</span>}
+                              {p.successors.length === 0 && <span className="text-xs text-thb-text-muted italic">None identified</span>}
                             </div>
                           </td>
                           <td className="px-4 py-3"><span className={riskBadge.className}>{riskBadge.label}</span></td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{p.impact}</td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary truncate max-w-[200px]">{p.impact}</td>
                         </tr>
                       );
                     })
@@ -557,10 +557,10 @@ export default function SuccessionPage() {
             {(['Critical', 'High', 'Medium', 'Low'] as const).map(level => {
               const count = positions.filter(p => p.riskLevel === level).length;
               return (
-                <div key={level} className="nexus-card p-4">
-                  <p className="text-xs font-medium text-nexus-text-secondary">{level} Risk</p>
+                <div key={level} className="thb-card p-4">
+                  <p className="text-xs font-medium text-thb-text-secondary">{level} Risk</p>
                   <p className={`text-xl font-bold mt-1 ${level === 'Critical' ? 'text-red-600' : level === 'High' ? 'text-orange-600' : level === 'Medium' ? 'text-amber-600' : 'text-emerald-600'}`}>{count}</p>
-                  <p className="text-xs text-nexus-text-muted">positions</p>
+                  <p className="text-xs text-thb-text-muted">positions</p>
                 </div>
               );
             })}

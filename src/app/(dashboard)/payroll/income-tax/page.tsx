@@ -219,11 +219,11 @@ export default function IncomeTaxPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
           <FiFileText className="w-6 h-6 text-amber-500" />
           Income Tax
         </h1>
-        <p className="text-nexus-text-secondary mt-1">Income tax calculator and declaration management</p>
+        <p className="text-thb-text-secondary mt-1">Income tax calculator and declaration management</p>
       </div>
 
       {/* Tab Navigation */}
@@ -236,7 +236,7 @@ export default function IncomeTaxPage() {
           return (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
               <IconComp className="w-4 h-4" />{tab.label}
             </button>
           );
@@ -248,19 +248,19 @@ export default function IncomeTaxPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Input Panel */}
           <div className="lg:col-span-1 space-y-4">
-            <div className="nexus-card border-l-4 border-l-amber-500 p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-nexus-text-primary">Tax Calculation Inputs</h3>
+            <div className="thb-card border-l-4 border-l-amber-500 p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-thb-text-primary">Tax Calculation Inputs</h3>
 
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Annual Gross Income (₹)</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Annual Gross Income (₹)</label>
                 <input type="number" value={taxInput.annualGrossIncome || ''} onChange={e => setTaxInput({ ...taxInput, annualGrossIncome: Number(e.target.value) })}
-                  placeholder="e.g. 1200000" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  placeholder="e.g. 1200000" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Age Group</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Age Group</label>
                 <select value={taxInput.ageGroup} onChange={e => setTaxInput({ ...taxInput, ageGroup: e.target.value as TaxInput['ageGroup'] })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                   <option value="BELOW_60">Below 60 years</option>
                   <option value="SENIOR">60-80 years (Senior Citizen)</option>
                   <option value="ABOVE_80">Above 80 years (Super Senior)</option>
@@ -268,9 +268,9 @@ export default function IncomeTaxPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Compare Regime</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Compare Regime</label>
                 <select value={taxInput.regime} onChange={e => setTaxInput({ ...taxInput, regime: e.target.value as TaxInput['regime'] })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                   <option value="BOTH">Both (Compare)</option>
                   <option value="NEW">New Regime Only</option>
                   <option value="OLD">Old Regime Only</option>
@@ -285,58 +285,58 @@ export default function IncomeTaxPage() {
               {showOldRegimeDetails && (
                 <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Basic Salary (Annual) ₹</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Basic Salary (Annual) ₹</label>
                     <input type="number" value={taxInput.basicSalary || ''} onChange={e => setTaxInput({ ...taxInput, basicSalary: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 80C (max ₹1.5L)</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 80C (max ₹1.5L)</label>
                     <input type="number" value={taxInput.section80C || ''} onChange={e => setTaxInput({ ...taxInput, section80C: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 80D (Medical Insurance)</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 80D (Medical Insurance)</label>
                     <input type="number" value={taxInput.section80D || ''} onChange={e => setTaxInput({ ...taxInput, section80D: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 80CCD(1B) - NPS (max ₹50K)</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 80CCD(1B) - NPS (max ₹50K)</label>
                     <input type="number" value={taxInput.section80CCD || ''} onChange={e => setTaxInput({ ...taxInput, section80CCD: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 24(b) - Home Loan Interest (max ₹2L)</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 24(b) - Home Loan Interest (max ₹2L)</label>
                     <input type="number" value={taxInput.section24b || ''} onChange={e => setTaxInput({ ...taxInput, section24b: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">HRA - Actual HRA Received</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">HRA - Actual HRA Received</label>
                     <input type="number" value={taxInput.hraActual || ''} onChange={e => setTaxInput({ ...taxInput, hraActual: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">HRA - Rent Paid</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">HRA - Rent Paid</label>
                     <input type="number" value={taxInput.hraRentPaid || ''} onChange={e => setTaxInput({ ...taxInput, hraRentPaid: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
-                  <label className="flex items-center gap-2 text-xs text-nexus-text-secondary">
+                  <label className="flex items-center gap-2 text-xs text-thb-text-secondary">
                     <input type="checkbox" checked={taxInput.hraIsMetro} onChange={e => setTaxInput({ ...taxInput, hraIsMetro: e.target.checked })} className="rounded" />
                     Metro City (50% of Basic vs 40%)
                   </label>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 80E - Education Loan</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 80E - Education Loan</label>
                     <input type="number" value={taxInput.section80E || ''} onChange={e => setTaxInput({ ...taxInput, section80E: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 80G - Donations</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 80G - Donations</label>
                     <input type="number" value={taxInput.section80G || ''} onChange={e => setTaxInput({ ...taxInput, section80G: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs text-nexus-text-secondary mb-1">Section 80TTA - Savings Interest (max ₹10K)</label>
+                    <label className="block text-xs text-thb-text-secondary mb-1">Section 80TTA - Savings Interest (max ₹10K)</label>
                     <input type="number" value={taxInput.section80TTA || ''} onChange={e => setTaxInput({ ...taxInput, section80TTA: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                 </div>
               )}
@@ -355,46 +355,46 @@ export default function IncomeTaxPage() {
               <>
                 {/* Comparison Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className={`nexus-card p-5 border-t-4 ${taxResult.comparison.betterRegime === 'NEW' ? 'border-t-emerald-500' : 'border-t-slate-300'}`}>
+                  <div className={`thb-card p-5 border-t-4 ${taxResult.comparison.betterRegime === 'NEW' ? 'border-t-emerald-500' : 'border-t-slate-300'}`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary">New Regime</h3>
+                      <h3 className="text-sm font-semibold text-thb-text-primary">New Regime</h3>
                       {taxResult.comparison.betterRegime === 'NEW' && (
                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">BETTER</span>
                       )}
                     </div>
-                    <p className="text-xs text-nexus-text-secondary">Standard Deduction: {fmt(taxResult.newRegime.standardDeduction)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Taxable Income: {fmt(taxResult.newRegime.taxableIncome)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Tax: {fmt(taxResult.newRegime.tax)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Surcharge: {fmt(taxResult.newRegime.surcharge)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Cess (4%): {fmt(taxResult.newRegime.cess)}</p>
-                    <div className="mt-2 pt-2 border-t border-nexus-border">
-                      <p className="text-lg font-bold text-nexus-text-primary">{fmt(taxResult.newRegime.totalTax)}</p>
-                      <p className="text-xs text-nexus-text-muted">Monthly TDS: {fmt(taxResult.newRegime.monthlyTDS)}</p>
+                    <p className="text-xs text-thb-text-secondary">Standard Deduction: {fmt(taxResult.newRegime.standardDeduction)}</p>
+                    <p className="text-xs text-thb-text-secondary">Taxable Income: {fmt(taxResult.newRegime.taxableIncome)}</p>
+                    <p className="text-xs text-thb-text-secondary">Tax: {fmt(taxResult.newRegime.tax)}</p>
+                    <p className="text-xs text-thb-text-secondary">Surcharge: {fmt(taxResult.newRegime.surcharge)}</p>
+                    <p className="text-xs text-thb-text-secondary">Cess (4%): {fmt(taxResult.newRegime.cess)}</p>
+                    <div className="mt-2 pt-2 border-t border-thb-border">
+                      <p className="text-lg font-bold text-thb-text-primary">{fmt(taxResult.newRegime.totalTax)}</p>
+                      <p className="text-xs text-thb-text-muted">Monthly TDS: {fmt(taxResult.newRegime.monthlyTDS)}</p>
                     </div>
                   </div>
-                  <div className={`nexus-card p-5 border-t-4 ${taxResult.comparison.betterRegime === 'OLD' ? 'border-t-emerald-500' : 'border-t-slate-300'}`}>
+                  <div className={`thb-card p-5 border-t-4 ${taxResult.comparison.betterRegime === 'OLD' ? 'border-t-emerald-500' : 'border-t-slate-300'}`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary">Old Regime</h3>
+                      <h3 className="text-sm font-semibold text-thb-text-primary">Old Regime</h3>
                       {taxResult.comparison.betterRegime === 'OLD' && (
                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">BETTER</span>
                       )}
                     </div>
-                    <p className="text-xs text-nexus-text-secondary">Total Deductions: {fmt(taxResult.oldRegime.totalDeductions)}</p>
-                    <p className="text-xs text-nexus-text-secondary">HRA Exemption: {fmt(taxResult.oldRegime.hraExemption)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Taxable Income: {fmt(taxResult.oldRegime.taxableIncome)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Tax: {fmt(taxResult.oldRegime.tax)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Surcharge: {fmt(taxResult.oldRegime.surcharge)}</p>
-                    <p className="text-xs text-nexus-text-secondary">Cess (4%): {fmt(taxResult.oldRegime.cess)}</p>
-                    <div className="mt-2 pt-2 border-t border-nexus-border">
-                      <p className="text-lg font-bold text-nexus-text-primary">{fmt(taxResult.oldRegime.totalTax)}</p>
-                      <p className="text-xs text-nexus-text-muted">Monthly TDS: {fmt(taxResult.oldRegime.monthlyTDS)}</p>
+                    <p className="text-xs text-thb-text-secondary">Total Deductions: {fmt(taxResult.oldRegime.totalDeductions)}</p>
+                    <p className="text-xs text-thb-text-secondary">HRA Exemption: {fmt(taxResult.oldRegime.hraExemption)}</p>
+                    <p className="text-xs text-thb-text-secondary">Taxable Income: {fmt(taxResult.oldRegime.taxableIncome)}</p>
+                    <p className="text-xs text-thb-text-secondary">Tax: {fmt(taxResult.oldRegime.tax)}</p>
+                    <p className="text-xs text-thb-text-secondary">Surcharge: {fmt(taxResult.oldRegime.surcharge)}</p>
+                    <p className="text-xs text-thb-text-secondary">Cess (4%): {fmt(taxResult.oldRegime.cess)}</p>
+                    <div className="mt-2 pt-2 border-t border-thb-border">
+                      <p className="text-lg font-bold text-thb-text-primary">{fmt(taxResult.oldRegime.totalTax)}</p>
+                      <p className="text-xs text-thb-text-muted">Monthly TDS: {fmt(taxResult.oldRegime.monthlyTDS)}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Savings Info */}
                 {taxResult.comparison.savings > 0 && (
-                  <div className="nexus-card p-4 bg-emerald-50 border-l-4 border-l-emerald-500">
+                  <div className="thb-card p-4 bg-emerald-50 border-l-4 border-l-emerald-500">
                     <div className="flex items-center gap-3">
                       <FiTrendingUp className="w-5 h-5 text-emerald-600" />
                       <div>
@@ -411,27 +411,27 @@ export default function IncomeTaxPage() {
 
                 {/* New Regime Slab Table */}
                 {taxResult.newRegimeSlabs && (
-                  <div className="nexus-card overflow-hidden">
-                    <div className="px-5 py-3 border-b border-nexus-border bg-slate-50">
-                      <h3 className="text-sm font-semibold text-nexus-text-primary">New Regime Tax Slabs (FY 2024-25)</h3>
+                  <div className="thb-card overflow-hidden">
+                    <div className="px-5 py-3 border-b border-thb-border bg-slate-50">
+                      <h3 className="text-sm font-semibold text-thb-text-primary">New Regime Tax Slabs (FY 2024-25)</h3>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-nexus-border bg-slate-50">
-                            <th className="text-left px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Income Range</th>
-                            <th className="text-center px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Rate</th>
-                            <th className="text-right px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Tax</th>
+                          <tr className="border-b border-thb-border bg-slate-50">
+                            <th className="text-left px-4 py-2 text-xs font-semibold text-thb-text-secondary">Income Range</th>
+                            <th className="text-center px-4 py-2 text-xs font-semibold text-thb-text-secondary">Rate</th>
+                            <th className="text-right px-4 py-2 text-xs font-semibold text-thb-text-secondary">Tax</th>
                           </tr>
                         </thead>
                         <tbody>
                           {taxResult.newRegimeSlabs.map((slab, i) => (
-                            <tr key={i} className="border-b border-nexus-border/50 hover:bg-slate-50/50">
-                              <td className="px-4 py-2 text-sm text-nexus-text-primary">
+                            <tr key={i} className="border-b border-thb-border/50 hover:bg-slate-50/50">
+                              <td className="px-4 py-2 text-sm text-thb-text-primary">
                                 {slab.to ? `${fmt(slab.from)} - ${fmt(slab.to)}` : `Above ${fmt(slab.from)}`}
                               </td>
-                              <td className="px-4 py-2 text-sm text-center text-nexus-text-secondary">{slab.rate}%</td>
-                              <td className="px-4 py-2 text-sm text-right font-medium text-nexus-text-primary">{fmt(slab.tax)}</td>
+                              <td className="px-4 py-2 text-sm text-center text-thb-text-secondary">{slab.rate}%</td>
+                              <td className="px-4 py-2 text-sm text-right font-medium text-thb-text-primary">{fmt(slab.tax)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -441,12 +441,12 @@ export default function IncomeTaxPage() {
                 )}
               </>
             ) : (
-              <div className="nexus-card p-16 text-center">
+              <div className="thb-card p-16 text-center">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center mx-auto mb-4">
                   <FiFileText className="w-10 h-10 text-amber-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-nexus-text-primary mb-2">Income Tax Calculator</h3>
-                <p className="text-sm text-nexus-text-secondary max-w-md mx-auto">
+                <h3 className="text-lg font-semibold text-thb-text-primary mb-2">Income Tax Calculator</h3>
+                <p className="text-sm text-thb-text-secondary max-w-md mx-auto">
                   Enter your annual gross income to calculate and compare income tax under Old and New regimes.
                 </p>
               </div>
@@ -461,12 +461,12 @@ export default function IncomeTaxPage() {
           {/* Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button onClick={fetchDeclarations} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50">
+              <button onClick={fetchDeclarations} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50">
                 <FiRefreshCw className="w-4 h-4" />
               </button>
               <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-                <input type="text" placeholder="Search declarations..." className="pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm w-64" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                <input type="text" placeholder="Search declarations..." className="pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm w-64" />
               </div>
             </div>
             <button onClick={() => { setShowDecForm(true); setEditingDecId(null); }}
@@ -477,17 +477,17 @@ export default function IncomeTaxPage() {
 
           {/* Declaration Form */}
           {showDecForm && (
-            <div className="nexus-card border-l-4 border-l-blue-500 p-6">
+            <div className="thb-card border-l-4 border-l-blue-500 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-nexus-text-primary">Create Tax Declaration</h2>
-                <button onClick={() => setShowDecForm(false)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100">
+                <h2 className="text-lg font-semibold text-thb-text-primary">Create Tax Declaration</h2>
+                <button onClick={() => setShowDecForm(false)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
 
               {isAdmin && (
                 <div className="mb-4 relative">
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee (HR filing on behalf)</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee (HR filing on behalf)</label>
                   <div className="relative">
                     <input
                       type="text"
@@ -499,7 +499,7 @@ export default function IncomeTaxPage() {
                       }}
                       onFocus={() => setShowEmployeeDropdown(true)}
                       placeholder="Search employee by name, ID, or email..."
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
                     {decForm.employeeId && employees.find(e => e.id === decForm.employeeId) && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -508,7 +508,7 @@ export default function IncomeTaxPage() {
                         </span>
                         <button
                           onClick={() => { setDecForm({ ...decForm, employeeId: '' }); setEmployeeSearch(''); }}
-                          className="text-nexus-text-muted hover:text-red-500"
+                          className="text-thb-text-muted hover:text-red-500"
                         >
                           <FiX className="w-3.5 h-3.5" />
                         </button>
@@ -516,11 +516,11 @@ export default function IncomeTaxPage() {
                     )}
                   </div>
                   {showEmployeeDropdown && !decForm.employeeId && (
-                    <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-nexus-border rounded-lg shadow-lg">
+                    <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-thb-border rounded-lg shadow-lg">
                       {loadingEmployees ? (
-                        <div className="px-3 py-2 text-xs text-nexus-text-muted">Loading...</div>
+                        <div className="px-3 py-2 text-xs text-thb-text-muted">Loading...</div>
                       ) : employees.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-nexus-text-muted">No employees found</div>
+                        <div className="px-3 py-2 text-xs text-thb-text-muted">No employees found</div>
                       ) : (
                         employees.map(emp => (
                           <button
@@ -536,8 +536,8 @@ export default function IncomeTaxPage() {
                               {emp.firstName[0]}{emp.lastName[0]}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-nexus-text-primary truncate">{emp.firstName} {emp.lastName}</p>
-                              <p className="text-[10px] text-nexus-text-muted truncate">{emp.employeeId} · {emp.email} · {emp.department?.name || '—'}</p>
+                              <p className="text-sm font-medium text-thb-text-primary truncate">{emp.firstName} {emp.lastName}</p>
+                              <p className="text-[10px] text-thb-text-muted truncate">{emp.employeeId} · {emp.email} · {emp.department?.name || '—'}</p>
                             </div>
                           </button>
                         ))
@@ -549,24 +549,24 @@ export default function IncomeTaxPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Financial Year</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Financial Year</label>
                   <select value={decForm.financialYear} onChange={e => setDecForm({ ...decForm, financialYear: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm">
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                     <option value="2024-25">FY 2024-25</option>
                     <option value="2025-26">FY 2025-26</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tax Regime</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax Regime</label>
                   <select value={decForm.regimeType} onChange={e => setDecForm({ ...decForm, regimeType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm">
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                     <option value="NEW">New Regime</option>
                     <option value="OLD">Old Regime</option>
                   </select>
                 </div>
               </div>
 
-              <h3 className="text-sm font-semibold text-nexus-text-primary mt-6 mb-3">Section 80C Investments (max ₹1,50,000)</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mt-6 mb-3">Section 80C Investments (max ₹1,50,000)</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[
                   { key: 'section80C_PPF', label: 'PPF' },
@@ -576,15 +576,15 @@ export default function IncomeTaxPage() {
                   { key: 'section80C_Other', label: 'Other 80C' },
                 ].map(f => (
                   <div key={f.key}>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">{f.label} ₹</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">{f.label} ₹</label>
                     <input type="number" value={decForm[f.key as keyof typeof decForm] || ''}
                       onChange={e => setDecForm({ ...decForm, [f.key]: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                 ))}
               </div>
 
-              <h3 className="text-sm font-semibold text-nexus-text-primary mt-6 mb-3">Other Deductions</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mt-6 mb-3">Other Deductions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[
                   { key: 'section80D_Self', label: '80D - Medical Insurance (Self)' },
@@ -598,14 +598,14 @@ export default function IncomeTaxPage() {
                   { key: 'section80TTA_SavingsInterest', label: '80TTA - Savings Interest' },
                 ].map(f => (
                   <div key={f.key}>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">{f.label} ₹</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">{f.label} ₹</label>
                     <input type="number" value={decForm[f.key as keyof typeof decForm] || ''}
                       onChange={e => setDecForm({ ...decForm, [f.key]: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm" />
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm" />
                   </div>
                 ))}
                 <div>
-                  <label className="flex items-center gap-2 text-xs text-nexus-text-secondary mt-5">
+                  <label className="flex items-center gap-2 text-xs text-thb-text-secondary mt-5">
                     <input type="checkbox" checked={decForm.hra_IsMetro} onChange={e => setDecForm({ ...decForm, hra_IsMetro: e.target.checked })} className="rounded" />
                     Metro City
                   </label>
@@ -618,7 +618,7 @@ export default function IncomeTaxPage() {
                   {submittingDec ? 'Saving...' : 'Save as Draft'}
                 </button>
                 <button onClick={() => setShowDecForm(false)}
-                  className="px-4 py-2.5 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50">
+                  className="px-4 py-2.5 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50">
                   Cancel
                 </button>
               </div>
@@ -627,30 +627,30 @@ export default function IncomeTaxPage() {
 
           {/* View Panel */}
           {viewingDec && (
-            <div className="nexus-card border-l-4 border-l-emerald-500 p-6">
+            <div className="thb-card border-l-4 border-l-emerald-500 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary">Declaration Details</h2>
-                <button onClick={() => setViewingDec(null)} className="p-2 rounded-lg text-nexus-text-muted hover:bg-slate-100">
+                <h2 className="text-lg font-semibold text-thb-text-primary">Declaration Details</h2>
+                <button onClick={() => setViewingDec(null)} className="p-2 rounded-lg text-thb-text-muted hover:bg-slate-100">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                <div><p className="text-xs text-nexus-text-secondary">Employee</p><p className="text-sm font-medium">{viewingDec.employee?.firstName} {viewingDec.employee?.lastName}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Financial Year</p><p className="text-sm font-medium">{viewingDec.financialYear}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Regime</p><p className="text-sm font-medium">{viewingDec.regimeType}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Status</p><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusBadge(viewingDec.status)}`}>{viewingDec.status}</span></div>
+                <div><p className="text-xs text-thb-text-secondary">Employee</p><p className="text-sm font-medium">{viewingDec.employee?.firstName} {viewingDec.employee?.lastName}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Financial Year</p><p className="text-sm font-medium">{viewingDec.financialYear}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Regime</p><p className="text-sm font-medium">{viewingDec.regimeType}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Status</p><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusBadge(viewingDec.status)}`}>{viewingDec.status}</span></div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div><p className="text-xs text-nexus-text-secondary">Section 80C Total</p><p className="text-sm font-medium">{fmt(viewingDec.section80C_Total)}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Section 80D Total</p><p className="text-sm font-medium">{fmt(viewingDec.section80D_Total)}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Total Deductions</p><p className="text-sm font-medium">{fmt(viewingDec.totalDeductions)}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Taxable Income</p><p className="text-sm font-medium">{fmt(viewingDec.taxableIncome)}</p></div>
-                <div><p className="text-xs text-nexus-text-secondary">Estimated Tax</p><p className="text-sm font-bold text-red-600">{fmt(viewingDec.estimatedTax)}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Section 80C Total</p><p className="text-sm font-medium">{fmt(viewingDec.section80C_Total)}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Section 80D Total</p><p className="text-sm font-medium">{fmt(viewingDec.section80D_Total)}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Total Deductions</p><p className="text-sm font-medium">{fmt(viewingDec.totalDeductions)}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Taxable Income</p><p className="text-sm font-medium">{fmt(viewingDec.taxableIncome)}</p></div>
+                <div><p className="text-xs text-thb-text-secondary">Estimated Tax</p><p className="text-sm font-bold text-red-600">{fmt(viewingDec.estimatedTax)}</p></div>
               </div>
               {viewingDec.reviewComments && (
                 <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs text-nexus-text-secondary">Review Comments</p>
-                  <p className="text-sm text-nexus-text-primary">{viewingDec.reviewComments}</p>
+                  <p className="text-xs text-thb-text-secondary">Review Comments</p>
+                  <p className="text-sm text-thb-text-primary">{viewingDec.reviewComments}</p>
                 </div>
               )}
               {isAdmin && viewingDec.status === 'SUBMITTED' && (
@@ -669,44 +669,44 @@ export default function IncomeTaxPage() {
           )}
 
           {/* Declarations Table */}
-          <div className="nexus-card overflow-hidden">
+          <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50">
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Employee</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-nexus-text-secondary">FY</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Regime</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Deductions</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Est. Tax</th>
-                    <th className="text-center px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Status</th>
-                    <th className="text-center px-4 py-2 text-xs font-semibold text-nexus-text-secondary">Actions</th>
+                  <tr className="border-b border-thb-border bg-slate-50">
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-thb-text-secondary">Employee</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-thb-text-secondary">FY</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-thb-text-secondary">Regime</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-thb-text-secondary">Deductions</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-thb-text-secondary">Est. Tax</th>
+                    <th className="text-center px-4 py-2 text-xs font-semibold text-thb-text-secondary">Status</th>
+                    <th className="text-center px-4 py-2 text-xs font-semibold text-thb-text-secondary">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingDecs ? (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-nexus-text-muted">Loading...</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-thb-text-muted">Loading...</td></tr>
                   ) : declarations.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-nexus-text-muted">No declarations found. Create one to get started.</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-thb-text-muted">No declarations found. Create one to get started.</td></tr>
                   ) : (
                     declarations.map(dec => (
-                      <tr key={dec.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50">
-                        <td className="px-4 py-2 text-sm font-medium text-nexus-text-primary">
+                      <tr key={dec.id} className="border-b border-thb-border/50 hover:bg-slate-50/50">
+                        <td className="px-4 py-2 text-sm font-medium text-thb-text-primary">
                           {dec.employee ? `${dec.employee.firstName} ${dec.employee.lastName}` : dec.employeeId}
                         </td>
-                        <td className="px-4 py-2 text-sm text-nexus-text-secondary">{dec.financialYear}</td>
-                        <td className="px-4 py-2 text-sm text-nexus-text-secondary">{dec.regimeType}</td>
+                        <td className="px-4 py-2 text-sm text-thb-text-secondary">{dec.financialYear}</td>
+                        <td className="px-4 py-2 text-sm text-thb-text-secondary">{dec.regimeType}</td>
                         <td className="px-4 py-2 text-sm text-right">{fmt(dec.totalDeductions)}</td>
                         <td className="px-4 py-2 text-sm text-right font-medium text-red-600">{fmt(dec.estimatedTax)}</td>
                         <td className="px-4 py-2 text-center"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusBadge(dec.status)}`}>{dec.status}</span></td>
                         <td className="px-4 py-2 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => setViewingDec(dec)} className="p-1.5 rounded-md text-nexus-text-muted hover:text-blue-600 hover:bg-blue-50">
+                            <button onClick={() => setViewingDec(dec)} className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-600 hover:bg-blue-50">
                               <FiEye className="w-3.5 h-3.5" />
                             </button>
                             {(dec.status === 'DRAFT' || dec.status === 'REJECTED') && (
                               <button onClick={() => handleUpdateStatus(dec.id, 'SUBMITTED')}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-emerald-600 hover:bg-emerald-50" title="Submit">
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50" title="Submit">
                                 <FiArrowRight className="w-3.5 h-3.5" />
                               </button>
                             )}

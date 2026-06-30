@@ -42,15 +42,15 @@ const initialForm = {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'nexus-badge nexus-badge-primary',
-    pending_approval: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-info',
-    sent: 'nexus-badge nexus-badge-purple',
-    accepted: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
-    withdrawn: 'nexus-badge nexus-badge-error',
+    draft: 'thb-badge thb-badge-primary',
+    pending_approval: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-info',
+    sent: 'thb-badge thb-badge-purple',
+    accepted: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
+    withdrawn: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function formatStatus(status: string) {
@@ -166,8 +166,8 @@ export default function OffersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary">Offer Management</h1>
-          <p className="text-nexus-text-secondary mt-1">Create and manage job offers</p>
+          <h1 className="text-2xl font-bold text-thb-text-primary">Offer Management</h1>
+          <p className="text-thb-text-secondary mt-1">Create and manage job offers</p>
         </div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
           <FiPlus className="w-4 h-4" /> Create Offer
@@ -182,25 +182,25 @@ export default function OffersPage() {
         const item = offers.find(i => i.id === viewingId);
         if (!item) return null;
         return (
-          <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+          <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-nexus-text-primary">Offer Details</h2>
+                <h2 className="text-lg font-semibold text-thb-text-primary">Offer Details</h2>
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleEdit(item)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
-                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Candidate Name</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.candidateName || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Candidate Email</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.candidateEmail || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Position</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.position || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Department</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.department || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Offered Salary</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.offeredCurrency} {item.offeredSalary?.toLocaleString()}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Joining Date</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.joiningDate ? new Date(item.joiningDate).toLocaleDateString() : '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Probation Period</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.probationPeriod} days</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(item.status)}>{formatStatus(item.status)}</span></p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Created</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{new Date(item.createdAt).toLocaleDateString()}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Candidate Name</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.candidateName || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Candidate Email</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.candidateEmail || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Position</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.position || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Department</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.department || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Offered Salary</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.offeredCurrency} {item.offeredSalary?.toLocaleString()}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Joining Date</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.joiningDate ? new Date(item.joiningDate).toLocaleDateString() : '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Probation Period</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.probationPeriod} days</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(item.status)}>{formatStatus(item.status)}</span></p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Created</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{new Date(item.createdAt).toLocaleDateString()}</p></div>
               </div>
             </div>
           </div>
@@ -209,54 +209,54 @@ export default function OffersPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Offer' : 'Create New Offer'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Name *</label>
-                <input required value={form.candidateName} onChange={(e) => setForm({ ...form, candidateName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Full name" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
+                <input required value={form.candidateName} onChange={(e) => setForm({ ...form, candidateName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Full name" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Email</label>
-                <input type="email" value={form.candidateEmail} onChange={(e) => setForm({ ...form, candidateEmail: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="email@example.com" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Email</label>
+                <input type="email" value={form.candidateEmail} onChange={(e) => setForm({ ...form, candidateEmail: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="email@example.com" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Position *</label>
-                <input required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Job title" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position *</label>
+                <input required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Job title" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department</label>
-                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Department" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
+                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Department" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary *</label>
-                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary *</label>
+                <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
-                <select value={form.offeredCurrency} onChange={(e) => setForm({ ...form, offeredCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
+                <select value={form.offeredCurrency} onChange={(e) => setForm({ ...form, offeredCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="INR">INR</option>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Joining Date *</label>
-                <input type="date" required value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Joining Date *</label>
+                <input type="date" required value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Probation (days)</label>
-                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation (days)</label>
+                <input type="number" value={form.probationPeriod} onChange={(e) => setForm({ ...form, probationPeriod: parseInt(e.target.value) || 90 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
             </div>
           </div>
@@ -264,24 +264,24 @@ export default function OffersPage() {
       )}
 
       {/* Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Candidate</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Position</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Salary</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Joining Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Workflow</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Position</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Salary</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Joining Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Workflow</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     {Array.from({ length: colCount }).map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
                     ))}
@@ -290,32 +290,32 @@ export default function OffersPage() {
               ) : offers.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No offers found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Create your first offer to get started</p>
+                    <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No offers found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">Create your first offer to get started</p>
                   </td>
                 </tr>
               ) : (
                 offers.map((o) => (
-                  <tr key={o.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={o.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === o.id ? (
                       <td colSpan={colCount} className="px-4 py-3 bg-red-50">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this offer?</span>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleDelete(o.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                           </div>
                         </div>
                       </td>
                     ) : (
                       <>
                         <td className="px-4 py-3">
-                          <div><p className="text-sm font-medium text-nexus-text-primary">{o.candidateName}</p><p className="text-xs text-nexus-text-muted">{o.candidateEmail}</p></div>
+                          <div><p className="text-sm font-medium text-thb-text-primary">{o.candidateName}</p><p className="text-xs text-thb-text-muted">{o.candidateEmail}</p></div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-primary">{o.position}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{o.offeredCurrency} {o.offeredSalary?.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{o.joiningDate ? new Date(o.joiningDate).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-primary">{o.position}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{o.offeredCurrency} {o.offeredSalary?.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{o.joiningDate ? new Date(o.joiningDate).toLocaleDateString() : '—'}</td>
                         <td className="px-4 py-3"><span className={getStatusBadge(o.status)}>{formatStatus(o.status)}</span></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -332,9 +332,9 @@ export default function OffersPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => { setViewingId(o.id); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                            <button onClick={() => handleEdit(o)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteConfirmId(o.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setViewingId(o.id); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(o)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteConfirmId(o.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </>

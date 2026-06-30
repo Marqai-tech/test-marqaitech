@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { secret } = body;
 
-    if (secret !== 'nexus-reseed-2025') {
+    if (secret !== '3boxes-reseed-2025') {
       return NextResponse.json({ error: 'Invalid reseed secret' }, { status: 403 });
     }
 
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       let tenant = allTenants.find((t: any) => t.slug === '3boxes-corp' || t.slug === '3boxes-hrms-demo');
 
       if (tenant) {
-        // Update existing Nexus tenant to correct name
+        // Update existing 3Boxes tenant to correct name
         tenant = await prisma.tenant.update({
           where: { id: tenant.id },
           data: {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             domain: '3boxeshrms.com',
           },
         });
-        console.log('[Reseed] Updated existing Nexus tenant:', tenant.id, tenant.name);
+        console.log('[Reseed] Updated existing 3Boxes tenant:', tenant.id, tenant.name);
       } else if (allTenants.length > 0) {
         // Take the first existing tenant (could be EH2R or anything else) and rebrand it
         const existingTenant = allTenants[0];
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
         if (otherTenant.id !== tenant.id) {
           const nameLower = otherTenant.name.toLowerCase();
           if (nameLower.includes('eh2r') || nameLower.includes('ehhr') || nameLower.includes('nexus') || !nameLower.includes('3 boxes')) {
-            // Move all users from this tenant to the main Nexus tenant
+            // Move all users from this tenant to the main 3Boxes tenant
             const movedCount = await prisma.user.updateMany({
               where: { tenantId: otherTenant.id },
               data: { tenantId: tenant.id },
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       ]);
 
       const demoUsers = [
-        { email: 'admin@3boxeshrms.com', name: 'Admin Nexus', role: 'super_admin', password: passwordHashes[0] },
+        { email: 'admin@3boxeshrms.com', name: 'Admin 3Boxes', role: 'super_admin', password: passwordHashes[0] },
         { email: 'hr@3boxeshrms.com', name: 'Sarah Johnson', role: 'hr_admin', password: passwordHashes[1] },
         { email: 'manager@3boxeshrms.com', name: 'Priya Sharma', role: 'manager', password: passwordHashes[2] },
         { email: 'employee@3boxeshrms.com', name: 'Raj Patel', role: 'employee', password: passwordHashes[3] },

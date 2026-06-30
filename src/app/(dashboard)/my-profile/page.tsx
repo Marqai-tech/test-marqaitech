@@ -59,8 +59,8 @@ const profileTabs: { key: ProfileTab; label: string; icon: React.ReactNode }[] =
 function InfoRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-nexus-text-muted mb-1">{icon && <span className="inline-flex items-center gap-1">{icon}</span>} {label}</label>
-      <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{value || '—'}</p>
+      <label className="block text-xs font-medium text-thb-text-muted mb-1">{icon && <span className="inline-flex items-center gap-1">{icon}</span>} {label}</label>
+      <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{value || '—'}</p>
     </div>
   );
 }
@@ -69,9 +69,9 @@ function SectionCard({ title, icon, iconBg, iconColor, children }: {
   title: string; icon: React.ReactNode; iconBg: string; iconColor: string; children: React.ReactNode;
 }) {
   return (
-    <div className="nexus-card">
+    <div className="thb-card">
       <div className="p-5">
-        <h4 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-nexus-border">
+        <h4 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2 pb-3 border-b border-thb-border">
           <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center`}>
             <span className={iconColor}>{icon}</span>
           </div>
@@ -132,7 +132,7 @@ export default function MyProfilePage() {
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-sm text-nexus-text-muted">Loading your profile...</p>
+          <p className="text-sm text-thb-text-muted">Loading your profile...</p>
         </div>
       </div>
     );
@@ -141,10 +141,10 @@ export default function MyProfilePage() {
   if (error) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="nexus-card p-12 text-center max-w-md">
+        <div className="thb-card p-12 text-center max-w-md">
           <FiAlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-nexus-text-primary mb-2">Failed to Load Profile</h2>
-          <p className="text-sm text-nexus-text-secondary mb-4">{error}</p>
+          <h2 className="text-lg font-semibold text-thb-text-primary mb-2">Failed to Load Profile</h2>
+          <p className="text-sm text-thb-text-secondary mb-4">{error}</p>
           <button onClick={() => fetchProfile()} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors">
             Retry
           </button>
@@ -158,26 +158,26 @@ export default function MyProfilePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiUser className="w-6 h-6 text-slate-500" />
             My Profile
           </h1>
-          <p className="text-nexus-text-secondary mt-1">View your employee details as configured by HR</p>
+          <p className="text-thb-text-secondary mt-1">View your employee details as configured by HR</p>
         </div>
       </div>
 
       {/* Profile Summary Card */}
-      <div className="nexus-card">
+      <div className="thb-card">
         <div className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/20">
               {user?.name ? getInitials(user.name) : '??'}
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-nexus-text-primary">{user?.name || 'User'}</h3>
-              <p className="text-sm text-nexus-text-muted">{user?.email}</p>
+              <h3 className="text-lg font-bold text-thb-text-primary">{user?.name || 'User'}</h3>
+              <p className="text-sm text-thb-text-muted">{user?.email}</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="nexus-badge nexus-badge-success capitalize">{user?.role?.replace('_', ' ') || 'employee'}</span>
+                <span className="thb-badge thb-badge-success capitalize">{user?.role?.replace('_', ' ') || 'employee'}</span>
                 {emp?.employeeId && (
                   <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 font-mono">{String(emp.employeeId)}</span>
                 )}
@@ -190,7 +190,7 @@ export default function MyProfilePage() {
                 )}
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-4 text-sm text-nexus-text-secondary">
+            <div className="hidden sm:flex items-center gap-4 text-sm text-thb-text-secondary">
               {emp?.department && (
                 <div className="flex items-center gap-1.5">
                   <FiBriefcase className="w-4 h-4 text-blue-500" />
@@ -215,8 +215,8 @@ export default function MyProfilePage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="nexus-card">
-        <div className="border-b border-nexus-border overflow-x-auto">
+      <div className="thb-card">
+        <div className="border-b border-thb-border overflow-x-auto">
           <nav className="flex min-w-max">
             {profileTabs.map((tab) => (
               <button
@@ -225,10 +225,10 @@ export default function MyProfilePage() {
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-                    : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary hover:bg-slate-50'
+                    : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary hover:bg-slate-50'
                 }`}
               >
-                <span className={activeTab === tab.key ? 'text-blue-500' : 'text-nexus-text-muted'}>{tab.icon}</span>
+                <span className={activeTab === tab.key ? 'text-blue-500' : 'text-thb-text-muted'}>{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
@@ -270,7 +270,7 @@ export default function MyProfilePage() {
             {Array.isArray(emp?.dependents) && (emp?.dependents as unknown[]).length > 0 && (
               <SectionCard title="Dependents" icon={<FiHeart className="w-4 h-4" />} iconBg="bg-rose-50" iconColor="text-rose-500">
                 {(emp?.dependents as Record<string, unknown>[]).map((dep, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-nexus-border/50">
+                  <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-thb-border/50">
                     <div className="grid grid-cols-2 gap-3">
                       <InfoRow label="Name" value={str(dep.name)} />
                       <InfoRow label="Relationship" value={str(dep.relationship)} />
@@ -397,25 +397,25 @@ export default function MyProfilePage() {
                     <InfoRow label="To" value={formatDate(exp.toDate)} />
                   </div>
                   {str(exp.description) && (
-                    <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-nexus-border/50">
-                      <label className="block text-xs font-medium text-nexus-text-muted mb-1">Description</label>
-                      <p className="text-sm text-nexus-text-primary">{str(exp.description)}</p>
+                    <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-thb-border/50">
+                      <label className="block text-xs font-medium text-thb-text-muted mb-1">Description</label>
+                      <p className="text-sm text-thb-text-primary">{str(exp.description)}</p>
                     </div>
                   )}
                 </SectionCard>
               ))
             ) : (
-              <div className="nexus-card p-12 text-center">
-                <FiBriefcase className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-1">No Experience Records</h3>
-                <p className="text-xs text-nexus-text-muted">Previous experience details have not been added yet.</p>
+              <div className="thb-card p-12 text-center">
+                <FiBriefcase className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-1">No Experience Records</h3>
+                <p className="text-xs text-thb-text-muted">Previous experience details have not been added yet.</p>
               </div>
             )}
 
             {/* Qualifications */}
             {Array.isArray(emp?.qualifications) && (emp?.qualifications as unknown[]).length > 0 && (
               <div className="mt-4">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                   <FiBookOpen className="w-4 h-4 text-violet-500" />
                   Qualifications
                 </h3>
@@ -441,12 +441,12 @@ export default function MyProfilePage() {
               <SectionCard title="Uploaded Documents" icon={<FiBookOpen className="w-4 h-4" />} iconBg="bg-blue-50" iconColor="text-blue-500">
                 <div className="space-y-2">
                   {(emp?.documents as Record<string, unknown>[]).map((doc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-nexus-border/50">
+                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-thb-border/50">
                       <div className="flex items-center gap-3">
                         <FiFileText className="w-4 h-4 text-blue-500" />
                         <div>
-                          <p className="text-sm font-medium text-nexus-text-primary">{str(doc.name)}</p>
-                          <p className="text-xs text-nexus-text-muted">{str(doc.type)}</p>
+                          <p className="text-sm font-medium text-thb-text-primary">{str(doc.name)}</p>
+                          <p className="text-xs text-thb-text-muted">{str(doc.type)}</p>
                         </div>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
@@ -459,10 +459,10 @@ export default function MyProfilePage() {
                 </div>
               </SectionCard>
             ) : (
-              <div className="nexus-card p-12 text-center">
-                <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-1">No Documents</h3>
-                <p className="text-xs text-nexus-text-muted">No documents have been uploaded yet.</p>
+              <div className="thb-card p-12 text-center">
+                <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-1">No Documents</h3>
+                <p className="text-xs text-thb-text-muted">No documents have been uploaded yet.</p>
               </div>
             )}
           </div>

@@ -23,13 +23,13 @@ function formatDate(d: string | null | undefined) {
 
 function getPostingStatusBadge(status: string) {
   const map: Record<string, { className: string; label: string; icon: React.ReactNode }> = {
-    pending: { className: 'bg-amber-50 text-amber-700 nexus-badge', label: 'Pending', icon: <FiClock className="w-3 h-3" /> },
-    posted: { className: 'nexus-badge nexus-badge-success', label: 'Posted', icon: <FiCheckCircle className="w-3 h-3" /> },
-    closed: { className: 'nexus-badge nexus-badge-info', label: 'Closed', icon: <FiXCircle className="w-3 h-3" /> },
-    failed: { className: 'nexus-badge nexus-badge-error', label: 'Failed', icon: <FiAlertCircle className="w-3 h-3" /> },
-    expired: { className: 'nexus-badge nexus-badge-warning', label: 'Expired', icon: <FiClock className="w-3 h-3" /> },
+    pending: { className: 'bg-amber-50 text-amber-700 thb-badge', label: 'Pending', icon: <FiClock className="w-3 h-3" /> },
+    posted: { className: 'thb-badge thb-badge-success', label: 'Posted', icon: <FiCheckCircle className="w-3 h-3" /> },
+    closed: { className: 'thb-badge thb-badge-info', label: 'Closed', icon: <FiXCircle className="w-3 h-3" /> },
+    failed: { className: 'thb-badge thb-badge-error', label: 'Failed', icon: <FiAlertCircle className="w-3 h-3" /> },
+    expired: { className: 'thb-badge thb-badge-warning', label: 'Expired', icon: <FiClock className="w-3 h-3" /> },
   };
-  return map[status] || { className: 'nexus-badge nexus-badge-info', label: status, icon: null };
+  return map[status] || { className: 'thb-badge thb-badge-info', label: status, icon: null };
 }
 
 const BOARD_LABELS: Record<string, string> = {
@@ -206,14 +206,14 @@ export default function JobBoardsAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Link href="/recruitment" className="inline-flex items-center gap-2 text-sm text-nexus-text-secondary hover:text-nexus-text-primary mb-2">
+          <Link href="/recruitment" className="inline-flex items-center gap-2 text-sm text-thb-text-secondary hover:text-thb-text-primary mb-2">
             <FiArrowLeft className="w-4 h-4" /> Back to Recruitment
           </Link>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiExternalLink className="w-6 h-6 text-violet-500" />
             Job Board Multi-Posting
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Manage all external job board postings across all jobs
           </p>
         </div>
@@ -230,7 +230,7 @@ export default function JobBoardsAdminPage() {
           <button
             onClick={() => fetchPostings(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-nexus-border text-nexus-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border text-thb-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
           >
             <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
           </button>
@@ -240,31 +240,31 @@ export default function JobBoardsAdminPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: 'text-nexus-text-primary', bg: 'bg-slate-100' },
+          { label: 'Total', value: stats.total, color: 'text-thb-text-primary', bg: 'bg-slate-100' },
           { label: 'Posted', value: stats.posted, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Pending', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Closed', value: stats.closed, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Failed', value: stats.failed, color: 'text-red-600', bg: 'bg-red-50' },
         ].map((s) => (
-          <div key={s.label} className={`nexus-card p-3 ${s.bg}`}>
-            <p className="text-xs font-medium text-nexus-text-secondary uppercase tracking-wider">{s.label}</p>
+          <div key={s.label} className={`thb-card p-3 ${s.bg}`}>
+            <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wider">{s.label}</p>
             <p className={`text-2xl font-bold ${s.color} mt-0.5`}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <div className="relative">
-              <FiSearch className="w-4 h-4 text-nexus-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <FiSearch className="w-4 h-4 text-thb-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search by job title, board, or external ID..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
               />
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function JobBoardsAdminPage() {
             <select
               value={filterBoard}
               onChange={(e) => setFilterBoard(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+              className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             >
               <option value="">All Boards</option>
               {Object.entries(BOARD_LABELS).map(([id, label]) => (
@@ -282,7 +282,7 @@ export default function JobBoardsAdminPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+              className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -297,14 +297,14 @@ export default function JobBoardsAdminPage() {
 
       {/* Bulk action bar */}
       {selectedIds.length > 0 && (
-        <div className="nexus-card p-3 flex items-center justify-between bg-violet-50 border-violet-200">
-          <p className="text-sm text-nexus-text-primary font-medium">
+        <div className="thb-card p-3 flex items-center justify-between bg-violet-50 border-violet-200">
+          <p className="text-sm text-thb-text-primary font-medium">
             {selectedIds.length} selected ({selectedOpenCount} closeable)
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelected({})}
-              className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-white transition-colors"
+              className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-white transition-colors"
             >
               Clear
             </button>
@@ -321,33 +321,33 @@ export default function JobBoardsAdminPage() {
       )}
 
       {/* Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
+              <tr className="border-b border-thb-border bg-slate-50/50">
                 <th className="text-left px-4 py-3 w-10">
                   <button
                     onClick={toggleAll}
-                    className="text-nexus-text-muted hover:text-nexus-text-primary"
+                    className="text-thb-text-muted hover:text-thb-text-primary"
                     title={allSelected ? 'Deselect all' : 'Select all'}
                   >
                     {allSelected ? <FiCheckSquare className="w-4 h-4" /> : <FiSquare className="w-4 h-4" />}
                   </button>
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Job</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Board</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">External ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Posted</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Closed</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Job</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Board</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">External ID</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Posted</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Closed</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     {Array.from({ length: 8 }).map((__, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td>
                     ))}
@@ -356,9 +356,9 @@ export default function JobBoardsAdminPage() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
-                    <FiExternalLink className="w-10 h-10 text-nexus-text-muted mx-auto mb-2" />
-                    <p className="text-sm text-nexus-text-secondary font-medium">No board postings found</p>
-                    <p className="text-xs text-nexus-text-muted mt-1">
+                    <FiExternalLink className="w-10 h-10 text-thb-text-muted mx-auto mb-2" />
+                    <p className="text-sm text-thb-text-secondary font-medium">No board postings found</p>
+                    <p className="text-xs text-thb-text-muted mt-1">
                       Post a job to external boards from a job detail page.
                     </p>
                   </td>
@@ -370,11 +370,11 @@ export default function JobBoardsAdminPage() {
                   const boardColor = BOARD_COLORS[p.board] || '#94a3b8';
                   const isCloseable = p.status === 'posted' || p.status === 'pending';
                   return (
-                    <tr key={p.id} className={`border-b border-nexus-border/50 hover:bg-slate-50/50 ${selected[p.id] ? 'bg-violet-50/40' : ''}`}>
+                    <tr key={p.id} className={`border-b border-thb-border/50 hover:bg-slate-50/50 ${selected[p.id] ? 'bg-violet-50/40' : ''}`}>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setSelected((prev) => ({ ...prev, [p.id]: !prev[p.id] }))}
-                          className="text-nexus-text-muted hover:text-violet-500"
+                          className="text-thb-text-muted hover:text-violet-500"
                         >
                           {selected[p.id] ? <FiCheckSquare className="w-4 h-4 text-violet-500" /> : <FiSquare className="w-4 h-4" />}
                         </button>
@@ -384,16 +384,16 @@ export default function JobBoardsAdminPage() {
                           <div>
                             <Link
                               href={`/recruitment/${p.jobPostingId}`}
-                              className="text-sm font-medium text-nexus-text-primary hover:text-violet-600"
+                              className="text-sm font-medium text-thb-text-primary hover:text-violet-600"
                             >
                               {p.jobPosting.title}
                             </Link>
-                            <p className="text-xs text-nexus-text-muted">
+                            <p className="text-xs text-thb-text-muted">
                               {p.jobPosting.department?.name || 'No dept'} · {p.jobPosting.status}
                             </p>
                           </div>
                         ) : (
-                          <Link href={`/recruitment/${p.jobPostingId}`} className="text-sm text-nexus-text-secondary hover:text-violet-600">
+                          <Link href={`/recruitment/${p.jobPostingId}`} className="text-sm text-thb-text-secondary hover:text-violet-600">
                             View job {p.jobPostingId.substring(0, 8)}...
                           </Link>
                         )}
@@ -401,11 +401,11 @@ export default function JobBoardsAdminPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full" style={{ background: boardColor }} />
-                          <span className="text-sm font-medium text-nexus-text-primary">{boardLabel}</span>
+                          <span className="text-sm font-medium text-thb-text-primary">{boardLabel}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3"><span className={sb.className}>{sb.icon}{sb.label}</span></td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-muted">
+                      <td className="px-4 py-3 text-xs text-thb-text-muted">
                         {p.externalJobId ? (
                           <span className="font-mono">{p.externalJobId}</span>
                         ) : '—'}
@@ -413,8 +413,8 @@ export default function JobBoardsAdminPage() {
                           <p className="text-red-600 mt-0.5 max-w-xs truncate" title={p.errorMessage}>{p.errorMessage}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(p.postedAt)}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(p.closedAt)}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(p.postedAt)}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(p.closedAt)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
                           {p.externalUrl && p.status === 'posted' && (
@@ -422,7 +422,7 @@ export default function JobBoardsAdminPage() {
                               href={p.externalUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1.5 rounded text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                              className="p-1.5 rounded text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                               title="Open external URL"
                             >
                               <FiExternalLink className="w-3.5 h-3.5" />
@@ -447,7 +447,7 @@ export default function JobBoardsAdminPage() {
         </div>
       </div>
 
-      <p className="text-xs text-nexus-text-muted text-center">
+      <p className="text-xs text-thb-text-muted text-center">
         Click "Sync & Auto-Close" to scan all open board postings and auto-close any whose job is now filled (REQ-SRC-03).
       </p>
     </div>

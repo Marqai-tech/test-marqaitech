@@ -56,28 +56,28 @@ interface Loan {
 // --- Badge Helpers ---
 function getLoanStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-success',
-    active: 'nexus-badge nexus-badge-success',
-    completed: 'nexus-badge nexus-badge-info',
-    cancelled: 'nexus-badge nexus-badge-error',
-    defaulted: 'nexus-badge nexus-badge-error',
-    rejected: 'nexus-badge nexus-badge-error',
+    pending: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-success',
+    active: 'thb-badge thb-badge-success',
+    completed: 'thb-badge thb-badge-info',
+    cancelled: 'thb-badge thb-badge-error',
+    defaulted: 'thb-badge thb-badge-error',
+    rejected: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getLoanTypeBadge(type: string) {
   const map: Record<string, string> = {
-    PERSONAL: 'nexus-badge nexus-badge-info',
-    EMERGENCY: 'nexus-badge nexus-badge-error',
-    HOUSING: 'nexus-badge nexus-badge-success',
-    VEHICLE: 'nexus-badge nexus-badge-purple',
-    EDUCATION: 'nexus-badge nexus-badge-primary',
-    FESTIVAL: 'nexus-badge nexus-badge-warning',
-    OTHER: 'nexus-badge nexus-badge-info',
+    PERSONAL: 'thb-badge thb-badge-info',
+    EMERGENCY: 'thb-badge thb-badge-error',
+    HOUSING: 'thb-badge thb-badge-success',
+    VEHICLE: 'thb-badge thb-badge-purple',
+    EDUCATION: 'thb-badge thb-badge-primary',
+    FESTIVAL: 'thb-badge thb-badge-warning',
+    OTHER: 'thb-badge thb-badge-info',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -365,16 +365,16 @@ export default function LoansPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiDollarSign className="w-6 h-6 text-emerald-500" />
             Loan Management
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage employee loans, EMIs, and repayment tracking</p>
+          <p className="text-thb-text-secondary mt-1">Manage employee loans, EMIs, and repayment tracking</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -392,69 +392,69 @@ export default function LoansPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Loans</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalLoans}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Loans</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalLoans}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active Loans</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{activeCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active Loans</p>
+              <p className="text-xl font-bold text-thb-text-primary">{activeCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending Approval</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{pendingCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending Approval</p>
+              <p className="text-xl font-bold text-thb-text-primary">{pendingCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
               <FiAlertTriangle className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Outstanding</p>
-              <p className="text-xl font-bold text-nexus-text-primary">${formatCurrency(totalOutstanding)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Outstanding</p>
+              <p className="text-xl font-bold text-thb-text-primary">${formatCurrency(totalOutstanding)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by employee, loan type, remarks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={loanTypeFilter}
             onChange={(e) => setLoanTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Loan Types</option>
             {LOAN_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -462,7 +462,7 @@ export default function LoansPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Statuses</option>
             {LOAN_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -470,7 +470,7 @@ export default function LoansPage() {
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => (
@@ -484,15 +484,15 @@ export default function LoansPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Loan' : 'Create Loan'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -500,15 +500,15 @@ export default function LoansPage() {
 
             {/* Loan Details */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Loan Details</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Loan Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                   {employees.length > 0 ? (
                     <select
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
@@ -522,30 +522,30 @@ export default function LoansPage() {
                       required
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="Enter Employee ID"
                     />
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Loan Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Loan Type</label>
                   <select
                     value={form.loanType}
                     onChange={(e) => setForm({ ...form, loanType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {LOAN_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Loan Amount *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Loan Amount *</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.loanAmount}
                     onChange={(e) => setForm({ ...form, loanAmount: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 50000"
                   />
                 </div>
@@ -554,70 +554,70 @@ export default function LoansPage() {
 
             {/* EMI Calculation */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">EMI Calculation</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">EMI Calculation</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Interest Rate (% p.a.)</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interest Rate (% p.a.)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.interestRate}
                     onChange={(e) => setForm({ ...form, interestRate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 8.5"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Tenure (Months) *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tenure (Months) *</label>
                   <input
                     type="number"
                     min="1"
                     value={form.tenureMonths}
                     onChange={(e) => setForm({ ...form, tenureMonths: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 12, 24, 36"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">EMI Amount (Auto-calculated)</label>
-                  <div className="w-full px-3 py-2.5 rounded-lg border border-nexus-border bg-slate-50 text-sm text-nexus-text-primary font-semibold">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">EMI Amount (Auto-calculated)</label>
+                  <div className="w-full px-3 py-2.5 rounded-lg border border-thb-border bg-slate-50 text-sm text-thb-text-primary font-semibold">
                     {computedEmi > 0 ? `$${formatCurrency(computedEmi)}` : '—'}
                   </div>
-                  <p className="text-xs text-nexus-text-muted mt-1">Calculated based on amount, rate & tenure</p>
+                  <p className="text-xs text-thb-text-muted mt-1">Calculated based on amount, rate & tenure</p>
                 </div>
               </div>
             </div>
 
             {/* Dates */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Dates</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Dates</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date *</label>
                   <input
                     type="date"
                     value={form.startDate}
                     onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">End Date</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">End Date</label>
                   <input
                     type="date"
                     value={form.endDate}
                     onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disbursement Date</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Disbursement Date</label>
                   <input
                     type="date"
                     value={form.disbursedDate}
                     onChange={(e) => setForm({ ...form, disbursedDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
               </div>
@@ -625,27 +625,27 @@ export default function LoansPage() {
 
             {/* Remarks */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Additional</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Additional</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Disbursed Amount</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Disbursed Amount</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.disbursedAmount}
                     onChange={(e) => setForm({ ...form, disbursedAmount: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Defaults to loan amount"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Remarks</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Remarks</label>
                   <textarea
                     value={form.remarks}
                     onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                     placeholder="Additional notes..."
                   />
                 </div>
@@ -653,10 +653,10 @@ export default function LoansPage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -674,7 +674,7 @@ export default function LoansPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -682,19 +682,19 @@ export default function LoansPage() {
           </div>
         </div>
       ) : filteredLoans.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiDollarSign className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No loans found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first loan to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiDollarSign className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No loans found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first loan to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px]">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Employee', 'Type', 'Amount', 'EMI', 'Outstanding', 'Tenure', 'Remaining', 'Start Date', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -718,7 +718,7 @@ export default function LoansPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg text-thb-text-secondary hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -733,8 +733,8 @@ export default function LoansPage() {
                             <FiUser className="w-3.5 h-3.5 text-slate-500" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-nexus-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
-                            <p className="text-xs text-nexus-text-muted">{item.employeeId}</p>
+                            <p className="text-sm font-medium text-thb-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
+                            <p className="text-xs text-thb-text-muted">{item.employeeId}</p>
                           </div>
                         </div>
                       </td>
@@ -744,22 +744,22 @@ export default function LoansPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">${formatCurrency(item.loanAmount)}</span>
+                        <span className="text-sm font-medium text-thb-text-primary">${formatCurrency(item.loanAmount)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">${formatCurrency(item.emiAmount)}</span>
+                        <span className="text-sm font-medium text-thb-text-primary">${formatCurrency(item.emiAmount)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">${formatCurrency(item.outstandingBalance)}</span>
+                        <span className="text-sm font-medium text-thb-text-primary">${formatCurrency(item.outstandingBalance)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">{item.tenureMonths} mo</span>
+                        <span className="text-sm text-thb-text-secondary">{item.tenureMonths} mo</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">{item.remainingEmis} EMIs</span>
+                        <span className="text-sm text-thb-text-secondary">{item.remainingEmis} EMIs</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">{formatDate(item.startDate)}</span>
+                        <span className="text-sm text-thb-text-secondary">{formatDate(item.startDate)}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={getLoanStatusBadge(item.status)}>
@@ -789,7 +789,7 @@ export default function LoansPage() {
                           {isAdmin && (
                             <button
                               onClick={() => handleEdit(item)}
-                              className="p-1.5 rounded-lg text-nexus-text-secondary hover:bg-slate-100 transition-colors"
+                              className="p-1.5 rounded-lg text-thb-text-secondary hover:bg-slate-100 transition-colors"
                               title="Edit"
                             >
                               <FiEdit2 className="w-4 h-4" />

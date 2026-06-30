@@ -107,10 +107,10 @@ export async function POST(request: NextRequest) {
         monthName: monthNames[payroll.month - 1],
       },
       company: {
-        name: 'Nexus HRMS',
+        name: '3Boxes HRMS',
         address: '123 Business Park, Tech City',
-        phone: '+1-800-NEXUS-HR',
-        email: 'hr@nexus-hrms.com',
+        phone: '+1-800-3BOXES-HR',
+        email: 'hr@3boxes-hrms.com',
       },
       employee: {
         employeeId: payroll.employee.employeeId,

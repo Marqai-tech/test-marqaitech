@@ -49,38 +49,38 @@ interface PayrollInput {
 // --- Badge Helpers ---
 function getApprovalStatusBadge(status: string) {
   const map: Record<string, string> = {
-    PENDING: 'nexus-badge nexus-badge-warning',
-    APPROVED: 'nexus-badge nexus-badge-success',
-    REJECTED: 'nexus-badge nexus-badge-error',
+    PENDING: 'thb-badge thb-badge-warning',
+    APPROVED: 'thb-badge thb-badge-success',
+    REJECTED: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getInputTypeBadge(type: string) {
   const map: Record<string, string> = {
-    ATTENDANCE: 'nexus-badge nexus-badge-info',
-    LEAVE: 'nexus-badge nexus-badge-warning',
-    OVERTIME: 'nexus-badge nexus-badge-purple',
-    VARIABLE_PAY: 'nexus-badge nexus-badge-success',
-    ONE_TIME: 'nexus-badge nexus-badge-primary',
-    REIMBURSEMENT: 'nexus-badge nexus-badge-info',
-    LOAN: 'nexus-badge nexus-badge-error',
-    INVESTMENT: 'nexus-badge nexus-badge-purple',
-    TAX_ADJ: 'nexus-badge nexus-badge-warning',
-    ORG_CHANGE: 'nexus-badge nexus-badge-success',
+    ATTENDANCE: 'thb-badge thb-badge-info',
+    LEAVE: 'thb-badge thb-badge-warning',
+    OVERTIME: 'thb-badge thb-badge-purple',
+    VARIABLE_PAY: 'thb-badge thb-badge-success',
+    ONE_TIME: 'thb-badge thb-badge-primary',
+    REIMBURSEMENT: 'thb-badge thb-badge-info',
+    LOAN: 'thb-badge thb-badge-error',
+    INVESTMENT: 'thb-badge thb-badge-purple',
+    TAX_ADJ: 'thb-badge thb-badge-warning',
+    ORG_CHANGE: 'thb-badge thb-badge-success',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 function getSourceBadge(source: string) {
   const map: Record<string, string> = {
-    MANUAL: 'nexus-badge nexus-badge-info',
-    BULK_UPLOAD: 'nexus-badge nexus-badge-purple',
-    API_INTEGRATION: 'nexus-badge nexus-badge-success',
-    SELF_SERVICE: 'nexus-badge nexus-badge-warning',
-    SYSTEM_GENERATED: 'nexus-badge nexus-badge-primary',
+    MANUAL: 'thb-badge thb-badge-info',
+    BULK_UPLOAD: 'thb-badge thb-badge-purple',
+    API_INTEGRATION: 'thb-badge thb-badge-success',
+    SELF_SERVICE: 'thb-badge thb-badge-warning',
+    SYSTEM_GENERATED: 'thb-badge thb-badge-primary',
   };
-  return map[source] || 'nexus-badge nexus-badge-info';
+  return map[source] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -469,11 +469,11 @@ export default function PayrollInputsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-emerald-500" />
             Payroll Inputs
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage employee payroll input entries and approvals</p>
+          <p className="text-thb-text-secondary mt-1">Manage employee payroll input entries and approvals</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Bulk Action Buttons */}
@@ -499,7 +499,7 @@ export default function PayrollInputsPage() {
           )}
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -517,69 +517,69 @@ export default function PayrollInputsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Inputs</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalInputs}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Inputs</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalInputs}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending Approval</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{pendingCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending Approval</p>
+              <p className="text-xl font-bold text-thb-text-primary">{pendingCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Approved</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{approvedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Approved</p>
+              <p className="text-xl font-bold text-thb-text-primary">{approvedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
               <FiXCircle className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Rejected</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{rejectedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Rejected</p>
+              <p className="text-xl font-bold text-thb-text-primary">{rejectedCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by employee, component code, type, source..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={inputTypeFilter}
             onChange={(e) => setInputTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Input Types</option>
             {INPUT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -587,7 +587,7 @@ export default function PayrollInputsPage() {
           <select
             value={approvalStatusFilter}
             onChange={(e) => setApprovalStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Statuses</option>
             {APPROVAL_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -595,7 +595,7 @@ export default function PayrollInputsPage() {
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => (
@@ -609,15 +609,15 @@ export default function PayrollInputsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Payroll Input' : 'Create Payroll Input'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -625,15 +625,15 @@ export default function PayrollInputsPage() {
 
             {/* Basic Information */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Basic Information</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                   {employees.length > 0 ? (
                     <select
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
@@ -647,28 +647,28 @@ export default function PayrollInputsPage() {
                       required
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="Enter Employee ID"
                     />
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Input Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Input Type</label>
                   <select
                     value={form.inputType}
                     onChange={(e) => setForm({ ...form, inputType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {INPUT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Component Code *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Code *</label>
                   <input
                     required
                     value={form.componentCode}
                     onChange={(e) => setForm({ ...form, componentCode: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. BASIC, HRA, OT_PAY"
                   />
                 </div>
@@ -677,48 +677,48 @@ export default function PayrollInputsPage() {
 
             {/* Value & Unit */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Value & Unit</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Value & Unit</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Input Value</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Input Value</label>
                   <input
                     type="number"
                     step="0.01"
                     value={form.inputValueNumeric}
                     onChange={(e) => setForm({ ...form, inputValueNumeric: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 5000, 8.5"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Unit Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Unit Type</label>
                   <select
                     value={form.unitType}
                     onChange={(e) => setForm({ ...form, unitType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {UNIT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {CURRENCY_CODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Exchange Rate</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Exchange Rate</label>
                   <input
                     type="number"
                     step="0.0001"
                     min="0"
                     value={form.exchangeRate}
                     onChange={(e) => setForm({ ...form, exchangeRate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 1.0, 83.12"
                   />
                 </div>
@@ -727,32 +727,32 @@ export default function PayrollInputsPage() {
 
             {/* Date Range & Source */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Date Range & Source</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Date Range & Source</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date From</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date From</label>
                   <input
                     type="date"
                     value={form.inputDateFrom}
                     onChange={(e) => setForm({ ...form, inputDateFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date To</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date To</label>
                   <input
                     type="date"
                     value={form.inputDateTo}
                     onChange={(e) => setForm({ ...form, inputDateTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Source</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Source</label>
                   <select
                     value={form.source}
                     onChange={(e) => setForm({ ...form, source: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -762,24 +762,24 @@ export default function PayrollInputsPage() {
 
             {/* Reference & Remarks */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Reference & Remarks</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Reference & Remarks</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reference Document</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reference Document</label>
                   <input
                     value={form.referenceDocument}
                     onChange={(e) => setForm({ ...form, referenceDocument: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. INV-2024-001, POL-OT-01"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Remarks</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Remarks</label>
                   <textarea
                     value={form.remarks}
                     onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                     placeholder="Additional notes..."
                   />
                 </div>
@@ -787,10 +787,10 @@ export default function PayrollInputsPage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -808,7 +808,7 @@ export default function PayrollInputsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -816,16 +816,16 @@ export default function PayrollInputsPage() {
           </div>
         </div>
       ) : filteredInputs.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No payroll inputs found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first payroll input to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No payroll inputs found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first payroll input to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {isAdmin && (
                     <th className="px-4 py-3 text-left w-10">
@@ -833,13 +833,13 @@ export default function PayrollInputsPage() {
                         type="checkbox"
                         checked={selectAll}
                         onChange={handleSelectAll}
-                        className="rounded border-nexus-border"
+                        className="rounded border-thb-border"
                         title="Select all pending items"
                       />
                     </th>
                   )}
                   {['Employee', 'Type', 'Component', 'Value', 'Unit', 'Date Range', 'Source', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -863,7 +863,7 @@ export default function PayrollInputsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg text-thb-text-secondary hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -879,7 +879,7 @@ export default function PayrollInputsPage() {
                             checked={selectedIds.has(item.id)}
                             onChange={() => handleSelectRow(item.id)}
                             disabled={item.approvalStatus !== 'PENDING'}
-                            className="rounded border-nexus-border disabled:opacity-30"
+                            className="rounded border-thb-border disabled:opacity-30"
                           />
                         </td>
                       )}
@@ -889,8 +889,8 @@ export default function PayrollInputsPage() {
                             <FiUser className="w-3.5 h-3.5 text-slate-500" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-nexus-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
-                            <p className="text-xs text-nexus-text-muted">{item.employeeId}</p>
+                            <p className="text-sm font-medium text-thb-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
+                            <p className="text-xs text-thb-text-muted">{item.employeeId}</p>
                           </div>
                         </div>
                       </td>
@@ -900,20 +900,20 @@ export default function PayrollInputsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">{item.componentCode}</span>
+                        <span className="text-sm font-medium text-thb-text-primary">{item.componentCode}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">
+                        <span className="text-sm font-medium text-thb-text-primary">
                           {item.inputValueNumeric != null ? item.inputValueNumeric.toLocaleString() : '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">
+                        <span className="text-sm text-thb-text-secondary">
                           {item.unitType ? item.unitType.charAt(0) + item.unitType.slice(1).toLowerCase() : '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">
+                        <span className="text-sm text-thb-text-secondary">
                           {item.inputDateFrom || item.inputDateTo ? (
                             <>
                               {formatDate(item.inputDateFrom)}

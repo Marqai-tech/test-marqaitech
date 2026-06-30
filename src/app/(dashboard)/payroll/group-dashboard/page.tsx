@@ -113,15 +113,15 @@ export default function GroupPayrollDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiGlobe className="w-6 h-6 text-blue-500" />
             Group Payroll Dashboard
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Consolidated payroll liability across all sub-companies (normalized to base currency)</p>
+          <p className="text-thb-text-secondary mt-1">Consolidated payroll liability across all sub-companies (normalized to base currency)</p>
         </div>
         <div className="flex items-center gap-2">
-          <input type="text" value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06 (blank = latest)" className="px-3 py-2 text-sm border border-nexus-border rounded-lg bg-white text-nexus-text-primary w-44" />
-          <button onClick={fetchAll} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+          <input type="text" value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-06 (blank = latest)" className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary w-44" />
+          <button onClick={fetchAll} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors">
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -131,7 +131,7 @@ export default function GroupPayrollDashboardPage() {
         <>
           {/* Group total + alerts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="nexus-card p-5 bg-gradient-to-br from-blue-500 to-violet-500 text-white lg:col-span-1">
+            <div className="thb-card p-5 bg-gradient-to-br from-blue-500 to-violet-500 text-white lg:col-span-1">
               <div className="flex items-center gap-2 mb-2 opacity-90">
                 <FiTrendingUp className="w-4 h-4" />
                 <p className="text-xs font-medium uppercase tracking-wide">Group Total Net Pay · {data.period || 'No runs yet'}</p>
@@ -154,15 +154,15 @@ export default function GroupPayrollDashboardPage() {
           </div>
 
           {/* Per-company table */}
-          <div className="nexus-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-nexus-border flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-nexus-text-primary">Per-Company Breakdown</h3>
-              <span className="text-xs text-nexus-text-secondary">Base currency: {data.tenant.baseCurrency}</span>
+          <div className="thb-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-thb-text-primary">Per-Company Breakdown</h3>
+              <span className="text-xs text-thb-text-secondary">Base currency: {data.tenant.baseCurrency}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
-                  <tr className="text-left text-xs text-nexus-text-secondary uppercase tracking-wide">
+                  <tr className="text-left text-xs text-thb-text-secondary uppercase tracking-wide">
                     <th className="px-4 py-2">Company</th>
                     <th className="px-4 py-2">Country</th>
                     <th className="px-4 py-2">Currency</th>
@@ -175,13 +175,13 @@ export default function GroupPayrollDashboardPage() {
                 </thead>
                 <tbody>
                   {data.perCompany.map((co) => (
-                    <tr key={co.companyId} className="border-t border-nexus-border hover:bg-slate-50/50">
+                    <tr key={co.companyId} className="border-t border-thb-border hover:bg-slate-50/50">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-nexus-text-primary">{co.companyName}</p>
+                        <p className="font-medium text-thb-text-primary">{co.companyName}</p>
                         <p className="text-xs text-slate-400">{co.groupName}</p>
                       </td>
-                      <td className="px-4 py-3 text-nexus-text-secondary">{co.country || '—'}</td>
-                      <td className="px-4 py-3 text-nexus-text-secondary">{co.sourceCurrency}</td>
+                      <td className="px-4 py-3 text-thb-text-secondary">{co.country || '—'}</td>
+                      <td className="px-4 py-3 text-thb-text-secondary">{co.sourceCurrency}</td>
                       <td className="px-4 py-3">
                         {co.payrollRun ? (
                           <span className={`px-2 py-0.5 text-xs font-semibold rounded ${co.payrollRun.runStatus === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' : co.payrollRun.runStatus === 'DISBURSED' || co.payrollRun.runStatus === 'APPROVED' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -191,24 +191,24 @@ export default function GroupPayrollDashboardPage() {
                           <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-500">No run</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right text-nexus-text-secondary">{co.payrollRun?.totalEmployees ?? '—'}</td>
-                      <td className="px-4 py-3 text-right text-nexus-text-secondary">
+                      <td className="px-4 py-3 text-right text-thb-text-secondary">{co.payrollRun?.totalEmployees ?? '—'}</td>
+                      <td className="px-4 py-3 text-right text-thb-text-secondary">
                         {co.payrollRun ? fmt(co.payrollRun.totalNetPay, co.payrollRun.currencyCode) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-slate-500">
                         {co.normalized?.fxRate ? co.normalized.fxRate.toFixed(4) : co.sourceCurrency === data.tenant.baseCurrency ? '1.0000' : '—'}
                         {co.normalized?.fxRateMissing && <span className="ml-1 text-red-600" title="No FX rate found — using 1:1">⚠</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-nexus-text-primary">
+                      <td className="px-4 py-3 text-right font-semibold text-thb-text-primary">
                         {co.normalized ? fmt(co.normalized.net, co.normalized.currency) : '—'}
                       </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-nexus-border bg-slate-50 font-semibold">
-                    <td colSpan={7} className="px-4 py-3 text-right text-nexus-text-secondary">Group Total (in {data.tenant.baseCurrency}):</td>
-                    <td className="px-4 py-3 text-right text-nexus-text-primary">{fmt(data.groupTotal.net, data.groupTotal.currency)}</td>
+                  <tr className="border-t-2 border-thb-border bg-slate-50 font-semibold">
+                    <td colSpan={7} className="px-4 py-3 text-right text-thb-text-secondary">Group Total (in {data.tenant.baseCurrency}):</td>
+                    <td className="px-4 py-3 text-right text-thb-text-primary">{fmt(data.groupTotal.net, data.groupTotal.currency)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -216,16 +216,16 @@ export default function GroupPayrollDashboardPage() {
           </div>
         </>
       ) : loading ? (
-        <div className="nexus-card p-12 text-center text-nexus-text-secondary">Loading…</div>
+        <div className="thb-card p-12 text-center text-thb-text-secondary">Loading…</div>
       ) : (
-        <div className="nexus-card p-12 text-center text-nexus-text-secondary">Failed to load group data</div>
+        <div className="thb-card p-12 text-center text-thb-text-secondary">Failed to load group data</div>
       )}
 
       {/* Statutory Filing Oversight (Red/Amber/Green) */}
       {filing && (
-        <div className="nexus-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-nexus-border flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+        <div className="thb-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
               <FiActivity className="w-4 h-4 text-amber-500" />
               Statutory Filing Oversight — {filing.period}
             </h3>
@@ -235,14 +235,14 @@ export default function GroupPayrollDashboardPage() {
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500"></span> {filing.groupSummary.totalRed} Red</span>
             </div>
           </div>
-          <div className="divide-y divide-nexus-border">
+          <div className="divide-y divide-thb-border">
             {filing.perCompany.length === 0 ? (
-              <div className="p-8 text-center text-sm text-nexus-text-secondary">No statutory filings tracked for this period.</div>
+              <div className="p-8 text-center text-sm text-thb-text-secondary">No statutory filings tracked for this period.</div>
             ) : filing.perCompany.map((co) => (
               <div key={co.companyId} className="p-4">
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{co.companyName}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{co.companyName}</p>
                     <p className="text-xs text-slate-400">{co.country} · {co.groupName}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
@@ -258,7 +258,7 @@ export default function GroupPayrollDashboardPage() {
                       <div key={ob.obligationId} className="flex items-center justify-between gap-2 text-xs py-1">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${tl.bg}`}>{ob.trafficLight}</span>
-                          <span className="text-nexus-text-primary font-medium truncate">{ob.name}</span>
+                          <span className="text-thb-text-primary font-medium truncate">{ob.name}</span>
                           <span className="text-slate-400">{ob.authorityName} · {ob.countryCode}</span>
                         </div>
                         <div className="text-right text-slate-500 flex-shrink-0">
@@ -297,7 +297,7 @@ function AlertCard({ icon, label, value, color }: { icon: React.ReactNode; label
     slate: 'bg-slate-50 text-slate-700',
   };
   return (
-    <div className={`nexus-card p-4 ${colorMap[color] || colorMap.slate}`}>
+    <div className={`thb-card p-4 ${colorMap[color] || colorMap.slate}`}>
       <div className="flex items-center gap-2 mb-1 opacity-70">{icon}<p className="text-xs font-medium">{label}</p></div>
       <p className="text-2xl font-bold">{value}</p>
     </div>

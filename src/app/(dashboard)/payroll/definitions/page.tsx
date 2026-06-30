@@ -34,20 +34,20 @@ interface PayrollDefinition {
 // --- Badge Helpers ---
 function getFrequencyBadge(freq: string) {
   const map: Record<string, string> = {
-    DAILY: 'nexus-badge nexus-badge-info',
-    WEEKLY: 'nexus-badge nexus-badge-info',
-    BI_WEEKLY: 'nexus-badge nexus-badge-info',
-    SEMI_MONTHLY: 'nexus-badge nexus-badge-warning',
-    MONTHLY: 'nexus-badge nexus-badge-success',
-    QUARTERLY: 'nexus-badge nexus-badge-warning',
-    SEMI_ANNUALLY: 'nexus-badge nexus-badge-purple',
-    ANNUALLY: 'nexus-badge nexus-badge-error',
+    DAILY: 'thb-badge thb-badge-info',
+    WEEKLY: 'thb-badge thb-badge-info',
+    BI_WEEKLY: 'thb-badge thb-badge-info',
+    SEMI_MONTHLY: 'thb-badge thb-badge-warning',
+    MONTHLY: 'thb-badge thb-badge-success',
+    QUARTERLY: 'thb-badge thb-badge-warning',
+    SEMI_ANNUALLY: 'thb-badge thb-badge-purple',
+    ANNUALLY: 'thb-badge thb-badge-error',
   };
-  return map[freq] || 'nexus-badge nexus-badge-info';
+  return map[freq] || 'thb-badge thb-badge-info';
 }
 
 function getStatusBadge(status: string) {
-  return status === 'active' ? 'nexus-badge nexus-badge-success' : 'nexus-badge nexus-badge-error';
+  return status === 'active' ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-error';
 }
 
 // --- Constants ---
@@ -84,11 +84,11 @@ const PAY_FREQUENCY_OPTIONS = [
 function DetailItem({ label, value, badge }: { label: string; value: string | number | boolean | null | undefined; badge?: string }) {
   return (
     <div>
-      <span className="text-xs font-medium text-nexus-text-secondary">{label}</span>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
       {badge ? (
         <p className="mt-0.5"><span className={badge}>{value != null ? String(value).replace(/_/g, ' ') : '—'}</span></p>
       ) : (
-        <p className="text-sm font-medium text-nexus-text-primary mt-0.5">
+        <p className="text-sm font-medium text-thb-text-primary mt-0.5">
           {value === true ? 'Yes' : value === false ? 'No' : value != null && value !== '' ? String(value) : '—'}
         </p>
       )}
@@ -298,16 +298,16 @@ export default function PayrollDefinitionsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiCalendar className="w-6 h-6 text-blue-500" />
             Payroll Definitions
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Configure payroll frequencies, cut-off dates, and payment methods</p>
+          <p className="text-thb-text-secondary mt-1">Configure payroll frequencies, cut-off dates, and payment methods</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -325,69 +325,69 @@ export default function PayrollDefinitionsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiCalendar className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Definitions</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalDefinitions}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Definitions</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalDefinitions}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiCheck className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{activeCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active</p>
+              <p className="text-xl font-bold text-thb-text-primary">{activeCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiCalendar className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Monthly</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{monthlyCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Monthly</p>
+              <p className="text-xl font-bold text-thb-text-primary">{monthlyCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
               <FiCreditCard className="w-5 h-5 text-violet-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Direct Deposit</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{depositEnabledCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Direct Deposit</p>
+              <p className="text-xl font-bold text-thb-text-primary">{depositEnabledCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by name, country, or currency..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -396,7 +396,7 @@ export default function PayrollDefinitionsPage() {
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -404,7 +404,7 @@ export default function PayrollDefinitionsPage() {
           <select
             value={frequencyFilter}
             onChange={(e) => setFrequencyFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Frequencies</option>
             {PAY_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -414,7 +414,7 @@ export default function PayrollDefinitionsPage() {
 
       {/* View Panel */}
       {viewingDefinition && (
-        <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -424,8 +424,8 @@ export default function PayrollDefinitionsPage() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-nexus-text-primary">{viewingDefinition.name}</h2>
-                    <p className="text-sm text-nexus-text-secondary mt-0.5">
+                    <h2 className="text-lg font-semibold text-thb-text-primary">{viewingDefinition.name}</h2>
+                    <p className="text-sm text-thb-text-secondary mt-0.5">
                       {viewingDefinition.countryCode} &middot; {viewingDefinition.currencyCode}
                     </p>
                   </div>
@@ -440,7 +440,7 @@ export default function PayrollDefinitionsPage() {
                     )}
                     <button
                       onClick={() => setViewingDefinition(null)}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                     >
                       <FiX className="w-5 h-5" />
                     </button>
@@ -471,15 +471,15 @@ export default function PayrollDefinitionsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Payroll Definition' : 'Create Payroll Definition'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -487,68 +487,68 @@ export default function PayrollDefinitionsPage() {
 
             {/* Basic Information */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Basic Information</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
                   <input
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. India Monthly Payroll"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company ID *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company ID *</label>
                   <input
                     required
                     value={form.companyId}
                     onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Company identifier"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Pay Frequency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Pay Frequency</label>
                   <select
                     value={form.payFrequency}
                     onChange={(e) => setForm({ ...form, payFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {PAY_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Processing Cut-Off Day</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Processing Cut-Off Day</label>
                   <input
                     type="number"
                     min={1}
                     max={31}
                     value={form.processingCutOff}
                     onChange={(e) => setForm({ ...form, processingCutOff: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 25"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Payment Day</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payment Day</label>
                   <input
                     type="number"
                     min={1}
                     max={31}
                     value={form.paymentDay}
                     onChange={(e) => setForm({ ...form, paymentDay: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 1"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
                   <select
                     value={form.countryCode}
                     onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -558,47 +558,47 @@ export default function PayrollDefinitionsPage() {
 
             {/* Currency & Payment Methods */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Currency &amp; Payment Methods</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Currency &amp; Payment Methods</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.allowDirectDeposit}
                       onChange={(e) => setForm({ ...form, allowDirectDeposit: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Direct Deposit</span>
                   </label>
                 </div>
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.allowCheque}
                       onChange={(e) => setForm({ ...form, allowCheque: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Cheque</span>
                   </label>
                 </div>
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-nexus-text-secondary cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.allowCash}
                       onChange={(e) => setForm({ ...form, allowCash: e.target.checked })}
-                      className="rounded border-nexus-border"
+                      className="rounded border-thb-border"
                     />
                     <span className="font-medium">Cash</span>
                   </label>
@@ -608,43 +608,43 @@ export default function PayrollDefinitionsPage() {
 
             {/* Costing & Effective Dates */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Costing &amp; Effective Dates</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Costing &amp; Effective Dates</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Costing Segments (JSON)</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Costing Segments (JSON)</label>
                   <input
                     value={form.costingSegments}
                     onChange={(e) => setForm({ ...form, costingSegments: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder='e.g. ["department","cost_center"]'
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective From</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
                   <input
                     type="date"
                     value={form.effectiveFrom}
                     onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Effective To</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective To</label>
                   <input
                     type="date"
                     value={form.effectiveTo}
                     onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
               </div>
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -662,7 +662,7 @@ export default function PayrollDefinitionsPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -670,19 +670,19 @@ export default function PayrollDefinitionsPage() {
           </div>
         </div>
       ) : filteredDefinitions.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiCalendar className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No payroll definitions found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first payroll definition to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiCalendar className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No payroll definitions found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first payroll definition to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Name', 'Frequency', 'Cut-Off', 'Pay Day', 'Currency', 'Country', 'Payment Methods', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -706,7 +706,7 @@ export default function PayrollDefinitionsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -716,20 +716,20 @@ export default function PayrollDefinitionsPage() {
                   ) : (
                     <tr key={d.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-nexus-text-primary">{d.name}</p>
+                        <p className="text-sm font-medium text-thb-text-primary">{d.name}</p>
                       </td>
                       <td className="px-4 py-3">
                         <span className={getFrequencyBadge(d.payFrequency)}>{formatFrequency(d.payFrequency)}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">Day {d.processingCutOff}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">Day {d.paymentDay}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{d.currencyCode}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">{d.countryCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">Day {d.processingCutOff}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">Day {d.paymentDay}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{d.currencyCode}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">{d.countryCode}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 flex-wrap">
-                          {d.allowDirectDeposit && <span className="nexus-badge nexus-badge-info text-[10px]">Deposit</span>}
-                          {d.allowCheque && <span className="nexus-badge nexus-badge-warning text-[10px]">Cheque</span>}
-                          {d.allowCash && <span className="nexus-badge nexus-badge-success text-[10px]">Cash</span>}
+                          {d.allowDirectDeposit && <span className="thb-badge thb-badge-info text-[10px]">Deposit</span>}
+                          {d.allowCheque && <span className="thb-badge thb-badge-warning text-[10px]">Cheque</span>}
+                          {d.allowCash && <span className="thb-badge thb-badge-success text-[10px]">Cash</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -739,7 +739,7 @@ export default function PayrollDefinitionsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(d)}
-                            className="p-1.5 rounded-md text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />
@@ -748,14 +748,14 @@ export default function PayrollDefinitionsPage() {
                             <>
                               <button
                                 onClick={() => handleEdit(d)}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors"
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => setDeleteConfirmId(d.id)}
-                                className="p-1.5 rounded-md text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="p-1.5 rounded-md text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                                 title="Delete"
                               >
                                 <FiTrash2 className="w-4 h-4" />

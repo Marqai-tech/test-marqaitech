@@ -285,7 +285,7 @@ export default function PiiPolicyAdminPage() {
   /* ── Access guard ── */
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] text-nexus-text-secondary">
+      <div className="flex items-center justify-center min-h-[60vh] text-thb-text-secondary">
         Loading...
       </div>
     );
@@ -296,8 +296,8 @@ export default function PiiPolicyAdminPage() {
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 to-red-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
           <FiLock className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Admins only</h2>
-        <p className="text-nexus-text-secondary text-sm max-w-md">
+        <h2 className="text-xl font-semibold text-thb-text-primary">Admins only</h2>
+        <p className="text-thb-text-secondary text-sm max-w-md">
           Only tenant admins, HR admins, and super admins can configure candidate PII masking policies.
         </p>
         <Link href="/recruitment" className="text-blue-600 hover:underline text-sm font-medium">
@@ -312,18 +312,18 @@ export default function PiiPolicyAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiShield className="w-6 h-6 text-emerald-500" />
             PII Masking Policy
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Configure how candidate PII fields are shown to each role in the recruitment funnel (REQ-SEC-REC-03).
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchPolicies}
-            className="inline-flex items-center gap-2 px-3 py-2.5 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2.5 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
           >
             <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
@@ -339,11 +339,11 @@ export default function PiiPolicyAdminPage() {
       </div>
 
       {/* Compliance callout */}
-      <div className="nexus-card p-4 border-l-4 border-l-amber-400 bg-amber-50/40">
+      <div className="thb-card p-4 border-l-4 border-l-amber-400 bg-amber-50/40">
         <div className="flex items-start gap-3">
           <FiAlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-nexus-text-secondary leading-relaxed">
-            <p className="font-medium text-nexus-text-primary mb-1">Why this matters</p>
+          <div className="text-sm text-thb-text-secondary leading-relaxed">
+            <p className="font-medium text-thb-text-primary mb-1">Why this matters</p>
             Masking personally-identifying information (DOB, gender, photo, address, national IDs) for
             hiring-panel members is required for <strong>fair-hiring compliance</strong> (GDPR Art. 5,
             CCPA, EU AI Act Art. 10 bias-mitigation). Recruiters + HR admins always see full values
@@ -355,21 +355,21 @@ export default function PiiPolicyAdminPage() {
 
       {/* New policy form */}
       {showNewForm && (
-        <div className="nexus-card border-l-4 border-l-emerald-500">
+        <div className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">Create PII Policy</h2>
-              <button onClick={() => setShowNewForm(false)} className="text-nexus-text-muted hover:text-nexus-text-primary text-sm font-medium">
+              <h2 className="text-lg font-semibold text-thb-text-primary">Create PII Policy</h2>
+              <button onClick={() => setShowNewForm(false)} className="text-thb-text-muted hover:text-thb-text-primary text-sm font-medium">
                 Cancel
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Field *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Field *</label>
                 <select
                   value={newPolicy.field}
                   onChange={e => setNewPolicy(p => ({ ...p, field: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                 >
                   {fieldsWithoutPolicy.map(f => (
                     <option key={f} value={f}>{FIELD_META[f]?.label || f}</option>
@@ -377,11 +377,11 @@ export default function PiiPolicyAdminPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Masking Strategy *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Masking Strategy *</label>
                 <select
                   value={newPolicy.maskingStrategy}
                   onChange={e => setNewPolicy(p => ({ ...p, maskingStrategy: e.target.value as MaskingStrategy }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                 >
                   {STRATEGY_META.map(s => (
                     <option key={s.value} value={s.value}>{s.label} — {s.description.slice(0, 60)}</option>
@@ -389,10 +389,10 @@ export default function PiiPolicyAdminPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                   Visible-to Roles (optional whitelist)
                 </label>
-                <div className="flex flex-wrap gap-2 p-2 border border-nexus-border rounded-lg max-h-32 overflow-y-auto">
+                <div className="flex flex-wrap gap-2 p-2 border border-thb-border rounded-lg max-h-32 overflow-y-auto">
                   {ROLE_OPTIONS.map(r => {
                     const checked = newPolicy.visibleToRoles.includes(r.value);
                     return (
@@ -408,19 +408,19 @@ export default function PiiPolicyAdminPage() {
                                 : p.visibleToRoles.filter(v => v !== r.value),
                             }));
                           }}
-                          className="w-3.5 h-3.5 rounded border-nexus-border text-emerald-600 focus:ring-emerald-500"
+                          className="w-3.5 h-3.5 rounded border-thb-border text-emerald-600 focus:ring-emerald-500"
                         />
-                        <span className="text-nexus-text-secondary">{r.label}</span>
+                        <span className="text-thb-text-secondary">{r.label}</span>
                       </label>
                     );
                   })}
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-nexus-border">
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-thb-border">
               <button
                 onClick={() => setShowNewForm(false)}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -438,15 +438,15 @@ export default function PiiPolicyAdminPage() {
 
       {/* Existing policies list */}
       {loading ? (
-        <div className="nexus-card p-8 text-center text-nexus-text-muted">
+        <div className="thb-card p-8 text-center text-thb-text-muted">
           <FiRefreshCw className="w-6 h-6 animate-spin mx-auto mb-3" />
           <p className="text-sm">Loading PII policies...</p>
         </div>
       ) : policies.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiShield className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No PII policies configured yet</p>
-          <p className="text-sm text-nexus-text-muted mt-1">
+        <div className="thb-card p-12 text-center">
+          <FiShield className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No PII policies configured yet</p>
+          <p className="text-sm text-thb-text-muted mt-1">
             Until you add explicit policies, all PII fields are masked with the default <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">hidden</code> strategy for hiring-panel members.
           </p>
           {fieldsWithoutPolicy.length > 0 && (
@@ -468,17 +468,17 @@ export default function PiiPolicyAdminPage() {
             const visibleRoles = draft?.visibleToRoles || normalizeVisibleRoles(p.visibleToRoles);
 
             return (
-              <div key={p.id} className="nexus-card">
+              <div key={p.id} className="thb-card">
                 <div className="p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-base font-semibold text-nexus-text-primary">{meta.label}</h3>
-                        <code className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono text-nexus-text-secondary">{p.field}</code>
+                        <h3 className="text-base font-semibold text-thb-text-primary">{meta.label}</h3>
+                        <code className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono text-thb-text-secondary">{p.field}</code>
                       </div>
-                      <p className="text-xs text-nexus-text-muted mt-1">{meta.description}</p>
+                      <p className="text-xs text-thb-text-muted mt-1">{meta.description}</p>
                       {meta.example && (
-                        <p className="text-[11px] text-nexus-text-muted mt-1">
+                        <p className="text-[11px] text-thb-text-muted mt-1">
                           <span className="font-medium">Example value:</span> <code className="bg-slate-50 px-1 py-0.5 rounded">{meta.example}</code>
                         </p>
                       )}
@@ -488,14 +488,14 @@ export default function PiiPolicyAdminPage() {
                         <>
                           <button
                             onClick={() => startEdit(p)}
-                            className="px-3 py-1.5 border border-nexus-border rounded-lg text-xs font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => deletePolicy(p.id, p.field)}
                             disabled={deletingId === p.id}
-                            className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
                             title="Delete policy"
                           >
                             <FiTrash2 className="w-4 h-4" />
@@ -512,7 +512,7 @@ export default function PiiPolicyAdminPage() {
                           </button>
                           <button
                             onClick={() => cancelEdit(p.id)}
-                            className="px-3 py-1.5 border border-nexus-border rounded-lg text-xs font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -521,10 +521,10 @@ export default function PiiPolicyAdminPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-nexus-border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-thb-border">
                     {/* Masking strategy */}
                     <div>
-                      <label className="block text-[11px] font-semibold text-nexus-text-secondary uppercase tracking-wider mb-1.5">
+                      <label className="block text-[11px] font-semibold text-thb-text-secondary uppercase tracking-wider mb-1.5">
                         Masking Strategy
                       </label>
                       {!isEditing ? (
@@ -537,13 +537,13 @@ export default function PiiPolicyAdminPage() {
                           }`}>
                             {strategyMeta?.icon} {strategyMeta?.label}
                           </span>
-                          <span className="text-xs text-nexus-text-muted">{strategyMeta?.description}</span>
+                          <span className="text-xs text-thb-text-muted">{strategyMeta?.description}</span>
                         </div>
                       ) : (
                         <select
                           value={draft.maskingStrategy}
                           onChange={e => updateDraft(p.id, { maskingStrategy: e.target.value as MaskingStrategy })}
-                          className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                          className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                         >
                           {STRATEGY_META.map(s => (
                             <option key={s.value} value={s.value}>{s.label} — {s.description}</option>
@@ -554,12 +554,12 @@ export default function PiiPolicyAdminPage() {
 
                     {/* Visible-to roles */}
                     <div>
-                      <label className="block text-[11px] font-semibold text-nexus-text-secondary uppercase tracking-wider mb-1.5">
-                        Visible-to Roles {visibleRoles.length === 0 && <span className="text-nexus-text-muted normal-case font-normal">(default: recruiter+)</span>}
+                      <label className="block text-[11px] font-semibold text-thb-text-secondary uppercase tracking-wider mb-1.5">
+                        Visible-to Roles {visibleRoles.length === 0 && <span className="text-thb-text-muted normal-case font-normal">(default: recruiter+)</span>}
                       </label>
                       {!isEditing ? (
                         visibleRoles.length === 0 ? (
-                          <p className="text-xs text-nexus-text-muted">
+                          <p className="text-xs text-thb-text-muted">
                             No explicit whitelist — recruiters + admins see full; everyone else gets the masking strategy above.
                           </p>
                         ) : (
@@ -572,7 +572,7 @@ export default function PiiPolicyAdminPage() {
                           </div>
                         )
                       ) : (
-                        <div className="flex flex-wrap gap-2 p-2 border border-nexus-border rounded-lg max-h-28 overflow-y-auto">
+                        <div className="flex flex-wrap gap-2 p-2 border border-thb-border rounded-lg max-h-28 overflow-y-auto">
                           {ROLE_OPTIONS.map(r => {
                             const checked = visibleRoles.includes(r.value);
                             return (
@@ -586,9 +586,9 @@ export default function PiiPolicyAdminPage() {
                                       : visibleRoles.filter(v => v !== r.value);
                                     updateDraft(p.id, { visibleToRoles: next });
                                   }}
-                                  className="w-3.5 h-3.5 rounded border-nexus-border text-emerald-600 focus:ring-emerald-500"
+                                  className="w-3.5 h-3.5 rounded border-thb-border text-emerald-600 focus:ring-emerald-500"
                                 />
-                                <span className="text-nexus-text-secondary">{r.label}</span>
+                                <span className="text-thb-text-secondary">{r.label}</span>
                               </label>
                             );
                           })}
@@ -598,7 +598,7 @@ export default function PiiPolicyAdminPage() {
                   </div>
 
                   {/* Meta footer */}
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-nexus-border text-[11px] text-nexus-text-muted">
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-thb-border text-[11px] text-thb-text-muted">
                     <FiInfo className="w-3.5 h-3.5" />
                     <span>
                       Last updated {p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—'}
@@ -613,11 +613,11 @@ export default function PiiPolicyAdminPage() {
       )}
 
       {/* Footer help */}
-      <div className="nexus-card p-5 bg-slate-50/40">
+      <div className="thb-card p-5 bg-slate-50/40">
         <div className="flex items-start gap-3">
           <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-nexus-text-secondary leading-relaxed">
-            <p className="font-medium text-nexus-text-primary mb-1">How masking is applied</p>
+          <div className="text-sm text-thb-text-secondary leading-relaxed">
+            <p className="font-medium text-thb-text-primary mb-1">How masking is applied</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>Recruiters + HR admins see <strong>full values</strong> by default (their role shortcut).</li>
               <li>If a field has a <strong>visibleToRoles</strong> whitelist, only roles in the whitelist see full values; everyone else is masked with the field&apos;s strategy.</li>

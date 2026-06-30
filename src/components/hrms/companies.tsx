@@ -207,7 +207,7 @@ export function Companies() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Company</DialogTitle>
-            <DialogDescription>Register a new company in the Nexus HRMS platform</DialogDescription>
+            <DialogDescription>Register a new company in the 3Boxes HRMS platform</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">

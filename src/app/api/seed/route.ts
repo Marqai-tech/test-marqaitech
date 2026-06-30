@@ -57,7 +57,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'cg-americas',
-        name: 'Nexus Americas',
+        name: '3Boxes Americas',
         tenantId: tenant.id,
       },
     });
@@ -67,7 +67,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'cg-asia-pacific',
-        name: 'Nexus Asia Pacific',
+        name: '3Boxes Asia Pacific',
         tenantId: tenant.id,
       },
     });
@@ -78,7 +78,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-usa',
-        name: 'Nexus Tech Inc USA',
+        name: '3Boxes Tech Inc USA',
         code: 'NTU',
         companyGroupId: americasGroup.id,
         registrationNo: 'US-NT-001',
@@ -126,7 +126,7 @@ export async function GET() {
       update: {},
       create: {
         id: 'comp-uk',
-        name: 'Nexus Solutions UK',
+        name: '3Boxes Solutions UK',
         code: 'NSU',
         companyGroupId: americasGroup.id,
         registrationNo: 'UK-NS-001',
@@ -293,7 +293,7 @@ export async function GET() {
 
     // ============ DEMO USERS (login page accounts with individual passwords) ============
     const demoUsers = [
-      { id: 'user-admin', name: 'Admin Nexus', email: 'admin@3boxeshrms.com', role: 'super_admin' },
+      { id: 'user-admin', name: 'Admin 3Boxes', email: 'admin@3boxeshrms.com', role: 'super_admin' },
       { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@3boxeshrms.com', role: 'hr_admin' },
       { id: 'user-manager', name: 'Priya Sharma', email: 'manager@3boxeshrms.com', role: 'manager' },
       { id: 'user-employee', name: 'Raj Patel', email: 'employee@3boxeshrms.com', role: 'employee' },
@@ -1250,7 +1250,7 @@ export async function GET() {
 
     // ============ PROJECTS ============
     const projectData = [
-      { id: 'proj-1', name: 'Nexus Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
+      { id: 'proj-1', name: '3Boxes Platform v2.0', code: 'NPV2', companyId: usaCompany.id, clientId: 'client-1', departmentId: 'dept-eng', projectType: 'client', billingType: 'time_and_material', currency: 'USD', budgetAmount: 300000, estimatedHours: 5000, billingRate: 150, startDate: new Date('2025-01-15'), endDate: new Date('2025-12-31'), status: 'active', description: 'Major platform upgrade for Acme Corp', progress: 35 },
       { id: 'proj-2', name: 'Mobile App Development', code: 'MAD', companyId: usaCompany.id, clientId: 'client-2', departmentId: 'dept-eng', projectType: 'client', billingType: 'fixed', currency: 'GBP', budgetAmount: 200000, estimatedHours: 3000, startDate: new Date('2025-03-01'), endDate: new Date('2025-09-30'), status: 'active', description: 'Cross-platform mobile app', progress: 20 },
       { id: 'proj-3', name: 'Internal HR Portal', code: 'IHRP', companyId: indiaCompany.id, departmentId: 'dept-eng', projectType: 'internal', billingType: 'non_billable', currency: 'INR', budgetAmount: 5000000, estimatedHours: 2000, startDate: new Date('2025-02-01'), status: 'active', description: 'Internal HR portal', progress: 50 },
     ];

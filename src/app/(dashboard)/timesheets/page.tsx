@@ -81,13 +81,13 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'bg-slate-100 text-slate-600 nexus-badge',
-    submitted: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
-    locked: 'bg-purple-100 text-purple-700 nexus-badge',
+    draft: 'bg-slate-100 text-slate-600 thb-badge',
+    submitted: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
+    locked: 'bg-purple-100 text-purple-700 thb-badge',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 const initialForm = {
@@ -370,11 +370,11 @@ export default function TimesheetsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiWatch className="w-6 h-6 text-cyan-500" />
             Timesheets
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Track and manage employee work hours</p>
+          <p className="text-thb-text-secondary mt-1">Track and manage employee work hours</p>
         </div>
         <button onClick={handleShowForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
@@ -387,47 +387,47 @@ export default function TimesheetsPage() {
 
       {/* Weekly Summary Card */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-cyan-50 border border-cyan-100">
               <FiClock className="w-5 h-5 text-cyan-600" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-muted">Total Hours</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{weeklySummary.totalHours.toFixed(1)}h</p>
+              <p className="text-xs font-medium text-thb-text-muted">Total Hours</p>
+              <p className="text-xl font-bold text-thb-text-primary">{weeklySummary.totalHours.toFixed(1)}h</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100">
               <FiFileText className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-muted">This Week</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{weeklySummary.totalEntries}</p>
+              <p className="text-xs font-medium text-thb-text-muted">This Week</p>
+              <p className="text-xl font-bold text-thb-text-primary">{weeklySummary.totalEntries}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
               <FiCheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-muted">Approved</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{weeklySummary.approvedCount}</p>
+              <p className="text-xs font-medium text-thb-text-muted">Approved</p>
+              <p className="text-xl font-bold text-thb-text-primary">{weeklySummary.approvedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-100">
               <FiClock className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-muted">Pending</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{weeklySummary.pendingCount}</p>
+              <p className="text-xs font-medium text-thb-text-muted">Pending</p>
+              <p className="text-xl font-bold text-thb-text-primary">{weeklySummary.pendingCount}</p>
             </div>
           </div>
         </div>
@@ -435,21 +435,21 @@ export default function TimesheetsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Timesheet' : 'Log Time'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {isAdmin && (
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee</label>
-                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee</label>
+                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.employeeId})</option>
@@ -458,12 +458,12 @@ export default function TimesheetsPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date *</label>
-                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Project *</label>
-                <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Project *</label>
+                <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="">Select Project</option>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>{p.name}{p.code ? ` (${p.code})` : ''}</option>
@@ -474,16 +474,16 @@ export default function TimesheetsPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Task *</label>
-                <input type="text" value={form.task} onChange={e => setForm(p => ({ ...p, task: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Task description" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task *</label>
+                <input type="text" value={form.task} onChange={e => setForm(p => ({ ...p, task: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Task description" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Hours *</label>
-                <input type="number" step="0.5" min="0" max="24" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.0" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours *</label>
+                <input type="number" step="0.5" min="0" max="24" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.0" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="draft">Draft</option>
                   <option value="submitted">Submitted</option>
                   {isAdmin && <option value="approved">Approved</option>}
@@ -491,12 +491,12 @@ export default function TimesheetsPage() {
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Additional notes..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
+                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Additional notes..." />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
@@ -506,22 +506,22 @@ export default function TimesheetsPage() {
       )}
 
       {/* Filters and Search */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               placeholder="Search timesheets..."
             />
           </div>
           <div className="flex gap-2">
             <div className="relative">
-              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
                 <option value="submitted">Submitted</option>
@@ -529,7 +529,7 @@ export default function TimesheetsPage() {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
-            <select value={filterProject} onChange={e => setFilterProject(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+            <select value={filterProject} onChange={e => setFilterProject(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
               <option value="">All Projects</option>
               {uniqueProjects.map(p => (
                 <option key={p} value={p}>{p}</option>
@@ -540,24 +540,24 @@ export default function TimesheetsPage() {
       </div>
 
       {/* Timesheets Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Project</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Task</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Hours</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Project</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Task</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Hours</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
@@ -570,33 +570,33 @@ export default function TimesheetsPage() {
               ) : filteredTimesheets.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center">
-                    <FiWatch className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No timesheets found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Click &quot;Log Time&quot; to add your first entry</p>
+                    <FiWatch className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No timesheets found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">Click &quot;Log Time&quot; to add your first entry</p>
                   </td>
                 </tr>
               ) : (
                 filteredTimesheets.map(ts => (
-                  <tr key={ts.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={ts.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === ts.id ? (
                       <td colSpan={7} className="px-4 py-3 bg-red-50">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this timesheet entry?</span>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleDelete(ts.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
                           </div>
                         </div>
                       </td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">
-                          <div className="flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5 text-nexus-text-muted" />{formatDate(ts.date)}</div>
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">
+                          <div className="flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5 text-thb-text-muted" />{formatDate(ts.date)}</div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
                           {ts.employee ? `${ts.employee.firstName} ${ts.employee.lastName}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">
                           {ts.project?.name || ts.projectText || '—'}
                           {ts.locked && (
                             <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-full" title={`Locked${ts.lockReason ? ': ' + ts.lockReason : ''}`}>
@@ -609,32 +609,32 @@ export default function TimesheetsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{ts.projectTask?.name || ts.taskText || '—'}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-nexus-text-primary">{ts.hours}h</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary truncate max-w-[200px]">{ts.projectTask?.name || ts.taskText || '—'}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-thb-text-primary">{ts.hours}h</td>
                         <td className="px-4 py-3"><span className={getStatusBadge(ts.status)}>{ts.status}</span></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {isAdmin && ts.status === 'submitted' && !ts.locked && (
                               <>
-                                <button onClick={() => handleStatusChange(ts.id, 'approved')} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
+                                <button onClick={() => handleStatusChange(ts.id, 'approved')} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
                                   <FiCheckCircle className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => handleStatusChange(ts.id, 'rejected')} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Reject">
+                                <button onClick={() => handleStatusChange(ts.id, 'rejected')} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Reject">
                                   <FiXCircle className="w-4 h-4" />
                                 </button>
                               </>
                             )}
                             {isAdmin && !ts.invoiced && (
-                              <button onClick={() => handleLockToggle(ts)} className={`p-2 rounded-lg transition-colors ${ts.locked ? 'text-purple-600 hover:bg-purple-50' : 'text-nexus-text-muted hover:text-purple-500 hover:bg-purple-50'}`} title={ts.locked ? 'Unlock (super_admin only)' : 'Lock'}>
+                              <button onClick={() => handleLockToggle(ts)} className={`p-2 rounded-lg transition-colors ${ts.locked ? 'text-purple-600 hover:bg-purple-50' : 'text-thb-text-muted hover:text-purple-500 hover:bg-purple-50'}`} title={ts.locked ? 'Unlock (super_admin only)' : 'Lock'}>
                                 {ts.locked ? <FiUnlock className="w-4 h-4" /> : <FiLock className="w-4 h-4" />}
                               </button>
                             )}
                             {!ts.locked && !ts.invoiced && (
                               <>
-                                <button onClick={() => handleEdit(ts)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <button onClick={() => handleEdit(ts)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => setDeleteConfirmId(ts.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                <button onClick={() => setDeleteConfirmId(ts.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
                                   <FiTrash2 className="w-4 h-4" />
                                 </button>
                               </>

@@ -23,16 +23,16 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'nexus-badge bg-slate-100 text-slate-600',
-    issued: 'nexus-badge nexus-badge-info',
-    sent: 'nexus-badge nexus-badge-info',
-    partial: 'nexus-badge nexus-badge-warning',
-    paid: 'nexus-badge nexus-badge-success',
-    overdue: 'nexus-badge nexus-badge-error',
-    disputed: 'nexus-badge nexus-badge-error',
-    cancelled: 'nexus-badge bg-slate-200 text-slate-500',
+    draft: 'thb-badge bg-slate-100 text-slate-600',
+    issued: 'thb-badge thb-badge-info',
+    sent: 'thb-badge thb-badge-info',
+    partial: 'thb-badge thb-badge-warning',
+    paid: 'thb-badge thb-badge-success',
+    overdue: 'thb-badge thb-badge-error',
+    disputed: 'thb-badge thb-badge-error',
+    cancelled: 'thb-badge bg-slate-200 text-slate-500',
   };
-  return map[status] || 'nexus-badge bg-slate-100 text-slate-600';
+  return map[status] || 'thb-badge bg-slate-100 text-slate-600';
 }
 
 function formatStatus(status: string) {
@@ -255,7 +255,7 @@ export default function InvoicesPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="nexus-btn-primary flex items-center gap-2"
+          className="3boxes-btn-primary flex items-center gap-2"
         >
           <FiPlus className="w-4 h-4" /> New Invoice
         </button>
@@ -319,14 +319,14 @@ export default function InvoicesPage() {
               placeholder="Search by invoice number or notes..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="nexus-input pl-9 w-full"
+              className="3boxes-input pl-9 w-full"
               onKeyDown={e => e.key === 'Enter' && fetchInvoices()}
             />
           </div>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="nexus-input min-w-[140px]"
+            className="3boxes-input min-w-[140px]"
           >
             <option value="">All Statuses</option>
             <option value="draft">Draft</option>
@@ -341,7 +341,7 @@ export default function InvoicesPage() {
           <select
             value={currencyFilter}
             onChange={e => setCurrencyFilter(e.target.value)}
-            className="nexus-input min-w-[100px]"
+            className="3boxes-input min-w-[100px]"
           >
             <option value="">All Currencies</option>
             <option value="INR">INR</option>
@@ -353,7 +353,7 @@ export default function InvoicesPage() {
           </select>
           <button
             onClick={fetchInvoices}
-            className="nexus-btn-secondary flex items-center gap-2"
+            className="3boxes-btn-secondary flex items-center gap-2"
           >
             <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
@@ -391,7 +391,7 @@ export default function InvoicesPage() {
                     <div className="flex flex-col items-center gap-3">
                       <FiFileText className="w-12 h-12 text-slate-300" />
                       <p className="text-slate-500">No invoices found</p>
-                      <button onClick={() => setShowCreate(true)} className="nexus-btn-primary flex items-center gap-2">
+                      <button onClick={() => setShowCreate(true)} className="3boxes-btn-primary flex items-center gap-2">
                         <FiPlus className="w-4 h-4" /> Create First Invoice
                       </button>
                     </div>
@@ -494,7 +494,7 @@ export default function InvoicesPage() {
                 <select
                   value={createForm.companyId}
                   onChange={e => setCreateForm({ ...createForm, companyId: e.target.value, clientId: '', projectId: '', currency: '', baseCurrency: '' })}
-                  className="nexus-input w-full"
+                  className="3boxes-input w-full"
                 >
                   <option value="">Select company...</option>
                   {companies.map(c => (
@@ -516,7 +516,7 @@ export default function InvoicesPage() {
                         currency: cl?.billingCurrency || createForm.currency,
                       });
                     }}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                     disabled={!createForm.companyId}
                   >
                     <option value="">No client</option>
@@ -539,7 +539,7 @@ export default function InvoicesPage() {
                         currency: p?.currency || createForm.currency,
                       });
                     }}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                     disabled={!createForm.companyId}
                   >
                     <option value="">No project</option>
@@ -558,7 +558,7 @@ export default function InvoicesPage() {
                   <select
                     value={createForm.invoiceType}
                     onChange={e => setCreateForm({ ...createForm, invoiceType: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="timesheet">Timesheet</option>
                     <option value="milestone">Milestone</option>
@@ -573,7 +573,7 @@ export default function InvoicesPage() {
                   <select
                     value={createForm.billingType}
                     onChange={e => setCreateForm({ ...createForm, billingType: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="time_and_material">Time &amp; Material</option>
                     <option value="fixed">Fixed Price</option>
@@ -591,7 +591,7 @@ export default function InvoicesPage() {
                   <select
                     value={createForm.currency}
                     onChange={e => setCreateForm({ ...createForm, currency: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="">Auto (INR default)</option>
                     <option value="INR">INR (₹) — Default</option>
@@ -607,7 +607,7 @@ export default function InvoicesPage() {
                   <select
                     value={createForm.baseCurrency}
                     onChange={e => setCreateForm({ ...createForm, baseCurrency: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   >
                     <option value="">Auto (INR default)</option>
                     <option value="INR">INR (₹) — Default</option>
@@ -625,7 +625,7 @@ export default function InvoicesPage() {
                     type="date"
                     value={createForm.issueDate}
                     onChange={e => setCreateForm({ ...createForm, issueDate: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
                 <div>
@@ -634,7 +634,7 @@ export default function InvoicesPage() {
                     type="date"
                     value={createForm.dueDate}
                     onChange={e => setCreateForm({ ...createForm, dueDate: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
               </div>
@@ -646,7 +646,7 @@ export default function InvoicesPage() {
                     type="date"
                     value={createForm.periodStart}
                     onChange={e => setCreateForm({ ...createForm, periodStart: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
                 <div>
@@ -655,7 +655,7 @@ export default function InvoicesPage() {
                     type="date"
                     value={createForm.periodEnd}
                     onChange={e => setCreateForm({ ...createForm, periodEnd: e.target.value })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
               </div>
@@ -668,7 +668,7 @@ export default function InvoicesPage() {
                     step="0.01"
                     value={createForm.taxRate}
                     onChange={e => setCreateForm({ ...createForm, taxRate: Number(e.target.value) })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
                 <div>
@@ -678,7 +678,7 @@ export default function InvoicesPage() {
                     step="0.01"
                     value={createForm.discountRate}
                     onChange={e => setCreateForm({ ...createForm, discountRate: Number(e.target.value) })}
-                    className="nexus-input w-full"
+                    className="3boxes-input w-full"
                   />
                 </div>
               </div>
@@ -689,15 +689,15 @@ export default function InvoicesPage() {
                   value={createForm.notes}
                   onChange={e => setCreateForm({ ...createForm, notes: e.target.value })}
                   rows={2}
-                  className="nexus-input w-full"
+                  className="3boxes-input w-full"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 bg-slate-50 sticky bottom-0">
-              <button onClick={() => setShowCreate(false)} className="nexus-btn-secondary">
+              <button onClick={() => setShowCreate(false)} className="3boxes-btn-secondary">
                 Cancel
               </button>
-              <button onClick={handleCreate} disabled={creating} className="nexus-btn-primary flex items-center gap-2">
+              <button onClick={handleCreate} disabled={creating} className="3boxes-btn-primary flex items-center gap-2">
                 {creating ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
                 Create Draft Invoice
               </button>

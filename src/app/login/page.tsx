@@ -86,7 +86,7 @@ export default function LoginPage() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        toast.success('Nexus HRMS app installed successfully!');
+        toast.success('3Boxes HRMS app installed successfully!');
         setDeferredPrompt(null);
       }
     } catch (err) {
@@ -249,7 +249,7 @@ export default function LoginPage() {
     }
   };
 
-  const NexusLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' | 'xl' }) => {
+  const ThreeBoxesLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' | 'xl' }) => {
     const dims = { sm: 'w-6 h-6', md: 'w-9 h-9', lg: 'w-12 h-12', xl: 'w-16 h-16' };
     const boxSize = { sm: 8, md: 11, lg: 15, xl: 19 };
     const gap = { sm: 1.5, md: 2, lg: 2.5, xl: 3 };
@@ -291,10 +291,10 @@ export default function LoginPage() {
           {/* Top — Logo & Brand */}
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <NexusLogo size="lg" />
+              <ThreeBoxesLogo size="lg" />
               <div>
                 <h1 className="text-2xl font-extrabold text-white tracking-tight">
-                  Nexus <span className="text-blue-400">HRMS</span>
+                  3Boxes <span className="text-blue-400">HRMS</span>
                 </h1>
                 <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
                   People &middot; Process &middot; Technology
@@ -361,7 +361,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-white">2,500+ Companies</p>
-                  <p className="text-[10px] text-slate-400">Trust Nexus HRMS</p>
+                  <p className="text-[10px] text-slate-400">Trust 3Boxes HRMS</p>
                 </div>
               </div>
               <div className="h-8 w-px bg-white/10" />
@@ -403,9 +403,9 @@ export default function LoginPage() {
           {/* Mobile-only brand header */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-2.5 mb-3">
-              <NexusLogo size="md" />
+              <ThreeBoxesLogo size="md" />
               <h1 className="text-2xl font-extrabold tracking-tight">
-                <span className="gradient-text">Nexus</span>
+                <span className="gradient-text">3Boxes</span>
                 <span className="text-blue-500 ml-1 text-lg font-extrabold">HRMS</span>
               </h1>
             </div>
@@ -870,7 +870,7 @@ export default function LoginPage() {
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/20 hover:from-blue-600 hover:to-violet-700 transition-all"
                   >
                     <FiDownload className="w-4 h-4" />
-                    Install Nexus HRMS App
+                    Install 3Boxes HRMS App
                   </button>
                 )}
 
@@ -1000,7 +1000,7 @@ export default function LoginPage() {
                 Enterprise-grade security
               </div>
               <p className="text-[11px] text-slate-400">
-                &copy; {new Date().getFullYear()} Nexus HRMS · A Proud Product of Marq AI Tech Pvt Ltd
+                &copy; {new Date().getFullYear()} 3Boxes HRMS · A Proud Product of Marq AI Tech Pvt Ltd
               </p>
             </div>
           </div>

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { secret } = body;
 
-    if (secret !== 'nexus-reseed-2025') {
+    if (secret !== '3boxes-reseed-2025') {
       return NextResponse.json({ error: 'Invalid seed secret' }, { status: 403 });
     }
 
@@ -21,10 +21,10 @@ export async function POST(request: Request) {
     // Find the tenant (try both slugs)
     let tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
     if (!tenant) {
-      tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-hrms-demo' } });
+      tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
     }
     if (!tenant) {
-      tenant = await prisma.tenant.findFirst({ where: { slug: 'nexus-corp' } });
+      tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-corp' } });
     }
     if (!tenant) {
       // Find any active tenant

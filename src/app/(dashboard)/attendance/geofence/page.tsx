@@ -134,7 +134,7 @@ export default function GeofencePage() {
           <p className="text-sm text-slate-500 mt-1">Draw virtual perimeters around office locations for mobile check-in validation</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowForm(!showForm)} className="nexus-btn-primary flex items-center gap-2">
+          <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
             <FiPlus className="w-4 h-4" /> New Geofence
           </button>
         )}
@@ -145,7 +145,7 @@ export default function GeofencePage() {
       </ModuleTips>
 
       {showForm && isAdmin && (
-        <div className="nexus-card p-6 border-l-4 border-l-cyan-500">
+        <div className="thb-card p-6 border-l-4 border-l-cyan-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Geofence</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -153,26 +153,26 @@ export default function GeofencePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Name *</label>
-              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="nexus-input w-full" placeholder="e.g. Bangalore HQ" />
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Bangalore HQ" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Branch</label>
-              <select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })} className="nexus-input w-full">
+              <select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })} className="3boxes-input w-full">
                 <option value="">None (global)</option>
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}{b.city ? ` — ${b.city}` : ''}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Center Latitude *</label>
-              <input type="number" step="0.000001" value={form.centerLat} onChange={e => setForm({ ...form, centerLat: e.target.value })} className="nexus-input w-full" placeholder="12.9716" />
+              <input type="number" step="0.000001" value={form.centerLat} onChange={e => setForm({ ...form, centerLat: e.target.value })} className="3boxes-input w-full" placeholder="12.9716" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Center Longitude *</label>
-              <input type="number" step="0.000001" value={form.centerLng} onChange={e => setForm({ ...form, centerLng: e.target.value })} className="nexus-input w-full" placeholder="77.5946" />
+              <input type="number" step="0.000001" value={form.centerLng} onChange={e => setForm({ ...form, centerLng: e.target.value })} className="3boxes-input w-full" placeholder="77.5946" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Radius (meters) · max 500</label>
-              <input type="number" min="50" max="500" value={form.radiusMeters} onChange={e => setForm({ ...form, radiusMeters: e.target.value })} className="nexus-input w-full" />
+              <input type="number" min="50" max="500" value={form.radiusMeters} onChange={e => setForm({ ...form, radiusMeters: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -186,8 +186,8 @@ export default function GeofencePage() {
             Tip: Pick the center point of your office on Google Maps, right-click, and copy the lat/lng coordinates into the fields above.
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary flex items-center gap-2">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
               {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
               Create Geofence
             </button>
@@ -204,7 +204,7 @@ export default function GeofencePage() {
             No geofences configured yet.
           </div>
         ) : items.map(g => (
-          <div key={g.id} className="nexus-card p-5">
+          <div key={g.id} className="thb-card p-5">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-slate-800">{g.name}</h3>

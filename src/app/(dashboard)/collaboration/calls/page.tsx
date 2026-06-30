@@ -148,11 +148,11 @@ export default function CallsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiVideo className="w-6 h-6 text-violet-500" />
             Calls
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Native WebRTC 1:1 audio/video (E2EE) with optional Zoom/Teams deep-links and AI transcription
           </p>
         </div>
@@ -167,52 +167,52 @@ export default function CallsPage() {
 
       {/* Capability highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <FiLock className="w-4 h-4 text-emerald-500" />
-            <h3 className="text-sm font-semibold text-nexus-text-primary">E2EE for 1:1</h3>
+            <h3 className="text-sm font-semibold text-thb-text-primary">E2EE for 1:1</h3>
           </div>
-          <p className="text-xs text-nexus-text-muted leading-relaxed">
+          <p className="text-xs text-thb-text-muted leading-relaxed">
             Native WebRTC 1:1 calls are End-to-End Encrypted. Even Super Admins cannot listen in.
           </p>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <FiExternalLink className="w-4 h-4 text-blue-500" />
-            <h3 className="text-sm font-semibold text-nexus-text-primary">External Deep-Links</h3>
+            <h3 className="text-sm font-semibold text-thb-text-primary">External Deep-Links</h3>
           </div>
-          <p className="text-xs text-nexus-text-muted leading-relaxed">
+          <p className="text-xs text-thb-text-muted leading-relaxed">
             For group meetings, configure Zoom/Teams/Webex deep-links. Native WebRTC for quick 1:1 HR check-ins.
           </p>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <FiMic className="w-4 h-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-nexus-text-primary">AI Transcription</h3>
+            <h3 className="text-sm font-semibold text-thb-text-primary">AI Transcription</h3>
           </div>
-          <p className="text-xs text-nexus-text-muted leading-relaxed">
+          <p className="text-xs text-thb-text-muted leading-relaxed">
             Optional AI transcription (with consent) linked to the Employee or Project record for compliance.
           </p>
         </div>
       </div>
 
       {/* Call history */}
-      <div className="nexus-card overflow-hidden">
-        <div className="p-3 border-b border-nexus-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-nexus-text-primary">Call History</h2>
-          <span className="text-xs text-nexus-text-muted">{calls.length} call{calls.length !== 1 ? 's' : ''}</span>
+      <div className="thb-card overflow-hidden">
+        <div className="p-3 border-b border-thb-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-thb-text-primary">Call History</h2>
+          <span className="text-xs text-thb-text-muted">{calls.length} call{calls.length !== 1 ? 's' : ''}</span>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+          <div className="p-8 text-center text-sm text-thb-text-muted">Loading...</div>
         ) : calls.length === 0 ? (
           <div className="p-8 text-center">
-            <FiPhone className="w-10 h-10 text-nexus-text-muted mx-auto mb-2" />
-            <p className="text-sm text-nexus-text-muted">No call history yet</p>
+            <FiPhone className="w-10 h-10 text-thb-text-muted mx-auto mb-2" />
+            <p className="text-sm text-thb-text-muted">No call history yet</p>
           </div>
         ) : (
           <table className="w-full">
             <thead className="bg-slate-50">
-              <tr className="text-left text-xs text-nexus-text-muted uppercase tracking-wider">
+              <tr className="text-left text-xs text-thb-text-muted uppercase tracking-wider">
                 <th className="px-4 py-2 font-medium">Type</th>
                 <th className="px-4 py-2 font-medium">Provider</th>
                 <th className="px-4 py-2 font-medium">Status</th>
@@ -223,7 +223,7 @@ export default function CallsPage() {
                 <th className="px-4 py-2 font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-nexus-border">
+            <tbody className="divide-y divide-thb-border">
               {calls.map((call) => (
                 <tr key={call.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
@@ -236,7 +236,7 @@ export default function CallsPage() {
                       <span className="text-xs capitalize">{call.callType}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary capitalize">{call.provider.replace(/_/g, ' ')}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary capitalize">{call.provider.replace(/_/g, ' ')}</td>
                   <td className="px-4 py-3">
                     <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${
                       call.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
@@ -247,8 +247,8 @@ export default function CallsPage() {
                       {call.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-muted">{formatDateTime(call.startedAt)}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary">{formatDuration(call.durationSec)}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-muted">{formatDateTime(call.startedAt)}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary">{formatDuration(call.durationSec)}</td>
                   <td className="px-4 py-3">
                     <div className="flex -space-x-1">
                       {call.participants.slice(0, 3).map((p) => (
@@ -274,7 +274,7 @@ export default function CallsPage() {
                         E2EE
                       </span>
                     ) : (
-                      <span className="text-[10px] text-nexus-text-muted">Standard</span>
+                      <span className="text-[10px] text-thb-text-muted">Standard</span>
                     )}
                     {call.consentForRecording && (
                       <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-50 text-amber-700 border border-amber-200">
@@ -299,7 +299,7 @@ export default function CallsPage() {
                           href={call.meetingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 text-nexus-text-muted hover:bg-slate-100 hover:text-blue-600 rounded"
+                          className="p-1.5 text-thb-text-muted hover:bg-slate-100 hover:text-blue-600 rounded"
                           title="Join via external link"
                         >
                           <FiExternalLink className="w-3.5 h-3.5" />
@@ -317,31 +317,31 @@ export default function CallsPage() {
       {/* New Call Modal */}
       {showNewCallModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="nexus-card p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-nexus-text-primary mb-4">Start a Call</h3>
+          <div className="thb-card p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Start a Call</h3>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setCallType('audio')}
-                  className={`p-3 rounded-lg border text-left ${callType === 'audio' ? 'border-blue-300 bg-blue-50' : 'border-nexus-border'}`}
+                  className={`p-3 rounded-lg border text-left ${callType === 'audio' ? 'border-blue-300 bg-blue-50' : 'border-thb-border'}`}
                 >
                   <FiPhone className="w-4 h-4 text-blue-500 mb-1" />
                   <p className="text-sm font-medium">Audio</p>
                 </button>
                 <button
                   onClick={() => setCallType('video')}
-                  className={`p-3 rounded-lg border text-left ${callType === 'video' ? 'border-violet-300 bg-violet-50' : 'border-nexus-border'}`}
+                  className={`p-3 rounded-lg border text-left ${callType === 'video' ? 'border-violet-300 bg-violet-50' : 'border-thb-border'}`}
                 >
                   <FiVideo className="w-4 h-4 text-violet-500 mb-1" />
                   <p className="text-sm font-medium">Video</p>
                 </button>
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Provider</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Provider</label>
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 >
                   <option value="native_webrtc">Native WebRTC (1:1, E2EE)</option>
                   <option value="zoom">Zoom (external deep-link)</option>
@@ -351,19 +351,19 @@ export default function CallsPage() {
               </div>
               {provider !== 'native_webrtc' && (
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">External Meeting URL</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">External Meeting URL</label>
                   <input
                     type="url"
                     value={externalMeetingUrl}
                     onChange={(e) => setExternalMeetingUrl(e.target.value)}
                     placeholder="https://zoom.us/j/..."
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
               )}
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Participants</label>
-                <div className="mt-1 max-h-40 overflow-y-auto border border-nexus-border rounded-lg">
+                <label className="text-xs font-medium text-thb-text-secondary">Participants</label>
+                <div className="mt-1 max-h-40 overflow-y-auto border border-thb-border rounded-lg">
                   {employees.map((emp) => (
                     <label key={emp.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer">
                       <input
@@ -376,12 +376,12 @@ export default function CallsPage() {
                         className="rounded"
                       />
                       <span className="text-sm">{emp.firstName} {emp.lastName}</span>
-                      <span className="text-[10px] text-nexus-text-muted">({emp.email})</span>
+                      <span className="text-[10px] text-thb-text-muted">({emp.email})</span>
                     </label>
                   ))}
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-nexus-text-secondary">
+              <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
                 <input
                   type="checkbox"
                   checked={consentForRecording}
@@ -400,7 +400,7 @@ export default function CallsPage() {
             <div className="flex items-center justify-end gap-2 mt-5">
               <button
                 onClick={() => setShowNewCallModal(false)}
-                className="px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md transition-colors"
+                className="px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md transition-colors"
               >
                 Cancel
               </button>

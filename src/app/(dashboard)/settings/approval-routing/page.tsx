@@ -129,7 +129,7 @@ export default function ApprovalRoutingPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Matrix routing: route requests to alternate managers based on project assignment</p>
         </div>
-        <button onClick={() => { setEditingId(null); setForm({ name: '', requestType: 'leave', projectId: '', alternateManagerId: '', priority: 100, isActive: true }); setShowForm(true); }} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={() => { setEditingId(null); setForm({ name: '', requestType: 'leave', projectId: '', alternateManagerId: '', priority: 100, isActive: true }); setShowForm(true); }} className="3boxes-btn-primary flex items-center gap-2">
           <FiPlus className="w-4 h-4" /> New Rule
         </button>
       </div>
@@ -139,7 +139,7 @@ export default function ApprovalRoutingPage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="nexus-card p-6 border-l-4 border-l-violet-500">
+        <div className="thb-card p-6 border-l-4 border-l-violet-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">{editingId ? 'Edit Rule' : 'New Routing Rule'}</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700"><FiX /></button>
@@ -147,11 +147,11 @@ export default function ApprovalRoutingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Name *</label>
-              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="nexus-input w-full" placeholder="e.g. Project X → Manager B" />
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Project X → Manager B" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Request Type *</label>
-              <select value={form.requestType} onChange={e => setForm({ ...form, requestType: e.target.value })} className="nexus-input w-full">
+              <select value={form.requestType} onChange={e => setForm({ ...form, requestType: e.target.value })} className="3boxes-input w-full">
                 <option value="leave">Leave</option>
                 <option value="overtime">Overtime</option>
                 <option value="gatepass">Gatepass</option>
@@ -160,16 +160,16 @@ export default function ApprovalRoutingPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Project ID (optional)</label>
-              <input type="text" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} className="nexus-input w-full" placeholder="Project ID — leave empty for catch-all" />
+              <input type="text" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} className="3boxes-input w-full" placeholder="Project ID — leave empty for catch-all" />
               <p className="text-xs text-slate-500 mt-1">If the employee is allocated to this project on the request date, route to the alternate manager.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Alternate Manager ID *</label>
-              <input type="text" value={form.alternateManagerId} onChange={e => setForm({ ...form, alternateManagerId: e.target.value })} className="nexus-input w-full" placeholder="User ID of alternate manager" />
+              <input type="text" value={form.alternateManagerId} onChange={e => setForm({ ...form, alternateManagerId: e.target.value })} className="3boxes-input w-full" placeholder="User ID of alternate manager" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Priority (lower = higher)</label>
-              <input type="number" min="1" max="999" value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} className="nexus-input w-full" />
+              <input type="number" min="1" max="999" value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} className="3boxes-input w-full" />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -179,15 +179,15 @@ export default function ApprovalRoutingPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary">
               {editingId ? 'Save Changes' : 'Create Rule'}
             </button>
           </div>
         </div>
       )}
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">

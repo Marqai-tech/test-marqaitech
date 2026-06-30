@@ -78,12 +78,12 @@ interface UserWithRoles {
 
 // ─── Badge Helpers ─────────────────────────────────────────
 const levelBadgeCls: Record<number, string> = {
-  0: 'bg-amber-50 text-amber-700 border border-amber-200 nexus-badge',
-  1: 'nexus-badge nexus-badge-primary',
-  2: 'nexus-badge nexus-badge-purple',
-  3: 'nexus-badge nexus-badge-info',
-  4: 'nexus-badge nexus-badge-success',
-  5: 'nexus-badge nexus-badge-warning',
+  0: 'bg-amber-50 text-amber-700 border border-amber-200 thb-badge',
+  1: 'thb-badge thb-badge-primary',
+  2: 'thb-badge thb-badge-purple',
+  3: 'thb-badge thb-badge-info',
+  4: 'thb-badge thb-badge-success',
+  5: 'thb-badge thb-badge-warning',
 };
 
 const levelLabel: Record<number, string> = {
@@ -410,19 +410,19 @@ export default function SuperAdminRBACPage() {
   };
 
   // ─── Input helpers ──────────────────────────────────────
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
-  const labelCls = 'block text-xs font-medium text-nexus-text-secondary mb-1';
-  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const labelCls = 'block text-xs font-medium text-thb-text-secondary mb-1';
+  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
   const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
-  const btnSecondary = 'px-4 py-2 text-sm font-medium text-nexus-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
+  const btnSecondary = 'px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
 
   // ─── Error UI ───────────────────────────────────────────
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <FiAlertTriangle className="w-16 h-16 text-red-400" />
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Something went wrong</h2>
-        <p className="text-nexus-text-secondary text-center max-w-md">{error}</p>
+        <h2 className="text-xl font-semibold text-thb-text-primary">Something went wrong</h2>
+        <p className="text-thb-text-secondary text-center max-w-md">{error}</p>
         <button onClick={() => { setError(null); fetchRoles(); fetchModules(); }} className={btnPrimary}>
           <FiRefreshCw className="w-4 h-4" /> Retry
         </button>
@@ -434,9 +434,9 @@ export default function SuperAdminRBACPage() {
   if (user?.role !== 'super_admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <FiShield className="w-16 h-16 text-nexus-text-muted" />
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Access Restricted</h2>
-        <p className="text-nexus-text-secondary">This page is only accessible to Super Admins.</p>
+        <FiShield className="w-16 h-16 text-thb-text-muted" />
+        <h2 className="text-xl font-semibold text-thb-text-primary">Access Restricted</h2>
+        <p className="text-thb-text-secondary">This page is only accessible to Super Admins.</p>
       </div>
     );
   }
@@ -453,11 +453,11 @@ export default function SuperAdminRBACPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiShield className="w-6 h-6 text-amber-500" />
             RBAC Management
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage roles, permissions, and user access across the platform</p>
+          <p className="text-thb-text-secondary mt-1">Manage roles, permissions, and user access across the platform</p>
         </div>
         <button onClick={handleSeed} disabled={seeding} className={btnPrimary}>
           <FiDatabase className="w-4 h-4" />
@@ -473,7 +473,7 @@ export default function SuperAdminRBACPage() {
           { key: 'users' as const, label: 'User Assignments', icon: <FiUserCheck className="w-4 h-4" /> },
         ].map((tab) => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.key ? 'bg-white shadow-sm text-nexus-text-primary' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.key ? 'bg-white shadow-sm text-thb-text-primary' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
             {tab.icon} {tab.label}
           </button>
         ))}
@@ -485,9 +485,9 @@ export default function SuperAdminRBACPage() {
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
               <input type="text" value={roleSearch} onChange={(e) => setRoleSearch(e.target.value)}
-                placeholder="Search roles..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                placeholder="Search roles..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
             <select value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)} className={selectCls + ' sm:w-48'}>
               <option value="">All Tenants</option>
@@ -502,36 +502,36 @@ export default function SuperAdminRBACPage() {
 
           {/* View Panel */}
           {viewingId && viewingRole && (
-            <div ref={formRef} className="nexus-card border-l-4 border-l-emerald-500 p-6 animate-slide-in-down">
+            <div ref={formRef} className="thb-card border-l-4 border-l-emerald-500 p-6 animate-slide-in-down">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiEye className="w-5 h-5 text-emerald-500" /> Role Details
                 </h3>
                 <div className="flex gap-2">
                   <button onClick={() => handleEditRole(viewingRole)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
                     <FiEdit2 className="w-3.5 h-3.5" /> Edit
                   </button>
-                  <button onClick={() => { setViewingId(null); setViewingRole(null); }} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg">
+                  <button onClick={() => { setViewingId(null); setViewingRole(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg">
                     <FiX className="w-4 h-4" />
                   </button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div><p className="text-xs text-nexus-text-muted">Name</p><p className="text-sm font-medium text-nexus-text-primary">{viewingRole.name}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Key</p><p className="text-sm font-mono text-nexus-text-primary">{viewingRole.key}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Level</p><span className={levelBadgeCls[viewingRole.level] || levelBadgeCls[5]}>{levelLabel[viewingRole.level] || `Level ${viewingRole.level}`}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">Status</p><span className="nexus-badge nexus-badge-success">{viewingRole.status}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">System Role</p><span className={viewingRole.isSystem ? 'nexus-badge nexus-badge-warning' : 'nexus-badge nexus-badge-info'}>{viewingRole.isSystem ? 'Yes' : 'No'}</span></div>
-                <div><p className="text-xs text-nexus-text-muted">Tenant</p><p className="text-sm text-nexus-text-primary">{viewingRole.tenant?.name || 'Global'}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Company</p><p className="text-sm text-nexus-text-primary">{viewingRole.company?.name || 'All Companies'}</p></div>
-                <div><p className="text-xs text-nexus-text-muted">Users</p><p className="text-sm text-nexus-text-primary">{viewingRole._count?.userRoles || 0}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Name</p><p className="text-sm font-medium text-thb-text-primary">{viewingRole.name}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Key</p><p className="text-sm font-mono text-thb-text-primary">{viewingRole.key}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Level</p><span className={levelBadgeCls[viewingRole.level] || levelBadgeCls[5]}>{levelLabel[viewingRole.level] || `Level ${viewingRole.level}`}</span></div>
+                <div><p className="text-xs text-thb-text-muted">Status</p><span className="thb-badge thb-badge-success">{viewingRole.status}</span></div>
+                <div><p className="text-xs text-thb-text-muted">System Role</p><span className={viewingRole.isSystem ? 'thb-badge thb-badge-warning' : 'thb-badge thb-badge-info'}>{viewingRole.isSystem ? 'Yes' : 'No'}</span></div>
+                <div><p className="text-xs text-thb-text-muted">Tenant</p><p className="text-sm text-thb-text-primary">{viewingRole.tenant?.name || 'Global'}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Company</p><p className="text-sm text-thb-text-primary">{viewingRole.company?.name || 'All Companies'}</p></div>
+                <div><p className="text-xs text-thb-text-muted">Users</p><p className="text-sm text-thb-text-primary">{viewingRole._count?.userRoles || 0}</p></div>
               </div>
               {viewingRole.description && (
-                <div className="mb-4"><p className="text-xs text-nexus-text-muted">Description</p><p className="text-sm text-nexus-text-secondary">{viewingRole.description}</p></div>
+                <div className="mb-4"><p className="text-xs text-thb-text-muted">Description</p><p className="text-sm text-thb-text-secondary">{viewingRole.description}</p></div>
               )}
               {/* Permissions Summary */}
               <div>
-                <h4 className="text-sm font-semibold text-nexus-text-primary mb-3">Permission Summary</h4>
+                <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Permission Summary</h4>
                 <div className="max-h-48 overflow-y-auto space-y-1">
                   {(() => {
                     const permByModule: Record<string, string[]> = {};
@@ -542,9 +542,9 @@ export default function SuperAdminRBACPage() {
                     });
                     return Object.entries(permByModule).map(([mod, actions]) => (
                       <div key={mod} className="flex items-center gap-2 text-xs">
-                        <span className="font-medium text-nexus-text-primary w-32">{mod}</span>
+                        <span className="font-medium text-thb-text-primary w-32">{mod}</span>
                         <div className="flex gap-1 flex-wrap">
-                          {actions.map((a) => <span key={a} className="nexus-badge nexus-badge-success text-[10px]">{a}</span>)}
+                          {actions.map((a) => <span key={a} className="thb-badge thb-badge-success text-[10px]">{a}</span>)}
                         </div>
                       </div>
                     ));
@@ -556,10 +556,10 @@ export default function SuperAdminRBACPage() {
 
           {/* Create/Edit Form */}
           {showRoleForm && (
-            <div ref={formRef} className="nexus-card border-l-4 border-l-blue-500 p-6 animate-slide-in-down">
+            <div ref={formRef} className="thb-card border-l-4 border-l-blue-500 p-6 animate-slide-in-down">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-nexus-text-primary">{editingRoleId ? 'Edit Role' : 'Create Role'}</h3>
-                <button onClick={handleCancelForm} className="p-1.5 text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+                <h3 className="text-lg font-semibold text-thb-text-primary">{editingRoleId ? 'Edit Role' : 'Create Role'}</h3>
+                <button onClick={handleCancelForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
               </div>
               <form onSubmit={handleSubmitRole} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -587,24 +587,24 @@ export default function SuperAdminRBACPage() {
           )}
 
           {/* Roles Table */}
-          <div className="nexus-card overflow-hidden">
+          <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Role</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Level</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Scope</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Users</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Permissions</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                  <tr className="border-b border-thb-border bg-slate-50/50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Role</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Level</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Scope</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Users</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Permissions</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rolesLoading ? (
                     Array.from({ length: 4 }).map((_, i) => (
-                      <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                      <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                         <td className="px-4 py-3"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
                         <td className="px-4 py-3"><div className="h-4 w-20 bg-slate-100 rounded" /></td>
@@ -616,42 +616,42 @@ export default function SuperAdminRBACPage() {
                     ))
                   ) : roles.length === 0 ? (
                     <tr><td colSpan={7} className="px-4 py-12 text-center">
-                      <FiLock className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No roles found</p>
-                      <p className="text-xs text-nexus-text-muted mt-1">Click &quot;Seed RBAC Data&quot; to initialize default roles</p>
+                      <FiLock className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                      <p className="text-thb-text-secondary font-medium">No roles found</p>
+                      <p className="text-xs text-thb-text-muted mt-1">Click &quot;Seed RBAC Data&quot; to initialize default roles</p>
                     </td></tr>
                   ) : (
                     roles.map((role) => (
-                      <tr key={role.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={role.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                         {deleteConfirmId === role.id ? (
                           <td colSpan={7} className="px-4 py-3 bg-red-50">
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-red-700 font-medium flex items-center gap-2"><FiAlertTriangle className="w-4 h-4" />Delete role &quot;{role.name}&quot;?</span>
                               <div className="flex gap-2">
                                 <button onClick={() => handleDeleteRole(role.id)} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600">Confirm</button>
-                                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50">Cancel</button>
                               </div>
                             </div>
                           </td>
                         ) : (
                           <>
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-nexus-text-primary">{role.name}</p>
-                              <p className="text-xs text-nexus-text-muted font-mono">{role.key}</p>
+                              <p className="text-sm font-medium text-thb-text-primary">{role.name}</p>
+                              <p className="text-xs text-thb-text-muted font-mono">{role.key}</p>
                             </td>
                             <td className="px-4 py-3"><span className={levelBadgeCls[role.level] || levelBadgeCls[5]}>{levelLabel[role.level] || `L${role.level}`}</span></td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">
                               {role.tenant?.name || 'Global'}{role.company ? ` / ${role.company.name}` : ''}
                             </td>
-                            <td className="px-4 py-3"><span className={role.isSystem ? 'nexus-badge nexus-badge-warning' : 'nexus-badge nexus-badge-info'}>{role.isSystem ? 'System' : 'Custom'}</span></td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">{role._count?.userRoles || 0}</td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">{role.permissions.length}</td>
+                            <td className="px-4 py-3"><span className={role.isSystem ? 'thb-badge thb-badge-warning' : 'thb-badge thb-badge-info'}>{role.isSystem ? 'System' : 'Custom'}</span></td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{role._count?.userRoles || 0}</td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{role.permissions.length}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => handleViewRole(role.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                                <button onClick={() => handleEditRole(role)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                <button onClick={() => handleViewRole(role.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                                <button onClick={() => handleEditRole(role)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                                 {!role.isSystem && (
-                                  <button onClick={() => setDeleteConfirmId(role.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                                  <button onClick={() => setDeleteConfirmId(role.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 )}
                               </div>
                             </td>
@@ -671,11 +671,11 @@ export default function SuperAdminRBACPage() {
       {activeTab === 'permissions' && (
         <div className="space-y-4">
           {/* Role Selector */}
-          <div className="nexus-card p-4">
+          <div className="thb-card p-4">
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
               <div className="flex items-center gap-2">
-                <FiShield className="w-4 h-4 text-nexus-text-muted" />
-                <span className="text-sm font-medium text-nexus-text-primary">Select Role:</span>
+                <FiShield className="w-4 h-4 text-thb-text-muted" />
+                <span className="text-sm font-medium text-thb-text-primary">Select Role:</span>
               </div>
               <select value={selectedRoleId || ''} onChange={(e) => handleSelectRole(e.target.value)} className={selectCls + ' sm:w-64'}>
                 <option value="">— Choose a role —</option>
@@ -690,34 +690,34 @@ export default function SuperAdminRBACPage() {
                   <FiCheck className="w-4 h-4" /> {savingPermissions ? 'Saving...' : 'Save Permissions'}
                 </button>
               )}
-              <button onClick={() => fetchRoles()} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors" title="Refresh">
+              <button onClick={() => fetchRoles()} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors" title="Refresh">
                 <FiRefreshCw className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {selectedRole && selectedRole.isSystem && selectedRole.key === 'super_admin' && (
-            <div className="nexus-card p-4 bg-amber-50 border-amber-200">
+            <div className="thb-card p-4 bg-amber-50 border-amber-200">
               <p className="text-sm text-amber-700 flex items-center gap-2"><FiAlertTriangle className="w-4 h-4" /> Super Admin has all permissions and cannot be modified.</p>
             </div>
           )}
 
           {selectedRoleId && (!selectedRole?.isSystem || selectedRole.key !== 'super_admin') && (
-            <div className="nexus-card overflow-hidden">
+            <div className="thb-card overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-nexus-border bg-slate-50/50">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider sticky left-0 bg-slate-50 z-10 min-w-[180px]">Module</th>
+                    <tr className="border-b border-thb-border bg-slate-50/50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider sticky left-0 bg-slate-50 z-10 min-w-[180px]">Module</th>
                       {['view', 'create', 'edit', 'delete', 'export', 'approve'].map((action) => (
-                        <th key={action} className="text-center px-3 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider min-w-[70px]">{action}</th>
+                        <th key={action} className="text-center px-3 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider min-w-[70px]">{action}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {modulesLoading ? (
                       Array.from({ length: 6 }).map((_, i) => (
-                        <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                        <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                           <td className="px-4 py-3"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
                           {Array.from({ length: 6 }).map((_, j) => (
                             <td key={j} className="px-3 py-3"><div className="h-5 w-5 bg-slate-100 rounded mx-auto" /></td>
@@ -745,10 +745,10 @@ export default function SuperAdminRBACPage() {
           )}
 
           {!selectedRoleId && !modulesLoading && (
-            <div className="nexus-card p-12 text-center">
-              <FiGrid className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">Select a role to manage permissions</p>
-              <p className="text-xs text-nexus-text-muted mt-1">Choose a role from the dropdown above to view and edit its permission matrix</p>
+            <div className="thb-card p-12 text-center">
+              <FiGrid className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">Select a role to manage permissions</p>
+              <p className="text-xs text-thb-text-muted mt-1">Choose a role from the dropdown above to view and edit its permission matrix</p>
             </div>
           )}
         </div>
@@ -760,9 +760,9 @@ export default function SuperAdminRBACPage() {
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
               <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="Search users..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                placeholder="Search users..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
             <select value={userTenantFilter} onChange={(e) => setUserTenantFilter(e.target.value)} className={selectCls + ' sm:w-48'}>
               <option value="">All Tenants</option>
@@ -777,22 +777,22 @@ export default function SuperAdminRBACPage() {
           </div>
 
           {/* User Assignments Table */}
-          <div className="nexus-card overflow-hidden">
+          <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">User</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Tenant</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Default Role</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Assigned Roles</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                  <tr className="border-b border-thb-border bg-slate-50/50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">User</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Tenant</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Default Role</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Assigned Roles</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usersLoading ? (
                     Array.from({ length: 4 }).map((_, i) => (
-                      <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                      <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                         <td className="px-4 py-3"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-4 w-20 bg-slate-100 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
@@ -802,24 +802,24 @@ export default function SuperAdminRBACPage() {
                     ))
                   ) : users.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-12 text-center">
-                      <FiUsers className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No users found</p>
+                      <FiUsers className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                      <p className="text-thb-text-secondary font-medium">No users found</p>
                     </td></tr>
                   ) : (
                     users.map((u) => (
-                      <tr key={u.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={u.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
                               {u.name?.[0] || '?'}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-nexus-text-primary">{u.name}</p>
-                              <p className="text-xs text-nexus-text-muted">{u.email}</p>
+                              <p className="text-sm font-medium text-thb-text-primary">{u.name}</p>
+                              <p className="text-xs text-thb-text-muted">{u.email}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{u.tenant?.name || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{u.tenant?.name || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={levelBadgeCls[
                             { super_admin: 0, tenant_admin: 1, hr_admin: 2, manager: 3, employee: 4 }[u.role] ?? 5
@@ -827,9 +827,9 @@ export default function SuperAdminRBACPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-1">
-                            {u.roleAssignments.length === 0 && <span className="text-xs text-nexus-text-muted">No extra roles</span>}
+                            {u.roleAssignments.length === 0 && <span className="text-xs text-thb-text-muted">No extra roles</span>}
                             {u.roleAssignments.map((ra) => (
-                              <span key={ra.id} className="nexus-badge nexus-badge-purple text-[10px] flex items-center gap-1">
+                              <span key={ra.id} className="thb-badge thb-badge-purple text-[10px] flex items-center gap-1">
                                 {ra.role.name}
                                 {ra.companyId && <span className="text-[9px] opacity-70">(company)</span>}
                                 <button onClick={() => handleRevokeRole(u.id, ra.role.id, ra.companyId)}
@@ -842,17 +842,17 @@ export default function SuperAdminRBACPage() {
                           <div className="flex items-center justify-end gap-1">
                             {assigningUserId === u.id ? (
                               <div className="flex items-center gap-2">
-                                <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)} className="text-xs px-2 py-1.5 rounded border border-nexus-border bg-white">
+                                <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)} className="text-xs px-2 py-1.5 rounded border border-thb-border bg-white">
                                   <option value="">Select role</option>
                                   {roles.filter((r) => !r.isSystem || r.key !== 'super_admin').map((r) => (
                                     <option key={r.id} value={r.id}>{r.name}</option>
                                   ))}
                                 </select>
                                 <button onClick={handleAssignRole} className="px-2 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">Assign</button>
-                                <button onClick={() => { setAssigningUserId(null); setAssignRoleId(''); }} className="px-2 py-1.5 text-xs border border-nexus-border rounded hover:bg-slate-50">Cancel</button>
+                                <button onClick={() => { setAssigningUserId(null); setAssignRoleId(''); }} className="px-2 py-1.5 text-xs border border-thb-border rounded hover:bg-slate-50">Cancel</button>
                               </div>
                             ) : (
-                              <button onClick={() => setAssigningUserId(u.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Assign Role">
+                              <button onClick={() => setAssigningUserId(u.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Assign Role">
                                 <FiPlus className="w-4 h-4" />
                               </button>
                             )}
@@ -895,17 +895,17 @@ function PermissionCategoryRow({
     <>
       <tr className="bg-slate-50 cursor-pointer" onClick={onToggle}>
         <td colSpan={7} className="px-4 py-2.5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-nexus-text-primary">
+          <div className="flex items-center gap-2 text-sm font-semibold text-thb-text-primary">
             {expanded ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4" />}
             {category}
-            <span className="text-xs font-normal text-nexus-text-muted">({modules.length} modules)</span>
+            <span className="text-xs font-normal text-thb-text-muted">({modules.length} modules)</span>
           </div>
         </td>
       </tr>
       {expanded && modules.map((mod) => (
-        <tr key={mod.id} className="border-b border-nexus-border/50 hover:bg-slate-50/30 transition-colors">
+        <tr key={mod.id} className="border-b border-thb-border/50 hover:bg-slate-50/30 transition-colors">
           <td className="px-4 py-2.5 sticky left-0 bg-white z-10">
-            <span className="text-sm text-nexus-text-primary pl-4">{mod.name}</span>
+            <span className="text-sm text-thb-text-primary pl-4">{mod.name}</span>
           </td>
           {actions.map((action) => {
             const perm = mod.permissions.find((p) => p.action === action);
@@ -920,7 +920,7 @@ function PermissionCategoryRow({
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm ${isOn ? 'translate-x-4' : 'translate-x-0.5'}`} />
                   </button>
                 ) : (
-                  <span className="text-nexus-text-muted text-xs">—</span>
+                  <span className="text-thb-text-muted text-xs">—</span>
                 )}
               </td>
             );

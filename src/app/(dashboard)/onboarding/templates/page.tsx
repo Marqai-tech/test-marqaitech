@@ -225,18 +225,18 @@ export default function OnboardingTemplatesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiList className="w-6 h-6 text-emerald-500" />
             Onboarding Task Templates
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Reusable task templates auto-applied when a preboarding candidate joins
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/onboarding"
-            className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
           >
             Back to Onboarding
           </Link>
@@ -251,31 +251,31 @@ export default function OnboardingTemplatesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Total Templates</p>
-          <p className="text-xl font-bold text-nexus-text-primary mt-1">{stats.total}</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Total Templates</p>
+          <p className="text-xl font-bold text-thb-text-primary mt-1">{stats.total}</p>
         </div>
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Active</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Active</p>
           <p className="text-xl font-bold text-emerald-600 mt-1">{stats.active}</p>
         </div>
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Categories</p>
-          <p className="text-xl font-bold text-nexus-text-primary mt-1">{stats.byCategory.length}</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Categories</p>
+          <p className="text-xl font-bold text-thb-text-primary mt-1">{stats.byCategory.length}</p>
         </div>
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Inactive</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Inactive</p>
           <p className="text-xl font-bold text-amber-600 mt-1">{stats.total - stats.active}</p>
         </div>
       </div>
 
       {/* Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-nexus-text-secondary">Filter:</span>
+        <span className="text-xs font-medium text-thb-text-secondary">Filter:</span>
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+          className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
         >
           <option value="">All Categories</option>
           {CATEGORY_OPTIONS.map((c) => (
@@ -286,51 +286,51 @@ export default function OnboardingTemplatesPage() {
 
       {/* Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-emerald-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-emerald-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Template' : 'Create New Template'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Template Name *</label>
-                <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="e.g., IT Setup Day 1" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Template Name *</label>
+                <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="e.g., IT Setup Day 1" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Task *</label>
-                <input required value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="e.g., Provision laptop and email account" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task *</label>
+                <input required value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="e.g., Provision laptop and email account" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
                   {CATEGORY_OPTIONS.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Due Offset (days from joining)</label>
-                <input type="number" value={form.dueOffsetDays} onChange={(e) => setForm({ ...form, dueOffsetDays: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="0 (Day 1), 7 (Week 1), -1 (Day before)" />
-                <p className="text-[10px] text-nexus-text-muted mt-1">Negative = before joining; 0 = Day 1.</p>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Due Offset (days from joining)</label>
+                <input type="number" value={form.dueOffsetDays} onChange={(e) => setForm({ ...form, dueOffsetDays: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="0 (Day 1), 7 (Week 1), -1 (Day before)" />
+                <p className="text-[10px] text-thb-text-muted mt-1">Negative = before joining; 0 = Day 1.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Applies to Role (optional)</label>
-                <input value={form.appliesToRole} onChange={(e) => setForm({ ...form, appliesToRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="e.g., engineer, manager" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Applies to Role (optional)</label>
+                <input value={form.appliesToRole} onChange={(e) => setForm({ ...form, appliesToRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="e.g., engineer, manager" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Applies to Department ID (optional)</label>
-                <input value={form.appliesToDepartment} onChange={(e) => setForm({ ...form, appliesToDepartment: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="dept-xxx" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Applies to Department ID (optional)</label>
+                <input value={form.appliesToDepartment} onChange={(e) => setForm({ ...form, appliesToDepartment: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="dept-xxx" />
               </div>
             </div>
-            <label className="flex items-center gap-2 text-sm text-nexus-text-secondary mt-4">
-              <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="rounded border-nexus-border" />
+            <label className="flex items-center gap-2 text-sm text-thb-text-secondary mt-4">
+              <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="rounded border-thb-border" />
               Active (auto-applies when a preboarding candidate joins)
             </label>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 shadow-sm shadow-emerald-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
             </div>
           </div>
@@ -338,49 +338,49 @@ export default function OnboardingTemplatesPage() {
       )}
 
       {/* Templates Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Task</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Due</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Active</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Name</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Task</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Due</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Active</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-nexus-text-muted">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-thb-text-muted">Loading...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center">
-                    <FiList className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No onboarding templates yet</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Templates auto-apply as onboarding tasks when a preboarding candidate joins.</p>
+                    <FiList className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No onboarding templates yet</p>
+                    <p className="text-sm text-thb-text-muted mt-1">Templates auto-apply as onboarding tasks when a preboarding candidate joins.</p>
                   </td>
                 </tr>
               ) : (
                 filtered.map((t) => (
-                  <tr key={t.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={t.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === t.id ? (
                       <td colSpan={6} className="px-4 py-3 bg-red-50">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-red-700 font-medium">Delete &quot;{t.name}&quot;?</span>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleDelete(t.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                           </div>
                         </div>
                       </td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{t.name}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary max-w-[300px] truncate">{t.task}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{t.name}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary max-w-[300px] truncate">{t.task}</td>
                         <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-1 rounded ${getCategoryBadge(t.category)}`}>{t.category}</span></td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
                           {t.dueOffsetDays === 0 ? 'Day 1' : t.dueOffsetDays > 0 ? `+${t.dueOffsetDays}d` : `${t.dueOffsetDays}d`}
                         </td>
                         <td className="px-4 py-3">
@@ -393,8 +393,8 @@ export default function OnboardingTemplatesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </>

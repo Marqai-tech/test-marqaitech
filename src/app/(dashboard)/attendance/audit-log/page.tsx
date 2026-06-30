@@ -73,7 +73,7 @@ export default function AuditLogPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Append-only log of every attendance change · original + changed data + IP</p>
         </div>
-        <button onClick={fetchItems} className="nexus-btn-secondary flex items-center gap-2">
+        <button onClick={fetchItems} className="3boxes-btn-secondary flex items-center gap-2">
           <FiRefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
@@ -84,7 +84,7 @@ export default function AuditLogPage() {
 
       <div className="bg-white rounded-xl p-4 border border-slate-200">
         <div className="flex items-center gap-3">
-          <select value={filterAction} onChange={e => setFilterAction(e.target.value)} className="nexus-input min-w-[200px]">
+          <select value={filterAction} onChange={e => setFilterAction(e.target.value)} className="3boxes-input min-w-[200px]">
             <option value="">All actions</option>
             <option value="manual_edit">Manual edit</option>
             <option value="regularization_approved">Regularization approved</option>
@@ -94,7 +94,7 @@ export default function AuditLogPage() {
         </div>
       </div>
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">

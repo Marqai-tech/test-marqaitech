@@ -69,10 +69,10 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    in_progress: 'bg-cyan-50 text-cyan-700 nexus-badge',
-    completed: 'nexus-badge nexus-badge-success',
-    skipped: 'bg-slate-100 text-slate-600 nexus-badge',
+    pending: 'thb-badge thb-badge-warning',
+    in_progress: 'bg-cyan-50 text-cyan-700 thb-badge',
+    completed: 'thb-badge thb-badge-success',
+    skipped: 'bg-slate-100 text-slate-600 thb-badge',
   };
   const labels: Record<string, string> = {
     pending: 'Pending',
@@ -80,16 +80,16 @@ function getStatusBadge(status: string) {
     completed: 'Completed',
     skipped: 'Skipped',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
-    general: 'bg-slate-50 text-slate-700 nexus-badge',
-    documentation: 'bg-blue-50 text-blue-700 nexus-badge',
-    it_setup: 'bg-violet-50 text-violet-700 nexus-badge',
-    training: 'bg-amber-50 text-amber-700 nexus-badge',
-    compliance: 'bg-rose-50 text-rose-700 nexus-badge',
+    general: 'bg-slate-50 text-slate-700 thb-badge',
+    documentation: 'bg-blue-50 text-blue-700 thb-badge',
+    it_setup: 'bg-violet-50 text-violet-700 thb-badge',
+    training: 'bg-amber-50 text-amber-700 thb-badge',
+    compliance: 'bg-rose-50 text-rose-700 thb-badge',
   };
   const labels: Record<string, string> = {
     general: 'General',
@@ -98,7 +98,7 @@ function getCategoryBadge(category: string) {
     training: 'Training',
     compliance: 'Compliance',
   };
-  return { className: map[category] || 'nexus-badge nexus-badge-info', label: labels[category] || category };
+  return { className: map[category] || 'thb-badge thb-badge-info', label: labels[category] || category };
 }
 
 const onboardingTips = [
@@ -347,15 +347,15 @@ export default function OnboardingPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiUserPlus className="w-6 h-6 text-emerald-500" />
             Onboarding
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage onboarding tasks for new employees</p>
+          <p className="text-thb-text-secondary mt-1">Manage onboarding tasks for new employees</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <Link href="/onboarding/templates" className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <Link href="/onboarding/templates" className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
               Templates
             </Link>
             <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
@@ -386,20 +386,20 @@ export default function OnboardingPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Total Tasks</p>
-          <p className="text-xl font-bold text-nexus-text-primary mt-1">{totalTasks}</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Total Tasks</p>
+          <p className="text-xl font-bold text-thb-text-primary mt-1">{totalTasks}</p>
         </div>
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Pending</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Pending</p>
           <p className="text-xl font-bold text-amber-600 mt-1">{pendingCount}</p>
         </div>
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">In Progress</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">In Progress</p>
           <p className="text-xl font-bold text-cyan-600 mt-1">{inProgressCount}</p>
         </div>
-        <div className="nexus-card p-4">
-          <p className="text-xs font-medium text-nexus-text-secondary">Completed</p>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-secondary">Completed</p>
           <p className="text-xl font-bold text-emerald-600 mt-1">{completedCount}</p>
         </div>
       </div>
@@ -407,18 +407,18 @@ export default function OnboardingPage() {
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search tasks, employees..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
           />
         </div>
         <div className="flex items-center gap-2">
-          <FiFilter className="w-4 h-4 text-nexus-text-muted" />
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <FiFilter className="w-4 h-4 text-thb-text-muted" />
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
             <option value="">All Categories</option>
             <option value="general">General</option>
             <option value="documentation">Documentation</option>
@@ -431,7 +431,7 @@ export default function OnboardingPage() {
             <option value="payroll_setup">Payroll Setup</option>
             <option value="project_allocation">Project Allocation</option>
           </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
             <option value="">All Status</option>
             <option value="pending">Pending</option>
             <option value="in_progress">In Progress</option>
@@ -443,24 +443,24 @@ export default function OnboardingPage() {
 
       {/* Embedded CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Task' : 'Add New Task'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee {!editingId && '*'}</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee {!editingId && '*'}</label>
                 <select
                   value={form.employeeId}
                   onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
                   disabled={!!editingId}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-nexus-text-muted"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-thb-text-muted"
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
@@ -471,21 +471,21 @@ export default function OnboardingPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Task *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task *</label>
                 <input
                   type="text"
                   value={form.task}
                   onChange={e => setForm(p => ({ ...p, task: e.target.value }))}
                   placeholder="e.g., Complete IT orientation"
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
                 <select
                   value={form.category}
                   onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="general">General</option>
                   <option value="documentation">Documentation</option>
@@ -500,21 +500,21 @@ export default function OnboardingPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Due Date</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Due Date</label>
                 <input
                   type="date"
                   value={form.dueDate}
                   onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               {editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
                   <select
                     value={form.status}
                     onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
@@ -524,18 +524,18 @@ export default function OnboardingPage() {
                 </div>
               )}
               <div className={editingId ? '' : 'sm:col-span-2'}>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notes</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Notes</label>
                 <input
                   type="text"
                   value={form.notes}
                   onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
                   placeholder="Optional notes..."
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
@@ -545,26 +545,26 @@ export default function OnboardingPage() {
       )}
 
       {/* Tasks Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Task</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Due Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Notes</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Task</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Due Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Notes</th>
                 {isAdmin && (
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-32 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
@@ -577,9 +577,9 @@ export default function OnboardingPage() {
               ) : filteredTasks.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiUserPlus className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No onboarding tasks found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Create tasks to track new employee onboarding</p>
+                    <FiUserPlus className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No onboarding tasks found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">Create tasks to track new employee onboarding</p>
                   </td>
                 </tr>
               ) : (
@@ -587,7 +587,7 @@ export default function OnboardingPage() {
                   const statusBadge = getStatusBadge(t.status);
                   const categoryBadge = getCategoryBadge(t.category);
                   return (
-                    <tr key={t.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                    <tr key={t.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                       {deleteConfirmId === t.id ? (
                         <td colSpan={colCount} className="px-4 py-3 bg-red-50">
                           <div className="flex items-center justify-between">
@@ -596,17 +596,17 @@ export default function OnboardingPage() {
                               <button onClick={() => handleDelete(t.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
                                 {deleting ? 'Deleting...' : 'Confirm'}
                               </button>
-                              <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                              <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                             </div>
                           </div>
                         </td>
                       ) : (
                         <>
                           <td className="px-4 py-3">
-                            <p className="text-sm font-medium text-nexus-text-primary">
+                            <p className="text-sm font-medium text-thb-text-primary">
                               {t.employee ? `${t.employee.firstName} ${t.employee.lastName}` : '—'}
                             </p>
-                            {t.employee && <p className="text-xs text-nexus-text-muted">{t.employee.employeeId}</p>}
+                            {t.employee && <p className="text-xs text-thb-text-muted">{t.employee.employeeId}</p>}
                             {t.buddyEmployeeId && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded mt-1">
                                 <FiUserCheck className="w-2.5 h-2.5" />
@@ -614,7 +614,7 @@ export default function OnboardingPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-primary">
+                          <td className="px-4 py-3 text-sm text-thb-text-primary">
                             {t.task}
                             {t.templateId && (() => {
                               const tplName = templates.find((tpl) => tpl.id === t.templateId)?.name;
@@ -629,27 +629,27 @@ export default function OnboardingPage() {
                               );
                             })()}
                             {t.preboardingCandidateId && (
-                              <p className="text-[10px] text-nexus-text-muted mt-0.5" title="Originating preboarding candidate">
+                              <p className="text-[10px] text-thb-text-muted mt-0.5" title="Originating preboarding candidate">
                                 preboarding: {t.preboardingCandidateId.slice(0, 8)}...
                               </p>
                             )}
                           </td>
                           <td className="px-4 py-3"><span className={categoryBadge.className}>{categoryBadge.label}</span></td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(t.dueDate)}</td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(t.dueDate)}</td>
                           <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
-                          <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[150px]">{t.notes || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary truncate max-w-[150px]">{t.notes || '—'}</td>
                           {isAdmin && (
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
                                 {t.status !== 'completed' && (
-                                  <button onClick={() => handleMarkComplete(t.id)} disabled={completingId === t.id} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark Complete">
+                                  <button onClick={() => handleMarkComplete(t.id)} disabled={completingId === t.id} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark Complete">
                                     <FiCheck className="w-4 h-4" />
                                   </button>
                                 )}
-                                <button onClick={() => handleShowEditForm(t)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <button onClick={() => handleShowEditForm(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
                                   <FiTrash2 className="w-4 h-4" />
                                 </button>
                               </div>

@@ -177,11 +177,11 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBell className="w-6 h-6 text-blue-500" />
             Notifications
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'You\'re all caught up!'}
           </p>
         </div>
@@ -200,22 +200,22 @@ export default function NotificationsPage() {
       </div>
 
       {/* Filters */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               placeholder="Search notifications..."
             />
           </div>
           <div className="flex gap-2 flex-wrap">
             <div className="relative">
-              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
                 <option value="">All Types</option>
                 <option value="info">Info</option>
                 <option value="warning">Warning</option>
@@ -229,7 +229,7 @@ export default function NotificationsPage() {
                 <button
                   key={opt}
                   onClick={() => setFilterRead(opt)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors capitalize ${filterRead === opt ? 'bg-white text-nexus-text-primary shadow-sm' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors capitalize ${filterRead === opt ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}
                 >
                   {opt}
                   {opt === 'unread' && unreadCount > 0 && (
@@ -246,7 +246,7 @@ export default function NotificationsPage() {
       <div className="space-y-3">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="nexus-card p-4 animate-pulse border-l-4 border-l-slate-200">
+            <div key={i} className="thb-card p-4 animate-pulse border-l-4 border-l-slate-200">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 bg-slate-200 rounded-full flex-shrink-0" />
                 <div className="flex-1 space-y-2">
@@ -258,10 +258,10 @@ export default function NotificationsPage() {
             </div>
           ))
         ) : filteredNotifications.length === 0 ? (
-          <div className="nexus-card py-12 text-center">
-            <FiBell className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
-            <p className="text-nexus-text-secondary font-medium text-lg">No notifications found</p>
-            <p className="text-sm text-nexus-text-muted mt-1">
+          <div className="thb-card py-12 text-center">
+            <FiBell className="w-12 h-12 text-thb-text-muted mx-auto mb-4" />
+            <p className="text-thb-text-secondary font-medium text-lg">No notifications found</p>
+            <p className="text-sm text-thb-text-muted mt-1">
               {search || filterType ? 'Try adjusting your filters' : 'You\'re all caught up!'}
             </p>
           </div>
@@ -270,7 +270,7 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               onClick={() => !n.isRead && handleMarkRead(n.id)}
-              className={`nexus-card border-l-4 ${getBorderColor(n.type)} transition-all cursor-pointer hover:shadow-md ${!n.isRead ? 'bg-blue-50/40 border-l-4' : 'bg-white'}`}
+              className={`thb-card border-l-4 ${getBorderColor(n.type)} transition-all cursor-pointer hover:shadow-md ${!n.isRead ? 'bg-blue-50/40 border-l-4' : 'bg-white'}`}
             >
               <div className="p-4">
                 <div className="flex items-start gap-4">
@@ -279,12 +279,12 @@ export default function NotificationsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className={`text-sm font-medium ${!n.isRead ? 'text-nexus-text-primary' : 'text-nexus-text-secondary'}`}>{n.title}</p>
+                      <p className={`text-sm font-medium ${!n.isRead ? 'text-thb-text-primary' : 'text-thb-text-secondary'}`}>{n.title}</p>
                       {!n.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
                     </div>
-                    <p className={`text-sm mt-0.5 ${!n.isRead ? 'text-nexus-text-secondary' : 'text-nexus-text-muted'}`}>{n.message}</p>
+                    <p className={`text-sm mt-0.5 ${!n.isRead ? 'text-thb-text-secondary' : 'text-thb-text-muted'}`}>{n.message}</p>
                     <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-nexus-text-muted">{formatTimeAgo(n.createdAt)}</span>
+                      <span className="text-xs text-thb-text-muted">{formatTimeAgo(n.createdAt)}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                         n.type === 'info' ? 'bg-blue-50 text-blue-600' :
                         n.type === 'warning' ? 'bg-amber-50 text-amber-600' :
@@ -304,7 +304,7 @@ export default function NotificationsPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }}
                       disabled={markingRead === n.id}
-                      className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
                       title="Mark as read"
                     >
                       <FiCheck className="w-4 h-4" />

@@ -26,7 +26,7 @@ interface OnboardingStep {
 const employeeSteps: OnboardingStep[] = [
   {
     id: 1,
-    title: 'Welcome to Nexus HRMS!',
+    title: 'Welcome to 3Boxes HRMS!',
     description: 'Your all-in-one platform for managing everything HR — from leaves and attendance to payroll and documents. Let us show you around!',
     icon: FiStar,
     iconBg: 'bg-gradient-to-br from-indigo-500 to-violet-600',
@@ -294,8 +294,8 @@ export default function OnboardingWalkthrough() {
     setMounted(true);
     try {
       // Only show if welcome has been completed and onboarding not yet completed
-      const welcomed = localStorage.getItem('nexus_welcomed');
-      const onboardingCompleted = localStorage.getItem('nexus_onboarding_completed');
+      const welcomed = localStorage.getItem('3boxes_welcomed');
+      const onboardingCompleted = localStorage.getItem('3boxes_onboarding_completed');
       if (welcomed && !onboardingCompleted) {
         const timer = setTimeout(() => setShow(true), 500);
         return () => clearTimeout(timer);
@@ -328,17 +328,17 @@ export default function OnboardingWalkthrough() {
   }, [currentStep, isAnimating]);
 
   const handleSkip = useCallback(() => {
-    localStorage.setItem('nexus_onboarding_completed', 'true');
+    localStorage.setItem('3boxes_onboarding_completed', 'true');
     setShow(false);
   }, []);
 
   const handleGetStarted = useCallback(() => {
-    localStorage.setItem('nexus_onboarding_completed', 'true');
+    localStorage.setItem('3boxes_onboarding_completed', 'true');
     setShow(false);
   }, []);
 
   const handleLinkClick = useCallback((link: string) => {
-    localStorage.setItem('nexus_onboarding_completed', 'true');
+    localStorage.setItem('3boxes_onboarding_completed', 'true');
     setShow(false);
     router.push(link);
   }, [router]);

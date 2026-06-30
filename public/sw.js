@@ -1,7 +1,7 @@
-// Nexus HRMS Service Worker v1.0
+// 3Boxes HRMS Service Worker v1.0
 // Enables offline support and auto-updates for the PWA
 
-const CACHE_NAME = 'nexus-hrms-v1';
+const CACHE_NAME = '3boxes-hrms-v1';
 const STATIC_ASSETS = [
   '/login',
   '/icons/icon-192x192.png',
@@ -12,12 +12,12 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[Nexus SW] Installing service worker v1...');
+  console.log('[3Boxes SW] Installing service worker v1...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Nexus SW] Caching static assets');
+      console.log('[3Boxes SW] Caching static assets');
       return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[Nexus SW] Some assets failed to cache:', err);
+        console.warn('[3Boxes SW] Some assets failed to cache:', err);
         // Don't fail install if some assets can't be cached
         return Promise.resolve();
       });
@@ -29,14 +29,14 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[Nexus SW] Activating service worker v1...');
+  console.log('[3Boxes SW] Activating service worker v1...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[Nexus SW] Deleting old cache:', name);
+            console.log('[3Boxes SW] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -151,7 +151,7 @@ self.addEventListener('message', (event) => {
   }
   if (event.data && event.data.type === 'CLEAR_CACHE') {
     caches.delete(CACHE_NAME).then(() => {
-      console.log('[Nexus SW] Cache cleared');
+      console.log('[3Boxes SW] Cache cleared');
     });
   }
 });

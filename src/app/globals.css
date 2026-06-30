@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  /* Nexus HRMS Brand Colors */
-  --nexus-primary: #3B82F6;
-  --nexus-primary-dark: #1D4ED8;
-  --nexus-primary-light: #60A5FA;
-  --nexus-accent: #8B5CF6;
-  --nexus-accent-light: #A78BFA;
-  --nexus-background: #F8FAFC;
-  --nexus-sidebar-bg: #0F172A;
-  --nexus-sidebar-text: #94A3B8;
-  --nexus-sidebar-active: #3B82F6;
-  --nexus-sidebar-hover: #1E293B;
-  --nexus-card-bg: #FFFFFF;
-  --nexus-border: #E2E8F0;
-  --nexus-text-primary: #0F172A;
-  --nexus-text-secondary: #64748B;
-  --nexus-text-muted: #94A3B8;
-  --nexus-success: #10B981;
-  --nexus-warning: #F59E0B;
-  --nexus-error: #EF4444;
-  --nexus-info: #3B82F6;
+  /* 3Boxes HRMS Brand Colors */
+  --thb-primary: #3B82F6;
+  --thb-primary-dark: #1D4ED8;
+  --thb-primary-light: #60A5FA;
+  --thb-accent: #8B5CF6;
+  --thb-accent-light: #A78BFA;
+  --thb-background: #F8FAFC;
+  --thb-sidebar-bg: #0F172A;
+  --thb-sidebar-text: #94A3B8;
+  --thb-sidebar-active: #3B82F6;
+  --thb-sidebar-hover: #1E293B;
+  --thb-card-bg: #FFFFFF;
+  --thb-border: #E2E8F0;
+  --thb-text-primary: #0F172A;
+  --thb-text-secondary: #64748B;
+  --thb-text-muted: #94A3B8;
+  --thb-success: #10B981;
+  --thb-warning: #F59E0B;
+  --thb-error: #EF4444;
+  --thb-info: #3B82F6;
 
   /* Default background/foreground */
   --background: #F8FAFC;
@@ -30,24 +30,24 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-nexus-primary: var(--nexus-primary);
-  --color-nexus-primary-dark: var(--nexus-primary-dark);
-  --color-nexus-primary-light: var(--nexus-primary-light);
-  --color-nexus-accent: var(--nexus-accent);
-  --color-nexus-accent-light: var(--nexus-accent-light);
-  --color-nexus-sidebar-bg: var(--nexus-sidebar-bg);
-  --color-nexus-sidebar-text: var(--nexus-sidebar-text);
-  --color-nexus-sidebar-active: var(--nexus-sidebar-active);
-  --color-nexus-sidebar-hover: var(--nexus-sidebar-hover);
-  --color-nexus-card-bg: var(--nexus-card-bg);
-  --color-nexus-border: var(--nexus-border);
-  --color-nexus-text-primary: var(--nexus-text-primary);
-  --color-nexus-text-secondary: var(--nexus-text-secondary);
-  --color-nexus-text-muted: var(--nexus-text-muted);
-  --color-nexus-success: var(--nexus-success);
-  --color-nexus-warning: var(--nexus-warning);
-  --color-nexus-error: var(--nexus-error);
-  --color-nexus-info: var(--nexus-info);
+  --color-thb-primary: var(--thb-primary);
+  --color-thb-primary-dark: var(--thb-primary-dark);
+  --color-thb-primary-light: var(--thb-primary-light);
+  --color-thb-accent: var(--thb-accent);
+  --color-thb-accent-light: var(--thb-accent-light);
+  --color-thb-sidebar-bg: var(--thb-sidebar-bg);
+  --color-thb-sidebar-text: var(--thb-sidebar-text);
+  --color-thb-sidebar-active: var(--thb-sidebar-active);
+  --color-thb-sidebar-hover: var(--thb-sidebar-hover);
+  --color-thb-card-bg: var(--thb-card-bg);
+  --color-thb-border: var(--thb-border);
+  --color-thb-text-primary: var(--thb-text-primary);
+  --color-thb-text-secondary: var(--thb-text-secondary);
+  --color-thb-text-muted: var(--thb-text-muted);
+  --color-thb-success: var(--thb-success);
+  --color-thb-warning: var(--thb-warning);
+  --color-thb-error: var(--thb-error);
+  --color-thb-info: var(--thb-info);
 }
 
 /* Scrollbar Styling */
@@ -194,9 +194,9 @@
 }
 
 /* Card Utilities */
-.nexus-card {
-  background: var(--nexus-card-bg);
-  border: 1px solid var(--nexus-border);
+.thb-card {
+  background: var(--thb-card-bg);
+  border: 1px solid var(--thb-border);
   border-radius: 12px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
@@ -220,17 +220,17 @@
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
 }
 
-.nexus-card-hover {
+.thb-card-hover {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.nexus-card-hover:hover {
+.thb-card-hover:hover {
   box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
 }
 
 /* Badge Utilities */
-.nexus-badge {
+.thb-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
@@ -240,39 +240,39 @@
   line-height: 1.5;
 }
 
-.nexus-badge-primary {
+.thb-badge-primary {
   background: #EFF6FF;
   color: #1D4ED8;
 }
 
-.nexus-badge-success {
+.thb-badge-success {
   background: #ECFDF5;
   color: #059669;
 }
 
-.nexus-badge-warning {
+.thb-badge-warning {
   background: #FFFBEB;
   color: #D97706;
 }
 
-.nexus-badge-error {
+.thb-badge-error {
   background: #FEF2F2;
   color: #DC2626;
 }
 
-.nexus-badge-info {
+.thb-badge-info {
   background: #EFF6FF;
   color: #2563EB;
 }
 
-.nexus-badge-purple {
+.thb-badge-purple {
   background: #F5F3FF;
   color: #7C3AED;
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, var(--nexus-primary) 0%, var(--nexus-accent) 100%);
+  background: linear-gradient(135deg, var(--thb-primary) 0%, var(--thb-accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -286,8 +286,8 @@
 }
 
 body {
-  background: var(--nexus-background);
-  color: var(--nexus-text-primary);
+  background: var(--thb-background);
+  color: var(--thb-text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -295,7 +295,7 @@ body {
 
 /* Focus styles */
 *:focus-visible {
-  outline: 2px solid var(--nexus-primary);
+  outline: 2px solid var(--thb-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -351,13 +351,13 @@ button, a, input, select, textarea {
 /* Mobile touch-friendly improvements */
 @media (max-width: 767px) {
   /* Reduce card shadows on mobile for cleaner look */
-  .nexus-card {
+  .thb-card {
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
     border-radius: 10px;
   }
 
   /* Smaller padding in mobile content */
-  .nexus-card-hover:hover {
+  .thb-card-hover:hover {
     transform: none;
   }
 

@@ -404,9 +404,9 @@ export async function POST() {
     log.push('--- Seeding Users ---');
     const users = await Promise.all([
       db.user.upsert({
-        where: { email: 'admin@nexushrms.com' },
+        where: { email: 'admin@3boxeshrms.com' },
         update: {},
-        create: { email: 'admin@nexushrms.com', password: 'admin123', name: 'Admin Nexus', role: 'super_admin', isActive: true },
+        create: { email: 'admin@3boxeshrms.com', password: 'admin123', name: 'Admin 3Boxes', role: 'super_admin', isActive: true },
       }),
       db.user.upsert({
         where: { email: 'sarah.j@techcorp.com' },

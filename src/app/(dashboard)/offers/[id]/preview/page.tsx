@@ -137,14 +137,14 @@ export default function OfferPreviewPage() {
   };
 
   if (loading) {
-    return <div className="nexus-card p-12 text-center text-nexus-text-muted">Loading offer...</div>;
+    return <div className="thb-card p-12 text-center text-thb-text-muted">Loading offer...</div>;
   }
 
   if (!offer) {
     return (
-      <div className="nexus-card p-12 text-center">
-        <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-        <p className="text-nexus-text-secondary font-medium">Offer not found</p>
+      <div className="thb-card p-12 text-center">
+        <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+        <p className="text-thb-text-secondary font-medium">Offer not found</p>
         <Link href="/offers" className="inline-flex items-center gap-2 mt-4 text-sm text-blue-600 hover:underline">
           <FiArrowLeft className="w-4 h-4" /> Back to Offers
         </Link>
@@ -159,13 +159,13 @@ export default function OfferPreviewPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Link href="/offers" className="inline-flex items-center gap-1 text-xs text-nexus-text-muted hover:text-nexus-text-primary">
+          <Link href="/offers" className="inline-flex items-center gap-1 text-xs text-thb-text-muted hover:text-thb-text-primary">
             <FiArrowLeft className="w-3 h-3" /> Back to Offers
           </Link>
-          <h1 className="text-2xl font-bold text-nexus-text-primary mt-1">
+          <h1 className="text-2xl font-bold text-thb-text-primary mt-1">
             Offer Preview — {offer.candidateName}
           </h1>
-          <p className="text-nexus-text-secondary mt-1 text-sm">
+          <p className="text-thb-text-secondary mt-1 text-sm">
             {offer.position} • {offer.offeredCurrency} {offer.offeredSalary?.toLocaleString()} • Joining {offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString() : '—'}
           </p>
         </div>
@@ -173,7 +173,7 @@ export default function OfferPreviewPage() {
           <button
             onClick={handleRegenerate}
             disabled={regenerating}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 disabled:opacity-50 transition-colors"
           >
             <FiRefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
             {regenerating ? 'Regenerating...' : 'Regenerate'}
@@ -196,22 +196,22 @@ export default function OfferPreviewPage() {
       </div>
 
       {/* Status bar */}
-      <div className="nexus-card p-3 flex flex-wrap items-center gap-3 text-xs">
-        <span className="text-nexus-text-secondary">Status:</span>
+      <div className="thb-card p-3 flex flex-wrap items-center gap-3 text-xs">
+        <span className="text-thb-text-secondary">Status:</span>
         <span className={`px-2 py-0.5 rounded-full font-medium ${offer.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : offer.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
           {offer.status}
         </span>
         {offer.templateId && (
-          <span className="text-nexus-text-muted">Template: <span className="font-mono">{offer.templateId.slice(0, 8)}...</span></span>
+          <span className="text-thb-text-muted">Template: <span className="font-mono">{offer.templateId.slice(0, 8)}...</span></span>
         )}
         {offer.generatedAt && (
-          <span className="text-nexus-text-muted">Generated: {new Date(offer.generatedAt).toLocaleString()}</span>
+          <span className="text-thb-text-muted">Generated: {new Date(offer.generatedAt).toLocaleString()}</span>
         )}
         {offer.esignEnvelopeId && (
-          <span className="text-nexus-text-muted">Envelope: <span className="font-mono">{offer.esignEnvelopeId}</span></span>
+          <span className="text-thb-text-muted">Envelope: <span className="font-mono">{offer.esignEnvelopeId}</span></span>
         )}
         {offer.esignProvider && (
-          <span className="text-nexus-text-muted">Provider: {offer.esignProvider}</span>
+          <span className="text-thb-text-muted">Provider: {offer.esignProvider}</span>
         )}
         {offer.signedPdfUrl && (
           <a
@@ -226,7 +226,7 @@ export default function OfferPreviewPage() {
       </div>
 
       {/* Preview iframe */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         {previewHtml ? (
           <iframe
             title="Offer Letter Preview"
@@ -236,9 +236,9 @@ export default function OfferPreviewPage() {
           />
         ) : (
           <div className="p-12 text-center">
-            <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-            <p className="text-nexus-text-secondary font-medium">No preview generated yet</p>
-            <p className="text-sm text-nexus-text-muted mt-1">Click &quot;Regenerate&quot; to render the offer letter.</p>
+            <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+            <p className="text-thb-text-secondary font-medium">No preview generated yet</p>
+            <p className="text-sm text-thb-text-muted mt-1">Click &quot;Regenerate&quot; to render the offer letter.</p>
           </div>
         )}
       </div>

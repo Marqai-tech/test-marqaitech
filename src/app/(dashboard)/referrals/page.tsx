@@ -100,13 +100,13 @@ function formatRelativeTime(dateStr: string): string {
 
 function getReferralStatusBadge(status: string): { className: string; label: string; color: string } {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    applied: 'nexus-badge nexus-badge-info',
-    interviewed: 'bg-orange-50 text-orange-700 nexus-badge',
-    offered: 'nexus-badge nexus-badge-purple',
-    hired: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
-    bonus_paid: 'nexus-badge nexus-badge-success',
+    pending: 'thb-badge thb-badge-warning',
+    applied: 'thb-badge thb-badge-info',
+    interviewed: 'bg-orange-50 text-orange-700 thb-badge',
+    offered: 'thb-badge thb-badge-purple',
+    hired: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
+    bonus_paid: 'thb-badge thb-badge-success',
   };
   const labels: Record<string, string> = {
     pending: 'Pending',
@@ -127,7 +127,7 @@ function getReferralStatusBadge(status: string): { className: string; label: str
     bonus_paid: 'text-emerald-700',
   };
   return {
-    className: map[status] || 'nexus-badge nexus-badge-info',
+    className: map[status] || 'thb-badge thb-badge-info',
     label: labels[status] || status,
     color: colors[status] || 'text-slate-600',
   };
@@ -458,11 +458,11 @@ export default function ReferralsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiShare2 className="w-6 h-6 text-violet-500" />
             Employee Referral Portal
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Share open roles with your network — earn bonuses when your referrals get hired.
           </p>
         </div>
@@ -506,8 +506,8 @@ export default function ReferralsPage() {
       </div>
 
       {/* Bonus currency selector (defaults new referrals to this currency) */}
-      <div className="nexus-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-        <div className="flex items-center gap-2 text-sm text-nexus-text-secondary">
+      <div className="thb-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-2 text-sm text-thb-text-secondary">
           <FiInfo className="w-4 h-4 text-violet-500" />
           <span>Default bonus currency for new referrals you create:</span>
         </div>
@@ -520,23 +520,23 @@ export default function ReferralsPage() {
             <option key={c} value={c}>{c} ({currencySymbol(c)})</option>
           ))}
         </select>
-        <p className="text-xs text-nexus-text-muted sm:ml-auto">
+        <p className="text-xs text-thb-text-muted sm:ml-auto">
           Actual bonus amount is set by HR after the offer is accepted.
         </p>
       </div>
 
       {/* Open Jobs section */}
-      <div className="nexus-card p-5">
+      <div className="thb-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
               <FiBriefcase className="w-5 h-5 text-violet-500" /> Open Positions
             </h2>
-            <p className="text-xs text-nexus-text-secondary mt-0.5">
+            <p className="text-xs text-thb-text-secondary mt-0.5">
               Generate a trackable link for any open role, then share it across your network.
             </p>
           </div>
-          <span className="nexus-badge nexus-badge-info">{jobs.length} open</span>
+          <span className="thb-badge thb-badge-info">{jobs.length} open</span>
         </div>
 
         {loadingJobs ? (
@@ -575,13 +575,13 @@ export default function ReferralsPage() {
       </div>
 
       {/* My Referrals table */}
-      <div className="nexus-card p-5">
+      <div className="thb-card p-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
               <FiUsers className="w-5 h-5 text-violet-500" /> My Referrals
             </h2>
-            <p className="text-xs text-nexus-text-secondary mt-0.5">
+            <p className="text-xs text-thb-text-secondary mt-0.5">
               Showing {filteredReferrals.length} of {referrals.length} referrals
             </p>
           </div>
@@ -632,7 +632,7 @@ export default function ReferralsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">
+                <tr className="border-b border-slate-200 text-left text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">
                   <th className="py-2.5 px-2">Candidate</th>
                   <th className="py-2.5 px-2">Role</th>
                   <th className="py-2.5 px-2">Status</th>
@@ -654,7 +654,7 @@ export default function ReferralsPage() {
                         onClick={() => setExpandedReferralId(isExpanded ? null : r.id)}
                       >
                         <td className="py-3 px-2">
-                          <div className="font-medium text-nexus-text-primary">
+                          <div className="font-medium text-thb-text-primary">
                             {isPlaceholder ? (
                               <span className="text-slate-400 italic">Awaiting candidate</span>
                             ) : (
@@ -662,13 +662,13 @@ export default function ReferralsPage() {
                             )}
                           </div>
                           {!isPlaceholder && (
-                            <div className="text-xs text-nexus-text-muted">{r.candidateEmail}</div>
+                            <div className="text-xs text-thb-text-muted">{r.candidateEmail}</div>
                           )}
                         </td>
-                        <td className="py-3 px-2 text-nexus-text-secondary">
+                        <td className="py-3 px-2 text-thb-text-secondary">
                           {r.jobPosting?.title || '—'}
                           {r.jobPosting?.location && (
-                            <div className="text-xs text-nexus-text-muted flex items-center gap-1 mt-0.5">
+                            <div className="text-xs text-thb-text-muted flex items-center gap-1 mt-0.5">
                               <FiMapPin className="w-3 h-3" /> {r.jobPosting.location}
                             </div>
                           )}
@@ -677,7 +677,7 @@ export default function ReferralsPage() {
                           <span className={badge.className}>{badge.label}</span>
                         </td>
                         <td className="py-3 px-2 text-center">
-                          <span className="inline-flex items-center gap-1 text-nexus-text-secondary">
+                          <span className="inline-flex items-center gap-1 text-thb-text-secondary">
                             <FiLink2 className="w-3.5 h-3.5 text-slate-400" />
                             {r.clickCount || 0}
                           </span>
@@ -688,14 +688,14 @@ export default function ReferralsPage() {
                               {formatBonus(r.bonusAmount, r.bonusCurrency)}
                             </span>
                           ) : r.bonusAmount ? (
-                            <span className="text-nexus-text-muted">
+                            <span className="text-thb-text-muted">
                               {formatBonus(r.bonusAmount, r.bonusCurrency)}*
                             </span>
                           ) : (
-                            <span className="text-nexus-text-muted">—</span>
+                            <span className="text-thb-text-muted">—</span>
                           )}
                         </td>
-                        <td className="py-3 px-2 text-xs text-nexus-text-secondary">
+                        <td className="py-3 px-2 text-xs text-thb-text-secondary">
                           {formatRelativeTime(r.createdAt)}
                         </td>
                         <td className="py-3 px-2 text-right">
@@ -704,7 +704,7 @@ export default function ReferralsPage() {
                               e.stopPropagation();
                               setExpandedReferralId(isExpanded ? null : r.id);
                             }}
-                            className="p-1 rounded hover:bg-slate-200 text-nexus-text-muted"
+                            className="p-1 rounded hover:bg-slate-200 text-thb-text-muted"
                           >
                             {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
                           </button>
@@ -715,24 +715,24 @@ export default function ReferralsPage() {
                           <td colSpan={7} className="px-4 py-3">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                               <div>
-                                <p className="font-semibold text-nexus-text-secondary uppercase tracking-wider mb-1">Candidate</p>
-                                <p className="text-nexus-text-primary">{r.candidateName}</p>
-                                <p className="text-nexus-text-muted">{r.candidateEmail}</p>
-                                {r.candidatePhone && <p className="text-nexus-text-muted">{r.candidatePhone}</p>}
+                                <p className="font-semibold text-thb-text-secondary uppercase tracking-wider mb-1">Candidate</p>
+                                <p className="text-thb-text-primary">{r.candidateName}</p>
+                                <p className="text-thb-text-muted">{r.candidateEmail}</p>
+                                {r.candidatePhone && <p className="text-thb-text-muted">{r.candidatePhone}</p>}
                               </div>
                               <div>
-                                <p className="font-semibold text-nexus-text-secondary uppercase tracking-wider mb-1">Tracking</p>
-                                <p className="text-nexus-text-primary">
+                                <p className="font-semibold text-thb-text-secondary uppercase tracking-wider mb-1">Tracking</p>
+                                <p className="text-thb-text-primary">
                                   Token: <code className="px-1 py-0.5 bg-slate-100 rounded text-[10px]">{r.trackToken.substring(0, 12)}…</code>
                                 </p>
-                                <p className="text-nexus-text-muted">Clicks: {r.clickCount || 0}</p>
-                                <p className="text-nexus-text-muted">Created: {formatDate(r.createdAt)}</p>
+                                <p className="text-thb-text-muted">Clicks: {r.clickCount || 0}</p>
+                                <p className="text-thb-text-muted">Created: {formatDate(r.createdAt)}</p>
                                 {r.hiredAt && <p className="text-emerald-700 font-medium">Hired: {formatDate(r.hiredAt)}</p>}
                                 {r.bonusPaidAt && <p className="text-emerald-700 font-medium">Bonus paid: {formatDate(r.bonusPaidAt)}</p>}
                               </div>
                               <div>
-                                <p className="font-semibold text-nexus-text-secondary uppercase tracking-wider mb-1">Notes</p>
-                                <p className="text-nexus-text-muted whitespace-pre-wrap">
+                                <p className="font-semibold text-thb-text-secondary uppercase tracking-wider mb-1">Notes</p>
+                                <p className="text-thb-text-muted whitespace-pre-wrap">
                                   {r.notes || 'No notes provided.'}
                                 </p>
                                 {r.status === 'pending' && (
@@ -756,7 +756,7 @@ export default function ReferralsPage() {
                 })}
               </tbody>
             </table>
-            <p className="text-xs text-nexus-text-muted mt-2">
+            <p className="text-xs text-thb-text-muted mt-2">
               <span className="text-emerald-700 font-medium">* Bonus amount shown is provisional.</span> Final payout is confirmed by HR after the offer is accepted.
             </p>
           </div>
@@ -765,16 +765,16 @@ export default function ReferralsPage() {
 
       {/* Manual referral form */}
       {showForm && (
-        <div className="nexus-card border-l-4 border-l-violet-500 p-5">
+        <div className="thb-card border-l-4 border-l-violet-500 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-nexus-text-primary">Refer a Candidate</h2>
-            <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+            <h2 className="text-lg font-semibold text-thb-text-primary">Refer a Candidate</h2>
+            <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
               <FiX className="w-5 h-5" />
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Job *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job *</label>
               <select
                 value={formJobId}
                 onChange={(e) => setFormJobId(e.target.value)}
@@ -787,7 +787,7 @@ export default function ReferralsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Name *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
               <input
                 value={form.candidateName}
                 onChange={(e) => setForm({ ...form, candidateName: e.target.value })}
@@ -796,7 +796,7 @@ export default function ReferralsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Email *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Email *</label>
               <input
                 type="email"
                 value={form.candidateEmail}
@@ -806,7 +806,7 @@ export default function ReferralsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Candidate Phone</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Phone</label>
               <input
                 value={form.candidatePhone}
                 onChange={(e) => setForm({ ...form, candidatePhone: e.target.value })}
@@ -815,7 +815,7 @@ export default function ReferralsPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Notes (optional)</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Notes (optional)</label>
               <textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -846,7 +846,7 @@ export default function ReferralsPage() {
       <ModuleTips moduleKey="referrals" tips={referralTips} />
 
       {/* Hidden SEO helper: link to careers page for employees who want to see what candidates see */}
-      <div className="text-center text-xs text-nexus-text-muted pt-2">
+      <div className="text-center text-xs text-thb-text-muted pt-2">
         <Link href="/careers" className="inline-flex items-center gap-1 hover:text-violet-600 transition-colors">
           <FiExternalLink className="w-3 h-3" /> View public careers page
         </Link>
@@ -868,14 +868,14 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="nexus-card p-4 flex items-start gap-3">
+    <div className="thb-card p-4 flex items-start gap-3">
       <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${accent} flex items-center justify-center text-white flex-shrink-0`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold text-nexus-text-muted uppercase tracking-wider">{label}</p>
-        <p className="text-lg font-bold text-nexus-text-primary truncate">{value}</p>
-        {sub && <p className="text-[10px] text-nexus-text-muted">{sub}</p>}
+        <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">{label}</p>
+        <p className="text-lg font-bold text-thb-text-primary truncate">{value}</p>
+        {sub && <p className="text-[10px] text-thb-text-muted">{sub}</p>}
       </div>
     </div>
   );
@@ -903,17 +903,17 @@ function JobShareCard({
     <div className="border border-slate-200 rounded-xl p-4 flex flex-col hover:border-violet-300 hover:shadow-md transition-all">
       <div className="flex items-start justify-between mb-2">
         <div className="min-w-0">
-          <p className="font-bold text-nexus-text-primary truncate">{job.title}</p>
-          <p className="text-xs text-nexus-text-muted">
+          <p className="font-bold text-thb-text-primary truncate">{job.title}</p>
+          <p className="text-xs text-thb-text-muted">
             {job.department?.name || '—'}
             {job.location && ` · ${job.location}`}
             {job.type && ` · ${job.type}`}
           </p>
         </div>
-        <span className="nexus-badge nexus-badge-success flex-shrink-0">Open</span>
+        <span className="thb-badge thb-badge-success flex-shrink-0">Open</span>
       </div>
 
-      <p className="text-xs text-nexus-text-secondary line-clamp-2 mb-3 flex-1">
+      <p className="text-xs text-thb-text-secondary line-clamp-2 mb-3 flex-1">
         {job.description.replace(/<[^>]+>/g, '').slice(0, 140)}
         {job.description.length > 140 && '…'}
       </p>
@@ -977,7 +977,7 @@ function JobShareCard({
           </div>
 
           {/* Clicks + manual refer row */}
-          <div className="flex items-center justify-between text-xs text-nexus-text-muted pt-1">
+          <div className="flex items-center justify-between text-xs text-thb-text-muted pt-1">
             <span className="inline-flex items-center gap-1">
               <FiLink2 className="w-3 h-3" /> {link.clickCount || 0} click{link.clickCount === 1 ? '' : 's'}
             </span>

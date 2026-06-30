@@ -123,7 +123,7 @@ export default function PermissionPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Apply for time off in 15-min increments · AI auto-approval enabled</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
           <FiPlus className="w-4 h-4" /> Apply Permission
         </button>
       </div>
@@ -133,7 +133,7 @@ export default function PermissionPage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="nexus-card p-6 border-l-4 border-l-amber-500">
+        <div className="thb-card p-6 border-l-4 border-l-amber-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Permission Request</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -141,20 +141,20 @@ export default function PermissionPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
-              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="nexus-input w-full" />
+              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Start Time *</label>
-              <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="nexus-input w-full" />
+              <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">End Time *</label>
-              <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="nexus-input w-full" />
+              <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
-            <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="nexus-input w-full" placeholder="e.g. Bank visit, personal errand" />
+            <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Bank visit, personal errand" />
           </div>
           {computedHours > 0 && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
@@ -165,8 +165,8 @@ export default function PermissionPage() {
             </div>
           )}
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary flex items-center gap-2">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
               {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
               Submit Request
             </button>
@@ -174,7 +174,7 @@ export default function PermissionPage() {
         </div>
       )}
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -205,9 +205,9 @@ export default function PermissionPage() {
                   <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{r.reason}</td>
                   <td className="px-4 py-3 text-slate-700">{r.adjustedCheckOut ? fmtTime(r.adjustedCheckOut) : '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`nexus-badge ${
-                      r.status === 'approved' ? 'nexus-badge-success' :
-                      r.status === 'rejected' ? 'nexus-badge-error' : 'nexus-badge-warning'
+                    <span className={`thb-badge ${
+                      r.status === 'approved' ? 'thb-badge-success' :
+                      r.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>
                       {r.status}
                       {r.autoApproved && <span className="ml-1 text-[9px]"><FiZap className="inline w-2.5 h-2.5" /> AI</span>}

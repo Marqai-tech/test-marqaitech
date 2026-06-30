@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     const anaDept = await db.department.create({ data: { name: 'Analytics', code: 'ANA', companyId: tcg.id } });
 
     // ==================== USERS ====================
-    const adminUser = await db.user.create({ data: { email: 'admin@nexushrms.com', password: 'admin123', name: 'Admin Nexus', role: 'super_admin', isActive: true } });
+    const adminUser = await db.user.create({ data: { email: 'admin@3boxeshrms.com', password: 'admin123', name: 'Admin 3Boxes', role: 'super_admin', isActive: true } });
     const sarahUser = await db.user.create({ data: { email: 'sarah.j@techcorp.com', password: 'sarah123', name: 'Sarah Johnson', role: 'company_hr_admin', companyId: tcg.id, isActive: true } });
     const rajUser = await db.user.create({ data: { email: 'raj.p@techcorp.com', password: 'raj123', name: 'Raj Patel', role: 'reporting_manager', companyId: tcg.id, isActive: true } });
     const emilyUser = await db.user.create({ data: { email: 'emily.c@techcorp.com', password: 'emily123', name: 'Emily Chen', role: 'employee', companyId: tcg.id, isActive: true } });

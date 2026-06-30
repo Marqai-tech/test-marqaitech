@@ -59,17 +59,17 @@ export default function StorageAnalyticsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBarChart2 className="w-6 h-6 text-emerald-500" />
             Storage Analytics
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             View which Sub-Company or Project is consuming the most file storage and request cleanup
           </p>
         </div>
         <button
           onClick={fetchAnalytics}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md"
         >
           <FiRefreshCw className="w-3.5 h-3.5" />
           Refresh
@@ -77,47 +77,47 @@ export default function StorageAnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="nexus-card p-8 text-center text-sm text-nexus-text-muted">Loading analytics...</div>
+        <div className="thb-card p-8 text-center text-sm text-thb-text-muted">Loading analytics...</div>
       ) : !data ? (
-        <div className="nexus-card p-8 text-center text-sm text-nexus-text-muted">Failed to load analytics</div>
+        <div className="thb-card p-8 text-center text-sm text-thb-text-muted">Failed to load analytics</div>
       ) : (
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Used</p>
-              <p className="text-2xl font-bold text-nexus-text-primary mt-1">{formatBytes(data.usedBytes)}</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Total Used</p>
+              <p className="text-2xl font-bold text-thb-text-primary mt-1">{formatBytes(data.usedBytes)}</p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Quota</p>
-              <p className="text-2xl font-bold text-nexus-text-primary mt-1">
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Total Quota</p>
+              <p className="text-2xl font-bold text-thb-text-primary mt-1">
                 {data.quota ? formatBytes(data.quota.totalQuotaBytes) : '—'}
               </p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Usage</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Usage</p>
               <p className={`text-2xl font-bold mt-1 ${data.usagePercent > 85 ? 'text-red-600' : data.usagePercent > 60 ? 'text-amber-600' : 'text-emerald-600'}`}>
                 {data.usagePercent.toFixed(1)}%
               </p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Cleanup Candidates</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Cleanup Candidates</p>
               <p className="text-2xl font-bold text-amber-600 mt-1">{data.cleanupCandidates}</p>
-              <p className="text-[10px] text-nexus-text-muted">files &gt;90 days old</p>
+              <p className="text-[10px] text-thb-text-muted">files &gt;90 days old</p>
             </div>
           </div>
 
           {/* Usage bar */}
           {data.quota && (
-            <div className="nexus-card p-4">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Storage Usage</h3>
+            <div className="thb-card p-4">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Storage Usage</h3>
               <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${data.usagePercent > 85 ? 'bg-red-500' : data.usagePercent > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                   style={{ width: `${Math.min(100, data.usagePercent)}%` }}
                 />
               </div>
-              <p className="text-xs text-nexus-text-muted mt-2">
+              <p className="text-xs text-thb-text-muted mt-2">
                 {formatBytes(data.usedBytes)} of {formatBytes(data.quota.totalQuotaBytes)} used
               </p>
             </div>
@@ -126,18 +126,18 @@ export default function StorageAnalyticsPage() {
           {/* Breakdown tables */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {data.breakdown.company.length > 0 && (
-              <div className="nexus-card overflow-hidden">
-                <div className="p-3 border-b border-nexus-border">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary">By Sub-Company</h3>
+              <div className="thb-card overflow-hidden">
+                <div className="p-3 border-b border-thb-border">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">By Sub-Company</h3>
                 </div>
-                <div className="divide-y divide-nexus-border">
+                <div className="divide-y divide-thb-border">
                   {data.breakdown.company.map((item, i) => (
                     <div key={i} className="p-3 flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-medium text-nexus-text-primary">{item.companyId?.substring(0, 12) || '—'}...</p>
-                        <p className="text-[10px] text-nexus-text-muted">{item.count} file{item.count !== 1 ? 's' : ''}</p>
+                        <p className="text-xs font-medium text-thb-text-primary">{item.companyId?.substring(0, 12) || '—'}...</p>
+                        <p className="text-[10px] text-thb-text-muted">{item.count} file{item.count !== 1 ? 's' : ''}</p>
                       </div>
-                      <span className="text-xs font-medium text-nexus-text-secondary">{formatBytes(item.bytes)}</span>
+                      <span className="text-xs font-medium text-thb-text-secondary">{formatBytes(item.bytes)}</span>
                     </div>
                   ))}
                 </div>
@@ -145,18 +145,18 @@ export default function StorageAnalyticsPage() {
             )}
 
             {data.breakdown.project.length > 0 && (
-              <div className="nexus-card overflow-hidden">
-                <div className="p-3 border-b border-nexus-border">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary">By Project</h3>
+              <div className="thb-card overflow-hidden">
+                <div className="p-3 border-b border-thb-border">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">By Project</h3>
                 </div>
-                <div className="divide-y divide-nexus-border">
+                <div className="divide-y divide-thb-border">
                   {data.breakdown.project.map((item, i) => (
                     <div key={i} className="p-3 flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-medium text-nexus-text-primary">{item.projectId?.substring(0, 12) || '—'}...</p>
-                        <p className="text-[10px] text-nexus-text-muted">{item.count} file{item.count !== 1 ? 's' : ''}</p>
+                        <p className="text-xs font-medium text-thb-text-primary">{item.projectId?.substring(0, 12) || '—'}...</p>
+                        <p className="text-[10px] text-thb-text-muted">{item.count} file{item.count !== 1 ? 's' : ''}</p>
                       </div>
-                      <span className="text-xs font-medium text-nexus-text-secondary">{formatBytes(item.bytes)}</span>
+                      <span className="text-xs font-medium text-thb-text-secondary">{formatBytes(item.bytes)}</span>
                     </div>
                   ))}
                 </div>
@@ -164,18 +164,18 @@ export default function StorageAnalyticsPage() {
             )}
 
             {data.breakdown.personal.length > 0 && (
-              <div className="nexus-card overflow-hidden">
-                <div className="p-3 border-b border-nexus-border">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary">By Employee (Personal Drive)</h3>
+              <div className="thb-card overflow-hidden">
+                <div className="p-3 border-b border-thb-border">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">By Employee (Personal Drive)</h3>
                 </div>
-                <div className="divide-y divide-nexus-border max-h-60 overflow-y-auto">
+                <div className="divide-y divide-thb-border max-h-60 overflow-y-auto">
                   {data.breakdown.personal.slice(0, 20).map((item, i) => (
                     <div key={i} className="p-3 flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-medium text-nexus-text-primary">{item.ownerEmployeeId?.substring(0, 12) || '—'}...</p>
-                        <p className="text-[10px] text-nexus-text-muted">{item.count} file{item.count !== 1 ? 's' : ''}</p>
+                        <p className="text-xs font-medium text-thb-text-primary">{item.ownerEmployeeId?.substring(0, 12) || '—'}...</p>
+                        <p className="text-[10px] text-thb-text-muted">{item.count} file{item.count !== 1 ? 's' : ''}</p>
                       </div>
-                      <span className="text-xs font-medium text-nexus-text-secondary">{formatBytes(item.bytes)}</span>
+                      <span className="text-xs font-medium text-thb-text-secondary">{formatBytes(item.bytes)}</span>
                     </div>
                   ))}
                 </div>

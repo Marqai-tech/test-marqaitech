@@ -23,13 +23,13 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'nexus-badge bg-slate-100 text-slate-600',
-    active: 'nexus-badge nexus-badge-success',
-    on_hold: 'nexus-badge nexus-badge-warning',
-    completed: 'nexus-badge nexus-badge-info',
-    cancelled: 'nexus-badge nexus-badge-error',
+    draft: 'thb-badge bg-slate-100 text-slate-600',
+    active: 'thb-badge thb-badge-success',
+    on_hold: 'thb-badge thb-badge-warning',
+    completed: 'thb-badge thb-badge-info',
+    cancelled: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function formatStatus(status: string) {
@@ -393,11 +393,11 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiBriefcase className="w-6 h-6 text-violet-500" />
             Projects
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage projects, tasks, and team allocations</p>
+          <p className="text-thb-text-secondary mt-1">Manage projects, tasks, and team allocations</p>
         </div>
         <button
           onClick={handleAddNew}
@@ -413,36 +413,36 @@ export default function ProjectsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="nexus-card p-5">
+        <div className="thb-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiGrid className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active Projects</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{activeCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active Projects</p>
+              <p className="text-xl font-bold text-thb-text-primary">{activeCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-5">
+        <div className="thb-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Completed</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{completedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Completed</p>
+              <p className="text-xl font-bold text-thb-text-primary">{completedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-5">
+        <div className="thb-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
               <FiBriefcase className="w-5 h-5 text-violet-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Budget</p>
-              <p className="text-xl font-bold text-nexus-text-primary">${totalBudget.toLocaleString()}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Budget</p>
+              <p className="text-xl font-bold text-thb-text-primary">${totalBudget.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -453,13 +453,13 @@ export default function ProjectsPage() {
         const item = viewingProject || projects.find(p => p.id === viewingId);
         if (!item) return null;
         return (
-          <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+          <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-nexus-text-primary">Project Details</h2>
+                  <h2 className="text-lg font-semibold text-thb-text-primary">Project Details</h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-nexus-text-muted">{item.code || 'No code'}</span>
+                    <span className="text-xs text-thb-text-muted">{item.code || 'No code'}</span>
                     <span className={getStatusBadge(item.status)}>{formatStatus(item.status)}</span>
                   </div>
                 </div>
@@ -473,7 +473,7 @@ export default function ProjectsPage() {
                   </button>
                   <button
                     onClick={() => { setViewingId(null); setViewingProject(null); }}
-                    className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                    className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                   >
                     <FiX className="w-5 h-5" />
                   </button>
@@ -483,42 +483,42 @@ export default function ProjectsPage() {
               {/* Read-only fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Name</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.name}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Name</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.name}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Code</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.code || '—'}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Code</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.code || '—'}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Project Type</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{formatProjectType(item.projectType)}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Project Type</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{formatProjectType(item.projectType)}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Billing Type</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{formatBillingType(item.billingType)}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Billing Type</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{formatBillingType(item.billingType)}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Client</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.client?.name || '—'}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Client</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.client?.name || '—'}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Department</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.department?.name || '—'}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Department</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.department?.name || '—'}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Start Date</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{formatDate(item.startDate)}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Start Date</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{formatDate(item.startDate)}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">End Date</span>
-                  <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{formatDate(item.endDate)}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">End Date</span>
+                  <p className="text-sm font-medium text-thb-text-primary mt-0.5">{formatDate(item.endDate)}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-nexus-text-secondary">Progress</span>
+                  <span className="text-xs font-medium text-thb-text-secondary">Progress</span>
                   <div className="mt-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-nexus-text-muted">{item.progress}%</span>
+                      <span className="text-xs text-thb-text-muted">{item.progress}%</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${item.progress}%` }} />
@@ -529,8 +529,8 @@ export default function ProjectsPage() {
 
               {item.description && (
                 <div className="mb-6">
-                  <span className="text-xs font-medium text-nexus-text-secondary">Description</span>
-                  <p className="text-sm text-nexus-text-primary mt-0.5 whitespace-pre-wrap">{item.description}</p>
+                  <span className="text-xs font-medium text-thb-text-secondary">Description</span>
+                  <p className="text-sm text-thb-text-primary mt-0.5 whitespace-pre-wrap">{item.description}</p>
                 </div>
               )}
 
@@ -540,7 +540,7 @@ export default function ProjectsPage() {
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${detailTab === tab ? 'bg-white shadow-sm text-nexus-text-primary' : 'text-nexus-text-secondary hover:text-nexus-text-primary'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${detailTab === tab ? 'bg-white shadow-sm text-thb-text-primary' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}
                   >
                     {tab}
                   </button>
@@ -562,16 +562,16 @@ export default function ProjectsPage() {
                           return (
                             <div key={col.key} className={`border-t-2 ${col.color} rounded-lg`}>
                               <div className="px-3 py-2 bg-slate-50 rounded-t-lg">
-                                <h4 className="text-xs font-semibold text-nexus-text-secondary">{col.label} ({colTasks.length})</h4>
+                                <h4 className="text-xs font-semibold text-thb-text-secondary">{col.label} ({colTasks.length})</h4>
                               </div>
                               <div className="p-2 space-y-2 min-h-[80px] max-h-64 overflow-y-auto">
                                 {colTasks.length === 0 ? (
-                                  <p className="text-xs text-nexus-text-muted text-center py-4">No tasks</p>
+                                  <p className="text-xs text-thb-text-muted text-center py-4">No tasks</p>
                                 ) : (
                                   colTasks.map((t) => (
-                                    <div key={t.id} className="p-2 bg-white border border-nexus-border rounded-lg text-xs">
-                                      <p className="font-medium text-nexus-text-primary">{t.name}</p>
-                                      <p className="text-nexus-text-muted mt-1">{t.estimatedHours}h est.</p>
+                                    <div key={t.id} className="p-2 bg-white border border-thb-border rounded-lg text-xs">
+                                      <p className="font-medium text-thb-text-primary">{t.name}</p>
+                                      <p className="text-thb-text-muted mt-1">{t.estimatedHours}h est.</p>
                                     </div>
                                   ))
                                 )}
@@ -586,12 +586,12 @@ export default function ProjectsPage() {
                           value={newTask.name}
                           onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
                           placeholder="New task name..."
-                          className="flex-1 px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                          className="flex-1 px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                         />
                         <select
                           value={newTask.priority}
                           onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                          className="px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                          className="px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                         >
                           <option value="low">Low</option>
                           <option value="medium">Medium</option>
@@ -612,22 +612,22 @@ export default function ProjectsPage() {
                   {detailTab === 'team' && (
                     <div className="space-y-2">
                       {(item.allocations || []).length === 0 ? (
-                        <p className="text-sm text-nexus-text-muted text-center py-8">No team members allocated</p>
+                        <p className="text-sm text-thb-text-muted text-center py-8">No team members allocated</p>
                       ) : (
                         (item.allocations || []).map((a) => (
-                          <div key={a.id} className="flex items-center justify-between p-3 border border-nexus-border rounded-lg">
+                          <div key={a.id} className="flex items-center justify-between p-3 border border-thb-border rounded-lg">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-xs font-semibold text-violet-700">
                                 {a.employee.firstName[0]}{a.employee.lastName[0]}
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-nexus-text-primary">{a.employee.firstName} {a.employee.lastName}</p>
-                                <p className="text-xs text-nexus-text-muted">{a.role || 'Team Member'}</p>
+                                <p className="text-sm font-medium text-thb-text-primary">{a.employee.firstName} {a.employee.lastName}</p>
+                                <p className="text-xs text-thb-text-muted">{a.role || 'Team Member'}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-nexus-text-secondary">{a.allocationPct}%</span>
-                              <span className={a.status === 'active' ? 'nexus-badge nexus-badge-success' : 'nexus-badge bg-slate-100 text-slate-600'}>
+                              <span className="text-xs text-thb-text-secondary">{a.allocationPct}%</span>
+                              <span className={a.status === 'active' ? 'thb-badge thb-badge-success' : 'thb-badge bg-slate-100 text-slate-600'}>
                                 {a.status}
                               </span>
                             </div>
@@ -641,19 +641,19 @@ export default function ProjectsPage() {
                   {detailTab === 'milestones' && (
                     <div className="space-y-2">
                       {(item.milestones || []).length === 0 ? (
-                        <p className="text-sm text-nexus-text-muted text-center py-8">No milestones defined</p>
+                        <p className="text-sm text-thb-text-muted text-center py-8">No milestones defined</p>
                       ) : (
                         (item.milestones || []).map((m) => (
-                          <div key={m.id} className="flex items-center justify-between p-3 border border-nexus-border rounded-lg">
+                          <div key={m.id} className="flex items-center justify-between p-3 border border-thb-border rounded-lg">
                             <div>
-                              <p className="text-sm font-medium text-nexus-text-primary">{m.name}</p>
-                              <p className="text-xs text-nexus-text-muted">Due: {formatDate(m.plannedDate)}</p>
+                              <p className="text-sm font-medium text-thb-text-primary">{m.name}</p>
+                              <p className="text-xs text-thb-text-muted">Due: {formatDate(m.plannedDate)}</p>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="w-24 h-2 bg-slate-100 rounded-full">
                                 <div className="h-full bg-blue-500 rounded-full" style={{ width: `${m.completionPct}%` }} />
                               </div>
-                              <span className="text-xs text-nexus-text-secondary">{m.completionPct}%</span>
+                              <span className="text-xs text-thb-text-secondary">{m.completionPct}%</span>
                             </div>
                           </div>
                         ))
@@ -665,20 +665,20 @@ export default function ProjectsPage() {
                   {detailTab === 'billing' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="p-4 bg-slate-50 rounded-lg">
-                        <p className="text-xs font-medium text-nexus-text-secondary">Budget</p>
-                        <p className="text-xl font-bold text-nexus-text-primary">${item.budgetAmount?.toLocaleString() || 0}</p>
+                        <p className="text-xs font-medium text-thb-text-secondary">Budget</p>
+                        <p className="text-xl font-bold text-thb-text-primary">${item.budgetAmount?.toLocaleString() || 0}</p>
                       </div>
                       <div className="p-4 bg-slate-50 rounded-lg">
-                        <p className="text-xs font-medium text-nexus-text-secondary">Billing Type</p>
-                        <p className="text-xl font-bold text-nexus-text-primary">{formatBillingType(item.billingType)}</p>
+                        <p className="text-xs font-medium text-thb-text-secondary">Billing Type</p>
+                        <p className="text-xl font-bold text-thb-text-primary">{formatBillingType(item.billingType)}</p>
                       </div>
                       <div className="p-4 bg-slate-50 rounded-lg">
-                        <p className="text-xs font-medium text-nexus-text-secondary">Est. Hours</p>
-                        <p className="text-xl font-bold text-nexus-text-primary">{item.estimatedHours || 0}h</p>
+                        <p className="text-xs font-medium text-thb-text-secondary">Est. Hours</p>
+                        <p className="text-xl font-bold text-thb-text-primary">{item.estimatedHours || 0}h</p>
                       </div>
                       <div className="p-4 bg-slate-50 rounded-lg">
-                        <p className="text-xs font-medium text-nexus-text-secondary">Currency</p>
-                        <p className="text-xl font-bold text-nexus-text-primary">{item.currency || 'INR'}</p>
+                        <p className="text-xs font-medium text-thb-text-secondary">Currency</p>
+                        <p className="text-xl font-bold text-thb-text-primary">{item.currency || 'INR'}</p>
                       </div>
                     </div>
                   )}
@@ -691,15 +691,15 @@ export default function ProjectsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Project' : 'Create Project'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -707,43 +707,43 @@ export default function ProjectsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="Project name"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Code</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label>
                 <input
                   type="text"
                   value={form.code}
                   onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="PRJ-001"
                 />
               </div>
               {!editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label>
                   <input
                     type="text"
                     value={form.companyId}
                     onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Company ID"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Project Type</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Project Type</label>
                 <select
                   value={form.projectType}
                   onChange={(e) => setForm({ ...form, projectType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="internal">Internal</option>
                   <option value="client">Client</option>
@@ -752,11 +752,11 @@ export default function ProjectsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Billing Type</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Billing Type</label>
                 <select
                   value={form.billingType}
                   onChange={(e) => setForm({ ...form, billingType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="fixed">Fixed</option>
                   <option value="time_and_material">T&M</option>
@@ -767,11 +767,11 @@ export default function ProjectsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                 <select
                   value={form.currency}
                   onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   <option value="INR">INR</option>
                   <option value="USD">USD</option>
@@ -780,59 +780,59 @@ export default function ProjectsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Budget Amount</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Budget Amount</label>
                 <input
                   type="number"
                   value={form.budgetAmount}
                   onChange={(e) => setForm({ ...form, budgetAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Est. Hours</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Est. Hours</label>
                 <input
                   type="number"
                   value={form.estimatedHours}
                   onChange={(e) => setForm({ ...form, estimatedHours: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date *</label>
                 <input
                   type="date"
                   value={form.startDate}
                   onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">End Date</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">End Date</label>
                 <input
                   type="date"
                   value={form.endDate}
                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
                 <textarea
                   rows={3}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                   placeholder="Project description..."
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -852,7 +852,7 @@ export default function ProjectsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="nexus-card p-5 animate-pulse">
+            <div key={i} className="thb-card p-5 animate-pulse">
               <div className="h-4 w-3/4 bg-slate-200 rounded mb-3" />
               <div className="h-3 w-1/2 bg-slate-100 rounded mb-2" />
               <div className="h-2 bg-slate-50 rounded-full" />
@@ -860,15 +860,15 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiList className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No projects found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first project to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiList className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No projects found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first project to get started</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((p) => (
-            <div key={p.id} className="nexus-card overflow-hidden">
+            <div key={p.id} className="thb-card overflow-hidden">
               {deleteConfirmId === p.id ? (
                 <div className="p-5 bg-red-50">
                   <p className="text-sm text-red-700 font-medium mb-3">
@@ -884,7 +884,7 @@ export default function ProjectsPage() {
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(null)}
-                      className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                      className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                     >
                       Cancel
                     </button>
@@ -894,33 +894,33 @@ export default function ProjectsPage() {
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-semibold text-nexus-text-primary">{p.name}</h3>
-                      <p className="text-xs text-nexus-text-muted mt-0.5">{p.code || 'No code'}</p>
+                      <h3 className="font-semibold text-thb-text-primary">{p.name}</h3>
+                      <p className="text-xs text-thb-text-muted mt-0.5">{p.code || 'No code'}</p>
                     </div>
                     <span className={getStatusBadge(p.status)}>{formatStatus(p.status)}</span>
                   </div>
 
-                  <div className="space-y-2 text-sm text-nexus-text-secondary">
+                  <div className="space-y-2 text-sm text-thb-text-secondary">
                     {p.client && (
                       <div className="flex items-center gap-2">
-                        <FiGrid className="w-3.5 h-3.5 text-nexus-text-muted" />
+                        <FiGrid className="w-3.5 h-3.5 text-thb-text-muted" />
                         Client: {p.client.name}
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <FiUsers className="w-3.5 h-3.5 text-nexus-text-muted" />
+                      <FiUsers className="w-3.5 h-3.5 text-thb-text-muted" />
                       {formatProjectType(p.projectType)} · {formatBillingType(p.billingType)}
                     </div>
                     <div className="flex items-center gap-2">
-                      <FiCalendar className="w-3.5 h-3.5 text-nexus-text-muted" />
+                      <FiCalendar className="w-3.5 h-3.5 text-thb-text-muted" />
                       {formatDate(p.startDate)}
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-nexus-border/50">
+                  <div className="mt-3 pt-3 border-t border-thb-border/50">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-nexus-text-muted">Progress</span>
-                      <span className="text-xs font-medium text-nexus-text-primary">{p.progress}%</span>
+                      <span className="text-xs text-thb-text-muted">Progress</span>
+                      <span className="text-xs font-medium text-thb-text-primary">{p.progress}%</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${p.progress}%` }} />
@@ -928,7 +928,7 @@ export default function ProjectsPage() {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="mt-3 pt-3 border-t border-nexus-border flex items-center justify-between">
+                  <div className="mt-3 pt-3 border-t border-thb-border flex items-center justify-between">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -945,7 +945,7 @@ export default function ProjectsPage() {
                           e.stopPropagation();
                           handleEdit(p);
                         }}
-                        className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
                         title="Edit"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" />
@@ -956,7 +956,7 @@ export default function ProjectsPage() {
                             e.stopPropagation();
                             setDeleteConfirmId(p.id);
                           }}
-                          className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
                           title="Delete"
                         >
                           <FiTrash2 className="w-3.5 h-3.5" />

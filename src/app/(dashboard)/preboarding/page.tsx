@@ -80,41 +80,41 @@ function formatDate(d: string | null | undefined) {
 function getStageBadge(stage: string) {
   const idx = STAGES.indexOf(stage);
   const colors = [
-    'bg-slate-50 text-slate-700 nexus-badge',
-    'bg-blue-50 text-blue-700 nexus-badge',
-    'bg-amber-50 text-amber-700 nexus-badge',
-    'bg-violet-50 text-violet-700 nexus-badge',
-    'bg-cyan-50 text-cyan-700 nexus-badge',
-    'bg-emerald-50 text-emerald-700 nexus-badge',
-    'nexus-badge nexus-badge-success',
+    'bg-slate-50 text-slate-700 thb-badge',
+    'bg-blue-50 text-blue-700 thb-badge',
+    'bg-amber-50 text-amber-700 thb-badge',
+    'bg-violet-50 text-violet-700 thb-badge',
+    'bg-cyan-50 text-cyan-700 thb-badge',
+    'bg-emerald-50 text-emerald-700 thb-badge',
+    'thb-badge thb-badge-success',
   ];
-  return { className: colors[idx] || 'nexus-badge nexus-badge-info', label: stage };
+  return { className: colors[idx] || 'thb-badge thb-badge-info', label: stage };
 }
 
 function getDocStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    uploaded: 'bg-blue-50 text-blue-700 nexus-badge',
-    verified: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
+    pending: 'thb-badge thb-badge-warning',
+    uploaded: 'bg-blue-50 text-blue-700 thb-badge',
+    verified: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
   };
   const labels: Record<string, string> = {
     pending: 'Pending', uploaded: 'Uploaded', verified: 'Verified', rejected: 'Rejected',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 function getBGVStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    in_progress: 'bg-cyan-50 text-cyan-700 nexus-badge',
-    completed: 'nexus-badge nexus-badge-success',
-    failed: 'nexus-badge nexus-badge-error',
+    pending: 'thb-badge thb-badge-warning',
+    in_progress: 'bg-cyan-50 text-cyan-700 thb-badge',
+    completed: 'thb-badge thb-badge-success',
+    failed: 'thb-badge thb-badge-error',
   };
   const labels: Record<string, string> = {
     pending: 'Pending', in_progress: 'In Progress', completed: 'Completed', failed: 'Failed',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 /* ── Demo Data ── */
@@ -294,11 +294,11 @@ export default function PreboardingPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiUserPlus className="w-6 h-6 text-emerald-500" />
             Preboarding
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage pre-boarding workflow for incoming employees</p>
+          <p className="text-thb-text-secondary mt-1">Manage pre-boarding workflow for incoming employees</p>
         </div>
         {isAdmin && (
           <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-sm shadow-sm shadow-emerald-500/25 transition-colors">
@@ -316,38 +316,38 @@ export default function PreboardingPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50"><FiUserPlus className="w-4 h-4 text-emerald-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Candidates</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalCandidates}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Candidates</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalCandidates}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-cyan-50"><FiClock className="w-4 h-4 text-cyan-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">In Progress</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{inProgress}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">In Progress</p>
+              <p className="text-xl font-bold text-thb-text-primary">{inProgress}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50"><FiShield className="w-4 h-4 text-amber-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending BGV</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending BGV</p>
               <p className="text-xl font-bold text-amber-600">{pendingBGV}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50"><FiCheckCircle className="w-4 h-4 text-emerald-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Ready for Day 1</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Ready for Day 1</p>
               <p className="text-xl font-bold text-emerald-600">{readyDay1}</p>
             </div>
           </div>
@@ -355,25 +355,25 @@ export default function PreboardingPage() {
       </div>
 
       {/* Stage Pipeline Bar */}
-      <div className="nexus-card p-4">
-        <h3 className="text-sm font-semibold text-nexus-text-secondary mb-3">7-Stage Workflow Pipeline</h3>
+      <div className="thb-card p-4">
+        <h3 className="text-sm font-semibold text-thb-text-secondary mb-3">7-Stage Workflow Pipeline</h3>
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {stageCounts.map((s, i) => (
             <div key={s.stage} className="flex items-center">
               <div className={`flex flex-col items-center min-w-[100px] px-3 py-2 rounded-lg ${i <= STAGES.indexOf(filtered[0]?.stage || '') ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
-                <span className="text-[10px] text-nexus-text-muted text-center leading-tight">{s.stage}</span>
-                <span className="text-sm font-bold text-nexus-text-primary mt-1">{s.count}</span>
+                <span className="text-[10px] text-thb-text-muted text-center leading-tight">{s.stage}</span>
+                <span className="text-sm font-bold text-thb-text-primary mt-1">{s.count}</span>
               </div>
-              {i < STAGES.length - 1 && <FiChevronRight className="w-4 h-4 text-nexus-text-muted flex-shrink-0 mx-0.5" />}
+              {i < STAGES.length - 1 && <FiChevronRight className="w-4 h-4 text-thb-text-muted flex-shrink-0 mx-0.5" />}
             </div>
           ))}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-nexus-border">
+      <div className="flex items-center gap-1 border-b border-thb-border">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
             <tab.icon className="w-4 h-4" />
             {tab.label}
           </button>
@@ -383,12 +383,12 @@ export default function PreboardingPage() {
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search candidates..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search candidates..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
         </div>
         <div className="flex items-center gap-2">
-          <FiFilter className="w-4 h-4 text-nexus-text-muted" />
-          <select value={filterStage} onChange={e => setFilterStage(e.target.value)} className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
+          <FiFilter className="w-4 h-4 text-thb-text-muted" />
+          <select value={filterStage} onChange={e => setFilterStage(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
             <option value="">All Stages</option>
             {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -397,38 +397,38 @@ export default function PreboardingPage() {
 
       {/* Embedded CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-emerald-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-emerald-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit Candidate' : 'Add New Candidate'}</h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Candidate' : 'Add New Candidate'}</h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Full Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., John Doe" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Full Name *</label>
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., John Doe" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Email *</label>
-                <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="john@company.com" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
+                <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="john@company.com" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Position *</label>
-                <input type="text" value={form.position} onChange={e => setForm(p => ({ ...p, position: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position *</label>
+                <input type="text" value={form.position} onChange={e => setForm(p => ({ ...p, position: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Stage</label>
-                <select value={form.stage} onChange={e => setForm(p => ({ ...p, stage: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Stage</label>
+                <select value={form.stage} onChange={e => setForm(p => ({ ...p, stage: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
                   {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Start Date</label>
-                <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date</label>
+                <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 shadow-sm shadow-emerald-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add Candidate'}</button>
             </div>
           </div>
@@ -437,23 +437,23 @@ export default function PreboardingPage() {
 
       {/* Tab Content: Pipeline */}
       {activeTab === 'pipeline' && (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Candidate</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Position</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Stage</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Start Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">HR Verified</th>
-                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>}
+                <tr className="border-b border-thb-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Position</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Stage</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Start Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">HR Verified</th>
+                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                    <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                       <td className="px-4 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td>
                       <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                       <td className="px-4 py-3"><div className="h-5 w-28 bg-slate-200 rounded-full" /></td>
@@ -465,35 +465,35 @@ export default function PreboardingPage() {
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={isAdmin ? 6 : 5} className="px-4 py-12 text-center">
-                      <FiUserPlus className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No candidates found</p>
-                      <p className="text-sm text-nexus-text-muted mt-1">Add candidates to start the pre-boarding process</p>
+                      <FiUserPlus className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                      <p className="text-thb-text-secondary font-medium">No candidates found</p>
+                      <p className="text-sm text-thb-text-muted mt-1">Add candidates to start the pre-boarding process</p>
                     </td>
                   </tr>
                 ) : (
                   filtered.map(c => {
                     const stageBadge = getStageBadge(c.stage);
                     return (
-                      <tr key={c.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={c.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                         {deleteConfirmId === c.id ? (
                           <td colSpan={isAdmin ? 6 : 5} className="px-4 py-3 bg-red-50">
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-red-700 font-medium">Remove &quot;{c.name}&quot; from pre-boarding?</span>
                               <div className="flex items-center gap-2">
                                 <button onClick={() => handleDelete(c.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Removing...' : 'Confirm'}</button>
-                                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                               </div>
                             </div>
                           </td>
                         ) : (
                           <>
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-nexus-text-primary">{c.name}</p>
-                              <p className="text-xs text-nexus-text-muted">{c.email}</p>
+                              <p className="text-sm font-medium text-thb-text-primary">{c.name}</p>
+                              <p className="text-xs text-thb-text-muted">{c.email}</p>
                             </td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">{c.position}</td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{c.position}</td>
                             <td className="px-4 py-3"><span className={stageBadge.className}>{stageBadge.label}</span></td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(c.startDate)}</td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(c.startDate)}</td>
                             <td className="px-4 py-3">
                               <button onClick={() => toggleHRVerify(c.id)} className={`text-xs font-medium px-2 py-1 rounded-lg transition-colors ${c.hrVerified ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-500 bg-slate-50 hover:bg-slate-100'}`}>
                                 {c.hrVerified ? 'Verified' : 'Pending'}
@@ -503,12 +503,12 @@ export default function PreboardingPage() {
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-1">
                                   {c.stage !== 'Day 1 Ready' && (
-                                    <button onClick={() => handleAdvanceStage(c.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Advance Stage">
+                                    <button onClick={() => handleAdvanceStage(c.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Advance Stage">
                                       <FiChevronRight className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <button onClick={() => handleShowEditForm(c)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                                  <button onClick={() => setDeleteConfirmId(c.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleShowEditForm(c)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                  <button onClick={() => setDeleteConfirmId(c.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 </div>
                               </td>
                             )}
@@ -528,17 +528,17 @@ export default function PreboardingPage() {
       {activeTab === 'documents' && (
         <div className="space-y-4">
           {filtered.length === 0 ? (
-            <div className="nexus-card p-12 text-center">
-              <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">No document records found</p>
+            <div className="thb-card p-12 text-center">
+              <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No document records found</p>
             </div>
           ) : (
             filtered.map(c => (
-              <div key={c.id} className="nexus-card p-4">
+              <div key={c.id} className="thb-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{c.name}</p>
-                    <p className="text-xs text-nexus-text-muted">{c.position}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{c.name}</p>
+                    <p className="text-xs text-thb-text-muted">{c.position}</p>
                   </div>
                   <span className={getStageBadge(c.stage).className}>{c.stage}</span>
                 </div>
@@ -546,10 +546,10 @@ export default function PreboardingPage() {
                   {c.documents.map((doc, i) => {
                     const db = getDocStatusBadge(doc.status);
                     return (
-                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-nexus-border">
-                        <FiFileText className="w-3.5 h-3.5 text-nexus-text-muted flex-shrink-0" />
+                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-thb-border">
+                        <FiFileText className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-[10px] font-medium text-nexus-text-secondary truncate">{doc.type}</p>
+                          <p className="text-[10px] font-medium text-thb-text-secondary truncate">{doc.type}</p>
                           <span className={`text-[9px] ${db.className}`}>{db.label}</span>
                         </div>
                       </div>
@@ -564,42 +564,42 @@ export default function PreboardingPage() {
 
       {/* Tab Content: BGV Tracking */}
       {activeTab === 'bgv' && (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Candidate</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Vendor</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">BGV Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Submitted</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Completed</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Notes</th>
+                <tr className="border-b border-thb-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Candidate</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Vendor</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">BGV Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Submitted</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Completed</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.filter(c => c.bgv).length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center">
-                      <FiShield className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No BGV records found</p>
-                      <p className="text-sm text-nexus-text-muted mt-1">BGV tracking begins at the Background Verification stage</p>
+                      <FiShield className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                      <p className="text-thb-text-secondary font-medium">No BGV records found</p>
+                      <p className="text-sm text-thb-text-muted mt-1">BGV tracking begins at the Background Verification stage</p>
                     </td>
                   </tr>
                 ) : (
                   filtered.filter(c => c.bgv).map(c => {
                     const bgvBadge = getBGVStatusBadge(c.bgv!.status);
                     return (
-                      <tr key={c.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={c.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-nexus-text-primary">{c.name}</p>
-                          <p className="text-xs text-nexus-text-muted">{c.position}</p>
+                          <p className="text-sm font-medium text-thb-text-primary">{c.name}</p>
+                          <p className="text-xs text-thb-text-muted">{c.position}</p>
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{c.bgv!.vendor}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{c.bgv!.vendor}</td>
                         <td className="px-4 py-3"><span className={bgvBadge.className}>{bgvBadge.label}</span></td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(c.bgv!.submittedDate)}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(c.bgv!.completedDate)}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{c.bgv!.notes || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(c.bgv!.submittedDate)}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(c.bgv!.completedDate)}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary truncate max-w-[200px]">{c.bgv!.notes || '—'}</td>
                       </tr>
                     );
                   })

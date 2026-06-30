@@ -43,33 +43,33 @@ const initialForm = {
 
 function getApprovalBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    manager_approved: 'nexus-badge nexus-badge-info',
-    hr_approved: 'nexus-badge nexus-badge-purple',
-    budget_approved: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
+    pending: 'thb-badge thb-badge-warning',
+    manager_approved: 'thb-badge thb-badge-info',
+    hr_approved: 'thb-badge thb-badge-purple',
+    budget_approved: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getPriorityBadge(priority: string) {
   const map: Record<string, string> = {
-    low: 'nexus-badge nexus-badge-info',
-    medium: 'nexus-badge nexus-badge-warning',
-    high: 'nexus-badge nexus-badge-error',
-    critical: 'nexus-badge nexus-badge-error',
+    low: 'thb-badge thb-badge-info',
+    medium: 'thb-badge thb-badge-warning',
+    high: 'thb-badge thb-badge-error',
+    critical: 'thb-badge thb-badge-error',
   };
-  return map[priority] || 'nexus-badge nexus-badge-info';
+  return map[priority] || 'thb-badge thb-badge-info';
 }
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    open: 'nexus-badge nexus-badge-info',
-    approved: 'nexus-badge nexus-badge-success',
-    cancelled: 'nexus-badge nexus-badge-error',
-    closed: 'nexus-badge nexus-badge-primary',
+    open: 'thb-badge thb-badge-info',
+    approved: 'thb-badge thb-badge-success',
+    cancelled: 'thb-badge thb-badge-error',
+    closed: 'thb-badge thb-badge-primary',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 export default function RequisitionsPage() {
@@ -186,8 +186,8 @@ export default function RequisitionsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary">Manpower Requisitions</h1>
-          <p className="text-nexus-text-secondary mt-1">Raise and approve hiring requests</p>
+          <h1 className="text-2xl font-bold text-thb-text-primary">Manpower Requisitions</h1>
+          <p className="text-thb-text-secondary mt-1">Raise and approve hiring requests</p>
         </div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
           <FiPlus className="w-4 h-4" /> Raise Requisition
@@ -202,30 +202,30 @@ export default function RequisitionsPage() {
         const item = requisitions.find(i => i.id === viewingId);
         if (!item) return null;
         return (
-          <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+          <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-nexus-text-primary">Requisition Details</h2>
+                <h2 className="text-lg font-semibold text-thb-text-primary">Requisition Details</h2>
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleEdit(item)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
-                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Req ID</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.requisitionId || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Department</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.department?.name || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Designation</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.designation?.title || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Position Type</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{item.positionType || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Number of Openings</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.numberOfOpenings}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Employment Type</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 capitalize">{item.employmentType}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Priority</span><p className="mt-0.5"><span className={getPriorityBadge(item.priority)}>{item.priority}</span></p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Approval Status</span><p className="mt-0.5"><span className={getApprovalBadge(item.approvalStatus)}>{item.approvalStatus.replace('_', ' ')}</span></p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(item.status)}>{item.status}</span></p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Skills Required</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.skillsRequired || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Experience Required</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.experienceRequired || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Qualification</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.qualification || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Salary Budget</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.salaryBudget || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Expected Joining Date</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{item.expectedJoiningDate ? new Date(item.expectedJoiningDate).toLocaleDateString() : '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Req ID</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.requisitionId || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Department</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.department?.name || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Designation</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.designation?.title || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Position Type</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 capitalize">{item.positionType || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Number of Openings</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.numberOfOpenings}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Employment Type</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 capitalize">{item.employmentType}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Priority</span><p className="mt-0.5"><span className={getPriorityBadge(item.priority)}>{item.priority}</span></p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Approval Status</span><p className="mt-0.5"><span className={getApprovalBadge(item.approvalStatus)}>{item.approvalStatus.replace('_', ' ')}</span></p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(item.status)}>{item.status}</span></p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Skills Required</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.skillsRequired || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Experience Required</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.experienceRequired || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Qualification</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.qualification || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Salary Budget</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.salaryBudget || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Expected Joining Date</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{item.expectedJoiningDate ? new Date(item.expectedJoiningDate).toLocaleDateString() : '—'}</p></div>
               </div>
             </div>
           </div>
@@ -234,37 +234,37 @@ export default function RequisitionsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Requisition' : 'Raise New Requisition'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Department *</label>
-                <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department ID" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
+                <input required value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })} placeholder="Department ID" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Designation</label>
-                <input value={form.designationId} onChange={(e) => setForm({ ...form, designationId: e.target.value })} placeholder="Designation ID" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
+                <input value={form.designationId} onChange={(e) => setForm({ ...form, designationId: e.target.value })} placeholder="Designation ID" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Position Type</label>
-                <select value={form.positionType} onChange={(e) => setForm({ ...form, positionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position Type</label>
+                <select value={form.positionType} onChange={(e) => setForm({ ...form, positionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="new">New</option>
                   <option value="replacement">Replacement</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Openings</label>
-                <input type="number" min={1} value={form.numberOfOpenings} onChange={(e) => setForm({ ...form, numberOfOpenings: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Openings</label>
+                <input type="number" min={1} value={form.numberOfOpenings} onChange={(e) => setForm({ ...form, numberOfOpenings: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employment</label>
-                <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employment</label>
+                <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="full-time">Full-time</option>
                   <option value="part-time">Part-time</option>
                   <option value="contract">Contract</option>
@@ -272,8 +272,8 @@ export default function RequisitionsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Priority</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority</label>
+                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -281,28 +281,28 @@ export default function RequisitionsPage() {
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Skills Required</label>
-                <input value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} placeholder="e.g. React, Node.js, Python" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Skills Required</label>
+                <input value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} placeholder="e.g. React, Node.js, Python" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Experience</label>
-                <input value={form.experienceRequired} onChange={(e) => setForm({ ...form, experienceRequired: e.target.value })} placeholder="e.g. 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Experience</label>
+                <input value={form.experienceRequired} onChange={(e) => setForm({ ...form, experienceRequired: e.target.value })} placeholder="e.g. 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Qualification</label>
-                <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. B.Tech" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Qualification</label>
+                <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="e.g. B.Tech" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Salary Budget</label>
-                <input value={form.salaryBudget} onChange={(e) => setForm({ ...form, salaryBudget: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Budget</label>
+                <input value={form.salaryBudget} onChange={(e) => setForm({ ...form, salaryBudget: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Expected Joining</label>
-                <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expected Joining</label>
+                <input type="date" value={form.expectedJoiningDate} onChange={(e) => setForm({ ...form, expectedJoiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
             </div>
           </div>
@@ -310,27 +310,27 @@ export default function RequisitionsPage() {
       )}
 
       {/* Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Req ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Department</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Designation</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Openings</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Priority</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Approval Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Workflow</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Req ID</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Department</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Designation</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Openings</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Priority</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Approval Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Workflow</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     {Array.from({ length: colCount }).map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
                     ))}
@@ -339,31 +339,31 @@ export default function RequisitionsPage() {
               ) : requisitions.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiAlertCircle className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No requisitions found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">Raise your first requisition to get started</p>
+                    <FiAlertCircle className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No requisitions found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">Raise your first requisition to get started</p>
                   </td>
                 </tr>
               ) : (
                 requisitions.map((r) => (
-                  <tr key={r.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={r.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === r.id ? (
                       <td colSpan={colCount} className="px-4 py-3 bg-red-50">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-red-700 font-medium">Are you sure you want to delete this requisition?</span>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleDelete(r.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                           </div>
                         </div>
                       </td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-sm font-mono text-nexus-text-secondary">{r.requisitionId?.slice(0, 8) || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-primary">{r.department?.name || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-primary">{r.designation?.title || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-primary">{r.numberOfOpenings}</td>
-                        <td className="px-4 py-3"><span className="nexus-badge nexus-badge-primary">{r.employmentType}</span></td>
+                        <td className="px-4 py-3 text-sm font-mono text-thb-text-secondary">{r.requisitionId?.slice(0, 8) || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-primary">{r.department?.name || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-primary">{r.designation?.title || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-primary">{r.numberOfOpenings}</td>
+                        <td className="px-4 py-3"><span className="thb-badge thb-badge-primary">{r.employmentType}</span></td>
                         <td className="px-4 py-3"><span className={getPriorityBadge(r.priority)}>{r.priority}</span></td>
                         <td className="px-4 py-3"><span className={getApprovalBadge(r.approvalStatus)}>{r.approvalStatus.replace('_', ' ')}</span></td>
                         <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{r.status}</span></td>
@@ -379,9 +379,9 @@ export default function RequisitionsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => { setViewingId(r.id); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                            <button onClick={() => handleEdit(r)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteConfirmId(r.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setViewingId(r.id); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(r)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteConfirmId(r.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </>

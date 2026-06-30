@@ -1,5 +1,5 @@
 /**
- * Nexus HRMS - Database Client (Single Source of Truth)
+ * 3Boxes HRMS - Database Client (Single Source of Truth)
  *
  * ⚠️  DO NOT create separate PrismaClient instances elsewhere.
  * ⚠️  Always import `db` from '@/lib/db' — never from '@/lib/prisma'.
@@ -11,7 +11,7 @@
  *
  * To prevent connecting to the WRONG database:
  *   - On Vercel: Check Project Settings → Environment Variables → ensure the Neon
- *     integration points to the CORRECT Neon project (Nexus HRMS, not any other).
+ *     integration points to the CORRECT Neon project (3Boxes HRMS, not any other).
  *   - Locally: Ensure .env contains the correct DATABASE_URL for this project.
  *   - The startup log below will print a prefix of the connection string so you
  *     can verify the database name at a glance.
@@ -29,15 +29,15 @@ const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES
 // Safety log: print the connection string prefix so we can verify which DB is being used
 if (typeof window === 'undefined' && connectionString) {
   const maskedUrl = connectionString.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
-  console.log(`[Nexus DB] Connecting to: ${maskedUrl.substring(0, 80)}...`)
+  console.log(`[3Boxes DB] Connecting to: ${maskedUrl.substring(0, 80)}...`)
 } else if (!connectionString) {
-  console.log('[Nexus DB] WARNING: No connection string found! Set POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL')
+  console.log('[3Boxes DB] WARNING: No connection string found! Set POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL')
 }
 
 function createPrismaClient() {
   try {
     if (!connectionString) {
-      console.error('[Nexus DB] No connection string - returning fallback proxy')
+      console.error('[3Boxes DB] No connection string - returning fallback proxy')
       return createFallbackProxy()
     }
 
@@ -45,7 +45,7 @@ function createPrismaClient() {
     const adapter = new PrismaNeon({ connectionString })
     return new PrismaClient({ adapter })
   } catch (error) {
-    console.error('[Nexus DB] Failed to create PrismaClient:', error)
+    console.error('[3Boxes DB] Failed to create PrismaClient:', error)
     return createFallbackProxy()
   }
 }

@@ -297,26 +297,26 @@ export default function CTCCalculatorPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiPercent className="w-6 h-6 text-blue-500" />
             CTC Calculator
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Enter a CTC amount to automatically get the salary breakdown for an employee
           </p>
         </div>
       </div>
 
       {/* How It Works Banner */}
-      <div className="nexus-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white">
+      <div className="thb-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white">
         <div className="p-5">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
               <FiInfo className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-nexus-text-primary">How CTC Breakdown Works</h3>
-              <p className="text-xs text-nexus-text-secondary mt-1 leading-relaxed">
+              <h3 className="text-sm font-semibold text-thb-text-primary">How CTC Breakdown Works</h3>
+              <p className="text-xs text-thb-text-secondary mt-1 leading-relaxed">
                 CTC (Cost to Company) includes your gross salary plus employer contributions. Gross salary comprises take-home pay plus
                 employee-side deductions. Employer contributions like PF and gratuity are set aside by the company but not received
                 directly in your monthly paycheck. Your actual in-hand salary = Gross Salary minus Employee PF, Professional Tax,
@@ -331,23 +331,23 @@ export default function CTCCalculatorPage() {
         {/* ─── Input Panel ─── */}
         <div className="lg:col-span-1 space-y-4">
           {/* CTC Input Card */}
-          <div className="nexus-card border-l-4 border-l-emerald-500">
+          <div className="thb-card border-l-4 border-l-emerald-500">
             <div className="p-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
                 <FiDollarSign className="w-4 h-4 text-emerald-500" />
                 Enter CTC Details
               </h3>
 
               {/* Country Selection */}
               <div className="mb-4">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">Country</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1.5">Country</label>
                 <select
                   value={countryCode}
                   onChange={(e) => {
                     setCountryCode(e.target.value);
                     setResult(null);
                   }}
-                  className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 >
                   {COUNTRY_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.flag} {o.label}</option>
@@ -357,14 +357,14 @@ export default function CTCCalculatorPage() {
 
               {/* CTC Type */}
               <div className="mb-4">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">CTC Type</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1.5">CTC Type</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setCtcType('ANNUAL'); setResult(null); }}
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                       ctcType === 'ANNUAL'
                         ? 'bg-blue-500 text-white shadow-sm'
-                        : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200'
+                        : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'
                     }`}
                   >
                     Annual CTC
@@ -374,7 +374,7 @@ export default function CTCCalculatorPage() {
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                       ctcType === 'MONTHLY'
                         ? 'bg-blue-500 text-white shadow-sm'
-                        : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200'
+                        : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'
                     }`}
                   >
                     Monthly CTC
@@ -384,11 +384,11 @@ export default function CTCCalculatorPage() {
 
               {/* CTC Amount Input */}
               <div className="mb-4">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1.5">
                   {ctcType === 'ANNUAL' ? 'Annual CTC Amount' : 'Monthly CTC Amount'}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-nexus-text-muted">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-thb-text-muted">
                     {CURRENCY_SYMBOLS[currency] || currency}
                   </span>
                   <input
@@ -401,14 +401,14 @@ export default function CTCCalculatorPage() {
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder={countryCode === 'IND' ? 'e.g. 10,00,000' : 'e.g. 100,000'}
-                    className="w-full pl-10 pr-3 py-3 rounded-lg border border-nexus-border text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full pl-10 pr-3 py-3 rounded-lg border border-thb-border text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
               </div>
 
               {/* Quick Presets */}
               <div className="mb-4">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">Quick Select</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1.5">Quick Select</label>
                 <div className="flex flex-wrap gap-1.5">
                   {presets.map(p => (
                     <button
@@ -417,7 +417,7 @@ export default function CTCCalculatorPage() {
                         setCtcAmount(p.value.toLocaleString('en-IN'));
                         setResult(null);
                       }}
-                      className="px-2.5 py-1 rounded-md bg-slate-100 text-xs font-medium text-nexus-text-secondary hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="px-2.5 py-1 rounded-md bg-slate-100 text-xs font-medium text-thb-text-secondary hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       {p.label}
                     </button>
@@ -428,31 +428,31 @@ export default function CTCCalculatorPage() {
               {/* PF/ESI Checkboxes */}
               {countryCode === 'IND' && (
                 <div className="mb-4 space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary cursor-pointer group">
+                  <label className="flex items-center gap-2 text-xs font-medium text-thb-text-secondary cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={includePF}
                       onChange={(e) => { setIncludePF(e.target.checked); setResult(null); }}
-                      className="rounded border-nexus-border accent-blue-500"
+                      className="rounded border-thb-border accent-blue-500"
                     />
                     Include Provident Fund (PF)
                     <span className="relative group">
-                      <FiInfo className="w-3.5 h-3.5 text-nexus-text-muted cursor-help" />
+                      <FiInfo className="w-3.5 h-3.5 text-thb-text-muted cursor-help" />
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-[10px] text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                         Provident Fund - 12% of basic salary each from employer and employee
                       </span>
                     </span>
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary cursor-pointer group">
+                  <label className="flex items-center gap-2 text-xs font-medium text-thb-text-secondary cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={includeESI}
                       onChange={(e) => { setIncludeESI(e.target.checked); setResult(null); }}
-                      className="rounded border-nexus-border accent-blue-500"
+                      className="rounded border-thb-border accent-blue-500"
                     />
                     Include Employee State Insurance (ESI)
                     <span className="relative group">
-                      <FiInfo className="w-3.5 h-3.5 text-nexus-text-muted cursor-help" />
+                      <FiInfo className="w-3.5 h-3.5 text-thb-text-muted cursor-help" />
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-[10px] text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                         Employee State Insurance - Applicable for gross salary up to ₹21,000/month
                       </span>
@@ -463,12 +463,12 @@ export default function CTCCalculatorPage() {
 
               {/* Template Selection */}
               <div className="mb-4">
-                <label className="flex items-center gap-2 text-xs font-medium text-nexus-text-secondary mb-1.5 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-medium text-thb-text-secondary mb-1.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={useCustomTemplate}
                     onChange={(e) => setUseCustomTemplate(e.target.checked)}
-                    className="rounded border-nexus-border"
+                    className="rounded border-thb-border"
                   />
                   Use CTC Template
                 </label>
@@ -476,7 +476,7 @@ export default function CTCCalculatorPage() {
                   <select
                     value={selectedTemplateId}
                     onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 mt-1"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 mt-1"
                   >
                     <option value="">Standard Breakdown (Default)</option>
                     {loadingTemplates ? (
@@ -516,39 +516,39 @@ export default function CTCCalculatorPage() {
 
           {/* Summary Sidebar (shown when result exists) */}
           {result && (
-            <div className="nexus-card border-l-4 border-l-violet-500">
+            <div className="thb-card border-l-4 border-l-violet-500">
               <div className="p-5">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                   <FiTrendingUp className="w-4 h-4 text-violet-500" />
                   Quick Summary
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-nexus-text-secondary">Annual CTC</span>
-                    <span className="text-sm font-bold text-nexus-text-primary">{formatCurrency(result.ctcAnnual, currency)}</span>
+                    <span className="text-xs text-thb-text-secondary">Annual CTC</span>
+                    <span className="text-sm font-bold text-thb-text-primary">{formatCurrency(result.ctcAnnual, currency)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-nexus-text-secondary">Gross Salary</span>
+                    <span className="text-xs text-thb-text-secondary">Gross Salary</span>
                     <span className="text-sm font-semibold text-blue-600">{formatCurrency(result.grossSalary.annual, currency)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-nexus-text-secondary">Total Deductions</span>
+                    <span className="text-xs text-thb-text-secondary">Total Deductions</span>
                     <span className="text-sm font-semibold text-red-500">- {formatCurrency(result.totalDeductions.annual, currency)}</span>
                   </div>
-                  <div className="h-px bg-nexus-border" />
+                  <div className="h-px bg-thb-border" />
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-nexus-text-primary">Monthly In-Hand</span>
+                    <span className="text-xs font-semibold text-thb-text-primary">Monthly In-Hand</span>
                     <span className="text-lg font-bold text-emerald-600">{formatCurrency(result.netTakeHome.monthly, currency)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-nexus-text-primary">Annual In-Hand</span>
+                    <span className="text-xs font-semibold text-thb-text-primary">Annual In-Hand</span>
                     <span className="text-sm font-bold text-emerald-600">{formatCurrency(result.netTakeHome.annual, currency)}</span>
                   </div>
                 </div>
 
                 {/* Ratio Visualization */}
-                <div className="mt-4 pt-3 border-t border-nexus-border">
-                  <p className="text-[10px] font-medium text-nexus-text-muted uppercase tracking-wider mb-2">CTC Composition</p>
+                <div className="mt-4 pt-3 border-t border-thb-border">
+                  <p className="text-[10px] font-medium text-thb-text-muted uppercase tracking-wider mb-2">CTC Composition</p>
                   <div className="flex h-4 rounded-full overflow-hidden">
                     <div
                       className="bg-blue-500 transition-all"
@@ -564,11 +564,11 @@ export default function CTCCalculatorPage() {
                   <div className="flex items-center gap-4 mt-2">
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span className="text-[10px] text-nexus-text-muted">Gross ({((result.grossSalary.annual / result.ctcAnnual) * 100).toFixed(0)}%)</span>
+                      <span className="text-[10px] text-thb-text-muted">Gross ({((result.grossSalary.annual / result.ctcAnnual) * 100).toFixed(0)}%)</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 rounded-full bg-purple-500" />
-                      <span className="text-[10px] text-nexus-text-muted">Employer ({(((result.ctcAnnual - result.grossSalary.annual) / result.ctcAnnual) * 100).toFixed(0)}%)</span>
+                      <span className="text-[10px] text-thb-text-muted">Employer ({(((result.ctcAnnual - result.grossSalary.annual) / result.ctcAnnual) * 100).toFixed(0)}%)</span>
                     </div>
                   </div>
                 </div>
@@ -581,12 +581,12 @@ export default function CTCCalculatorPage() {
         <div className="lg:col-span-2 space-y-4">
           {!result ? (
             /* Empty State */
-            <div className="nexus-card p-16 text-center">
+            <div className="thb-card p-16 text-center">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto mb-4">
                 <FiPercent className="w-10 h-10 text-blue-500" />
               </div>
-              <h3 className="text-lg font-semibold text-nexus-text-primary mb-2">CTC Calculator</h3>
-              <p className="text-sm text-nexus-text-secondary max-w-md mx-auto leading-relaxed">
+              <h3 className="text-lg font-semibold text-thb-text-primary mb-2">CTC Calculator</h3>
+              <p className="text-sm text-thb-text-secondary max-w-md mx-auto leading-relaxed">
                 Enter a CTC amount and click Calculate to see the complete salary breakdown including
                 earnings, employer contributions, deductions, and monthly take-home pay.
               </p>
@@ -595,28 +595,28 @@ export default function CTCCalculatorPage() {
                   <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mx-auto mb-1">
                     <FiTrendingUp className="w-5 h-5 text-blue-500" />
                   </div>
-                  <p className="text-[10px] text-nexus-text-muted">Earnings</p>
+                  <p className="text-[10px] text-thb-text-muted">Earnings</p>
                 </div>
-                <FiArrowRight className="w-4 h-4 text-nexus-text-muted" />
+                <FiArrowRight className="w-4 h-4 text-thb-text-muted" />
                 <div className="text-center">
                   <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center mx-auto mb-1">
                     <FiShield className="w-5 h-5 text-purple-500" />
                   </div>
-                  <p className="text-[10px] text-nexus-text-muted">Employer PF & Gratuity</p>
+                  <p className="text-[10px] text-thb-text-muted">Employer PF & Gratuity</p>
                 </div>
-                <FiArrowRight className="w-4 h-4 text-nexus-text-muted" />
+                <FiArrowRight className="w-4 h-4 text-thb-text-muted" />
                 <div className="text-center">
                   <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center mx-auto mb-1">
                     <FiTrendingDown className="w-5 h-5 text-red-500" />
                   </div>
-                  <p className="text-[10px] text-nexus-text-muted">Deductions</p>
+                  <p className="text-[10px] text-thb-text-muted">Deductions</p>
                 </div>
-                <FiArrowRight className="w-4 h-4 text-nexus-text-muted" />
+                <FiArrowRight className="w-4 h-4 text-thb-text-muted" />
                 <div className="text-center">
                   <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-1">
                     <FiDollarSign className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <p className="text-[10px] text-nexus-text-muted">Take-Home</p>
+                  <p className="text-[10px] text-thb-text-muted">Take-Home</p>
                 </div>
               </div>
             </div>
@@ -624,33 +624,33 @@ export default function CTCCalculatorPage() {
             <>
               {/* ─── Top Cards: CTC → Gross → In-Hand ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="nexus-card p-5 border-t-4 border-t-indigo-500">
-                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Annual CTC</p>
+                <div className="thb-card p-5 border-t-4 border-t-indigo-500">
+                  <p className="text-xs font-medium text-thb-text-secondary mb-1">Annual CTC</p>
                   <p className="text-xl font-bold text-indigo-600">{formatCurrency(result.ctcAnnual, currency)}</p>
-                  <p className="text-xs text-nexus-text-muted mt-0.5">Monthly: {formatCurrency(result.ctcMonthly, currency)}</p>
+                  <p className="text-xs text-thb-text-muted mt-0.5">Monthly: {formatCurrency(result.ctcMonthly, currency)}</p>
                 </div>
-                <div className="nexus-card p-5 border-t-4 border-t-blue-500">
-                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Gross Salary</p>
+                <div className="thb-card p-5 border-t-4 border-t-blue-500">
+                  <p className="text-xs font-medium text-thb-text-secondary mb-1">Gross Salary</p>
                   <p className="text-xl font-bold text-blue-600">{formatCurrency(result.grossSalary.annual, currency)}</p>
-                  <p className="text-xs text-nexus-text-muted mt-0.5">Monthly: {formatCurrency(result.grossSalary.monthly, currency)}</p>
+                  <p className="text-xs text-thb-text-muted mt-0.5">Monthly: {formatCurrency(result.grossSalary.monthly, currency)}</p>
                 </div>
-                <div className="nexus-card p-5 border-t-4 border-t-emerald-500">
-                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Monthly In-Hand</p>
+                <div className="thb-card p-5 border-t-4 border-t-emerald-500">
+                  <p className="text-xs font-medium text-thb-text-secondary mb-1">Monthly In-Hand</p>
                   <p className="text-xl font-bold text-emerald-600">{formatCurrency(result.netTakeHome.monthly, currency)}</p>
-                  <p className="text-xs text-nexus-text-muted mt-0.5">Annual: {formatCurrency(result.netTakeHome.annual, currency)}</p>
+                  <p className="text-xs text-thb-text-muted mt-0.5">Annual: {formatCurrency(result.netTakeHome.annual, currency)}</p>
                 </div>
               </div>
 
               {/* ─── Detailed Breakdown Tabs ─── */}
-              <div className="nexus-card overflow-hidden">
+              <div className="thb-card overflow-hidden">
                 {/* Tab Headers */}
-                <div className="flex border-b border-nexus-border bg-slate-50/50">
+                <div className="flex border-b border-thb-border bg-slate-50/50">
                   <button
                     onClick={() => setShowBreakdown('earnings')}
                     className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                       showBreakdown === 'earnings'
                         ? 'text-blue-600 border-b-2 border-b-blue-500 bg-white'
-                        : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                        : 'text-thb-text-secondary hover:text-thb-text-primary'
                     }`}
                   >
                     <FiTrendingUp className="w-4 h-4" />
@@ -664,7 +664,7 @@ export default function CTCCalculatorPage() {
                     className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                       showBreakdown === 'employer'
                         ? 'text-purple-600 border-b-2 border-b-purple-500 bg-white'
-                        : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                        : 'text-thb-text-secondary hover:text-thb-text-primary'
                     }`}
                   >
                     <FiShield className="w-4 h-4" />
@@ -678,7 +678,7 @@ export default function CTCCalculatorPage() {
                     className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                       showBreakdown === 'deductions'
                         ? 'text-red-600 border-b-2 border-b-red-500 bg-white'
-                        : 'text-nexus-text-secondary hover:text-nexus-text-primary'
+                        : 'text-thb-text-secondary hover:text-thb-text-primary'
                     }`}
                   >
                     <FiTrendingDown className="w-4 h-4" />
@@ -694,7 +694,7 @@ export default function CTCCalculatorPage() {
                   {showBreakdown === 'earnings' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-medium text-nexus-text-secondary">
+                        <p className="text-xs font-medium text-thb-text-secondary">
                           Gross Salary = Sum of all earnings = {formatCurrency(result.grossSalary.annual, currency)}/year
                         </p>
                       </div>
@@ -704,7 +704,7 @@ export default function CTCCalculatorPage() {
                           <div key={comp.name} className="group">
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-nexus-text-primary">{comp.name}</span>
+                                <span className="text-sm font-medium text-thb-text-primary">{comp.name}</span>
                                 {comp.pctOfCTC && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
                                     {comp.pctOfCTC}% of CTC
@@ -712,10 +712,10 @@ export default function CTCCalculatorPage() {
                                 )}
                               </div>
                               <div className="text-right">
-                                <span className="text-sm font-semibold text-nexus-text-primary">
+                                <span className="text-sm font-semibold text-thb-text-primary">
                                   {formatCurrency(comp.annual, currency)}
                                 </span>
-                                <span className="text-xs text-nexus-text-muted ml-2">
+                                <span className="text-xs text-thb-text-muted ml-2">
                                   /mo: {formatCurrency(comp.monthly, currency)}
                                 </span>
                               </div>
@@ -731,13 +731,13 @@ export default function CTCCalculatorPage() {
                       })}
 
                       {/* Gross Total */}
-                      <div className="mt-4 pt-3 border-t border-nexus-border flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-thb-border flex items-center justify-between">
                         <span className="text-sm font-semibold text-blue-600">Total Gross Salary</span>
                         <div className="text-right">
                           <span className="text-base font-bold text-blue-600">
                             {formatCurrency(result.grossSalary.annual, currency)}
                           </span>
-                          <span className="text-xs text-nexus-text-muted ml-2">
+                          <span className="text-xs text-thb-text-muted ml-2">
                             /mo: {formatCurrency(result.grossSalary.monthly, currency)}
                           </span>
                         </div>
@@ -750,7 +750,7 @@ export default function CTCCalculatorPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 mb-2">
                         <FiInfo className="w-4 h-4 text-purple-400" />
-                        <p className="text-xs text-nexus-text-secondary">
+                        <p className="text-xs text-thb-text-secondary">
                           These amounts are set aside by the company and are part of CTC, but not received directly in your monthly paycheck
                         </p>
                       </div>
@@ -760,7 +760,7 @@ export default function CTCCalculatorPage() {
                           <div key={comp.name} className="group">
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-nexus-text-primary">{comp.name}</span>
+                                <span className="text-sm font-medium text-thb-text-primary">{comp.name}</span>
                                 {comp.pctOfCTC && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">
                                     {comp.pctOfCTC}% of CTC
@@ -768,10 +768,10 @@ export default function CTCCalculatorPage() {
                                 )}
                               </div>
                               <div className="text-right">
-                                <span className="text-sm font-semibold text-nexus-text-primary">
+                                <span className="text-sm font-semibold text-thb-text-primary">
                                   {formatCurrency(comp.annual, currency)}
                                 </span>
-                                <span className="text-xs text-nexus-text-muted ml-2">
+                                <span className="text-xs text-thb-text-muted ml-2">
                                   /mo: {formatCurrency(comp.monthly, currency)}
                                 </span>
                               </div>
@@ -787,13 +787,13 @@ export default function CTCCalculatorPage() {
                       })}
 
                       {/* Employer Total */}
-                      <div className="mt-4 pt-3 border-t border-nexus-border flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-thb-border flex items-center justify-between">
                         <span className="text-sm font-semibold text-purple-600">Total Employer Contributions</span>
                         <div className="text-right">
                           <span className="text-base font-bold text-purple-600">
                             {formatCurrency(result.ctcAnnual - result.grossSalary.annual, currency)}
                           </span>
-                          <span className="text-xs text-nexus-text-muted ml-2">
+                          <span className="text-xs text-thb-text-muted ml-2">
                             /mo: {formatCurrency(Math.round((result.ctcAnnual - result.grossSalary.annual) / 12), currency)}
                           </span>
                         </div>
@@ -806,7 +806,7 @@ export default function CTCCalculatorPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 mb-2">
                         <FiAlertCircle className="w-4 h-4 text-red-400" />
-                        <p className="text-xs text-nexus-text-secondary">
+                        <p className="text-xs text-thb-text-secondary">
                           These are subtracted from Gross Salary to arrive at your take-home pay
                         </p>
                       </div>
@@ -816,7 +816,7 @@ export default function CTCCalculatorPage() {
                           <div key={comp.name} className="group">
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-nexus-text-primary">{comp.name}</span>
+                                <span className="text-sm font-medium text-thb-text-primary">{comp.name}</span>
                                 {comp.pctOfGross && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 font-medium">
                                     {comp.pctOfGross}% of Gross
@@ -827,7 +827,7 @@ export default function CTCCalculatorPage() {
                                 <span className="text-sm font-semibold text-red-500">
                                   - {formatCurrency(comp.annual, currency)}
                                 </span>
-                                <span className="text-xs text-nexus-text-muted ml-2">
+                                <span className="text-xs text-thb-text-muted ml-2">
                                   /mo: {formatCurrency(comp.monthly, currency)}
                                 </span>
                               </div>
@@ -843,13 +843,13 @@ export default function CTCCalculatorPage() {
                       })}
 
                       {/* Deductions Total */}
-                      <div className="mt-4 pt-3 border-t border-nexus-border flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-thb-border flex items-center justify-between">
                         <span className="text-sm font-semibold text-red-600">Total Deductions</span>
                         <div className="text-right">
                           <span className="text-base font-bold text-red-500">
                             - {formatCurrency(result.totalDeductions.annual, currency)}
                           </span>
-                          <span className="text-xs text-nexus-text-muted ml-2">
+                          <span className="text-xs text-thb-text-muted ml-2">
                             /mo: {formatCurrency(result.totalDeductions.monthly, currency)}
                           </span>
                         </div>
@@ -860,9 +860,9 @@ export default function CTCCalculatorPage() {
               </div>
 
               {/* ─── Complete Salary Structure Table ─── */}
-              <div className="nexus-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-nexus-border bg-slate-50/50">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+              <div className="thb-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-thb-border bg-slate-50/50">
+                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
                     <FiFileText className="w-4 h-4 text-blue-500" />
                     Complete Salary Structure
                   </h3>
@@ -870,15 +870,15 @@ export default function CTCCalculatorPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-nexus-border">
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Component</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Category</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Annual</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">Monthly</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-nexus-text-muted uppercase">% of CTC</th>
+                      <tr className="bg-slate-50 border-b border-thb-border">
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-muted uppercase">Component</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-muted uppercase">Category</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-muted uppercase">Annual</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-muted uppercase">Monthly</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-muted uppercase">% of CTC</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-nexus-border/50">
+                    <tbody className="divide-y divide-thb-border/50">
                       {/* Earnings Section */}
                       <tr className="bg-blue-50/30">
                         <td colSpan={5} className="px-4 py-2 text-xs font-bold text-blue-600 uppercase tracking-wider">
@@ -887,13 +887,13 @@ export default function CTCCalculatorPage() {
                       </tr>
                       {normalizedEarnings.map((comp) => (
                         <tr key={comp.name} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{comp.name}</td>
+                          <td className="px-4 py-2.5 text-sm font-medium text-thb-text-primary">{comp.name}</td>
                           <td className="px-4 py-2.5">
-                            <span className="nexus-badge nexus-badge-success text-[10px]">Earning</span>
+                            <span className="thb-badge thb-badge-success text-[10px]">Earning</span>
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-right font-medium text-nexus-text-primary">{formatNumber(comp.annual, currency)}</td>
-                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{formatNumber(comp.monthly, currency)}</td>
-                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{comp.pctOfCTC || '—'}%</td>
+                          <td className="px-4 py-2.5 text-sm text-right font-medium text-thb-text-primary">{formatNumber(comp.annual, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">{formatNumber(comp.monthly, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">{comp.pctOfCTC || '—'}%</td>
                         </tr>
                       ))}
                       <tr className="bg-blue-50/50 font-semibold">
@@ -911,13 +911,13 @@ export default function CTCCalculatorPage() {
                       </tr>
                       {normalizedEmployerContribs.map((comp) => (
                         <tr key={comp.name} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{comp.name}</td>
+                          <td className="px-4 py-2.5 text-sm font-medium text-thb-text-primary">{comp.name}</td>
                           <td className="px-4 py-2.5">
-                            <span className="nexus-badge nexus-badge-info text-[10px]">Employer</span>
+                            <span className="thb-badge thb-badge-info text-[10px]">Employer</span>
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-right font-medium text-nexus-text-primary">{formatNumber(comp.annual, currency)}</td>
-                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{formatNumber(comp.monthly, currency)}</td>
-                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{comp.pctOfCTC || '—'}%</td>
+                          <td className="px-4 py-2.5 text-sm text-right font-medium text-thb-text-primary">{formatNumber(comp.annual, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">{formatNumber(comp.monthly, currency)}</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">{comp.pctOfCTC || '—'}%</td>
                         </tr>
                       ))}
 
@@ -929,13 +929,13 @@ export default function CTCCalculatorPage() {
                       </tr>
                       {normalizedDeductions.map((comp) => (
                         <tr key={comp.name} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-2.5 text-sm font-medium text-nexus-text-primary">{comp.name}</td>
+                          <td className="px-4 py-2.5 text-sm font-medium text-thb-text-primary">{comp.name}</td>
                           <td className="px-4 py-2.5">
-                            <span className="nexus-badge nexus-badge-error text-[10px]">Deduction</span>
+                            <span className="thb-badge thb-badge-error text-[10px]">Deduction</span>
                           </td>
                           <td className="px-4 py-2.5 text-sm text-right font-medium text-red-500">- {formatNumber(comp.annual, currency)}</td>
                           <td className="px-4 py-2.5 text-sm text-right text-red-400">- {formatNumber(comp.monthly, currency)}</td>
-                          <td className="px-4 py-2.5 text-sm text-right text-nexus-text-secondary">{comp.pctOfGross || comp.pctOfCTC || '—'}%</td>
+                          <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">{comp.pctOfGross || comp.pctOfCTC || '—'}%</td>
                         </tr>
                       ))}
                       <tr className="bg-red-50/50 font-semibold">
@@ -963,9 +963,9 @@ export default function CTCCalculatorPage() {
               </div>
 
               {/* ─── CTC Flow Diagram ─── */}
-              <div className="nexus-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-nexus-border bg-slate-50/50">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+              <div className="thb-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-thb-border bg-slate-50/50">
+                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
                     <FiPercent className="w-4 h-4 text-emerald-500" />
                     CTC to In-Hand Flow
                   </h3>
@@ -978,7 +978,7 @@ export default function CTCCalculatorPage() {
                       <p className="text-xs font-medium opacity-80">Cost to Company (CTC)</p>
                       <p className="text-2xl font-bold mt-1">{formatCurrency(result.ctcAnnual, currency)}/yr</p>
                     </div>
-                    <FiArrowRight className="w-5 h-5 text-nexus-text-muted rotate-90" />
+                    <FiArrowRight className="w-5 h-5 text-thb-text-muted rotate-90" />
 
                     {/* Split: Gross + Employer */}
                     <div className="w-full grid grid-cols-2 gap-3 max-w-md">
@@ -993,7 +993,7 @@ export default function CTCCalculatorPage() {
                         <p className="text-[10px] text-purple-500">PF, Gratuity (not in hand)</p>
                       </div>
                     </div>
-                    <FiArrowRight className="w-5 h-5 text-nexus-text-muted rotate-90" />
+                    <FiArrowRight className="w-5 h-5 text-thb-text-muted rotate-90" />
 
                     {/* Deductions */}
                     <div className="w-full max-w-md p-3 rounded-xl bg-red-50 border border-red-200 text-center">
@@ -1011,7 +1011,7 @@ export default function CTCCalculatorPage() {
                         }, [])}
                       </div>
                     </div>
-                    <FiArrowRight className="w-5 h-5 text-nexus-text-muted rotate-90" />
+                    <FiArrowRight className="w-5 h-5 text-thb-text-muted rotate-90" />
 
                     {/* In-Hand */}
                     <div className="w-full max-w-md p-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-center text-white shadow-lg">
@@ -1025,13 +1025,13 @@ export default function CTCCalculatorPage() {
 
               {/* ─── Apply to Employee Section ─── */}
               {isAdmin && (
-                <div className="nexus-card border-l-4 border-l-amber-500">
+                <div className="thb-card border-l-4 border-l-amber-500">
                   <div className="p-5">
-                    <h3 className="text-sm font-semibold text-nexus-text-primary mb-2 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-thb-text-primary mb-2 flex items-center gap-2">
                       <FiUsers className="w-4 h-4 text-amber-500" />
                       Apply This Structure to an Employee
                     </h3>
-                    <p className="text-xs text-nexus-text-secondary mb-3">
+                    <p className="text-xs text-thb-text-secondary mb-3">
                       Use this CTC breakdown to create or update an employee&apos;s salary structure. The component amounts will be
                       saved as the employee&apos;s payroll configuration.
                     </p>
@@ -1047,7 +1047,7 @@ export default function CTCCalculatorPage() {
                       </button>
                       <a
                         href="/employees"
-                        className="px-4 py-2 rounded-lg border border-nexus-border text-xs font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors flex items-center gap-1.5"
                       >
                         Go to Employees
                         <FiArrowRight className="w-3.5 h-3.5" />

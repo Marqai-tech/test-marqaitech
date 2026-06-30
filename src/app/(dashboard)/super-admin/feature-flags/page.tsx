@@ -109,7 +109,7 @@ export default function FeatureFlagsPage() {
   if (user?.role !== 'super_admin') {
     return (
       <div className="p-6">
-        <div className="nexus-card p-8 text-center">
+        <div className="thb-card p-8 text-center">
           <FiLock className="w-10 h-10 text-rose-500 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-slate-800">Super Admins Only</h2>
           <p className="text-sm text-slate-500 mt-1">Feature flags are managed by the platform owner.</p>
@@ -136,11 +136,11 @@ export default function FeatureFlagsPage() {
             <FiChevronLeft className="w-4 h-4 text-slate-600" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
               <FiZap className="w-6 h-6 text-violet-500" />
               Feature Flags
             </h1>
-            <p className="text-sm text-nexus-text-secondary mt-0.5">
+            <p className="text-sm text-thb-text-secondary mt-0.5">
               <span className="font-mono text-[11px] bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded">REQ-SA-05</span>
               {' '}Enable / disable AI modules, beta features, and plan-gated functionality per parent company.
             </p>
@@ -148,14 +148,14 @@ export default function FeatureFlagsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <label className="text-[11px] font-semibold text-nexus-text-muted uppercase tracking-wider">Parent company:</label>
+            <label className="text-[11px] font-semibold text-thb-text-muted uppercase tracking-wider">Parent company:</label>
             <select
               value={activeTenantId}
               onChange={(e) => {
                 setActiveTenantId(e.target.value);
                 setSelectedTenant(e.target.value);
               }}
-              className="px-3 py-2 rounded-lg border border-nexus-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 cursor-pointer max-w-[260px]"
+              className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 cursor-pointer max-w-[260px]"
             >
               <option value="">Select a parent company…</option>
               {tenants.map((t) => (
@@ -168,7 +168,7 @@ export default function FeatureFlagsPage() {
           <button
             onClick={() => activeTenantId && fetchFlags(activeTenantId)}
             disabled={!activeTenantId || loading}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-nexus-border rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
@@ -177,7 +177,7 @@ export default function FeatureFlagsPage() {
 
       {/* Empty state when no tenant selected */}
       {!activeTenantId && (
-        <div className="nexus-card p-10 text-center">
+        <div className="thb-card p-10 text-center">
           <FiShield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-700">Select a parent company</h3>
           <p className="text-sm text-slate-500 mt-1">
@@ -188,7 +188,7 @@ export default function FeatureFlagsPage() {
 
       {/* Flag list */}
       {activeTenantId && (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-800">

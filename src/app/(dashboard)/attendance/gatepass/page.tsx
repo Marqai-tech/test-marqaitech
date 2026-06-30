@@ -126,7 +126,7 @@ export default function GatepassPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Physical movement control · Two-tier approval: Manager + Security</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="nexus-btn-primary flex items-center gap-2">
+        <button onClick={() => setShowForm(!showForm)} className="3boxes-btn-primary flex items-center gap-2">
           <FiPlus className="w-4 h-4" /> Request Gatepass
         </button>
       </div>
@@ -136,7 +136,7 @@ export default function GatepassPage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="nexus-card p-6 border-l-4 border-l-rose-500">
+        <div className="thb-card p-6 border-l-4 border-l-rose-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Gatepass Request</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -144,7 +144,7 @@ export default function GatepassPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Type *</label>
-              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="nexus-input w-full">
+              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="3boxes-input w-full">
                 <option value="early_departure">Early Departure</option>
                 <option value="late_arrival">Late Arrival</option>
                 <option value="visitor">Visitor</option>
@@ -153,32 +153,32 @@ export default function GatepassPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Requested At *</label>
-              <input type="datetime-local" value={form.requestedAt} onChange={e => setForm({ ...form, requestedAt: e.target.value })} className="nexus-input w-full" />
+              <input type="datetime-local" value={form.requestedAt} onChange={e => setForm({ ...form, requestedAt: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           {(form.type === 'visitor' || form.type === 'contractor') && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Visitor Name *</label>
-                <input type="text" value={form.visitorName} onChange={e => setForm({ ...form, visitorName: e.target.value })} className="nexus-input w-full" />
+                <input type="text" value={form.visitorName} onChange={e => setForm({ ...form, visitorName: e.target.value })} className="3boxes-input w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Company</label>
-                <input type="text" value={form.visitorCompany} onChange={e => setForm({ ...form, visitorCompany: e.target.value })} className="nexus-input w-full" />
+                <input type="text" value={form.visitorCompany} onChange={e => setForm({ ...form, visitorCompany: e.target.value })} className="3boxes-input w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
-                <input type="text" value={form.visitorPhone} onChange={e => setForm({ ...form, visitorPhone: e.target.value })} className="nexus-input w-full" />
+                <input type="text" value={form.visitorPhone} onChange={e => setForm({ ...form, visitorPhone: e.target.value })} className="3boxes-input w-full" />
               </div>
             </div>
           )}
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
-            <textarea rows={2} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="nexus-input w-full" placeholder="Reason for gatepass" />
+            <textarea rows={2} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="Reason for gatepass" />
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowForm(false)} className="nexus-btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} className="nexus-btn-primary flex items-center gap-2">
+            <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
               {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
               Submit Request
             </button>
@@ -186,7 +186,7 @@ export default function GatepassPage() {
         </div>
       )}
 
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -224,21 +224,21 @@ export default function GatepassPage() {
                   <td className="px-4 py-3 text-slate-700">{fmtDateTime(r.actualInTime)}</td>
                   <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{r.reason}</td>
                   <td className="px-4 py-3">
-                    <span className={`nexus-badge ${
-                      r.managerStatus === 'approved' ? 'nexus-badge-success' :
-                      r.managerStatus === 'rejected' ? 'nexus-badge-error' : 'nexus-badge-warning'
+                    <span className={`thb-badge ${
+                      r.managerStatus === 'approved' ? 'thb-badge-success' :
+                      r.managerStatus === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.managerStatus}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`nexus-badge ${
-                      r.securityStatus === 'approved' ? 'nexus-badge-success' :
-                      r.securityStatus === 'rejected' ? 'nexus-badge-error' : 'nexus-badge-warning'
+                    <span className={`thb-badge ${
+                      r.securityStatus === 'approved' ? 'thb-badge-success' :
+                      r.securityStatus === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.securityStatus}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`nexus-badge ${
-                      r.status === 'approved' || r.status === 'completed' ? 'nexus-badge-success' :
-                      r.status === 'rejected' ? 'nexus-badge-error' : 'nexus-badge-warning'
+                    <span className={`thb-badge ${
+                      r.status === 'approved' || r.status === 'completed' ? 'thb-badge-success' :
+                      r.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.status}</span>
                   </td>
                   {isAdmin && (

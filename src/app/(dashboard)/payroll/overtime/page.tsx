@@ -53,21 +53,21 @@ interface OvertimeRecord {
 // --- Badge Helpers ---
 function getOTStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
-    processed: 'nexus-badge nexus-badge-info',
+    pending: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
+    processed: 'thb-badge thb-badge-info',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function getRateTypeBadge(type: string) {
   const map: Record<string, string> = {
-    FLAT: 'nexus-badge nexus-badge-info',
-    HOURLY_RATE: 'nexus-badge nexus-badge-success',
-    PERCENTAGE_OF_BASIC: 'nexus-badge nexus-badge-purple',
+    FLAT: 'thb-badge thb-badge-info',
+    HOURLY_RATE: 'thb-badge thb-badge-success',
+    PERCENTAGE_OF_BASIC: 'thb-badge thb-badge-purple',
   };
-  return map[type] || 'nexus-badge nexus-badge-info';
+  return map[type] || 'thb-badge thb-badge-info';
 }
 
 // --- Constants ---
@@ -340,16 +340,16 @@ export default function OvertimePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiClock className="w-6 h-6 text-amber-500" />
             Overtime Management
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Track overtime hours, calculate payouts, and manage approvals</p>
+          <p className="text-thb-text-secondary mt-1">Track overtime hours, calculate payouts, and manage approvals</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors"
             title="Refresh"
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -367,69 +367,69 @@ export default function OvertimePage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Hours</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalHours.toFixed(1)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Hours</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalHours.toFixed(1)}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiDollarSign className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Amount</p>
-              <p className="text-xl font-bold text-nexus-text-primary">${formatCurrency(totalAmount)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Amount</p>
+              <p className="text-xl font-bold text-thb-text-primary">${formatCurrency(totalAmount)}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Records</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalRecords}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Records</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalRecords}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiCalendar className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending Approvals</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{pendingCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending Approvals</p>
+              <p className="text-xl font-bold text-thb-text-primary">{pendingCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter Bar */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by employee, reason, project..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
           >
             <option value="">All Statuses</option>
             {OT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -437,7 +437,7 @@ export default function OvertimePage() {
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => (
@@ -450,7 +450,7 @@ export default function OvertimePage() {
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
             placeholder="Filter by date"
           />
         </div>
@@ -458,15 +458,15 @@ export default function OvertimePage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Overtime Record' : 'Create Overtime Record'}
               </h2>
               <button
                 onClick={handleCancelForm}
-                className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -474,15 +474,15 @@ export default function OvertimePage() {
 
             {/* Overtime Details */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Overtime Details</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Overtime Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                   {employees.length > 0 ? (
                     <select
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     >
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
@@ -496,29 +496,29 @@ export default function OvertimePage() {
                       required
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="Enter Employee ID"
                     />
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
                   <input
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Hours *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours *</label>
                   <input
                     type="number"
                     step="0.5"
                     min="0.5"
                     value={form.hours}
                     onChange={(e) => setForm({ ...form, hours: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. 2, 3.5, 8"
                   />
                 </div>
@@ -527,20 +527,20 @@ export default function OvertimePage() {
 
             {/* Rate & Amount */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Rate & Amount</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Rate & Amount</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Rate Type</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Type</label>
                   <select
                     value={form.rateType}
                     onChange={(e) => setForm({ ...form, rateType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   >
                     {RATE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                     Rate {form.rateType === 'FLAT' ? '(Amount)' : form.rateType === 'HOURLY_RATE' ? '($/hour)' : '(% of basic)'}
                   </label>
                   <input
@@ -549,7 +549,7 @@ export default function OvertimePage() {
                     min="0"
                     value={form.rate}
                     onChange={(e) => setForm({ ...form, rate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder={
                       form.rateType === 'FLAT' ? 'e.g. 100' :
                       form.rateType === 'HOURLY_RATE' ? 'e.g. 25' :
@@ -558,35 +558,35 @@ export default function OvertimePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Amount (Auto-calculated)</label>
-                  <div className="w-full px-3 py-2.5 rounded-lg border border-nexus-border bg-slate-50 text-sm text-nexus-text-primary font-semibold">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Amount (Auto-calculated)</label>
+                  <div className="w-full px-3 py-2.5 rounded-lg border border-thb-border bg-slate-50 text-sm text-thb-text-primary font-semibold">
                     {computedAmount > 0 ? `$${formatCurrency(computedAmount)}` : '—'}
                   </div>
-                  <p className="text-xs text-nexus-text-muted mt-1">Based on rate type, hours & rate</p>
+                  <p className="text-xs text-thb-text-muted mt-1">Based on rate type, hours & rate</p>
                 </div>
               </div>
             </div>
 
             {/* Reason & Project */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Additional Info</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Additional Info</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Project</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Project</label>
                   <input
                     value={form.project}
                     onChange={(e) => setForm({ ...form, project: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="e.g. Project Alpha, Client Name"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Reason</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason</label>
                   <textarea
                     value={form.reason}
                     onChange={(e) => setForm({ ...form, reason: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                     placeholder="Reason for overtime..."
                   />
                 </div>
@@ -594,10 +594,10 @@ export default function OvertimePage() {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
               <button
                 onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -615,7 +615,7 @@ export default function OvertimePage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -623,19 +623,19 @@ export default function OvertimePage() {
           </div>
         </div>
       ) : filteredRecords.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiClock className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No overtime records found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first overtime record to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiClock className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No overtime records found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first overtime record to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1000px]">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Employee', 'Date', 'Hours', 'Rate Type', 'Rate', 'Amount', 'Project', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -659,7 +659,7 @@ export default function OvertimePage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirmId(null)}
-                            className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg text-thb-text-secondary hover:bg-slate-50 transition-colors"
                           >
                             Cancel
                           </button>
@@ -674,16 +674,16 @@ export default function OvertimePage() {
                             <FiUser className="w-3.5 h-3.5 text-slate-500" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-nexus-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
-                            <p className="text-xs text-nexus-text-muted">{item.employeeId}</p>
+                            <p className="text-sm font-medium text-thb-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
+                            <p className="text-xs text-thb-text-muted">{item.employeeId}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">{formatDate(item.date)}</span>
+                        <span className="text-sm text-thb-text-secondary">{formatDate(item.date)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">{item.hours}h</span>
+                        <span className="text-sm font-medium text-thb-text-primary">{item.hours}h</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={getRateTypeBadge(item.rateType)}>
@@ -691,15 +691,15 @@ export default function OvertimePage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary">
+                        <span className="text-sm text-thb-text-secondary">
                           {item.rateType === 'FLAT' ? `$${item.rate}` : item.rateType === 'HOURLY_RATE' ? `$${item.rate}/hr` : `${item.rate}%`}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-nexus-text-primary">${formatCurrency(item.amount)}</span>
+                        <span className="text-sm font-medium text-thb-text-primary">${formatCurrency(item.amount)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-nexus-text-secondary truncate max-w-[120px] block">{item.project || '—'}</span>
+                        <span className="text-sm text-thb-text-secondary truncate max-w-[120px] block">{item.project || '—'}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={getOTStatusBadge(item.status)}>
@@ -729,7 +729,7 @@ export default function OvertimePage() {
                           {isAdmin && (
                             <button
                               onClick={() => handleEdit(item)}
-                              className="p-1.5 rounded-lg text-nexus-text-secondary hover:bg-slate-100 transition-colors"
+                              className="p-1.5 rounded-lg text-thb-text-secondary hover:bg-slate-100 transition-colors"
                               title="Edit"
                             >
                               <FiEdit2 className="w-4 h-4" />

@@ -115,7 +115,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'nexus-hrms-secret-key-2024',
+  secret: process.env.NEXTAUTH_SECRET || '3boxes-hrms-secret-key-2024',
 }
 
 const handler = NextAuth(authOptions)

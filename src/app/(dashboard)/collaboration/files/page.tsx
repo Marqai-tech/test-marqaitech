@@ -184,11 +184,11 @@ export default function FilesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-emerald-500" />
             File Hub
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Personal, Project, and Company drives with version control, watermarking, and DLP scanning
           </p>
         </div>
@@ -202,7 +202,7 @@ export default function FilesPage() {
       </div>
 
       {/* Drive type tabs */}
-      <div className="nexus-card p-3">
+      <div className="thb-card p-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {DRIVE_TYPES.map((dt) => {
             const Icon = dt.icon;
@@ -214,14 +214,14 @@ export default function FilesPage() {
                 className={`p-3 rounded-lg border text-left transition-colors ${
                   isActive
                     ? 'border-blue-300 bg-blue-50'
-                    : 'border-nexus-border hover:bg-slate-50'
+                    : 'border-thb-border hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Icon className={`w-4 h-4 ${dt.color}`} />
-                  <span className="text-sm font-medium text-nexus-text-primary">{dt.label}</span>
+                  <span className="text-sm font-medium text-thb-text-primary">{dt.label}</span>
                 </div>
-                <p className="text-[10px] text-nexus-text-muted leading-relaxed">{dt.desc}</p>
+                <p className="text-[10px] text-thb-text-muted leading-relaxed">{dt.desc}</p>
               </button>
             );
           })}
@@ -229,19 +229,19 @@ export default function FilesPage() {
       </div>
 
       {/* Files list */}
-      <div className="nexus-card overflow-hidden">
-        <div className="p-3 border-b border-nexus-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-nexus-text-primary">
+      <div className="thb-card overflow-hidden">
+        <div className="p-3 border-b border-thb-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-thb-text-primary">
             {DRIVE_TYPES.find((d) => d.key === driveType)?.label}
           </h2>
-          <span className="text-xs text-nexus-text-muted">{files.length} item{files.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-thb-text-muted">{files.length} item{files.length !== 1 ? 's' : ''}</span>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+          <div className="p-8 text-center text-sm text-thb-text-muted">Loading...</div>
         ) : files.length === 0 ? (
           <div className="p-8 text-center">
-            <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-2" />
-            <p className="text-sm text-nexus-text-muted">No files in this drive yet</p>
+            <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-2" />
+            <p className="text-sm text-thb-text-muted">No files in this drive yet</p>
             <button
               onClick={() => setShowUploadModal(true)}
               className="mt-3 text-sm text-blue-600 hover:underline"
@@ -252,7 +252,7 @@ export default function FilesPage() {
         ) : (
           <table className="w-full">
             <thead className="bg-slate-50">
-              <tr className="text-left text-xs text-nexus-text-muted uppercase tracking-wider">
+              <tr className="text-left text-xs text-thb-text-muted uppercase tracking-wider">
                 <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium">Size</th>
                 <th className="px-4 py-2 font-medium">Version</th>
@@ -262,7 +262,7 @@ export default function FilesPage() {
                 <th className="px-4 py-2 font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-nexus-border">
+            <tbody className="divide-y divide-thb-border">
               {files.map((file) => (
                 <tr key={file.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
@@ -272,18 +272,18 @@ export default function FilesPage() {
                       ) : (
                         <FiFileText className="w-4 h-4 text-blue-500" />
                       )}
-                      <span className="text-sm font-medium text-nexus-text-primary">{file.name}</span>
+                      <span className="text-sm font-medium text-thb-text-primary">{file.name}</span>
                       {file.isUnderLegalHold && (
                         <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-red-100 text-red-700 rounded">Legal Hold</span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary">{formatBytes(file.sizeBytes)}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary">v{file.currentVersion}</td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-secondary">
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary">{formatBytes(file.sizeBytes)}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary">v{file.currentVersion}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-secondary">
                     {file.uploadedBy.firstName} {file.uploadedBy.lastName}
                   </td>
-                  <td className="px-4 py-3 text-xs text-nexus-text-muted">{formatDate(file.createdAt)}</td>
+                  <td className="px-4 py-3 text-xs text-thb-text-muted">{formatDate(file.createdAt)}</td>
                   <td className="px-4 py-3">
                     {file.dlpScanStatus === 'flagged' ? (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-50 text-amber-700 border border-amber-200">
@@ -296,7 +296,7 @@ export default function FilesPage() {
                         Clean
                       </span>
                     ) : (
-                      <span className="text-[10px] text-nexus-text-muted">{file.dlpScanStatus}</span>
+                      <span className="text-[10px] text-thb-text-muted">{file.dlpScanStatus}</span>
                     )}
                     {file.watermarkEnabled && (
                       <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 border border-blue-200">
@@ -309,21 +309,21 @@ export default function FilesPage() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleWatermarkAccess(file.id)}
-                        className="p-1.5 text-nexus-text-muted hover:bg-slate-100 hover:text-blue-600 rounded"
+                        className="p-1.5 text-thb-text-muted hover:bg-slate-100 hover:text-blue-600 rounded"
                         title="View (with watermark)"
                       >
                         <FiEye className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleFetchVersions(file.id)}
-                        className="p-1.5 text-nexus-text-muted hover:bg-slate-100 hover:text-violet-600 rounded"
+                        className="p-1.5 text-thb-text-muted hover:bg-slate-100 hover:text-violet-600 rounded"
                         title="Version history"
                       >
                         <FiClock className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleShare(file.id)}
-                        className="p-1.5 text-nexus-text-muted hover:bg-slate-100 hover:text-emerald-600 rounded"
+                        className="p-1.5 text-thb-text-muted hover:bg-slate-100 hover:text-emerald-600 rounded"
                         title="Share"
                       >
                         <FiShare2 className="w-3.5 h-3.5" />
@@ -340,54 +340,54 @@ export default function FilesPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="nexus-card p-6 w-full max-w-md">
+          <div className="thb-card p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-nexus-text-primary">Upload File</h3>
-              <button onClick={() => setShowUploadModal(false)} className="text-nexus-text-muted hover:text-nexus-text-primary">
+              <h3 className="text-lg font-semibold text-thb-text-primary">Upload File</h3>
+              <button onClick={() => setShowUploadModal(false)} className="text-thb-text-muted hover:text-thb-text-primary">
                 <FiX className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">File Name</label>
+                <label className="text-xs font-medium text-thb-text-secondary">File Name</label>
                 <input
                   type="text"
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
                   placeholder="e.g. Q2-Payslip.pdf"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Description (optional)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Description (optional)</label>
                 <textarea
                   value={newFileDescription}
                   onChange={(e) => setNewFileDescription(e.target.value)}
                   rows={2}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Size (bytes)</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Size (bytes)</label>
                   <input
                     type="number"
                     value={newFileSize}
                     onChange={(e) => setNewFileSize(parseInt(e.target.value || '0', 10))}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">MIME Type</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">MIME Type</label>
                   <input
                     type="text"
                     value={newFileMime}
                     onChange={(e) => setNewFileMime(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-nexus-text-secondary">
+              <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
                 <input
                   type="checkbox"
                   checked={watermarkEnabled}
@@ -404,7 +404,7 @@ export default function FilesPage() {
             <div className="flex items-center justify-end gap-2 mt-5">
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md transition-colors"
+                className="px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md transition-colors"
               >
                 Cancel
               </button>
@@ -422,30 +422,30 @@ export default function FilesPage() {
       {/* Versions Modal */}
       {showVersions && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="nexus-card p-6 w-full max-w-lg">
+          <div className="thb-card p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-nexus-text-primary">Version History</h3>
-              <button onClick={() => setShowVersions(false)} className="text-nexus-text-muted hover:text-nexus-text-primary">
+              <h3 className="text-lg font-semibold text-thb-text-primary">Version History</h3>
+              <button onClick={() => setShowVersions(false)} className="text-thb-text-muted hover:text-thb-text-primary">
                 <FiX className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {versions.length === 0 ? (
-                <p className="text-sm text-nexus-text-muted text-center py-4">No versions found</p>
+                <p className="text-sm text-thb-text-muted text-center py-4">No versions found</p>
               ) : (
                 versions.map((v) => (
-                  <div key={v.id} className="p-3 rounded-lg border border-nexus-border flex items-center justify-between">
+                  <div key={v.id} className="p-3 rounded-lg border border-thb-border flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-nexus-text-primary">Version {v.versionNumber}</span>
-                        <span className="text-[10px] text-nexus-text-muted">{formatBytes(v.sizeBytes)}</span>
+                        <span className="text-sm font-medium text-thb-text-primary">Version {v.versionNumber}</span>
+                        <span className="text-[10px] text-thb-text-muted">{formatBytes(v.sizeBytes)}</span>
                       </div>
-                      <p className="text-xs text-nexus-text-muted mt-0.5">{v.changeLog}</p>
-                      <p className="text-[10px] text-nexus-text-muted mt-0.5">
+                      <p className="text-xs text-thb-text-muted mt-0.5">{v.changeLog}</p>
+                      <p className="text-[10px] text-thb-text-muted mt-0.5">
                         {formatDate(v.createdAt)} · by {v.uploadedBy.firstName} {v.uploadedBy.lastName}
                       </p>
                     </div>
-                    <button className="p-1.5 text-nexus-text-muted hover:bg-slate-100 hover:text-blue-600 rounded">
+                    <button className="p-1.5 text-thb-text-muted hover:bg-slate-100 hover:text-blue-600 rounded">
                       <FiDownload className="w-3.5 h-3.5" />
                     </button>
                   </div>

@@ -372,18 +372,18 @@ export default function BiometricPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiCpu className="w-6 h-6 text-violet-500" />
             Biometric Devices
           </h1>
-          <p className="text-nexus-text-secondary mt-1">
+          <p className="text-thb-text-secondary mt-1">
             Register biometric terminals, enroll employees, review AI-flagged punches
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={refreshAll}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 text-sm"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 text-sm"
           >
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -426,7 +426,7 @@ export default function BiometricPage() {
       />
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-nexus-border overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
         {([
           { key: 'devices', label: 'Devices', icon: FiCpu, count: devices.length },
           { key: 'enrollments', label: 'Enrollments', icon: FiUserCheck, count: enrollments.length },
@@ -439,7 +439,7 @@ export default function BiometricPage() {
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key
                 ? 'border-violet-500 text-violet-600'
-                : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary'
+                : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'
             }`}
           >
             <t.icon className="w-4 h-4" />
@@ -457,10 +457,10 @@ export default function BiometricPage() {
       {tab === 'devices' && (
         <div className="space-y-4">
           {devices.length === 0 && !loading ? (
-            <div className="nexus-card p-12 text-center">
-              <FiCpu className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-              <p className="text-nexus-text-secondary font-medium">No biometric devices registered</p>
-              <p className="text-sm text-nexus-text-muted mt-1">
+            <div className="thb-card p-12 text-center">
+              <FiCpu className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No biometric devices registered</p>
+              <p className="text-sm text-thb-text-muted mt-1">
                 {isAdmin ? 'Click "Register Device" to add your first terminal.' : 'Ask an admin to register a device.'}
               </p>
             </div>
@@ -469,64 +469,64 @@ export default function BiometricPage() {
               {devices.map((device) => {
                 const online = isOnline(device.lastHeartbeatAt, nowTick);
                 return (
-                  <div key={device.id} className="nexus-card p-5 space-y-3">
+                  <div key={device.id} className="thb-card p-5 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-nexus-text-primary">{device.name}</h3>
+                          <h3 className="font-semibold text-thb-text-primary">{device.name}</h3>
                           <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-300'}`} title={online ? 'Online' : 'Offline'} />
                         </div>
-                        <p className="text-xs text-nexus-text-muted mt-0.5">
+                        <p className="text-xs text-thb-text-muted mt-0.5">
                           {vendorLabel[device.vendor] || device.vendor}
                           {device.model ? ` · ${device.model}` : ''}
                         </p>
                       </div>
-                      <span className={`nexus-badge ${device.isActive ? 'nexus-badge-success' : 'bg-slate-100 text-slate-500'}`}>
+                      <span className={`thb-badge ${device.isActive ? 'thb-badge-success' : 'bg-slate-100 text-slate-500'}`}>
                         {device.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
 
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-nexus-text-muted">Serial</span>
-                        <span className="font-mono text-xs text-nexus-text-primary">{device.serialNumber}</span>
+                        <span className="text-thb-text-muted">Serial</span>
+                        <span className="font-mono text-xs text-thb-text-primary">{device.serialNumber}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-nexus-text-muted">Branch</span>
-                        <span className="text-nexus-text-primary">{device.branch?.name || '—'}</span>
+                        <span className="text-thb-text-muted">Branch</span>
+                        <span className="text-thb-text-primary">{device.branch?.name || '—'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-nexus-text-muted">Geofence</span>
-                        <span className="text-nexus-text-primary">{device.geofence?.name || '—'}</span>
+                        <span className="text-thb-text-muted">Geofence</span>
+                        <span className="text-thb-text-primary">{device.geofence?.name || '—'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-nexus-text-muted">Last heartbeat</span>
-                        <span className="text-nexus-text-primary text-xs">
+                        <span className="text-thb-text-muted">Last heartbeat</span>
+                        <span className="text-thb-text-primary text-xs">
                           {device.lastHeartbeatAt ? new Date(device.lastHeartbeatAt).toLocaleString() : 'Never'}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-nexus-text-muted">Enrollments</span>
-                        <span className="text-nexus-text-primary">{device._count?.enrollments ?? 0}</span>
+                        <span className="text-thb-text-muted">Enrollments</span>
+                        <span className="text-thb-text-primary">{device._count?.enrollments ?? 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-nexus-text-muted">Total punches</span>
-                        <span className="text-nexus-text-primary">{device._count?.punches ?? 0}</span>
+                        <span className="text-thb-text-muted">Total punches</span>
+                        <span className="text-thb-text-primary">{device._count?.punches ?? 0}</span>
                       </div>
                     </div>
 
                     {isAdmin && (
-                      <div className="flex items-center gap-2 pt-2 border-t border-nexus-border">
+                      <div className="flex items-center gap-2 pt-2 border-t border-thb-border">
                         <button
                           onClick={() => handleRotate(device.id, device.name)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-nexus-border text-nexus-text-secondary hover:bg-slate-50"
+                          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-thb-border text-thb-text-secondary hover:bg-slate-50"
                         >
                           <FiKey className="w-3 h-3" />
                           Rotate token
                         </button>
                         <button
                           onClick={() => handleToggleActive(device)}
-                          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border border-nexus-border ${
+                          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border border-thb-border ${
                             device.isActive ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'
                           }`}
                         >
@@ -545,51 +545,51 @@ export default function BiometricPage() {
 
       {/* Enrollments Tab */}
       {tab === 'enrollments' && (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Device</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Modality</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Quality</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Template Hash</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Enrolled</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>}
+                <tr className="border-b border-thb-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Device</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Modality</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Quality</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Template Hash</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Enrolled</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {enrollments.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 8 : 7} className="px-4 py-12 text-center text-nexus-text-muted">
+                    <td colSpan={isAdmin ? 8 : 7} className="px-4 py-12 text-center text-thb-text-muted">
                       No enrollments yet. {isAdmin && 'Click "Enroll Employee" to add the first one.'}
                     </td>
                   </tr>
                 ) : (
                   enrollments.map((e) => (
-                    <tr key={e.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50">
+                    <tr key={e.id} className="border-b border-thb-border/50 hover:bg-slate-50/50">
                       <td className="px-4 py-3 text-sm">
-                        <div className="font-medium text-nexus-text-primary">{e.employee.firstName} {e.employee.lastName}</div>
-                        <div className="text-xs text-nexus-text-muted">{e.employee.employeeId} · {e.employee.email}</div>
+                        <div className="font-medium text-thb-text-primary">{e.employee.firstName} {e.employee.lastName}</div>
+                        <div className="text-xs text-thb-text-muted">{e.employee.employeeId} · {e.employee.email}</div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">
                         <div>{e.device.name}</div>
-                        <div className="text-xs text-nexus-text-muted">{e.device.serialNumber}</div>
+                        <div className="text-xs text-thb-text-muted">{e.device.serialNumber}</div>
                       </td>
-                      <td className="px-4 py-3 text-sm capitalize text-nexus-text-secondary">{e.modality}</td>
-                      <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                      <td className="px-4 py-3 text-sm capitalize text-thb-text-secondary">{e.modality}</td>
+                      <td className="px-4 py-3 text-sm text-thb-text-secondary">
                         {e.qualityScore != null ? `${e.qualityScore.toFixed(0)}%` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-xs font-mono text-nexus-text-muted">
+                      <td className="px-4 py-3 text-xs font-mono text-thb-text-muted">
                         {e.templateHash.substring(0, 12)}…
                       </td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-secondary">
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">
                         {new Date(e.enrolledAt).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`nexus-badge ${e.isActive ? 'nexus-badge-success' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`thb-badge ${e.isActive ? 'thb-badge-success' : 'bg-slate-100 text-slate-500'}`}>
                           {e.isActive ? 'Active' : 'Revoked'}
                         </span>
                       </td>
@@ -620,62 +620,62 @@ export default function BiometricPage() {
         <div className="space-y-4">
           {punchesSummary && (
             <div className="grid grid-cols-3 gap-4">
-              <div className="nexus-card p-4">
-                <p className="text-xs font-medium text-nexus-text-muted">Today&apos;s punches</p>
-                <p className="text-2xl font-bold text-nexus-text-primary mt-1">{punchesSummary.todayTotal}</p>
+              <div className="thb-card p-4">
+                <p className="text-xs font-medium text-thb-text-muted">Today&apos;s punches</p>
+                <p className="text-2xl font-bold text-thb-text-primary mt-1">{punchesSummary.todayTotal}</p>
               </div>
-              <div className="nexus-card p-4">
-                <p className="text-xs font-medium text-nexus-text-muted">Today&apos;s flagged</p>
+              <div className="thb-card p-4">
+                <p className="text-xs font-medium text-thb-text-muted">Today&apos;s flagged</p>
                 <p className="text-2xl font-bold text-amber-600 mt-1">{punchesSummary.todayFlagged}</p>
               </div>
-              <div className="nexus-card p-4">
-                <p className="text-xs font-medium text-nexus-text-muted">Flagged (last 7 days)</p>
+              <div className="thb-card p-4">
+                <p className="text-xs font-medium text-thb-text-muted">Flagged (last 7 days)</p>
                 <p className="text-2xl font-bold text-red-600 mt-1">{punchesSummary.last7Flagged}</p>
               </div>
             </div>
           )}
 
-          <div className="nexus-card overflow-hidden">
+          <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-nexus-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Time</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Device</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Spoofing</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Buddy</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Flag reasons</th>
+                  <tr className="border-b border-thb-border bg-slate-50/50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Time</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Device</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Spoofing</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Buddy</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Flag reasons</th>
                   </tr>
                 </thead>
                 <tbody>
                   {punches.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-nexus-text-muted">
+                      <td colSpan={7} className="px-4 py-12 text-center text-thb-text-muted">
                         No biometric punches ingested yet. Once devices start pushing, you&apos;ll see them here.
                       </td>
                     </tr>
                   ) : (
                     punches.map((p) => (
-                      <tr key={p.id} className={`border-b border-nexus-border/50 ${p.flagged ? 'bg-amber-50/40' : ''}`}>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                      <tr key={p.id} className={`border-b border-thb-border/50 ${p.flagged ? 'bg-amber-50/40' : ''}`}>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
                           {new Date(p.punchTime).toLocaleString()}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {p.employee ? (
                             <>
-                              <div className="font-medium text-nexus-text-primary">{p.employee.firstName} {p.employee.lastName}</div>
-                              <div className="text-xs text-nexus-text-muted">{p.employee.employeeId}</div>
+                              <div className="font-medium text-thb-text-primary">{p.employee.firstName} {p.employee.lastName}</div>
+                              <div className="text-xs text-thb-text-muted">{p.employee.employeeId}</div>
                             </>
-                          ) : <span className="text-nexus-text-muted">Unmatched</span>}
+                          ) : <span className="text-thb-text-muted">Unmatched</span>}
                         </td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
                           <div>{p.device.name}</div>
-                          <div className="text-xs text-nexus-text-muted">{p.device.vendor}{p.device.branch?.name ? ` · ${p.device.branch.name}` : ''}</div>
+                          <div className="text-xs text-thb-text-muted">{p.device.vendor}{p.device.branch?.name ? ` · ${p.device.branch.name}` : ''}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`nexus-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                          <span className={`thb-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                             {p.punchType === 'check_in' ? 'In' : 'Out'}
                           </span>
                         </td>
@@ -709,10 +709,10 @@ export default function BiometricPage() {
 
       {/* Thresholds Tab */}
       {tab === 'thresholds' && isAdmin && thresholds && (
-        <div className="nexus-card p-6 max-w-2xl space-y-4">
+        <div className="thb-card p-6 max-w-2xl space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-nexus-text-primary">AI Risk Thresholds</h3>
-            <p className="text-xs text-nexus-text-muted mt-1">
+            <h3 className="text-sm font-semibold text-thb-text-primary">AI Risk Thresholds</h3>
+            <p className="text-xs text-thb-text-muted mt-1">
               Punches with risk scores above these thresholds are flagged for review. Flagged punches still create an Attendance record (for audit) but are marked &quot;flagged&quot; until a manager reviews them.
             </p>
           </div>
@@ -730,34 +730,34 @@ export default function BiometricPage() {
             onChange={(v) => setThresholds({ ...thresholds, buddyPunchRiskThreshold: v })}
           />
 
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-nexus-border">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-thb-border">
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Impossible-travel distance (km)</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Impossible-travel distance (km)</label>
               <input
                 type="number"
                 step="1"
                 value={thresholds.impossibleTravelKm}
                 onChange={(e) => setThresholds({ ...thresholds, impossibleTravelKm: Number(e.target.value) })}
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
               />
-              <p className="text-[10px] text-nexus-text-muted mt-1">If the same employee punches from two devices &gt;X km apart within the window below, buddy risk = 1.0</p>
+              <p className="text-[10px] text-thb-text-muted mt-1">If the same employee punches from two devices &gt;X km apart within the window below, buddy risk = 1.0</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Impossible-travel window (min)</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Impossible-travel window (min)</label>
               <input
                 type="number"
                 step="1"
                 value={thresholds.impossibleTravelMinutes}
                 onChange={(e) => setThresholds({ ...thresholds, impossibleTravelMinutes: Number(e.target.value) })}
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
               />
-              <p className="text-[10px] text-nexus-text-muted mt-1">Time window for the impossible-travel check</p>
+              <p className="text-[10px] text-thb-text-muted mt-1">Time window for the impossible-travel check</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Off-hours start (min from midnight)</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Off-hours start (min from midnight)</label>
               <input
                 type="number"
                 step="15"
@@ -765,11 +765,11 @@ export default function BiometricPage() {
                 max="1440"
                 value={thresholds.offHoursStartMinutes}
                 onChange={(e) => setThresholds({ ...thresholds, offHoursStartMinutes: Number(e.target.value) })}
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Off-hours end (min from midnight)</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Off-hours end (min from midnight)</label>
               <input
                 type="number"
                 step="15"
@@ -777,9 +777,9 @@ export default function BiometricPage() {
                 max="1440"
                 value={thresholds.offHoursEndMinutes}
                 onChange={(e) => setThresholds({ ...thresholds, offHoursEndMinutes: Number(e.target.value) })}
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
               />
-              <p className="text-[10px] text-nexus-text-muted mt-1">Set both to 0 to disable off-hours flagging</p>
+              <p className="text-[10px] text-thb-text-muted mt-1">Set both to 0 to disable off-hours flagging</p>
             </div>
           </div>
 
@@ -803,11 +803,11 @@ export default function BiometricPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Vendor *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Vendor *</label>
                 <select
                   value={deviceForm.vendor}
                   onChange={(e) => setDeviceForm({ ...deviceForm, vendor: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                  className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
                 >
                   <option value="zkteco">ZKTeco</option>
                   <option value="mantra">Mantra</option>
@@ -824,22 +824,22 @@ export default function BiometricPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Branch</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Branch</label>
                 <select
                   value={deviceForm.branchId}
                   onChange={(e) => setDeviceForm({ ...deviceForm, branchId: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                  className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
                 >
                   <option value="">—</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Geofence (optional cross-check)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Geofence (optional cross-check)</label>
                 <select
                   value={deviceForm.geofenceId}
                   onChange={(e) => setDeviceForm({ ...deviceForm, geofenceId: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                  className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
                 >
                   <option value="">—</option>
                   {geofences.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -850,7 +850,7 @@ export default function BiometricPage() {
               <strong>REQ-SEC-ATT-02:</strong> Device-to-server traffic MUST use TLS 1.3. The API token is shown ONCE after registration — save it to the device config immediately.
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowDeviceForm(false)} className="px-3 py-2 text-sm rounded border border-nexus-border">Cancel</button>
+              <button onClick={() => setShowDeviceForm(false)} className="px-3 py-2 text-sm rounded border border-thb-border">Cancel</button>
               <button
                 onClick={handleDeviceSubmit}
                 disabled={submitting}
@@ -868,11 +868,11 @@ export default function BiometricPage() {
         <Modal title="Enroll Employee Biometric" onClose={() => setShowEnrollForm(false)}>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Employee *</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Employee *</label>
               <select
                 value={enrollForm.employeeId}
                 onChange={(e) => setEnrollForm({ ...enrollForm, employeeId: e.target.value })}
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
               >
                 <option value="">Select employee…</option>
                 {employees.map((e) => (
@@ -881,11 +881,11 @@ export default function BiometricPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Device *</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Device *</label>
               <select
                 value={enrollForm.deviceId}
                 onChange={(e) => setEnrollForm({ ...enrollForm, deviceId: e.target.value })}
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
               >
                 <option value="">Select device…</option>
                 {devices.filter((d) => d.isActive).map((d) => (
@@ -895,11 +895,11 @@ export default function BiometricPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Modality *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Modality *</label>
                 <select
                   value={enrollForm.modality}
                   onChange={(e) => setEnrollForm({ ...enrollForm, modality: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+                  className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
                 >
                   <option value="fingerprint">Fingerprint</option>
                   <option value="face">Face</option>
@@ -916,20 +916,20 @@ export default function BiometricPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Template hash (SHA-256 of encrypted template) *</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Template hash (SHA-256 of encrypted template) *</label>
               <textarea
                 value={enrollForm.templateHash}
                 onChange={(e) => setEnrollForm({ ...enrollForm, templateHash: e.target.value })}
                 rows={3}
                 placeholder="e.g. a3f5... (64 hex chars)"
-                className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm font-mono"
+                className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm font-mono"
               />
-              <p className="text-[10px] text-nexus-text-muted mt-1">
+              <p className="text-[10px] text-thb-text-muted mt-1">
                 Hash only — never paste the raw biometric template. The device should compute the hash locally and push only the hash.
               </p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowEnrollForm(false)} className="px-3 py-2 text-sm rounded border border-nexus-border">Cancel</button>
+              <button onClick={() => setShowEnrollForm(false)} className="px-3 py-2 text-sm rounded border border-thb-border">Cancel</button>
               <button
                 onClick={handleEnrollSubmit}
                 disabled={submitting}
@@ -953,27 +953,27 @@ export default function BiometricPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">Device</label>
-              <p className="text-sm font-medium text-nexus-text-primary mt-0.5">{newToken.device}</p>
+              <label className="text-xs font-medium text-thb-text-secondary">Device</label>
+              <p className="text-sm font-medium text-thb-text-primary mt-0.5">{newToken.device}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-nexus-text-secondary">API token (X-Biometric-Token header)</label>
+              <label className="text-xs font-medium text-thb-text-secondary">API token (X-Biometric-Token header)</label>
               <div className="flex items-center gap-2 mt-1">
                 <input
                   readOnly
                   value={newToken.token}
-                  className="flex-1 px-3 py-2 rounded border border-nexus-border text-xs font-mono bg-slate-50"
+                  className="flex-1 px-3 py-2 rounded border border-thb-border text-xs font-mono bg-slate-50"
                 />
                 <button
                   onClick={() => copyToClipboard(newToken.token)}
-                  className="p-2 rounded border border-nexus-border hover:bg-slate-50"
+                  className="p-2 rounded border border-thb-border hover:bg-slate-50"
                   title="Copy"
                 >
                   <FiCopy className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            <div className="text-xs text-nexus-text-muted bg-slate-50 rounded p-3">
+            <div className="text-xs text-thb-text-muted bg-slate-50 rounded p-3">
               <strong>Webhook URL:</strong> <code className="font-mono">POST /api/attendance/biometric/punch</code><br />
               <strong>Heartbeat URL:</strong> <code className="font-mono">POST /api/attendance/biometric/heartbeat</code><br />
               <strong>Required headers:</strong> <code className="font-mono">X-Biometric-Token: &lt;token&gt;</code>
@@ -1005,13 +1005,13 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
 }) {
   return (
     <div>
-      <label className="text-xs font-medium text-nexus-text-secondary">{label}</label>
+      <label className="text-xs font-medium text-thb-text-secondary">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full px-3 py-2 rounded border border-nexus-border text-sm"
+        className="mt-1 w-full px-3 py-2 rounded border border-thb-border text-sm"
       />
     </div>
   );
@@ -1023,10 +1023,10 @@ function ThresholdSlider({ label, description, value, onChange }: {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-nexus-text-primary">{label}</label>
+        <label className="text-sm font-medium text-thb-text-primary">{label}</label>
         <span className="text-sm font-bold text-violet-600">{Math.round(value * 100)}%</span>
       </div>
-      <p className="text-xs text-nexus-text-muted mt-0.5">{description}</p>
+      <p className="text-xs text-thb-text-muted mt-0.5">{description}</p>
       <input
         type="range"
         min="0"
@@ -1044,10 +1044,10 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-nexus-border px-5 py-3 flex items-center justify-between rounded-t-xl z-10">
-          <h2 className="text-sm font-semibold text-nexus-text-primary">{title}</h2>
+        <div className="sticky top-0 bg-white border-b border-thb-border px-5 py-3 flex items-center justify-between rounded-t-xl z-10">
+          <h2 className="text-sm font-semibold text-thb-text-primary">{title}</h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded">
-            <FiX className="w-4 h-4 text-nexus-text-muted" />
+            <FiX className="w-4 h-4 text-thb-text-muted" />
           </button>
         </div>
         <div className="p-5">{children}</div>

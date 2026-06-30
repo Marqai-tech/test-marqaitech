@@ -99,15 +99,15 @@ function renderMarkdown(markdown: string): string {
     // Inline code
     .replace(/`([^`]+)`/g, '<code class="bg-slate-100 text-red-600 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
     // Headers
-    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-nexus-text-primary mt-6 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-nexus-text-primary mt-8 mb-3 pb-2 border-b border-nexus-border">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold text-nexus-text-primary mt-4 mb-4">$1</h1>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-thb-text-primary mt-6 mb-2">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-thb-text-primary mt-8 mb-3 pb-2 border-b border-thb-border">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold text-thb-text-primary mt-4 mb-4">$1</h1>')
     // Bold
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-nexus-text-primary">$1</strong>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-thb-text-primary">$1</strong>')
     // Italic
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     // Unordered lists
-    .replace(/^- \[x\] (.+)$/gm, '<div class="flex items-start gap-2 ml-4 my-1"><span class="text-green-500 mt-0.5">✓</span><span class="line-through text-nexus-text-muted">$1</span></div>')
+    .replace(/^- \[x\] (.+)$/gm, '<div class="flex items-start gap-2 ml-4 my-1"><span class="text-green-500 mt-0.5">✓</span><span class="line-through text-thb-text-muted">$1</span></div>')
     .replace(/^- \[ \] (.+)$/gm, '<div class="flex items-start gap-2 ml-4 my-1"><span class="text-slate-400 mt-0.5">○</span><span>$1</span></div>')
     .replace(/^- (.+)$/gm, '<div class="flex items-start gap-2 ml-4 my-1"><span class="text-slate-400 mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0"></span><span>$1</span></div>')
     // Ordered lists
@@ -117,22 +117,22 @@ function renderMarkdown(markdown: string): string {
       const cells = match.split('|').filter(c => c.trim());
       if (cells.every(c => c.trim().match(/^[-:]+$/))) return '';
       const isHeader = false;
-      const cellHtml = cells.map(c => `<td class="px-3 py-2 text-sm text-nexus-text-secondary border-b border-nexus-border">${c.trim()}</td>`).join('');
+      const cellHtml = cells.map(c => `<td class="px-3 py-2 text-sm text-thb-text-secondary border-b border-thb-border">${c.trim()}</td>`).join('');
       return `<tr class="${isHeader ? 'bg-slate-50' : ''}">${cellHtml}</tr>`;
     })
     // Paragraphs
-    .replace(/\n\n/g, '</p><p class="my-3 text-nexus-text-secondary leading-relaxed">')
+    .replace(/\n\n/g, '</p><p class="my-3 text-thb-text-secondary leading-relaxed">')
     // Line breaks
     .replace(/\n/g, '<br/>');
 
   // Wrap table rows
   if (html.includes('<tr')) {
     html = html.replace(/(<tr[\s\S]*?<\/tr>)+/g, (match) =>
-      `<table class="w-full border-collapse my-4 rounded-lg overflow-hidden border border-nexus-border"><thead class="bg-slate-50"></thead><tbody>${match}</tbody></table>`
+      `<table class="w-full border-collapse my-4 rounded-lg overflow-hidden border border-thb-border"><thead class="bg-slate-50"></thead><tbody>${match}</tbody></table>`
     );
   }
 
-  return `<div class="prose-nexus"><p class="my-3 text-nexus-text-secondary leading-relaxed">${html}</p></div>`;
+  return `<div class="prose-3boxes"><p class="my-3 text-thb-text-secondary leading-relaxed">${html}</p></div>`;
 }
 
 // Category icon mapper
@@ -557,7 +557,7 @@ export default function DocsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="nexus-card p-6 bg-gradient-to-r from-violet-500 to-purple-600 border-0 relative overflow-hidden">
+      <div className="thb-card p-6 bg-gradient-to-r from-violet-500 to-purple-600 border-0 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -600,13 +600,13 @@ export default function DocsPage() {
       <div className="flex items-center gap-1.5 text-sm">
         {breadcrumb.map((item, i) => (
           <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <FiChevronRight className="w-3.5 h-3.5 text-nexus-text-muted" />}
+            {i > 0 && <FiChevronRight className="w-3.5 h-3.5 text-thb-text-muted" />}
             {i < breadcrumb.length - 1 ? (
-              <button onClick={item.onClick} className="text-nexus-text-secondary hover:text-violet-600 transition-colors">
+              <button onClick={item.onClick} className="text-thb-text-secondary hover:text-violet-600 transition-colors">
                 {item.label}
               </button>
             ) : (
-              <span className="text-nexus-text-primary font-medium">{item.label}</span>
+              <span className="text-thb-text-primary font-medium">{item.label}</span>
             )}
           </span>
         ))}
@@ -616,33 +616,33 @@ export default function DocsPage() {
       <div className="flex gap-6">
         {/* Left Sidebar */}
         <div className="w-64 flex-shrink-0 hidden lg:block">
-          <div className="nexus-card p-4 space-y-4 sticky top-6">
+          <div className="thb-card p-4 space-y-4 sticky top-6">
             {/* Search */}
             <div className="relative">
-              <FiSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-nexus-text-muted" />
+              <FiSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-thb-text-muted" />
               <input
                 placeholder="Search docs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
               />
             </div>
 
             {/* Categories */}
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-nexus-text-muted mb-2">Categories</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-thb-text-muted mb-2">Categories</h3>
               <div className="space-y-0.5 max-h-72 overflow-y-auto">
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                     !selectedCategory
                       ? 'bg-violet-50 text-violet-700 font-medium'
-                      : 'text-nexus-text-secondary hover:bg-slate-50'
+                      : 'text-thb-text-secondary hover:bg-slate-50'
                   }`}
                 >
                   <FiLayers className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1 text-left">All Categories</span>
-                  <span className="text-xs text-nexus-text-muted">{articles.length}</span>
+                  <span className="text-xs text-thb-text-muted">{articles.length}</span>
                 </button>
                 {categories.map(cat => (
                   <button
@@ -651,14 +651,14 @@ export default function DocsPage() {
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedCategory === cat.slug
                         ? 'bg-violet-50 text-violet-700 font-medium'
-                        : 'text-nexus-text-secondary hover:bg-slate-50'
+                        : 'text-thb-text-secondary hover:bg-slate-50'
                     }`}
                   >
                     <span className={`w-7 h-7 rounded-md flex items-center justify-center border flex-shrink-0 ${getCategoryColorClass(cat.color)}`}>
                       {getCategoryIcon(cat.icon)}
                     </span>
                     <span className="flex-1 text-left truncate">{cat.name}</span>
-                    <span className="text-xs text-nexus-text-muted">{cat.articleCount}</span>
+                    <span className="text-xs text-thb-text-muted">{cat.articleCount}</span>
                   </button>
                 ))}
               </div>
@@ -666,14 +666,14 @@ export default function DocsPage() {
 
             {/* Doc Type Filter */}
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-nexus-text-muted mb-2">Document Type</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-thb-text-muted mb-2">Document Type</h3>
               <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setSelectedDocType(null)}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     !selectedDocType
                       ? 'bg-violet-100 text-violet-700'
-                      : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200'
+                      : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'
                   }`}
                 >
                   All
@@ -685,7 +685,7 @@ export default function DocsPage() {
                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
                       selectedDocType === key
                         ? config.color
-                        : 'bg-slate-100 text-nexus-text-secondary hover:bg-slate-200'
+                        : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'
                     }`}
                   >
                     {config.icon} {config.label}
@@ -701,19 +701,19 @@ export default function DocsPage() {
           {/* Mobile search + filters */}
           <div className="lg:hidden mb-4 space-y-3">
             <div className="relative">
-              <FiSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-nexus-text-muted" />
+              <FiSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-thb-text-muted" />
               <input
                 placeholder="Search docs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-nexus-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
                 onClick={() => setSelectedCategory(null)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-                  !selectedCategory ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-nexus-text-secondary'
+                  !selectedCategory ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-thb-text-secondary'
                 }`}
               >
                 All
@@ -723,7 +723,7 @@ export default function DocsPage() {
                   key={cat.id}
                   onClick={() => setSelectedCategory(selectedCategory === cat.slug ? null : cat.slug)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-                    selectedCategory === cat.slug ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-nexus-text-secondary'
+                    selectedCategory === cat.slug ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-thb-text-secondary'
                   }`}
                 >
                   {cat.name}
@@ -734,47 +734,47 @@ export default function DocsPage() {
 
           {/* Category Editor (inline) */}
           {showCategoryEditor && (
-            <div className="nexus-card p-6 mb-6 border-violet-200">
+            <div className="thb-card p-6 mb-6 border-violet-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-nexus-text-primary">New Category</h3>
-                <button onClick={() => setShowCategoryEditor(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-nexus-text-muted">
+                <h3 className="text-lg font-bold text-thb-text-primary">New Category</h3>
+                <button onClick={() => setShowCategoryEditor(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Name *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Name *</label>
                   <input
                     value={categoryForm.name}
                     onChange={(e) => setCategoryForm(f => ({ ...f, name: e.target.value, slug: generateSlug(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     placeholder="e.g., API Documentation"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Slug *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Slug *</label>
                   <input
                     value={categoryForm.slug}
                     onChange={(e) => setCategoryForm(f => ({ ...f, slug: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     placeholder="e.g., api-documentation"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Description</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Description</label>
                   <input
                     value={categoryForm.description}
                     onChange={(e) => setCategoryForm(f => ({ ...f, description: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     placeholder="Brief description of this category"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Color</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Color</label>
                   <select
                     value={categoryForm.color}
                     onChange={(e) => setCategoryForm(f => ({ ...f, color: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     {['blue', 'green', 'indigo', 'red', 'purple', 'amber', 'teal'].map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -782,11 +782,11 @@ export default function DocsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Icon</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Icon</label>
                   <select
                     value={categoryForm.icon}
                     onChange={(e) => setCategoryForm(f => ({ ...f, icon: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     {['FiBookOpen', 'FiCode', 'FiFileText', 'FiGitBranch', 'FiShield', 'FiZap', 'FiClipboard', 'FiPlay'].map(i => (
                       <option key={i} value={i}>{i.replace('Fi', '')}</option>
@@ -795,7 +795,7 @@ export default function DocsPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setShowCategoryEditor(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-100">
+                <button onClick={() => setShowCategoryEditor(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-100">
                   Cancel
                 </button>
                 <button
@@ -811,38 +811,38 @@ export default function DocsPage() {
 
           {/* Article Editor (inline) */}
           {showArticleEditor && (
-            <div className="nexus-card p-6 mb-6 border-violet-200">
+            <div className="thb-card p-6 mb-6 border-violet-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-nexus-text-primary">{editingArticle ? 'Edit Article' : 'New Article'}</h3>
-                <button onClick={() => { setShowArticleEditor(false); setEditingArticle(null); }} className="p-1.5 rounded-lg hover:bg-slate-100 text-nexus-text-muted">
+                <h3 className="text-lg font-bold text-thb-text-primary">{editingArticle ? 'Edit Article' : 'New Article'}</h3>
+                <button onClick={() => { setShowArticleEditor(false); setEditingArticle(null); }} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Title *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Title *</label>
                   <input
                     value={articleForm.title}
                     onChange={(e) => setArticleForm(f => ({ ...f, title: e.target.value, slug: editingArticle ? f.slug : generateSlug(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     placeholder="Article title"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Slug *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Slug *</label>
                   <input
                     value={articleForm.slug}
                     onChange={(e) => setArticleForm(f => ({ ...f, slug: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     placeholder="url-friendly-slug"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Category *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Category *</label>
                   <select
                     value={articleForm.categoryId}
                     onChange={(e) => setArticleForm(f => ({ ...f, categoryId: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     <option value="">Select category</option>
                     {categories.map(cat => (
@@ -851,11 +851,11 @@ export default function DocsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Doc Type</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Doc Type</label>
                   <select
                     value={articleForm.docType}
                     onChange={(e) => setArticleForm(f => ({ ...f, docType: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     {Object.entries(docTypeConfig).map(([key, config]) => (
                       <option key={key} value={key}>{config.label}</option>
@@ -863,11 +863,11 @@ export default function DocsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Module</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Module</label>
                   <select
                     value={articleForm.moduleKey}
                     onChange={(e) => setArticleForm(f => ({ ...f, moduleKey: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     <option value="">None</option>
                     {moduleKeys.map(m => (
@@ -876,59 +876,59 @@ export default function DocsPage() {
                   </select>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Summary</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Summary</label>
                   <textarea
                     value={articleForm.summary}
                     onChange={(e) => setArticleForm(f => ({ ...f, summary: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
                     placeholder="Brief summary of the article"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Content (Markdown) *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Content (Markdown) *</label>
                   <textarea
                     value={articleForm.content}
                     onChange={(e) => setArticleForm(f => ({ ...f, content: e.target.value }))}
                     rows={12}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y"
                     placeholder="# Title&#10;&#10;Write your content in Markdown..."
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Tags (comma-separated)</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Tags (comma-separated)</label>
                   <input
                     value={articleForm.tags}
                     onChange={(e) => setArticleForm(f => ({ ...f, tags: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     placeholder="e.g., payroll, setup, guide"
                   />
                 </div>
                 <div className="flex items-end gap-4">
                   <div>
-                    <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Status</label>
+                    <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Status</label>
                     <select
                       value={articleForm.status}
                       onChange={(e) => setArticleForm(f => ({ ...f, status: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                     >
                       <option value="draft">Draft</option>
                       <option value="published">Published</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-nexus-text-secondary mb-1 block">Version</label>
+                    <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Version</label>
                     <input
                       value={articleForm.version}
                       onChange={(e) => setArticleForm(f => ({ ...f, version: e.target.value }))}
-                      className="w-24 px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      className="w-24 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                       placeholder="1.0"
                     />
                   </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => { setShowArticleEditor(false); setEditingArticle(null); }} className="px-4 py-2 rounded-lg text-sm font-medium text-nexus-text-secondary hover:bg-slate-100">
+                <button onClick={() => { setShowArticleEditor(false); setEditingArticle(null); }} className="px-4 py-2 rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-100">
                   Cancel
                 </button>
                 <button
@@ -944,50 +944,50 @@ export default function DocsPage() {
 
           {/* Access Panel (inline) */}
           {showAccessPanel && selectedArticle && (
-            <div className="nexus-card p-6 mb-6 border-violet-200">
+            <div className="thb-card p-6 mb-6 border-violet-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-nexus-text-primary flex items-center gap-2">
+                <h3 className="text-lg font-bold text-thb-text-primary flex items-center gap-2">
                   <FiLock className="w-5 h-5 text-violet-600" /> Manage Access — {selectedArticle.title}
                 </h3>
-                <button onClick={() => setShowAccessPanel(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-nexus-text-muted">
+                <button onClick={() => setShowAccessPanel(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Current Rules */}
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-nexus-text-primary mb-2">Current Access Rules</h4>
+                <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Current Access Rules</h4>
                 {accessRules.length === 0 ? (
-                  <div className="text-sm text-nexus-text-muted py-3 text-center bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-sm text-thb-text-muted py-3 text-center bg-green-50 rounded-lg border border-green-200">
                     <FiUnlock className="w-5 h-5 mx-auto mb-1 text-green-500" />
                     This article is <strong>public</strong> — visible to all roles
                   </div>
                 ) : (
-                  <div className="border border-nexus-border rounded-lg overflow-hidden">
+                  <div className="border border-thb-border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium text-nexus-text-secondary">Type</th>
-                          <th className="text-left px-3 py-2 font-medium text-nexus-text-secondary">Target</th>
-                          <th className="text-left px-3 py-2 font-medium text-nexus-text-secondary">Access</th>
-                          <th className="text-right px-3 py-2 font-medium text-nexus-text-secondary">Action</th>
+                          <th className="text-left px-3 py-2 font-medium text-thb-text-secondary">Type</th>
+                          <th className="text-left px-3 py-2 font-medium text-thb-text-secondary">Target</th>
+                          <th className="text-left px-3 py-2 font-medium text-thb-text-secondary">Access</th>
+                          <th className="text-right px-3 py-2 font-medium text-thb-text-secondary">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {accessRules.map(rule => (
-                          <tr key={rule.id} className="border-t border-nexus-border">
+                          <tr key={rule.id} className="border-t border-thb-border">
                             <td className="px-3 py-2">
                               {rule.role ? (
-                                <span className="flex items-center gap-1.5"><FiUsers className="w-3.5 h-3.5 text-nexus-text-muted" /> Role</span>
+                                <span className="flex items-center gap-1.5"><FiUsers className="w-3.5 h-3.5 text-thb-text-muted" /> Role</span>
                               ) : (
-                                <span className="flex items-center gap-1.5"><FiUser className="w-3.5 h-3.5 text-nexus-text-muted" /> User</span>
+                                <span className="flex items-center gap-1.5"><FiUser className="w-3.5 h-3.5 text-thb-text-muted" /> User</span>
                               )}
                             </td>
                             <td className="px-3 py-2">
-                              <span className="nexus-badge capitalize">{(rule.role || rule.userId || '').replace('_', ' ')}</span>
+                              <span className="thb-badge capitalize">{(rule.role || rule.userId || '').replace('_', ' ')}</span>
                             </td>
                             <td className="px-3 py-2">
-                              <span className={`nexus-badge ${rule.accessType === 'manage' ? 'nexus-badge-info' : rule.accessType === 'edit' ? 'nexus-badge-warning' : 'nexus-badge-success'}`}>
+                              <span className={`thb-badge ${rule.accessType === 'manage' ? 'thb-badge-info' : rule.accessType === 'edit' ? 'thb-badge-warning' : 'thb-badge-success'}`}>
                                 {rule.accessType}
                               </span>
                             </td>
@@ -1020,12 +1020,12 @@ export default function DocsPage() {
 
               {/* Add Role Access */}
               <div>
-                <h4 className="text-sm font-semibold text-nexus-text-primary mb-2">Add Role Access</h4>
+                <h4 className="text-sm font-semibold text-thb-text-primary mb-2">Add Role Access</h4>
                 <div className="flex items-center gap-2">
                   <select
                     value={newAccessRole}
                     onChange={(e) => setNewAccessRole(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     <option value="">Select role...</option>
                     {roles.map(r => (
@@ -1035,7 +1035,7 @@ export default function DocsPage() {
                   <select
                     value={newAccessType}
                     onChange={(e) => setNewAccessType(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   >
                     <option value="read">Read</option>
                     <option value="edit">Edit</option>
@@ -1055,11 +1055,11 @@ export default function DocsPage() {
 
           {/* Article Detail View */}
           {selectedArticle && !showAccessPanel ? (
-            <div className="nexus-card p-6">
+            <div className="thb-card p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <button onClick={() => setSelectedArticle(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-nexus-text-muted">
+                    <button onClick={() => setSelectedArticle(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
                       <FiArrowLeft className="w-4 h-4" />
                     </button>
                     <span className={`px-2 py-0.5 rounded-md text-xs font-medium flex items-center gap-1 ${docTypeConfig[selectedArticle.docType]?.color || 'bg-slate-100 text-slate-700'}`}>
@@ -1079,8 +1079,8 @@ export default function DocsPage() {
                       <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-yellow-100 text-yellow-700">Draft</span>
                     )}
                   </div>
-                  <h1 className="text-2xl font-bold text-nexus-text-primary">{selectedArticle.title}</h1>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-nexus-text-muted">
+                  <h1 className="text-2xl font-bold text-thb-text-primary">{selectedArticle.title}</h1>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-thb-text-muted">
                     <span className="flex items-center gap-1"><FiEye className="w-3.5 h-3.5" /> {selectedArticle.viewCount} views</span>
                     <span>v{selectedArticle.version}</span>
                     <span>{new Date(selectedArticle.updatedAt).toLocaleDateString()}</span>
@@ -1100,7 +1100,7 @@ export default function DocsPage() {
                     </button>
                     <button
                       onClick={() => openEditor(selectedArticle)}
-                      className="p-2 rounded-lg hover:bg-slate-100 text-nexus-text-muted transition-colors"
+                      className="p-2 rounded-lg hover:bg-slate-100 text-thb-text-muted transition-colors"
                       title="Edit Article"
                     >
                       <FiEdit3 className="w-4 h-4" />
@@ -1120,7 +1120,7 @@ export default function DocsPage() {
               {selectedArticle.tags && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
                   {selectedArticle.tags.split(',').map((tag, i) => (
-                    <span key={i} className="px-2 py-0.5 rounded-md bg-slate-100 text-nexus-text-secondary text-xs">
+                    <span key={i} className="px-2 py-0.5 rounded-md bg-slate-100 text-thb-text-secondary text-xs">
                       {tag.trim()}
                     </span>
                   ))}
@@ -1139,25 +1139,25 @@ export default function DocsPage() {
               {isLoading || isInitializing ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="nexus-card p-5 animate-pulse">
+                    <div key={i} className="thb-card p-5 animate-pulse">
                       <div className="h-5 bg-slate-200 rounded w-3/4 mb-3" />
                       <div className="h-4 bg-slate-100 rounded w-full mb-2" />
                       <div className="h-4 bg-slate-100 rounded w-2/3" />
                     </div>
                   ))}
                   {isInitializing && (
-                    <div className="nexus-card p-6 text-center border-violet-200">
+                    <div className="thb-card p-6 text-center border-violet-200">
                       <div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
-                      <p className="text-sm text-nexus-text-secondary font-medium">Initializing Documentation Hub...</p>
-                      <p className="text-xs text-nexus-text-muted mt-1">Creating tables and seeding sample documentation</p>
+                      <p className="text-sm text-thb-text-secondary font-medium">Initializing Documentation Hub...</p>
+                      <p className="text-xs text-thb-text-muted mt-1">Creating tables and seeding sample documentation</p>
                     </div>
                   )}
                 </div>
               ) : displayArticles.length === 0 ? (
-                <div className="nexus-card p-12 text-center">
-                  <FiBookOpen className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-nexus-text-primary mb-1">No articles found</h3>
-                  <p className="text-nexus-text-muted text-sm mb-4">
+                <div className="thb-card p-12 text-center">
+                  <FiBookOpen className="w-12 h-12 text-thb-text-muted mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-thb-text-primary mb-1">No articles found</h3>
+                  <p className="text-thb-text-muted text-sm mb-4">
                     {searchQuery ? 'Try adjusting your search query' : 'No documentation articles match your current filters'}
                   </p>
                   {canEditDocs && (
@@ -1177,7 +1177,7 @@ export default function DocsPage() {
                       <button
                         key={article.id}
                         onClick={() => loadArticle(article.id)}
-                        className="nexus-card nexus-card-hover p-5 text-left group cursor-pointer"
+                        className="thb-card thb-card-hover p-5 text-left group cursor-pointer"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1194,7 +1194,7 @@ export default function DocsPage() {
                               </span>
                             )}
                             {article.moduleKey && (
-                              <span className="px-2 py-0.5 rounded-md text-xs bg-slate-50 text-nexus-text-muted flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-md text-xs bg-slate-50 text-thb-text-muted flex items-center gap-1">
                                 <FiHash className="w-3 h-3" /> {article.moduleKey}
                               </span>
                             )}
@@ -1213,15 +1213,15 @@ export default function DocsPage() {
                             </div>
                           )}
                         </div>
-                        <h3 className="text-sm font-bold text-nexus-text-primary group-hover:text-violet-600 transition-colors mb-1.5 line-clamp-2">
+                        <h3 className="text-sm font-bold text-thb-text-primary group-hover:text-violet-600 transition-colors mb-1.5 line-clamp-2">
                           {article.title}
                         </h3>
                         {article.summary && (
-                          <p className="text-xs text-nexus-text-muted line-clamp-2 mb-3">
+                          <p className="text-xs text-thb-text-muted line-clamp-2 mb-3">
                             {article.summary}
                           </p>
                         )}
-                        <div className="flex items-center justify-between text-xs text-nexus-text-muted">
+                        <div className="flex items-center justify-between text-xs text-thb-text-muted">
                           <span className="flex items-center gap-1">
                             <FiEye className="w-3.5 h-3.5" /> {article.viewCount}
                           </span>
@@ -1234,12 +1234,12 @@ export default function DocsPage() {
                         {article.tags && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {article.tags.split(',').slice(0, 3).map((tag, i) => (
-                              <span key={i} className="px-1.5 py-0.5 rounded bg-slate-50 text-nexus-text-muted text-[10px]">
+                              <span key={i} className="px-1.5 py-0.5 rounded bg-slate-50 text-thb-text-muted text-[10px]">
                                 {tag.trim()}
                               </span>
                             ))}
                             {article.tags.split(',').length > 3 && (
-                              <span className="text-[10px] text-nexus-text-muted">+{article.tags.split(',').length - 3} more</span>
+                              <span className="text-[10px] text-thb-text-muted">+{article.tags.split(',').length - 3} more</span>
                             )}
                           </div>
                         )}

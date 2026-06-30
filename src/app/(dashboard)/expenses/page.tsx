@@ -58,15 +58,15 @@ function formatCurrency(amount: number, currency = 'INR') {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    draft: 'bg-slate-100 text-slate-600 nexus-badge',
-    submitted: 'nexus-badge nexus-badge-warning',
-    pending: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
-    reimbursed: 'nexus-badge nexus-badge-info',
-    paid: 'nexus-badge nexus-badge-info',
+    draft: 'bg-slate-100 text-slate-600 thb-badge',
+    submitted: 'thb-badge thb-badge-warning',
+    pending: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
+    reimbursed: 'thb-badge thb-badge-info',
+    paid: 'thb-badge thb-badge-info',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 function formatStatus(status: string) {
@@ -304,11 +304,11 @@ export default function ExpensesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiCreditCard className="w-6 h-6 text-rose-500" />
             Expenses
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Submit and manage expense reimbursements</p>
+          <p className="text-thb-text-secondary mt-1">Submit and manage expense reimbursements</p>
         </div>
         <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
@@ -321,35 +321,35 @@ export default function ExpensesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="nexus-card p-5">
+        <div className="thb-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <FiDollarSign className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Amount</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{formatCurrency(totalAmount)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Amount</p>
+              <p className="text-xl font-bold text-thb-text-primary">{formatCurrency(totalAmount)}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-5">
+        <div className="thb-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending Amount</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending Amount</p>
               <p className="text-xl font-bold text-amber-600">{formatCurrency(pendingAmount)}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-5">
+        <div className="thb-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Approved Amount</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Approved Amount</p>
               <p className="text-xl font-bold text-emerald-600">{formatCurrency(approvedAmount)}</p>
             </div>
           </div>
@@ -357,24 +357,24 @@ export default function ExpensesPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input
               type="text"
               placeholder="Search by title, category, or employee..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <div className="flex items-center gap-2">
-            <FiFilter className="w-4 h-4 text-nexus-text-muted" />
+            <FiFilter className="w-4 h-4 text-thb-text-muted" />
             <select
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             >
               <option value="">All Categories</option>
               {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
@@ -382,7 +382,7 @@ export default function ExpensesPage() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             >
               <option value="">All Statuses</option>
               {EXPENSE_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
@@ -393,61 +393,61 @@ export default function ExpensesPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Expense' : 'Add New Expense'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Title *</label>
-                <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Expense title" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label>
+                <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Expense title" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Category *</label>
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Amount *</label>
-                <input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Amount *</label>
+                <input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Date *</label>
-                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
               </div>
               {!editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
-                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
                   </select>
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Receipt URL</label>
-                <input type="text" value={form.receipt} onChange={e => setForm(p => ({ ...p, receipt: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="https://..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Receipt URL</label>
+                <input type="text" value={form.receipt} onChange={e => setForm(p => ({ ...p, receipt: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="https://..." />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                   {EXPENSE_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Expense description..." />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
+                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Expense description..." />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
@@ -457,26 +457,26 @@ export default function ExpensesPage() {
       )}
 
       {/* Expenses Table */}
-      <div className="nexus-card overflow-hidden">
+      <div className="thb-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-nexus-border bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Title</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Employee</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Amount</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
+              <tr className="border-b border-thb-border bg-slate-50/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Title</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Amount</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
                 {isAdmin && (
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="border-b border-nexus-border/50 animate-pulse">
+                  <tr key={i} className="border-b border-thb-border/50 animate-pulse">
                     <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>
@@ -489,16 +489,16 @@ export default function ExpensesPage() {
               ) : filteredExpenses.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-center">
-                    <FiCreditCard className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                    <p className="text-nexus-text-secondary font-medium">No expenses found</p>
-                    <p className="text-sm text-nexus-text-muted mt-1">
+                    <FiCreditCard className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                    <p className="text-thb-text-secondary font-medium">No expenses found</p>
+                    <p className="text-sm text-thb-text-muted mt-1">
                       {search || filterCategory || filterStatus ? 'Try adjusting your filters' : 'Add your first expense to get started'}
                     </p>
                   </td>
                 </tr>
               ) : (
                 filteredExpenses.map(expense => (
-                  <tr key={expense.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={expense.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                     {deleteConfirmId === expense.id ? (
                       <td colSpan={colCount} className="px-4 py-3 bg-red-50">
                         <div className="flex items-center justify-between">
@@ -507,7 +507,7 @@ export default function ExpensesPage() {
                             <button onClick={() => handleDelete(expense.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">
                               {deleting ? 'Deleting...' : 'Confirm'}
                             </button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">
                               Cancel
                             </button>
                           </div>
@@ -515,21 +515,21 @@ export default function ExpensesPage() {
                       </td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{expense.title}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatCategory(expense.category)}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">
+                        <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{expense.title}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatCategory(expense.category)}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
                           {expense.employee ? `${expense.employee.firstName} ${expense.employee.lastName}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-sm font-semibold text-nexus-text-primary text-right">{formatCurrency(expense.amount, expense.currency)}</td>
-                        <td className="px-4 py-3 text-sm text-nexus-text-secondary">{formatDate(expense.date)}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-thb-text-primary text-right">{formatCurrency(expense.amount, expense.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatDate(expense.date)}</td>
                         <td className="px-4 py-3"><span className={getStatusBadge(expense.status)}>{formatStatus(expense.status)}</span></td>
                         {isAdmin && (
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => handleEdit(expense)} className="p-2 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                              <button onClick={() => handleEdit(expense)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
-                              <button onClick={() => setDeleteConfirmId(expense.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                              <button onClick={() => setDeleteConfirmId(expense.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
                                 <FiTrash2 className="w-4 h-4" />
                               </button>
                             </div>

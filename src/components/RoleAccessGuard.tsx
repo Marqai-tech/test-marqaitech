@@ -21,9 +21,9 @@ export default function RoleAccessGuard({ allowedRoles, moduleKey, action, child
   if (!allowedRoles.includes(user?.role || '')) {
     return fallback ? <>{fallback}</> : (
       <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
-        <FiShield className="w-16 h-16 text-nexus-text-muted" />
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Access Restricted</h2>
-        <p className="text-nexus-text-secondary text-center max-w-md">You don&apos;t have permission to access this section. Contact your administrator for access.</p>
+        <FiShield className="w-16 h-16 text-thb-text-muted" />
+        <h2 className="text-xl font-semibold text-thb-text-primary">Access Restricted</h2>
+        <p className="text-thb-text-secondary text-center max-w-md">You don&apos;t have permission to access this section. Contact your administrator for access.</p>
       </div>
     );
   }
@@ -34,9 +34,9 @@ export default function RoleAccessGuard({ allowedRoles, moduleKey, action, child
     if (!allowedRoles.includes(user?.role || '')) {
       return fallback ? <>{fallback}</> : (
         <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
-          <FiShield className="w-16 h-16 text-nexus-text-muted" />
-          <h2 className="text-xl font-semibold text-nexus-text-primary">Access Restricted</h2>
-          <p className="text-nexus-text-secondary text-center max-w-md">You don&apos;t have permission to access this module.</p>
+          <FiShield className="w-16 h-16 text-thb-text-muted" />
+          <h2 className="text-xl font-semibold text-thb-text-primary">Access Restricted</h2>
+          <p className="text-thb-text-secondary text-center max-w-md">You don&apos;t have permission to access this module.</p>
         </div>
       );
     }
@@ -46,9 +46,9 @@ export default function RoleAccessGuard({ allowedRoles, moduleKey, action, child
   if (moduleKey && action && !hasPermission(moduleKey, action)) {
     return fallback ? <>{fallback}</> : (
       <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
-        <FiShield className="w-16 h-16 text-nexus-text-muted" />
-        <h2 className="text-xl font-semibold text-nexus-text-primary">Access Restricted</h2>
-        <p className="text-nexus-text-secondary text-center max-w-md">You don&apos;t have permission for this action.</p>
+        <FiShield className="w-16 h-16 text-thb-text-muted" />
+        <h2 className="text-xl font-semibold text-thb-text-primary">Access Restricted</h2>
+        <p className="text-thb-text-secondary text-center max-w-md">You don&apos;t have permission for this action.</p>
       </div>
     );
   }

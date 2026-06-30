@@ -78,17 +78,17 @@ export default function FeatureFlagsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiZap className="w-6 h-6 text-amber-500" />
             Collaboration Feature Toggles
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Enable/Disable Native Calling, AI Translation, and other features for this tenant to manage server load
           </p>
         </div>
         <button
           onClick={fetchFlags}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md"
         >
           <FiRefreshCw className="w-3.5 h-3.5" />
           Refresh
@@ -97,19 +97,19 @@ export default function FeatureFlagsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {loading ? (
-          <div className="col-span-2 p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+          <div className="col-span-2 p-8 text-center text-sm text-thb-text-muted">Loading...</div>
         ) : flags.length === 0 ? (
-          <div className="col-span-2 p-8 text-center text-sm text-nexus-text-muted">No feature flags configured</div>
+          <div className="col-span-2 p-8 text-center text-sm text-thb-text-muted">No feature flags configured</div>
         ) : (
           flags.map((flag) => (
-            <div key={flag.id} className="nexus-card p-4">
+            <div key={flag.id} className="thb-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary">{flag.featureKey.replace(/_/g, ' ')}</h3>
-                  <p className="text-xs text-nexus-text-muted mt-1 leading-relaxed">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">{flag.featureKey.replace(/_/g, ' ')}</h3>
+                  <p className="text-xs text-thb-text-muted mt-1 leading-relaxed">
                     {FEATURE_DESCRIPTIONS[flag.featureKey] || 'Custom feature flag'}
                   </p>
-                  <div className="flex items-center gap-3 mt-3 text-[10px] text-nexus-text-muted">
+                  <div className="flex items-center gap-3 mt-3 text-[10px] text-thb-text-muted">
                     <span>Max call: {flag.maxCallDurationMin}min</span>
                     <span>Max upload: {flag.maxFileUploadMB}MB</span>
                     <span>Max attachments: {flag.maxChatAttachments}</span>

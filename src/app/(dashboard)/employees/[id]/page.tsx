@@ -69,19 +69,19 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   };
 
   const policyDropdown = (label: string, field: string, items: Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>, currentId: string | null | undefined, icon: React.ReactNode) => (
-    <div className="nexus-card p-4">
-      <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">{icon}{label}</h4>
+    <div className="thb-card p-4">
+      <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">{icon}{label}</h4>
       <select
         value={currentId || ''}
         onChange={e => handleSave(field, e.target.value || null)}
         disabled={!isAdmin || saving === field}
-        className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
       >
         <option value="">— Not Assigned —</option>
         {items.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
       </select>
       {currentId && items.find(p => p.id === currentId) && (
-        <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-nexus-border text-xs text-nexus-text-secondary">
+        <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-thb-border text-xs text-thb-text-secondary">
           <p><span className="font-medium">Title:</span> {items.find(p => p.id === currentId)?.title}</p>
           <p><span className="font-medium">Version:</span> {items.find(p => p.id === currentId)?.version}</p>
           {items.find(p => p.id === currentId)?.effectiveDate && <p><span className="font-medium">Effective:</span> {new Date(items.find(p => p.id === currentId)!.effectiveDate!).toLocaleDateString()}</p>}
@@ -93,19 +93,19 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Policy & Structure Mappings</h3>
+      <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Policy & Structure Mappings</h3>
       {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-blue-500" />)}
         {policyDropdown('Attendance Policy', 'attendancePolicyId', attendancePolicies, policies?.attendancePolicyId, <FiClock className="w-4 h-4 text-emerald-500" />)}
         {policyDropdown('Travel Policy', 'travelPolicyId', travelPolicies, policies?.travelPolicyId, <FiBriefcase className="w-4 h-4 text-amber-500" />)}
-        <div className="nexus-card p-4">
-          <h4 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Structure</h4>
+        <div className="thb-card p-4">
+          <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Structure</h4>
           <select
             value={policies?.salaryStructureId || ''}
             onChange={e => handleSave('salaryStructureId', e.target.value || null)}
             disabled={!isAdmin || saving === 'salaryStructureId'}
-            className="w-full px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+            className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
           >
             <option value="">— Not Assigned —</option>
             {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -129,13 +129,13 @@ function formatDateTime(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'nexus-badge nexus-badge-success',
-    on_leave: 'nexus-badge nexus-badge-warning',
-    terminated: 'nexus-badge nexus-badge-error',
-    resigned: 'bg-slate-100 text-slate-600 nexus-badge',
+    active: 'thb-badge thb-badge-success',
+    on_leave: 'thb-badge thb-badge-warning',
+    terminated: 'thb-badge thb-badge-error',
+    resigned: 'bg-slate-100 text-slate-600 thb-badge',
   };
   const labels: Record<string, string> = { active: 'Active', on_leave: 'On Leave', terminated: 'Terminated', resigned: 'Resigned' };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 interface EmployeeData {
@@ -256,13 +256,13 @@ export default function EmployeeDetailPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="nexus-card p-6 animate-pulse">
+        <div className="thb-card p-6 animate-pulse">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-slate-200 rounded-full" />
             <div className="space-y-2"><div className="h-5 w-48 bg-slate-200 rounded" /><div className="h-3 w-32 bg-slate-200 rounded" /></div>
           </div>
         </div>
-        <div className="nexus-card p-6 animate-pulse"><div className="h-8 bg-slate-200 rounded w-full" /></div>
+        <div className="thb-card p-6 animate-pulse"><div className="h-8 bg-slate-200 rounded w-full" /></div>
       </div>
     );
   }
@@ -270,8 +270,8 @@ export default function EmployeeDetailPage() {
   if (!employee) {
     return (
       <div className="text-center py-12">
-        <FiUser className="w-12 h-12 text-nexus-text-muted mx-auto mb-4" />
-        <p className="text-nexus-text-secondary font-medium">Employee not found</p>
+        <FiUser className="w-12 h-12 text-thb-text-muted mx-auto mb-4" />
+        <p className="text-thb-text-secondary font-medium">Employee not found</p>
         <button onClick={() => router.push('/employees')} className="mt-4 text-blue-500 hover:text-blue-700 text-sm font-medium">Back to Employees</button>
       </div>
     );
@@ -286,13 +286,13 @@ export default function EmployeeDetailPage() {
   return (
     <div className="space-y-6">
       {/* Back button */}
-      <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 text-sm text-nexus-text-secondary hover:text-nexus-text-primary transition-colors">
+      <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 text-sm text-thb-text-secondary hover:text-thb-text-primary transition-colors">
         <FiArrowLeft className="w-4 h-4" />
         Back to Employees
       </button>
 
       {/* Employee Header */}
-      <div className="nexus-card p-6">
+      <div className="thb-card p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {employee.avatar ? (
             <img src={employee.avatar} alt="" className="w-16 h-16 rounded-full object-cover ring-4 ring-slate-100" />
@@ -303,10 +303,10 @@ export default function EmployeeDetailPage() {
           )}
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-bold text-nexus-text-primary">{employee.firstName} {employee.lastName}</h1>
+              <h1 className="text-xl font-bold text-thb-text-primary">{employee.firstName} {employee.lastName}</h1>
               <span className={badge.className}>{badge.label}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-nexus-text-secondary">
+            <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-thb-text-secondary">
               <span className="flex items-center gap-1"><FiBriefcase className="w-3.5 h-3.5" />{employee.employeeId}</span>
               <span className="flex items-center gap-1"><FiMail className="w-3.5 h-3.5" />{employee.email}</span>
               <span>{employee.department?.name} · {employee.designation?.title}</span>
@@ -316,8 +316,8 @@ export default function EmployeeDetailPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="nexus-card">
-        <div className="border-b border-nexus-border overflow-x-auto">
+      <div className="thb-card">
+        <div className="border-b border-thb-border overflow-x-auto">
           <nav className="flex -mb-px">
             {tabs.map(tab => (
               <button
@@ -326,7 +326,7 @@ export default function EmployeeDetailPage() {
                 className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   activeTab === tab
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary hover:border-slate-300'
+                    : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary hover:border-slate-300'
                 }`}
               >
                 {tab}
@@ -359,31 +359,31 @@ export default function EmployeeDetailPage() {
 
               {/* Quick Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="nexus-card p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary">Contact Information</h3>
+                <div className="thb-card p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">Contact Information</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm"><FiMail className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.email}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiPhone className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.phone || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiMapPin className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{[employee.city, employee.state, employee.country].filter(Boolean).join(', ') || '—'}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><FiMail className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.email}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><FiPhone className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.phone || '—'}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><FiMapPin className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{[employee.city, employee.state, employee.country].filter(Boolean).join(', ') || '—'}</span></div>
                   </div>
                 </div>
-                <div className="nexus-card p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary">Employment</h3>
+                <div className="thb-card p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">Employment</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm"><FiBriefcase className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.department?.name || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiUser className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">{employee.designation?.title || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-sm"><FiCalendar className="w-4 h-4 text-nexus-text-muted" /><span className="text-nexus-text-secondary">Joined {formatDate(employee.dateOfJoining)}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><FiBriefcase className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.department?.name || '—'}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><FiUser className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">{employee.designation?.title || '—'}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><FiCalendar className="w-4 h-4 text-thb-text-muted" /><span className="text-thb-text-secondary">Joined {formatDate(employee.dateOfJoining)}</span></div>
                   </div>
                 </div>
               </div>
 
               {/* Skills */}
               {employee.skills && employee.skills.length > 0 && (
-                <div className="nexus-card p-4">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Skills</h3>
+                <div className="thb-card p-4">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {employee.skills.map(s => (
-                      <span key={s.id} className="nexus-badge nexus-badge-info">{s.skill} · {s.level}</span>
+                      <span key={s.id} className="thb-badge thb-badge-info">{s.skill} · {s.level}</span>
                     ))}
                   </div>
                 </div>
@@ -412,31 +412,31 @@ export default function EmployeeDetailPage() {
                   { label: 'Country', value: employee.country },
                 ].map(field => (
                   <div key={field.label}>
-                    <p className="text-xs font-medium text-nexus-text-muted mb-1">{field.label}</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{field.value || '—'}</p>
+                    <p className="text-xs font-medium text-thb-text-muted mb-1">{field.label}</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{field.value || '—'}</p>
                   </div>
                 ))}
               </div>
 
               {/* Emergency Contact */}
-              <div className="nexus-card p-4">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiHeart className="w-4 h-4 text-rose-500" />Emergency Contact</h3>
+              <div className="thb-card p-4">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiHeart className="w-4 h-4 text-rose-500" />Emergency Contact</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Name</p><p className="text-sm font-medium text-nexus-text-primary">{employee.emergencyContactName || '—'}</p></div>
-                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Phone</p><p className="text-sm font-medium text-nexus-text-primary">{employee.emergencyContactPhone || '—'}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Name</p><p className="text-sm font-medium text-thb-text-primary">{employee.emergencyContactName || '—'}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Phone</p><p className="text-sm font-medium text-thb-text-primary">{employee.emergencyContactPhone || '—'}</p></div>
                 </div>
               </div>
 
               {/* Dependents */}
               {employee.dependents && employee.dependents.length > 0 && (
-                <div className="nexus-card p-4">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Dependents</h3>
+                <div className="thb-card p-4">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Dependents</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Relation</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">DOB</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Gender</th></tr></thead>
+                      <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Relation</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">DOB</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Gender</th></tr></thead>
                       <tbody>
                         {employee.dependents.map(dep => (
-                          <tr key={dep.id} className="border-b border-nexus-border/50"><td className="py-2 text-sm">{dep.name}</td><td className="py-2 text-sm text-nexus-text-secondary">{dep.relation}</td><td className="py-2 text-sm text-nexus-text-secondary">{formatDate(dep.dateOfBirth)}</td><td className="py-2 text-sm text-nexus-text-secondary">{dep.gender || '—'}</td></tr>
+                          <tr key={dep.id} className="border-b border-thb-border/50"><td className="py-2 text-sm">{dep.name}</td><td className="py-2 text-sm text-thb-text-secondary">{dep.relation}</td><td className="py-2 text-sm text-thb-text-secondary">{formatDate(dep.dateOfBirth)}</td><td className="py-2 text-sm text-thb-text-secondary">{dep.gender || '—'}</td></tr>
                         ))}
                       </tbody>
                     </table>
@@ -459,24 +459,24 @@ export default function EmployeeDetailPage() {
                   { label: 'Status', value: badge.label },
                 ].map(field => (
                   <div key={field.label}>
-                    <p className="text-xs font-medium text-nexus-text-muted mb-1">{field.label}</p>
-                    <p className="text-sm font-medium text-nexus-text-primary">{field.value || '—'}</p>
+                    <p className="text-xs font-medium text-thb-text-muted mb-1">{field.label}</p>
+                    <p className="text-sm font-medium text-thb-text-primary">{field.value || '—'}</p>
                   </div>
                 ))}
               </div>
 
               {/* Salary Info */}
-              <div className="nexus-card p-4">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Information</h3>
+              <div className="thb-card p-4">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiDollarSign className="w-4 h-4 text-emerald-500" />Salary Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Salary</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'}</p></div>
-                  <div><p className="text-xs font-medium text-nexus-text-muted mb-1">Currency</p><p className="text-sm font-medium text-nexus-text-primary">{employee.salaryCurrency || 'INR'}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Salary</p><p className="text-sm font-medium text-thb-text-primary">{employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-muted mb-1">Currency</p><p className="text-sm font-medium text-thb-text-primary">{employee.salaryCurrency || 'INR'}</p></div>
                 </div>
               </div>
 
               {/* Bank Details */}
-              <div className="nexus-card p-4">
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Bank Details</h3>
+              <div className="thb-card p-4">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiShield className="w-4 h-4 text-violet-500" />Bank Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[
                     { label: 'Bank Name', value: employee.bankName },
@@ -486,8 +486,8 @@ export default function EmployeeDetailPage() {
                     { label: 'Aadhaar Number', value: employee.aadhaarNumber },
                   ].map(field => (
                     <div key={field.label}>
-                      <p className="text-xs font-medium text-nexus-text-muted mb-1">{field.label}</p>
-                      <p className="text-sm font-medium text-nexus-text-primary">{field.value || '—'}</p>
+                      <p className="text-xs font-medium text-thb-text-muted mb-1">{field.label}</p>
+                      <p className="text-sm font-medium text-thb-text-primary">{field.value || '—'}</p>
                     </div>
                   ))}
                 </div>
@@ -495,16 +495,16 @@ export default function EmployeeDetailPage() {
 
               {/* Experience */}
               {employee.experiences && employee.experiences.length > 0 && (
-                <div className="nexus-card p-4">
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Work Experience</h3>
+                <div className="thb-card p-4">
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Work Experience</h3>
                   <div className="space-y-3">
                     {employee.experiences.map(exp => (
-                      <div key={exp.id} className="p-3 rounded-lg border border-nexus-border">
+                      <div key={exp.id} className="p-3 rounded-lg border border-thb-border">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-nexus-text-primary">{exp.company}</p>
-                          {exp.isCurrent && <span className="nexus-badge nexus-badge-success">Current</span>}
+                          <p className="text-sm font-medium text-thb-text-primary">{exp.company}</p>
+                          {exp.isCurrent && <span className="thb-badge thb-badge-success">Current</span>}
                         </div>
-                        <p className="text-xs text-nexus-text-secondary mt-1">{exp.designation} · {formatDate(exp.startDate)} – {exp.endDate ? formatDate(exp.endDate) : 'Present'}</p>
+                        <p className="text-xs text-thb-text-secondary mt-1">{exp.designation} · {formatDate(exp.startDate)} – {exp.endDate ? formatDate(exp.endDate) : 'Present'}</p>
                       </div>
                     ))}
                   </div>
@@ -517,7 +517,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Documents' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-nexus-text-primary">Documents</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary">Documents</h3>
                 <button className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
                   <FiUpload className="w-3.5 h-3.5" />
                   Upload Document
@@ -525,21 +525,21 @@ export default function EmployeeDetailPage() {
               </div>
               {(!employee.documents || employee.documents.length === 0) ? (
                 <div className="text-center py-8">
-                  <FiFileText className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                  <p className="text-nexus-text-secondary">No documents uploaded</p>
+                  <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                  <p className="text-thb-text-secondary">No documents uploaded</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Uploaded</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Expiry</th></tr></thead>
+                    <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Name</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Uploaded</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Expiry</th></tr></thead>
                     <tbody>
                       {employee.documents.map(doc => (
-                        <tr key={doc.id} className="border-b border-nexus-border/50">
-                          <td className="py-2 text-sm font-medium text-nexus-text-primary">{doc.name}</td>
-                          <td className="py-2 text-sm text-nexus-text-secondary capitalize">{doc.type.replace('_', ' ')}</td>
-                          <td className="py-2"><span className="nexus-badge nexus-badge-success">{doc.status}</span></td>
-                          <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(doc.uploadedAt)}</td>
-                          <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(doc.expiryDate)}</td>
+                        <tr key={doc.id} className="border-b border-thb-border/50">
+                          <td className="py-2 text-sm font-medium text-thb-text-primary">{doc.name}</td>
+                          <td className="py-2 text-sm text-thb-text-secondary capitalize">{doc.type.replace('_', ' ')}</td>
+                          <td className="py-2"><span className="thb-badge thb-badge-success">{doc.status}</span></td>
+                          <td className="py-2 text-sm text-thb-text-secondary">{formatDate(doc.uploadedAt)}</td>
+                          <td className="py-2 text-sm text-thb-text-secondary">{formatDate(doc.expiryDate)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -555,12 +555,12 @@ export default function EmployeeDetailPage() {
               {/* Leave Balances */}
               {employee.leaveBalances && employee.leaveBalances.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Leave Balances</h3>
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Leave Balances</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {employee.leaveBalances.map(lb => (
-                      <div key={lb.id} className="p-4 rounded-xl border border-nexus-border">
-                        <p className="text-sm font-medium text-nexus-text-primary">{lb.leaveType.name}</p>
-                        <div className="flex items-center justify-between mt-2 text-xs text-nexus-text-secondary">
+                      <div key={lb.id} className="p-4 rounded-xl border border-thb-border">
+                        <p className="text-sm font-medium text-thb-text-primary">{lb.leaveType.name}</p>
+                        <div className="flex items-center justify-between mt-2 text-xs text-thb-text-secondary">
                           <span>Total: {lb.total}</span>
                           <span>Used: {lb.used}</span>
                           <span>Remaining: {lb.remaining}</span>
@@ -576,23 +576,23 @@ export default function EmployeeDetailPage() {
 
               {/* Leave History */}
               <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Leave History</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Leave History</h3>
                 {leaveRequests.length === 0 ? (
-                  <div className="text-center py-8"><FiCalendar className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">No leave requests</p></div>
+                  <div className="text-center py-8"><FiCalendar className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No leave requests</p></div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">From</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">To</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Reason</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th></tr></thead>
+                      <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Type</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">From</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">To</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Reason</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th></tr></thead>
                       <tbody>
                         {leaveRequests.map(lr => {
-                          const statusMap: Record<string, string> = { pending: 'nexus-badge nexus-badge-warning', approved: 'nexus-badge nexus-badge-success', rejected: 'nexus-badge nexus-badge-error', cancelled: 'bg-slate-100 text-slate-600 nexus-badge' };
+                          const statusMap: Record<string, string> = { pending: 'thb-badge thb-badge-warning', approved: 'thb-badge thb-badge-success', rejected: 'thb-badge thb-badge-error', cancelled: 'bg-slate-100 text-slate-600 thb-badge' };
                           return (
-                            <tr key={lr.id} className="border-b border-nexus-border/50">
+                            <tr key={lr.id} className="border-b border-thb-border/50">
                               <td className="py-2 text-sm">{lr.leaveType.name}</td>
-                              <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(lr.startDate)}</td>
-                              <td className="py-2 text-sm text-nexus-text-secondary">{formatDate(lr.endDate)}</td>
-                              <td className="py-2 text-sm text-nexus-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
-                              <td className="py-2"><span className={statusMap[lr.status] || 'nexus-badge nexus-badge-info'}>{lr.status}</span></td>
+                              <td className="py-2 text-sm text-thb-text-secondary">{formatDate(lr.startDate)}</td>
+                              <td className="py-2 text-sm text-thb-text-secondary">{formatDate(lr.endDate)}</td>
+                              <td className="py-2 text-sm text-thb-text-secondary truncate max-w-[200px]">{lr.reason || '—'}</td>
+                              <td className="py-2"><span className={statusMap[lr.status] || 'thb-badge thb-badge-info'}>{lr.status}</span></td>
                             </tr>
                           );
                         })}
@@ -607,24 +607,24 @@ export default function EmployeeDetailPage() {
           {/* ── Attendance Tab ── */}
           {activeTab === 'Attendance' && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-nexus-text-primary">Recent Attendance</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary">Recent Attendance</h3>
               {attendance.length === 0 ? (
-                <div className="text-center py-8"><FiClock className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">No attendance records</p></div>
+                <div className="text-center py-8"><FiClock className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No attendance records</p></div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Date</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Check In</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Check Out</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Work Hours</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Overtime</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th></tr></thead>
+                    <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Date</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Check In</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Check Out</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Work Hours</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Overtime</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th></tr></thead>
                     <tbody>
                       {attendance.map(a => {
-                        const statusMap: Record<string, string> = { present: 'nexus-badge nexus-badge-success', absent: 'nexus-badge nexus-badge-error', late: 'bg-orange-50 text-orange-700 nexus-badge', half_day: 'nexus-badge nexus-badge-warning', holiday: 'nexus-badge nexus-badge-info', weekend: 'bg-slate-100 text-slate-600 nexus-badge', on_leave: 'nexus-badge nexus-badge-warning' };
+                        const statusMap: Record<string, string> = { present: 'thb-badge thb-badge-success', absent: 'thb-badge thb-badge-error', late: 'bg-orange-50 text-orange-700 thb-badge', half_day: 'thb-badge thb-badge-warning', holiday: 'thb-badge thb-badge-info', weekend: 'bg-slate-100 text-slate-600 thb-badge', on_leave: 'thb-badge thb-badge-warning' };
                         return (
-                          <tr key={a.id} className="border-b border-nexus-border/50">
+                          <tr key={a.id} className="border-b border-thb-border/50">
                             <td className="py-2 text-sm">{formatDate(a.date)}</td>
-                            <td className="py-2 text-sm text-nexus-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
-                            <td className="py-2 text-sm text-nexus-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
-                            <td className="py-2 text-sm text-nexus-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
-                            <td className="py-2 text-sm text-nexus-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
-                            <td className="py-2"><span className={statusMap[a.status] || 'nexus-badge nexus-badge-info'}>{a.status.replace('_', ' ')}</span></td>
+                            <td className="py-2 text-sm text-thb-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
+                            <td className="py-2 text-sm text-thb-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
+                            <td className="py-2 text-sm text-thb-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
+                            <td className="py-2 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+                            <td className="py-2"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{a.status.replace('_', ' ')}</span></td>
                           </tr>
                         );
                       })}
@@ -638,32 +638,32 @@ export default function EmployeeDetailPage() {
           {/* ── Policies Tab ── */}
           {activeTab === 'Health' && (
             <div className="space-y-4">
-              <div className="nexus-card p-6">
-                <h3 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2 mb-2">
+              <div className="thb-card p-6">
+                <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-2">
                   <FiHeart className="w-5 h-5 text-red-500" />
                   Health History
                 </h3>
-                <p className="text-xs text-nexus-text-muted mb-6">Employee health information for workplace safety and emergency preparedness.</p>
+                <p className="text-xs text-thb-text-muted mb-6">Employee health information for workplace safety and emergency preparedness.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Blood Group & Vitals */}
                   <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Vitals & Blood</h4>
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Vitals & Blood</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Blood Group</label>
-                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{employee.bloodGroup || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Blood Group</label>
+                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{employee.bloodGroup || '—'}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Emergency Condition</label>
-                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).emergencyMedicalCondition as string || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Emergency Condition</label>
+                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).emergencyMedicalCondition as string || '—'}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Medical History */}
                   <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Medical History</h4>
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Medical History</h4>
                     <div className="space-y-2">
                       {[
                         { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
@@ -672,11 +672,11 @@ export default function EmployeeDetailPage() {
                         { label: 'On Medication', value: (employee as Record<string, unknown>).isOnMedication as string, details: (employee as Record<string, unknown>).medicationDetails as string },
                         { label: 'Previous Surgery', value: (employee as Record<string, unknown>).hasHadSurgery as string, details: (employee as Record<string, unknown>).surgeryDetails as string },
                       ].map((item) => (
-                        <div key={item.label} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 border border-nexus-border/30">
+                        <div key={item.label} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 border border-thb-border/30">
                           <span className={`shrink-0 mt-0.5 w-2 h-2 rounded-full ${item.value === 'yes' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                           <div>
-                            <p className="text-xs font-medium text-nexus-text-primary">{item.label}</p>
-                            <p className="text-xs text-nexus-text-muted">{item.value === 'yes' ? `Yes — ${item.details || 'No details provided'}` : item.value === 'no' ? 'No' : '—'}</p>
+                            <p className="text-xs font-medium text-thb-text-primary">{item.label}</p>
+                            <p className="text-xs text-thb-text-muted">{item.value === 'yes' ? `Yes — ${item.details || 'No details provided'}` : item.value === 'no' ? 'No' : '—'}</p>
                           </div>
                         </div>
                       ))}
@@ -685,23 +685,23 @@ export default function EmployeeDetailPage() {
 
                   {/* Physician & Insurance */}
                   <div className="space-y-3 md:col-span-2">
-                    <h4 className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Physician & Insurance</h4>
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Physician & Insurance</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Primary Physician</label>
-                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).primaryPhysicianName as string || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Primary Physician</label>
+                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).primaryPhysicianName as string || '—'}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Physician Phone</label>
-                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).primaryPhysicianPhone as string || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Physician Phone</label>
+                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).primaryPhysicianPhone as string || '—'}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Insurance Provider</label>
-                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).healthInsuranceProvider as string || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Insurance Provider</label>
+                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).healthInsuranceProvider as string || '—'}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-muted mb-1">Policy Number</label>
-                        <p className="px-3 py-2 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(employee as Record<string, unknown>).healthInsurancePolicyNo as string || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-muted mb-1">Policy Number</label>
+                        <p className="px-3 py-2 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(employee as Record<string, unknown>).healthInsurancePolicyNo as string || '—'}</p>
                       </div>
                     </div>
                   </div>
@@ -714,24 +714,24 @@ export default function EmployeeDetailPage() {
           {/* ── Payroll Tab ── */}
           {activeTab === 'Payroll' && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-nexus-text-primary">Recent Payslips</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary">Recent Payslips</h3>
               {payrolls.length === 0 ? (
-                <div className="text-center py-8"><FiDollarSign className="w-8 h-8 text-nexus-text-muted mx-auto mb-2" /><p className="text-sm text-nexus-text-muted">No payroll records</p></div>
+                <div className="text-center py-8"><FiDollarSign className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No payroll records</p></div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr className="border-b border-nexus-border"><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Month</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Gross Salary</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Deductions</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Net Salary</th><th className="text-left py-2 text-xs font-semibold text-nexus-text-secondary">Status</th></tr></thead>
+                    <thead><tr className="border-b border-thb-border"><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Month</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Gross Salary</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Deductions</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Net Salary</th><th className="text-left py-2 text-xs font-semibold text-thb-text-secondary">Status</th></tr></thead>
                     <tbody>
                       {payrolls.map(p => {
                         const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const statusMap: Record<string, string> = { draft: 'nexus-badge nexus-badge-warning', processed: 'nexus-badge nexus-badge-info', paid: 'nexus-badge nexus-badge-success', cancelled: 'nexus-badge nexus-badge-error' };
+                        const statusMap: Record<string, string> = { draft: 'thb-badge thb-badge-warning', processed: 'thb-badge thb-badge-info', paid: 'thb-badge thb-badge-success', cancelled: 'thb-badge thb-badge-error' };
                         return (
-                          <tr key={p.id} className="border-b border-nexus-border/50">
+                          <tr key={p.id} className="border-b border-thb-border/50">
                             <td className="py-2 text-sm font-medium">{months[p.month]} {p.year}</td>
-                            <td className="py-2 text-sm text-nexus-text-secondary">${p.grossSalary.toLocaleString()}</td>
+                            <td className="py-2 text-sm text-thb-text-secondary">${p.grossSalary.toLocaleString()}</td>
                             <td className="py-2 text-sm text-red-500">${p.totalDeductions.toLocaleString()}</td>
                             <td className="py-2 text-sm font-medium text-emerald-600">${p.netSalary.toLocaleString()}</td>
-                            <td className="py-2"><span className={statusMap[p.status] || 'nexus-badge nexus-badge-info'}>{p.status}</span></td>
+                            <td className="py-2"><span className={statusMap[p.status] || 'thb-badge thb-badge-info'}>{p.status}</span></td>
                           </tr>
                         );
                       })}

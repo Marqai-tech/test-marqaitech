@@ -108,7 +108,7 @@ export default function CommGovernancePage() {
               }));
             }}
             placeholder="tenant_admin, hr_admin"
-            className="w-full px-2 py-1 text-xs border border-nexus-border rounded font-mono"
+            className="w-full px-2 py-1 text-xs border border-thb-border rounded font-mono"
           />
         );
       } catch {
@@ -117,7 +117,7 @@ export default function CommGovernancePage() {
             value={currentValue}
             onChange={(e) => setEdits((prev) => ({ ...prev, [policy.policyKey]: { value: e.target.value, appliesTo: currentAppliesTo } }))}
             rows={3}
-            className="w-full px-2 py-1 text-xs border border-nexus-border rounded font-mono"
+            className="w-full px-2 py-1 text-xs border border-thb-border rounded font-mono"
           />
         );
       }
@@ -128,7 +128,7 @@ export default function CommGovernancePage() {
         editableFields = (
           <div className="space-y-2">
             <div>
-              <label className="text-[10px] text-nexus-text-muted">Default retention (days, blank = no delete)</label>
+              <label className="text-[10px] text-thb-text-muted">Default retention (days, blank = no delete)</label>
               <input
                 type="number"
                 value={parsed.default_days ?? ''}
@@ -139,7 +139,7 @@ export default function CommGovernancePage() {
                     appliesTo: currentAppliesTo,
                   },
                 }))}
-                className="w-full px-2 py-1 text-xs border border-nexus-border rounded"
+                className="w-full px-2 py-1 text-xs border border-thb-border rounded"
               />
             </div>
           </div>
@@ -150,7 +150,7 @@ export default function CommGovernancePage() {
             value={currentValue}
             onChange={(e) => setEdits((prev) => ({ ...prev, [policy.policyKey]: { value: e.target.value, appliesTo: currentAppliesTo } }))}
             rows={3}
-            className="w-full px-2 py-1 text-xs border border-nexus-border rounded font-mono"
+            className="w-full px-2 py-1 text-xs border border-thb-border rounded font-mono"
           />
         );
       }
@@ -160,7 +160,7 @@ export default function CommGovernancePage() {
         const parsed = JSON.parse(currentValue);
         editableFields = (
           <div>
-            <label className="text-[10px] text-nexus-text-muted">Cleanup files inactive for (days)</label>
+            <label className="text-[10px] text-thb-text-muted">Cleanup files inactive for (days)</label>
             <input
               type="number"
               value={parsed.cleanup_after_days_inactive ?? 90}
@@ -171,7 +171,7 @@ export default function CommGovernancePage() {
                   appliesTo: currentAppliesTo,
                 },
               }))}
-              className="w-full px-2 py-1 text-xs border border-nexus-border rounded"
+              className="w-full px-2 py-1 text-xs border border-thb-border rounded"
             />
           </div>
         );
@@ -181,17 +181,17 @@ export default function CommGovernancePage() {
             value={currentValue}
             onChange={(e) => setEdits((prev) => ({ ...prev, [policy.policyKey]: { value: e.target.value, appliesTo: currentAppliesTo } }))}
             rows={3}
-            className="w-full px-2 py-1 text-xs border border-nexus-border rounded font-mono"
+            className="w-full px-2 py-1 text-xs border border-thb-border rounded font-mono"
           />
         );
       }
     }
 
     return (
-      <div key={policy.id} className="nexus-card p-4">
+      <div key={policy.id} className="thb-card p-4">
         <div className="flex items-start justify-between mb-2">
           <div>
-            <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
               {policy.policyKey.replace(/_/g, ' ')}
               {policy.appliesToRoomType && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 text-slate-700">
@@ -199,7 +199,7 @@ export default function CommGovernancePage() {
                 </span>
               )}
             </h3>
-            <p className="text-xs text-nexus-text-muted mt-1">{description}</p>
+            <p className="text-xs text-thb-text-muted mt-1">{description}</p>
           </div>
           {edit && (
             <button
@@ -220,17 +220,17 @@ export default function CommGovernancePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiMessageSquare className="w-6 h-6 text-blue-500" />
             Communication Governance
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Define who can create announcement channels and set rules for auto-deleting chat histories
           </p>
         </div>
         <button
           onClick={fetchPolicies}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md"
         >
           <FiRefreshCw className="w-3.5 h-3.5" />
           Refresh
@@ -238,7 +238,7 @@ export default function CommGovernancePage() {
       </div>
 
       {loading ? (
-        <div className="nexus-card p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+        <div className="thb-card p-8 text-center text-sm text-thb-text-muted">Loading...</div>
       ) : (
         <div className="space-y-3">
           {policies.map(renderPolicyEditor)}

@@ -44,7 +44,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
   useEffect(() => {
     setMounted(true);
     try {
-      const welcomed = localStorage.getItem('nexus_welcomed');
+      const welcomed = localStorage.getItem('3boxes_welcomed');
       if (!welcomed) {
         const showTimer = setTimeout(() => setShow(true), 100);
         const openTimer = setTimeout(() => {
@@ -69,7 +69,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
   }, [isOpen]);
 
   const handleGetStarted = useCallback(() => {
-    try { localStorage.setItem('nexus_welcomed', 'true'); } catch { /* ignore */ }
+    try { localStorage.setItem('3boxes_welcomed', 'true'); } catch { /* ignore */ }
     setShow(false);
     if (!hasTriggeredOnComplete.current) {
       hasTriggeredOnComplete.current = true;
@@ -155,7 +155,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
                 Welcome to
               </p>
               <h1 className="text-3xl font-extrabold text-slate-900 mb-1">
-                Nexus HRMS
+                3Boxes HRMS
               </h1>
             </div>
 
@@ -167,7 +167,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
 
             <div style={{ animation: showContent ? 'fadeInUp 0.6s ease-out 0.8s both' : 'none' }}>
               <p className="text-slate-600 leading-relaxed max-w-sm mx-auto mb-8">
-                We&apos;re thrilled to have you on board! Nexus HRMS is your all-in-one platform for managing
+                We&apos;re thrilled to have you on board! 3Boxes HRMS is your all-in-one platform for managing
                 leaves, attendance, payroll, and so much more. Let&apos;s get you started on this exciting journey!
               </p>
             </div>
@@ -252,7 +252,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
                 <img src="/marq-ai-logo.png" alt="Marq AI Tech" className="w-9 h-9 rounded-lg object-contain" />
               </div>
               <h2 className="text-2xl font-extrabold text-white mb-1">
-                Welcome to Nexus HRMS
+                Welcome to 3Boxes HRMS
               </h2>
             </div>
 

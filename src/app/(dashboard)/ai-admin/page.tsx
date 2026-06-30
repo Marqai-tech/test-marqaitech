@@ -77,32 +77,32 @@ function getAuthHeaders() {
 
 function getPromptStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'nexus-badge nexus-badge-success',
-    inactive: 'bg-slate-100 text-slate-600 nexus-badge',
-    draft: 'nexus-badge nexus-badge-warning',
+    active: 'thb-badge thb-badge-success',
+    inactive: 'bg-slate-100 text-slate-600 thb-badge',
+    draft: 'thb-badge thb-badge-warning',
   };
   const labels: Record<string, string> = { active: 'Active', inactive: 'Inactive', draft: 'Draft' };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 function getApprovalStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-success',
-    rejected: 'nexus-badge nexus-badge-error',
-    modified: 'bg-blue-50 text-blue-700 nexus-badge',
+    pending: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-success',
+    rejected: 'thb-badge thb-badge-error',
+    modified: 'bg-blue-50 text-blue-700 thb-badge',
   };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: status.charAt(0).toUpperCase() + status.slice(1) };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: status.charAt(0).toUpperCase() + status.slice(1) };
 }
 
 function getBiasStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pass: 'nexus-badge nexus-badge-success',
-    warning: 'nexus-badge nexus-badge-warning',
-    fail: 'nexus-badge nexus-badge-error',
+    pass: 'thb-badge thb-badge-success',
+    warning: 'thb-badge thb-badge-warning',
+    fail: 'thb-badge thb-badge-error',
   };
   const labels: Record<string, string> = { pass: 'Pass', warning: 'Warning', fail: 'Fail' };
-  return { className: map[status] || 'nexus-badge nexus-badge-info', label: labels[status] || status };
+  return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
 /* ── Demo Data ── */
@@ -153,9 +153,9 @@ const demoApprovals: ApprovalItem[] = [
 
 const demoAuditLogs: AuditLogEntry[] = [
   { id: '1', timestamp: '2026-03-03 10:45:12', user: 'AI System', model: 'GPT-4', action: 'Resume Screening', input: '5 resumes processed', output: '3 passed, 2 flagged', duration: 4.2 },
-  { id: '2', timestamp: '2026-03-03 10:42:08', user: 'hr_admin@nexus.com', model: 'GPT-4', action: 'Performance Summary', input: 'Q4 review data batch', output: 'Summary generated', duration: 6.1 },
+  { id: '2', timestamp: '2026-03-03 10:42:08', user: 'hr_admin@3boxeshrms.com', model: 'GPT-4', action: 'Performance Summary', input: 'Q4 review data batch', output: 'Summary generated', duration: 6.1 },
   { id: '3', timestamp: '2026-03-03 10:38:55', user: 'AI System', model: 'Claude 3.5', action: 'Interview Question Gen', input: 'Backend Developer role', output: '8 questions generated', duration: 3.8 },
-  { id: '4', timestamp: '2026-03-03 10:35:20', user: 'manager@nexus.com', model: 'GPT-3.5', action: 'Sentiment Analysis', input: 'Employee pulse survey #12', output: 'Score: 78/100 Positive', duration: 2.9 },
+  { id: '4', timestamp: '2026-03-03 10:35:20', user: 'manager@3boxeshrms.com', model: 'GPT-3.5', action: 'Sentiment Analysis', input: 'Employee pulse survey #12', output: 'Score: 78/100 Positive', duration: 2.9 },
   { id: '5', timestamp: '2026-03-03 10:30:00', user: 'AI System', model: 'GPT-4', action: 'Salary Recommendation', input: 'Senior Dev market data', output: '$120K-$145K range', duration: 5.4 },
 ];
 
@@ -271,11 +271,11 @@ export default function AIAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiZap className="w-6 h-6 text-amber-500" />
             AI Admin Console
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage AI models, prompts, bias, and approvals</p>
+          <p className="text-thb-text-secondary mt-1">Manage AI models, prompts, bias, and approvals</p>
         </div>
         {isAdmin && activeTab === 'prompts' && (
           <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium text-sm shadow-sm shadow-amber-500/25 transition-colors">
@@ -292,48 +292,48 @@ export default function AIAdminPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50"><FiZap className="w-4 h-4 text-amber-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Active Models</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{activeModels}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Active Models</p>
+              <p className="text-xl font-bold text-thb-text-primary">{activeModels}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-50"><FiMonitor className="w-4 h-4 text-blue-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Prompts</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalPrompts}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Prompts</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalPrompts}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50"><FiCheck className="w-4 h-4 text-amber-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending Approvals</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending Approvals</p>
               <p className="text-xl font-bold text-amber-600">{pendingApprovals}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card p-4">
+        <div className="thb-card p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50"><FiClock className="w-4 h-4 text-emerald-600" /></div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Avg Response Time</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{avgResponseTime}s</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Avg Response Time</p>
+              <p className="text-xl font-bold text-thb-text-primary">{avgResponseTime}s</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-nexus-border overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-amber-500 text-amber-600' : 'border-transparent text-nexus-text-secondary hover:text-nexus-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-amber-500 text-amber-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
             <tab.icon className="w-4 h-4" />{tab.label}
             {tab.key === 'approvals' && pendingApprovals > 0 && (
               <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">{pendingApprovals}</span>
@@ -345,43 +345,43 @@ export default function AIAdminPage() {
       {/* Search */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
         </div>
       </div>
 
       {/* Inline Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-amber-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-amber-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">{editingId ? 'Edit Prompt' : 'Add AI Prompt'}</h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Prompt' : 'Add AI Prompt'}</h2>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Prompt Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Resume Screener" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Prompt Name *</label>
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Resume Screener" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Model</label>
-                <select value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Model</label>
+                <select value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400">
                   <option value="GPT-4">GPT-4</option><option value="GPT-3.5">GPT-3.5</option><option value="Claude 3.5">Claude 3.5</option><option value="Gemini Pro">Gemini Pro</option><option value="Llama 3">Llama 3</option>
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Purpose *</label>
-                <input type="text" value={form.purpose} onChange={e => setForm(p => ({ ...p, purpose: e.target.value }))} placeholder="What does this prompt do?" className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purpose *</label>
+                <input type="text" value={form.purpose} onChange={e => setForm(p => ({ ...p, purpose: e.target.value }))} placeholder="What does this prompt do?" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as 'active' | 'inactive' | 'draft' }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as 'active' | 'inactive' | 'draft' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400">
                   <option value="draft">Draft</option><option value="active">Active</option><option value="inactive">Inactive</option>
                 </select>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 shadow-sm shadow-amber-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
             </div>
           </div>
@@ -390,55 +390,55 @@ export default function AIAdminPage() {
 
       {/* Prompts Tab */}
       {activeTab === 'prompts' && (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Model</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Purpose</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Version</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Last Modified</th>
-                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Actions</th>}
+                <tr className="border-b border-thb-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Model</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Purpose</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Version</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Last Modified</th>
+                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-b border-nexus-border/50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-40 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-14 bg-slate-200 rounded-full" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>{isAdmin && <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded ml-auto" /></td>}</tr>
+                    <tr key={i} className="border-b border-thb-border/50 animate-pulse"><td className="px-4 py-3"><div className="h-3 w-28 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-40 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-3 w-8 bg-slate-200 rounded" /></td><td className="px-4 py-3"><div className="h-5 w-14 bg-slate-200 rounded-full" /></td><td className="px-4 py-3"><div className="h-3 w-20 bg-slate-200 rounded" /></td>{isAdmin && <td className="px-4 py-3"><div className="h-3 w-16 bg-slate-200 rounded ml-auto" /></td>}</tr>
                   ))
                 ) : filteredPrompts.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-12 text-center"><FiZap className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No prompts found</p></td></tr>
+                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-12 text-center"><FiZap className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No prompts found</p></td></tr>
                 ) : (
                   filteredPrompts.map(p => {
                     const statusBadge = getPromptStatusBadge(p.status);
                     return (
-                      <tr key={p.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={p.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                         {deleteConfirmId === p.id ? (
                           <td colSpan={isAdmin ? 7 : 6} className="px-4 py-3 bg-red-50">
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-red-700 font-medium">Delete prompt &quot;{p.name}&quot;?</span>
                               <div className="flex items-center gap-2">
                                 <button onClick={() => handleDelete(p.id)} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors">Confirm</button>
-                                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                               </div>
                             </div>
                           </td>
                         ) : (
                           <>
-                            <td className="px-4 py-3 text-sm font-medium text-nexus-text-primary">{p.name}</td>
-                            <td className="px-4 py-3"><span className="nexus-badge nexus-badge-purple">{p.model}</span></td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary truncate max-w-[200px]">{p.purpose}</td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">v{p.version}</td>
+                            <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{p.name}</td>
+                            <td className="px-4 py-3"><span className="thb-badge thb-badge-purple">{p.model}</span></td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary truncate max-w-[200px]">{p.purpose}</td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">v{p.version}</td>
                             <td className="px-4 py-3"><span className={statusBadge.className}>{statusBadge.label}</span></td>
-                            <td className="px-4 py-3 text-sm text-nexus-text-secondary">{p.lastModified}</td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{p.lastModified}</td>
                             {isAdmin && (
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-1">
-                                  <button onClick={() => handleShowEditForm(p)} className="p-2 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
-                                  <button onClick={() => setDeleteConfirmId(p.id)} className="p-2 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleShowEditForm(p)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                  <button onClick={() => setDeleteConfirmId(p.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 </div>
                               </td>
                             )}
@@ -462,13 +462,13 @@ export default function AIAdminPage() {
               const biasBadge = getBiasStatusBadge(b.status);
               const pct = Math.round((b.score / b.threshold) * 100);
               return (
-                <div key={b.category} className="nexus-card p-4">
+                <div key={b.category} className="thb-card p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-nexus-text-primary">{b.category}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{b.category}</p>
                     <span className={biasBadge.className}>{biasBadge.label}</span>
                   </div>
                   <div className="mb-2">
-                    <div className="flex items-center justify-between text-xs text-nexus-text-secondary mb-1">
+                    <div className="flex items-center justify-between text-xs text-thb-text-secondary mb-1">
                       <span>Bias Score</span>
                       <span>{b.score.toFixed(2)} / {b.threshold.toFixed(2)} threshold</span>
                     </div>
@@ -492,12 +492,12 @@ export default function AIAdminPage() {
               );
             })}
           </div>
-          <div className="nexus-card p-4">
-            <p className="text-xs font-medium text-nexus-text-secondary mb-2">Overall Bias Assessment</p>
+          <div className="thb-card p-4">
+            <p className="text-xs font-medium text-thb-text-secondary mb-2">Overall Bias Assessment</p>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-emerald-500" /><span className="text-xs text-nexus-text-secondary">Pass ({biasData.filter(b => b.status === 'pass').length})</span></div>
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500" /><span className="text-xs text-nexus-text-secondary">Warning ({biasData.filter(b => b.status === 'warning').length})</span></div>
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500" /><span className="text-xs text-nexus-text-secondary">Fail ({biasData.filter(b => b.status === 'fail').length})</span></div>
+              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-emerald-500" /><span className="text-xs text-thb-text-secondary">Pass ({biasData.filter(b => b.status === 'pass').length})</span></div>
+              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500" /><span className="text-xs text-thb-text-secondary">Warning ({biasData.filter(b => b.status === 'warning').length})</span></div>
+              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500" /><span className="text-xs text-thb-text-secondary">Fail ({biasData.filter(b => b.status === 'fail').length})</span></div>
             </div>
           </div>
         </div>
@@ -507,30 +507,30 @@ export default function AIAdminPage() {
       {activeTab === 'approvals' && (
         <div className="space-y-4">
           {filteredApprovals.length === 0 ? (
-            <div className="nexus-card p-12 text-center"><FiCheck className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No approval items found</p></div>
+            <div className="thb-card p-12 text-center"><FiCheck className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No approval items found</p></div>
           ) : filteredApprovals.map(a => {
             const statusBadge = getApprovalStatusBadge(a.status);
             return (
-              <div key={a.id} className="nexus-card p-4">
+              <div key={a.id} className="thb-card p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <p className="text-sm font-semibold text-nexus-text-primary">{a.action}</p>
-                    <p className="text-xs text-nexus-text-muted">{a.model} &middot; {a.requestedBy} &middot; {a.requestedAt}</p>
+                    <p className="text-sm font-semibold text-thb-text-primary">{a.action}</p>
+                    <p className="text-xs text-thb-text-muted">{a.model} &middot; {a.requestedBy} &middot; {a.requestedAt}</p>
                   </div>
                   <span className={statusBadge.className}>{statusBadge.label}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                   <div className="p-2 bg-slate-50 rounded-lg">
-                    <p className="text-[10px] font-semibold text-nexus-text-muted uppercase mb-0.5">Input</p>
-                    <p className="text-xs text-nexus-text-secondary">{a.input}</p>
+                    <p className="text-[10px] font-semibold text-thb-text-muted uppercase mb-0.5">Input</p>
+                    <p className="text-xs text-thb-text-secondary">{a.input}</p>
                   </div>
                   <div className="p-2 bg-slate-50 rounded-lg">
-                    <p className="text-[10px] font-semibold text-nexus-text-muted uppercase mb-0.5">Output</p>
-                    <p className="text-xs text-nexus-text-secondary">{a.output}</p>
+                    <p className="text-[10px] font-semibold text-thb-text-muted uppercase mb-0.5">Output</p>
+                    <p className="text-xs text-thb-text-secondary">{a.output}</p>
                   </div>
                 </div>
                 {a.status === 'pending' && isAdmin && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-nexus-border">
+                  <div className="flex items-center gap-2 pt-2 border-t border-thb-border">
                     <button onClick={() => handleApproval(a.id, 'approved')} className="px-4 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1"><FiCheck className="w-3.5 h-3.5" />Approve</button>
                     <button onClick={() => handleApproval(a.id, 'rejected')} className="px-4 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1"><FiX className="w-3.5 h-3.5" />Reject</button>
                   </div>
@@ -543,33 +543,33 @@ export default function AIAdminPage() {
 
       {/* Audit Logs Tab */}
       {activeTab === 'audit' && (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-nexus-border bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Timestamp</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">User</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Model</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Action</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Input</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Output</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-nexus-text-secondary uppercase tracking-wider">Duration</th>
+                <tr className="border-b border-thb-border bg-slate-50/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Timestamp</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">User</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Model</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Action</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Input</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Output</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Duration</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLogs.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-12 text-center"><FiClock className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary font-medium">No audit logs found</p></td></tr>
+                  <tr><td colSpan={7} className="px-4 py-12 text-center"><FiClock className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No audit logs found</p></td></tr>
                 ) : (
                   filteredLogs.map(l => (
-                    <tr key={l.id} className="border-b border-nexus-border/50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-xs text-nexus-text-secondary whitespace-nowrap">{l.timestamp}</td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-primary font-medium">{l.user}</td>
-                      <td className="px-4 py-3"><span className="nexus-badge nexus-badge-purple">{l.model}</span></td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-secondary">{l.action}</td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-secondary truncate max-w-[150px]">{l.input}</td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-secondary truncate max-w-[150px]">{l.output}</td>
-                      <td className="px-4 py-3 text-xs text-nexus-text-secondary">{l.duration}s</td>
+                    <tr key={l.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary whitespace-nowrap">{l.timestamp}</td>
+                      <td className="px-4 py-3 text-xs text-thb-text-primary font-medium">{l.user}</td>
+                      <td className="px-4 py-3"><span className="thb-badge thb-badge-purple">{l.model}</span></td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">{l.action}</td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary truncate max-w-[150px]">{l.input}</td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary truncate max-w-[150px]">{l.output}</td>
+                      <td className="px-4 py-3 text-xs text-thb-text-secondary">{l.duration}s</td>
                     </tr>
                   ))
                 )}
@@ -583,45 +583,45 @@ export default function AIAdminPage() {
       {activeTab === 'monitoring' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Total API Calls</p>
-              <p className="text-2xl font-bold text-nexus-text-primary">{monitoring.apiCalls.toLocaleString()}</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Total API Calls</p>
+              <p className="text-2xl font-bold text-thb-text-primary">{monitoring.apiCalls.toLocaleString()}</p>
               <p className="text-xs text-emerald-600 mt-1">+{monitoring.callsLastHour} last hour</p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Tokens Used</p>
-              <p className="text-2xl font-bold text-nexus-text-primary">{(monitoring.tokensUsed / 1000000).toFixed(1)}M</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Tokens Used</p>
+              <p className="text-2xl font-bold text-thb-text-primary">{(monitoring.tokensUsed / 1000000).toFixed(1)}M</p>
               <p className="text-xs text-emerald-600 mt-1">+{(monitoring.tokensLastHour / 1000).toFixed(1)}K last hour</p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Avg Response Time</p>
-              <p className="text-2xl font-bold text-nexus-text-primary">{monitoring.avgResponseTime}s</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Avg Response Time</p>
+              <p className="text-2xl font-bold text-thb-text-primary">{monitoring.avgResponseTime}s</p>
               <p className="text-xs text-emerald-600 mt-1">Within SLA</p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Error Rate</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Error Rate</p>
               <p className={`text-2xl font-bold ${monitoring.errorRate > 5 ? 'text-red-600' : monitoring.errorRate > 2 ? 'text-amber-600' : 'text-emerald-600'}`}>{monitoring.errorRate}%</p>
-              <p className="text-xs text-nexus-text-muted mt-1">Threshold: 5%</p>
+              <p className="text-xs text-thb-text-muted mt-1">Threshold: 5%</p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Active Models</p>
-              <p className="text-2xl font-bold text-nexus-text-primary">{activeModels}</p>
-              <p className="text-xs text-nexus-text-muted mt-1">GPT-4, Claude, GPT-3.5</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Active Models</p>
+              <p className="text-2xl font-bold text-thb-text-primary">{activeModels}</p>
+              <p className="text-xs text-thb-text-muted mt-1">GPT-4, Claude, GPT-3.5</p>
             </div>
-            <div className="nexus-card p-4">
-              <p className="text-xs font-medium text-nexus-text-secondary">Uptime</p>
+            <div className="thb-card p-4">
+              <p className="text-xs font-medium text-thb-text-secondary">Uptime</p>
               <p className="text-2xl font-bold text-emerald-600">99.9%</p>
-              <p className="text-xs text-nexus-text-muted mt-1">Last 30 days</p>
+              <p className="text-xs text-thb-text-muted mt-1">Last 30 days</p>
             </div>
           </div>
-          <div className="nexus-card p-4">
-            <p className="text-xs font-semibold text-nexus-text-secondary mb-3">API Calls (Last 12 Hours)</p>
+          <div className="thb-card p-4">
+            <p className="text-xs font-semibold text-thb-text-secondary mb-3">API Calls (Last 12 Hours)</p>
             <div className="flex items-end gap-1 h-32">
               {[42, 55, 38, 67, 82, 91, 78, 63, 45, 58, 72, 85].map((v, i) => (
                 <div key={i} className="flex-1 bg-amber-200 hover:bg-amber-400 rounded-t transition-colors cursor-pointer" style={{ height: `${(v / 100) * 100}%` }} title={`${v} calls`} />
               ))}
             </div>
-            <div className="flex justify-between text-[10px] text-nexus-text-muted mt-1">
+            <div className="flex justify-between text-[10px] text-thb-text-muted mt-1">
               <span>12h ago</span><span>9h</span><span>6h</span><span>3h</span><span>Now</span>
             </div>
           </div>

@@ -58,12 +58,12 @@ interface FNFCalculation {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    pending: 'nexus-badge nexus-badge-warning',
-    approved: 'nexus-badge nexus-badge-success',
-    paid: 'nexus-badge nexus-badge-info',
-    cancelled: 'nexus-badge nexus-badge-error',
+    pending: 'thb-badge thb-badge-warning',
+    approved: 'thb-badge thb-badge-success',
+    paid: 'thb-badge thb-badge-info',
+    cancelled: 'thb-badge thb-badge-error',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 const STATUS_OPTIONS = [
@@ -310,14 +310,14 @@ export default function FNFSettlementPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiFileText className="w-6 h-6 text-emerald-500" />
             Full & Final Settlement
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage employee F&F calculations and settlements</p>
+          <p className="text-thb-text-secondary mt-1">Manage employee F&F calculations and settlements</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 transition-colors" title="Refresh">
+          <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh">
             <FiRefreshCw className="w-4 h-4" />
           </button>
           {isAdmin && (
@@ -330,77 +330,77 @@ export default function FNFSettlementPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FiList className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{totalCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total</p>
+              <p className="text-xl font-bold text-thb-text-primary">{totalCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
               <FiClock className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Pending</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{pendingCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Pending</p>
+              <p className="text-xl font-bold text-thb-text-primary">{pendingCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Approved</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{approvedCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Approved</p>
+              <p className="text-xl font-bold text-thb-text-primary">{approvedCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
               <FiDollarSign className="w-5 h-5 text-teal-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Paid</p>
-              <p className="text-xl font-bold text-nexus-text-primary">{paidCount}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Paid</p>
+              <p className="text-xl font-bold text-thb-text-primary">{paidCount}</p>
             </div>
           </div>
         </div>
-        <div className="nexus-card nexus-card-hover p-4">
+        <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
               <FiTrendingUp className="w-5 h-5 text-violet-500" />
             </div>
             <div>
-              <p className="text-xs font-medium text-nexus-text-secondary">Total Net</p>
-              <p className="text-lg font-bold text-nexus-text-primary">{formatCurrency(totalNetAmount)}</p>
+              <p className="text-xs font-medium text-thb-text-secondary">Total Net</p>
+              <p className="text-lg font-bold text-thb-text-primary">{formatCurrency(totalNetAmount)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search / Filter */}
-      <div className="nexus-card p-4">
+      <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input type="text" placeholder="Search by employee, remarks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
             <option value="">All Employees</option>
             {employees.map(e => (
               <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -411,26 +411,26 @@ export default function FNFSettlementPage() {
 
       {/* Create/Edit Form */}
       {showForm && (
-        <div id="fnf-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="fnf-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit F&F Calculation' : 'Create F&F Calculation'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
 
             {/* Employee & Separation */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Employee Details</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Employee Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                   {employees.length > 0 ? (
                     <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
                         <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -438,20 +438,20 @@ export default function FNFSettlementPage() {
                     </select>
                   ) : (
                     <input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="Enter Employee ID" />
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Separation ID</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Separation ID</label>
                   <input value={form.separationId} onChange={(e) => setForm({ ...form, separationId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     placeholder="Optional separation reference" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Currency</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                   <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
@@ -460,7 +460,7 @@ export default function FNFSettlementPage() {
 
             {/* Earnings */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiTrendingUp className="w-4 h-4 text-emerald-500" /> Earnings
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -472,10 +472,10 @@ export default function FNFSettlementPage() {
                   { key: 'reimbursements', label: 'Reimbursements' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">{label}</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">{label}</label>
                     <input type="number" step="0.01" min="0" value={form[key as keyof typeof form]}
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="0.00" />
                   </div>
                 ))}
@@ -487,7 +487,7 @@ export default function FNFSettlementPage() {
 
             {/* Deductions */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
                 <FiTrendingDown className="w-4 h-4 text-red-500" /> Deductions
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -499,10 +499,10 @@ export default function FNFSettlementPage() {
                   { key: 'otherRecoveries', label: 'Other Recoveries' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <label className="block text-xs font-medium text-nexus-text-secondary mb-1">{label}</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">{label}</label>
                     <input type="number" step="0.01" min="0" value={form[key as keyof typeof form]}
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       placeholder="0.00" />
                   </div>
                 ))}
@@ -514,26 +514,26 @@ export default function FNFSettlementPage() {
 
             {/* Net Amount & Remarks */}
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Summary</h3>
+              <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Summary</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="px-4 py-3 bg-slate-50 rounded-lg border border-nexus-border">
-                  <p className="text-xs font-medium text-nexus-text-secondary mb-1">Net Amount</p>
+                <div className="px-4 py-3 bg-slate-50 rounded-lg border border-thb-border">
+                  <p className="text-xs font-medium text-thb-text-secondary mb-1">Net Amount</p>
                   <p className={`text-2xl font-bold ${formTotals.netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {formatCurrency(formTotals.netAmount, form.currency)}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Remarks</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Remarks</label>
                   <textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} rows={3}
-                    className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
                     placeholder="Additional notes..." />
                 </div>
               </div>
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-nexus-border">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
+              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
               <button onClick={handleSubmit} disabled={submitting}
@@ -547,48 +547,48 @@ export default function FNFSettlementPage() {
 
       {/* Detail View */}
       {detailId && detailData && (
-        <div className="nexus-card border-l-4 border-l-violet-500">
+        <div className="thb-card border-l-4 border-l-violet-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">F&F Settlement Detail</h2>
-              <button onClick={() => { setDetailId(null); setDetailData(null); }} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+              <h2 className="text-lg font-semibold text-thb-text-primary">F&F Settlement Detail</h2>
+              <button onClick={() => { setDetailId(null); setDetailData(null); }} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Employee Info */}
               <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Employee Details</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Employee Details</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Name</span><span className="font-medium text-nexus-text-primary">{detailData.employee?.firstName} {detailData.employee?.lastName}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Employee ID</span><span className="font-medium text-nexus-text-primary">{detailData.employee?.employeeId}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Department</span><span className="font-medium text-nexus-text-primary">{detailData.employee?.department?.name || '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Designation</span><span className="font-medium text-nexus-text-primary">{detailData.employee?.designation?.title || '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Status</span><span className={getStatusBadge(detailData.status)}>{detailData.status.charAt(0).toUpperCase() + detailData.status.slice(1)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Approved At</span><span className="font-medium text-nexus-text-primary">{formatDate(detailData.approvedAt)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Paid At</span><span className="font-medium text-nexus-text-primary">{formatDate(detailData.paidAt)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Name</span><span className="font-medium text-thb-text-primary">{detailData.employee?.firstName} {detailData.employee?.lastName}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Employee ID</span><span className="font-medium text-thb-text-primary">{detailData.employee?.employeeId}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Department</span><span className="font-medium text-thb-text-primary">{detailData.employee?.department?.name || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Designation</span><span className="font-medium text-thb-text-primary">{detailData.employee?.designation?.title || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Status</span><span className={getStatusBadge(detailData.status)}>{detailData.status.charAt(0).toUpperCase() + detailData.status.slice(1)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Approved At</span><span className="font-medium text-thb-text-primary">{formatDate(detailData.approvedAt)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Paid At</span><span className="font-medium text-thb-text-primary">{formatDate(detailData.paidAt)}</span></div>
                 </div>
               </div>
               {/* Financial Summary */}
               <div>
-                <h3 className="text-sm font-semibold text-nexus-text-primary mb-3">Financial Summary</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Financial Summary</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Pending Salary</span><span className="font-medium text-nexus-text-primary">{formatCurrency(detailData.pendingSalary, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Leave Encashment</span><span className="font-medium text-nexus-text-primary">{formatCurrency(detailData.leaveEncashment, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Bonus</span><span className="font-medium text-nexus-text-primary">{formatCurrency(detailData.bonus, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Incentives</span><span className="font-medium text-nexus-text-primary">{formatCurrency(detailData.incentives, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Reimbursements</span><span className="font-medium text-nexus-text-primary">{formatCurrency(detailData.reimbursements, detailData.currency)}</span></div>
-                  <div className="flex justify-between border-t border-nexus-border pt-2"><span className="font-medium text-emerald-700">Total Earnings</span><span className="font-bold text-emerald-700">{formatCurrency(detailData.totalEarnings, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Notice Recovery</span><span className="font-medium text-red-600">{formatCurrency(detailData.noticeRecovery, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Asset Recovery</span><span className="font-medium text-red-600">{formatCurrency(detailData.assetRecovery, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Loan Recovery</span><span className="font-medium text-red-600">{formatCurrency(detailData.loanRecovery, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Tax Deduction</span><span className="font-medium text-red-600">{formatCurrency(detailData.taxDeduction, detailData.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-nexus-text-secondary">Other Recoveries</span><span className="font-medium text-red-600">{formatCurrency(detailData.otherRecoveries, detailData.currency)}</span></div>
-                  <div className="flex justify-between border-t border-nexus-border pt-2"><span className="font-medium text-red-700">Total Deductions</span><span className="font-bold text-red-700">{formatCurrency(detailData.totalDeductions, detailData.currency)}</span></div>
-                  <div className="flex justify-between border-t-2 border-nexus-border pt-2"><span className="font-bold text-nexus-text-primary">Net Amount</span><span className={`text-lg font-bold ${detailData.netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(detailData.netAmount, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Pending Salary</span><span className="font-medium text-thb-text-primary">{formatCurrency(detailData.pendingSalary, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Leave Encashment</span><span className="font-medium text-thb-text-primary">{formatCurrency(detailData.leaveEncashment, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Bonus</span><span className="font-medium text-thb-text-primary">{formatCurrency(detailData.bonus, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Incentives</span><span className="font-medium text-thb-text-primary">{formatCurrency(detailData.incentives, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Reimbursements</span><span className="font-medium text-thb-text-primary">{formatCurrency(detailData.reimbursements, detailData.currency)}</span></div>
+                  <div className="flex justify-between border-t border-thb-border pt-2"><span className="font-medium text-emerald-700">Total Earnings</span><span className="font-bold text-emerald-700">{formatCurrency(detailData.totalEarnings, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Notice Recovery</span><span className="font-medium text-red-600">{formatCurrency(detailData.noticeRecovery, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Asset Recovery</span><span className="font-medium text-red-600">{formatCurrency(detailData.assetRecovery, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Loan Recovery</span><span className="font-medium text-red-600">{formatCurrency(detailData.loanRecovery, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Tax Deduction</span><span className="font-medium text-red-600">{formatCurrency(detailData.taxDeduction, detailData.currency)}</span></div>
+                  <div className="flex justify-between"><span className="text-thb-text-secondary">Other Recoveries</span><span className="font-medium text-red-600">{formatCurrency(detailData.otherRecoveries, detailData.currency)}</span></div>
+                  <div className="flex justify-between border-t border-thb-border pt-2"><span className="font-medium text-red-700">Total Deductions</span><span className="font-bold text-red-700">{formatCurrency(detailData.totalDeductions, detailData.currency)}</span></div>
+                  <div className="flex justify-between border-t-2 border-thb-border pt-2"><span className="font-bold text-thb-text-primary">Net Amount</span><span className={`text-lg font-bold ${detailData.netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(detailData.netAmount, detailData.currency)}</span></div>
                 </div>
                 {detailData.remarks && (
-                  <div className="mt-3 px-3 py-2 bg-slate-50 rounded-lg text-sm text-nexus-text-secondary">
+                  <div className="mt-3 px-3 py-2 bg-slate-50 rounded-lg text-sm text-thb-text-secondary">
                     <span className="font-medium">Remarks:</span> {detailData.remarks}
                   </div>
                 )}
@@ -600,7 +600,7 @@ export default function FNFSettlementPage() {
 
       {/* Data Table */}
       {loading ? (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
@@ -608,19 +608,19 @@ export default function FNFSettlementPage() {
           </div>
         </div>
       ) : filteredRecords.length === 0 ? (
-        <div className="nexus-card p-12 text-center">
-          <FiFileText className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" />
-          <p className="text-nexus-text-secondary font-medium">No F&F settlements found</p>
-          <p className="text-sm text-nexus-text-muted mt-1">Create your first F&F calculation to get started</p>
+        <div className="thb-card p-12 text-center">
+          <FiFileText className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+          <p className="text-thb-text-secondary font-medium">No F&F settlements found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Create your first F&F calculation to get started</p>
         </div>
       ) : (
-        <div className="nexus-card overflow-hidden">
+        <div className="thb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
-              <thead className="bg-slate-50 border-b border-nexus-border">
+              <thead className="bg-slate-50 border-b border-thb-border">
                 <tr>
                   {['Employee', 'Total Earnings', 'Total Deductions', 'Net Amount', 'Currency', 'Status', 'Created', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -633,8 +633,8 @@ export default function FNFSettlementPage() {
                           <FiUser className="w-3.5 h-3.5 text-slate-500" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-nexus-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
-                          <p className="text-xs text-nexus-text-muted">{item.employeeId}</p>
+                          <p className="text-sm font-medium text-thb-text-primary truncate max-w-[150px]">{getEmployeeDisplay(item.employeeId)}</p>
+                          <p className="text-xs text-thb-text-muted">{item.employeeId}</p>
                         </div>
                       </div>
                     </td>
@@ -648,31 +648,31 @@ export default function FNFSettlementPage() {
                       <span className={`text-sm font-bold ${item.netAmount >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{formatCurrency(item.netAmount, item.currency)}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-nexus-text-secondary">{item.currency}</span>
+                      <span className="text-sm text-thb-text-secondary">{item.currency}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={getStatusBadge(item.status)}>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-nexus-text-secondary">{formatDate(item.createdAt)}</span>
+                      <span className="text-sm text-thb-text-secondary">{formatDate(item.createdAt)}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleViewDetail(item.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View Details">
+                        <button onClick={() => handleViewDetail(item.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View Details">
                           <FiSearch className="w-3.5 h-3.5" />
                         </button>
                         {isAdmin && item.status === 'pending' && (
                           <>
-                            <button onClick={() => handleEdit(item)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
+                            <button onClick={() => handleEdit(item)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
                               <FiEdit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => handleStatusAction(item.id, 'approved')} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
+                            <button onClick={() => handleStatusAction(item.id, 'approved')} className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve">
                               <FiCheck className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}
                         {isAdmin && item.status === 'approved' && (
-                          <button onClick={() => handleStatusAction(item.id, 'paid')} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Mark as Paid">
+                          <button onClick={() => handleStatusAction(item.id, 'paid')} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Mark as Paid">
                             <FiDollarSign className="w-3.5 h-3.5" />
                           </button>
                         )}

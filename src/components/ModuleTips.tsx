@@ -47,7 +47,7 @@ function getStoredDismissed(key: string): boolean {
  *     clicks "Show Tips" to bring it back.
  */
 export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, children }: ModuleTipsProps) {
-  const storageKey = `nexus_tips_dismissed_${moduleKey}`;
+  const storageKey = `3boxes_tips_dismissed_${moduleKey}`;
   // Always default to collapsed (minimized) per global UX requirement.
   const [collapsed, setCollapsed] = useState(true);
   const [hovered, setHovered] = useState(false);
@@ -121,7 +121,7 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="nexus-card overflow-hidden border border-blue-100 shadow-sm">
+      <div className="thb-card overflow-hidden border border-blue-100 shadow-sm">
         {/* Header — always visible. Acts as the minimized bar AND the expanded header. */}
         <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
           <button
@@ -133,7 +133,7 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
             <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
               <FiZap className="w-4 h-4 text-amber-600" />
             </div>
-            <h3 className="text-sm font-semibold text-nexus-text-primary truncate">{title}</h3>
+            <h3 className="text-sm font-semibold text-thb-text-primary truncate">{title}</h3>
             <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">
               {effectiveTips.length > 0 ? `${effectiveTips.length} tips` : 'Info'}
             </span>
@@ -146,7 +146,7 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={handleToggleCollapse}
-              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+              className="p-1.5 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-white/60 transition-colors"
               title={collapsed ? 'Expand' : 'Collapse'}
               aria-expanded={!collapsed}
             >
@@ -154,7 +154,7 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
             </button>
             <button
               onClick={handleDismiss}
-              className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Dismiss tips"
             >
               <FiX className="w-4 h-4" />
@@ -173,14 +173,14 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
                       {index + 1}
                     </span>
                     <div>
-                      <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
-                      <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
+                      <p className="text-sm font-medium text-thb-text-primary">{tip.title}</p>
+                      <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : children ? (
-              <div className="text-sm text-nexus-text-secondary leading-relaxed">
+              <div className="text-sm text-thb-text-secondary leading-relaxed">
                 {children}
               </div>
             ) : null}
@@ -194,7 +194,7 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
           className="absolute left-0 right-0 top-full z-40 mt-1"
           role="tooltip"
         >
-          <div className="nexus-card border border-blue-200 shadow-xl rounded-xl overflow-hidden">
+          <div className="thb-card border border-blue-200 shadow-xl rounded-xl overflow-hidden">
             <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 border-b border-blue-200 flex items-center gap-2">
               <FiEye className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">Preview · click to pin open</span>
@@ -208,14 +208,14 @@ export default function ModuleTips({ moduleKey, title = 'Tips', tips, userRole, 
                         {index + 1}
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-nexus-text-primary">{tip.title}</p>
-                        <p className="text-xs text-nexus-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
+                        <p className="text-sm font-medium text-thb-text-primary">{tip.title}</p>
+                        <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">{tip.description}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : children ? (
-                <div className="text-sm text-nexus-text-secondary leading-relaxed">
+                <div className="text-sm text-thb-text-secondary leading-relaxed">
                   {children}
                 </div>
               ) : null}

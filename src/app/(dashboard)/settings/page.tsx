@@ -80,7 +80,7 @@ interface SettingSection {
 /* ──────────────────────────────────────────────
    localStorage Helper
    ────────────────────────────────────────────── */
-const SETTINGS_KEY = 'nexus_hrms_settings';
+const SETTINGS_KEY = '3boxes_hrms_settings';
 
 function loadSettings(): Record<string, string | number | boolean> {
   if (typeof window === 'undefined') return {};
@@ -403,7 +403,7 @@ function InfoTooltip({ text }: { text: string }) {
         onMouseLeave={() => setShow(false)}
         onFocus={() => setShow(true)}
         onBlur={() => setShow(false)}
-        className="text-nexus-text-muted hover:text-nexus-text-secondary transition-colors"
+        className="text-thb-text-muted hover:text-thb-text-secondary transition-colors"
         aria-label="More info"
       >
         <FiInfo className="w-3.5 h-3.5" />
@@ -441,7 +441,7 @@ function SettingsSectionCard({
   saving: boolean;
 }) {
   return (
-    <div className="nexus-card">
+    <div className="thb-card">
       <div className="p-6">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-6">
@@ -450,14 +450,14 @@ function SettingsSectionCard({
               {section.icon}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-nexus-text-primary">{section.title}</h3>
-              <p className="text-xs text-nexus-text-muted">{section.description}</p>
+              <h3 className="text-lg font-semibold text-thb-text-primary">{section.title}</h3>
+              <p className="text-xs text-thb-text-muted">{section.description}</p>
             </div>
           </div>
           {!editing ? (
             <button
               onClick={onToggleEdit}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
             >
               <FiEdit2 className="w-4 h-4" />
               Edit
@@ -465,7 +465,7 @@ function SettingsSectionCard({
           ) : (
             <button
               onClick={onReset}
-              className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"
+              className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
               aria-label="Cancel editing"
             >
               <FiX className="w-5 h-5" />
@@ -476,11 +476,11 @@ function SettingsSectionCard({
         {/* Fields Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {section.fields.map((field) => (
-            <div key={field.key} className={field.type === 'toggle' ? 'flex items-center justify-between p-4 rounded-lg border border-nexus-border/50' : ''}>
+            <div key={field.key} className={field.type === 'toggle' ? 'flex items-center justify-between p-4 rounded-lg border border-thb-border/50' : ''}>
               {field.type === 'toggle' ? (
                 <>
                   <div className="pr-4">
-                    <label className="text-sm font-medium text-nexus-text-primary flex items-center">
+                    <label className="text-sm font-medium text-thb-text-primary flex items-center">
                       {field.label}
                       <InfoTooltip text={field.description} />
                     </label>
@@ -491,14 +491,14 @@ function SettingsSectionCard({
                       onToggle={() => onChange(field.key, !settings[field.key])}
                     />
                   ) : (
-                    <span className={`nexus-badge ${settings[field.key] ? 'nexus-badge-success' : 'bg-slate-50 text-slate-500'}`}>
+                    <span className={`thb-badge ${settings[field.key] ? 'thb-badge-success' : 'bg-slate-50 text-slate-500'}`}>
                       {settings[field.key] ? 'Enabled' : 'Disabled'}
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <label className="block text-xs font-medium text-nexus-text-secondary mb-1.5">
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1.5">
                     {field.label}
                     <InfoTooltip text={field.description} />
                   </label>
@@ -507,7 +507,7 @@ function SettingsSectionCard({
                       <select
                         value={String(settings[field.key] ?? field.defaultValue)}
                         onChange={(e) => onChange(field.key, e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
                       >
                         {field.options?.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -521,18 +521,18 @@ function SettingsSectionCard({
                         min={field.min}
                         max={field.max}
                         step={field.step ?? 1}
-                        className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       />
                     ) : (
                       <input
                         type="text"
                         value={String(settings[field.key] ?? field.defaultValue)}
                         onChange={(e) => onChange(field.key, e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       />
                     )
                   ) : (
-                    <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">
+                    <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">
                       {field.type === 'select'
                         ? field.options?.find((o) => o.value === String(settings[field.key]))?.label ?? String(settings[field.key] ?? field.defaultValue)
                         : String(settings[field.key] ?? field.defaultValue) || '—'}
@@ -546,10 +546,10 @@ function SettingsSectionCard({
 
         {/* Save/Cancel */}
         {editing && (
-          <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
+          <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
             <button
               onClick={onReset}
-              className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+              className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
@@ -655,7 +655,7 @@ function SettingsContent() {
   /* Notification preferences */
   const [notifPrefs, setNotifPrefs] = useState<NotifPref>(() => {
     if (typeof window === 'undefined') return { email: true, leave: true, payroll: true, recruitment: true, workflow: true, system: true };
-    const stored = localStorage.getItem('nexus_notif_prefs');
+    const stored = localStorage.getItem('3boxes_notif_prefs');
     if (stored) {
       try { return JSON.parse(stored) as NotifPref; } catch { /* ignore */ }
     }
@@ -788,7 +788,7 @@ function SettingsContent() {
   /* Save notification preferences */
   const handleSaveNotifPrefs = () => {
     try {
-      localStorage.setItem('nexus_notif_prefs', JSON.stringify(notifPrefs));
+      localStorage.setItem('3boxes_notif_prefs', JSON.stringify(notifPrefs));
       toast.success('Notification preferences saved');
     } catch {
       toast.error('Failed to save preferences');
@@ -803,7 +803,7 @@ function SettingsContent() {
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-sm text-nexus-text-muted">Redirecting to My Profile...</p>
+          <p className="text-sm text-thb-text-muted">Redirecting to My Profile...</p>
         </div>
       </div>
     );
@@ -847,16 +847,16 @@ function SettingsContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiSettings className="w-6 h-6 text-slate-500" />
             Settings
           </h1>
-          <p className="text-nexus-text-secondary mt-1">Manage system configuration and preferences</p>
+          <p className="text-thb-text-secondary mt-1">Manage system configuration and preferences</p>
         </div>
         {/* Mobile tab selector */}
         <button
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="md:hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors"
+          className="md:hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors"
         >
           <FiMenu className="w-4 h-4" />
           {navItems.find((n) => n.key === activeTab)?.label}
@@ -900,7 +900,7 @@ function SettingsContent() {
 
       {/* Mobile Dropdown Navigation */}
       {mobileSidebarOpen && (
-        <div className="md:hidden nexus-card animate-slide-in-down">
+        <div className="md:hidden thb-card animate-slide-in-down">
           <div className="p-2 space-y-0.5">
             {navItems.map((item) => (
               <button
@@ -909,7 +909,7 @@ function SettingsContent() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === item.key
                     ? 'bg-blue-50 text-blue-600'
-                    : 'text-nexus-text-secondary hover:bg-slate-50'
+                    : 'text-thb-text-secondary hover:bg-slate-50'
                 }`}
               >
                 {item.icon}
@@ -925,7 +925,7 @@ function SettingsContent() {
         {/* Left Sidebar Navigation (desktop) — only for admins who have multiple tabs */}
         {isAdmin && navItems.length > 1 && (
         <nav className="hidden md:block w-56 shrink-0">
-          <div className="nexus-card p-2 sticky top-24">
+          <div className="thb-card p-2 sticky top-24">
             <div className="space-y-0.5">
               {navItems.map((item) => (
                 <button
@@ -934,10 +934,10 @@ function SettingsContent() {
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === item.key
                       ? 'bg-blue-50 text-blue-600'
-                      : 'text-nexus-text-secondary hover:bg-slate-50 hover:text-nexus-text-primary'
+                      : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
                   }`}
                 >
-                  <span className={activeTab === item.key ? 'text-blue-500' : 'text-nexus-text-muted'}>{item.icon}</span>
+                  <span className={activeTab === item.key ? 'text-blue-500' : 'text-thb-text-muted'}>{item.icon}</span>
                   {item.label}
                   {activeTab === item.key && (
                     <FiCheck className="w-3.5 h-3.5 ml-auto text-blue-500" />
@@ -954,7 +954,7 @@ function SettingsContent() {
           {/* General Tab */}
           {activeTab === 'general' && (
             <div className="space-y-4">
-              <div className="nexus-card">
+              <div className="thb-card">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
@@ -962,17 +962,17 @@ function SettingsContent() {
                         <FiGlobe className="w-5 h-5" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-nexus-text-primary">General Settings</h2>
-                        <p className="text-xs text-nexus-text-muted">Configure basic application settings</p>
+                        <h2 className="text-lg font-semibold text-thb-text-primary">General Settings</h2>
+                        <p className="text-xs text-thb-text-muted">Configure basic application settings</p>
                       </div>
                     </div>
                     {editingSection !== 'general' ? (
-                      <button onClick={() => setEditingSection('general')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">
+                      <button onClick={() => setEditingSection('general')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                         <FiEdit2 className="w-4 h-4" />
                         Edit
                       </button>
                     ) : (
-                      <button onClick={() => setEditingSection(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors">
+                      <button onClick={() => setEditingSection(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
                         <FiX className="w-5 h-5" />
                       </button>
                     )}
@@ -980,21 +980,21 @@ function SettingsContent() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                         <span className="flex items-center gap-1"><FiDatabase className="w-3 h-3" /> Company Name</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <input type="text" value={generalForm.companyName} onChange={e => setGeneralForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={generalForm.companyName} onChange={e => setGeneralForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                       ) : (
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.companyName || '—'}</p>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{generalForm.companyName || '—'}</p>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                         <span className="flex items-center gap-1"><FiClock className="w-3 h-3" /> Timezone</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <select value={generalForm.timezone} onChange={e => setGeneralForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={generalForm.timezone} onChange={e => setGeneralForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                           <option value="UTC">UTC</option>
                           <option value="America/New_York">Eastern Time (ET)</option>
                           <option value="America/Chicago">Central Time (CT)</option>
@@ -1005,29 +1005,29 @@ function SettingsContent() {
                           <option value="Asia/Tokyo">Tokyo (JST)</option>
                         </select>
                       ) : (
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.timezone}</p>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{generalForm.timezone}</p>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                         <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Date Format</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <select value={generalForm.dateFormat} onChange={e => setGeneralForm(p => ({ ...p, dateFormat: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={generalForm.dateFormat} onChange={e => setGeneralForm(p => ({ ...p, dateFormat: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                           <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                           <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                           <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                         </select>
                       ) : (
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.dateFormat}</p>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{generalForm.dateFormat}</p>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-nexus-text-secondary mb-1">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                         <span className="flex items-center gap-1"><FiDollarSign className="w-3 h-3" /> Currency</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                           <option value="INR">INR (₹) — Indian Rupee</option>
                           <option value="USD">USD ($) — US Dollar</option>
                           <option value="EUR">EUR (€) — Euro</option>
@@ -1040,14 +1040,14 @@ function SettingsContent() {
                           <option value="CNY">CNY (¥) — Chinese Yuan</option>
                         </select>
                       ) : (
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{generalForm.currency}</p>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{generalForm.currency}</p>
                       )}
                     </div>
                   </div>
 
                   {editingSection === 'general' && (
-                    <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-                      <button onClick={() => setEditingSection(null)} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50">Cancel</button>
+                    <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+                      <button onClick={() => setEditingSection(null)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
                       <button onClick={handleSaveGeneral} disabled={saving} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors">
                         <FiSave className="w-4 h-4" />
                         {saving ? 'Saving...' : 'Save Changes'}
@@ -1063,11 +1063,11 @@ function SettingsContent() {
           {activeTab === 'payroll' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiDollarSign className="w-5 h-5 text-emerald-500" />
                   Payroll Settings
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Configure payroll processing, tax, and calculation rules</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Configure payroll processing, tax, and calculation rules</p>
               </div>
               {renderModuleSections(payrollSections)}
             </div>
@@ -1077,11 +1077,11 @@ function SettingsContent() {
           {activeTab === 'leave' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiCalendar className="w-5 h-5 text-blue-500" />
                   Leave Settings
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Manage leave policies, carry forward rules, and special leaves</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Manage leave policies, carry forward rules, and special leaves</p>
               </div>
               {renderModuleSections(leaveSections)}
             </div>
@@ -1091,11 +1091,11 @@ function SettingsContent() {
           {activeTab === 'attendance' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiClock className="w-5 h-5 text-orange-500" />
                   Attendance Settings
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Define work hours, attendance thresholds, and geofencing rules</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Define work hours, attendance thresholds, and geofencing rules</p>
               </div>
               {renderModuleSections(attendanceSections)}
             </div>
@@ -1105,11 +1105,11 @@ function SettingsContent() {
           {activeTab === 'employee' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiUsers className="w-5 h-5 text-indigo-500" />
                   Employee Settings
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
               </div>
               {renderModuleSections(employeeSections)}
             </div>
@@ -1119,11 +1119,11 @@ function SettingsContent() {
           {activeTab === 'recruitment' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiBriefcase className="w-5 h-5 text-amber-500" />
                   Recruitment Settings
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Configure hiring pipeline, offer letters, and application defaults</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Configure hiring pipeline, offer letters, and application defaults</p>
               </div>
               {renderModuleSections(recruitmentSections)}
             </div>
@@ -1133,11 +1133,11 @@ function SettingsContent() {
           {activeTab === 'performance' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiTrendingUp className="w-5 h-5 text-violet-500" />
                   Performance Settings
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
               </div>
               {renderModuleSections(performanceSections)}
             </div>
@@ -1146,50 +1146,50 @@ function SettingsContent() {
           {/* Company Tab */}
           {activeTab === 'company' && (
             <div className="space-y-4">
-              <div className="nexus-card">
+              <div className="thb-card">
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
                       <FiDatabase className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-nexus-text-primary">Company Information</h2>
-                      <p className="text-xs text-nexus-text-muted">Current tenant configuration</p>
+                      <h2 className="text-lg font-semibold text-thb-text-primary">Company Information</h2>
+                      <p className="text-xs text-thb-text-muted">Current tenant configuration</p>
                     </div>
                   </div>
 
                   {tenant ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Company Name</label>
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('nexus') ? 'Marq AI Tech Pvt Ltd' : n; })()}</p>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company Name</label>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('3boxes') && !n.toLowerCase().includes('3 boxes') ? 'Marq AI Tech Pvt Ltd' : n; })()}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Slug</label>
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 font-mono">{tenant.slug}</p>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slug</label>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50 font-mono">{tenant.slug}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Domain</label>
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{tenant.domain || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Domain</label>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{tenant.domain || '—'}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Plan</label>
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50 capitalize">{tenant.plan}</p>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Plan</label>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50 capitalize">{tenant.plan}</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Status</label>
-                        <span className={`nexus-badge ${tenant.status === 'active' ? 'nexus-badge-success' : 'nexus-badge-warning'}`}>{tenant.status}</span>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
+                        <span className={`thb-badge ${tenant.status === 'active' ? 'thb-badge-success' : 'thb-badge-warning'}`}>{tenant.status}</span>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-nexus-text-secondary mb-1">Country</label>
-                        <p className="px-3 py-2.5 text-sm text-nexus-text-primary bg-slate-50 rounded-lg border border-nexus-border/50">{tenant.country || '—'}</p>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{tenant.country || '—'}</p>
                       </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <FiDatabase className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
-                      <p className="text-nexus-text-secondary font-medium">No tenant information available</p>
-                      <p className="text-sm text-nexus-text-muted mt-1">Tenant data will appear once configured</p>
+                      <FiDatabase className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
+                      <p className="text-thb-text-secondary font-medium">No tenant information available</p>
+                      <p className="text-sm text-thb-text-muted mt-1">Tenant data will appear once configured</p>
                     </div>
                   )}
                 </div>
@@ -1200,21 +1200,21 @@ function SettingsContent() {
           {/* Roles & Permissions Tab */}
           {activeTab === 'roles' && (
             <div className="space-y-4">
-              <div className="nexus-card">
+              <div className="thb-card">
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500">
                       <FiShield className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-nexus-text-primary">Roles & Permissions</h2>
-                      <p className="text-xs text-nexus-text-muted">View role definitions and access levels</p>
+                      <h2 className="text-lg font-semibold text-thb-text-primary">Roles & Permissions</h2>
+                      <p className="text-xs text-thb-text-muted">View role definitions and access levels</p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     {rolesData.map(role => (
-                      <div key={role.key} className="p-4 rounded-lg border border-nexus-border/50 hover:border-nexus-border transition-colors">
+                      <div key={role.key} className="p-4 rounded-lg border border-thb-border/50 hover:border-thb-border transition-colors">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
@@ -1227,17 +1227,17 @@ function SettingsContent() {
                               {role.name.split(' ').map(w => w[0]).join('')}
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-nexus-text-primary">{role.name}</p>
-                              <p className="text-xs text-nexus-text-muted">{role.description}</p>
+                              <p className="text-sm font-semibold text-thb-text-primary">{role.name}</p>
+                              <p className="text-xs text-thb-text-muted">{role.description}</p>
                             </div>
                           </div>
-                          <span className={`nexus-badge ${role.key === user?.role ? 'nexus-badge-success' : 'bg-slate-50 text-slate-500'}`}>
+                          <span className={`thb-badge ${role.key === user?.role ? 'thb-badge-success' : 'bg-slate-50 text-slate-500'}`}>
                             {role.key === user?.role ? 'Your Role' : role.key}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-3">
                           {role.permissions.map(perm => (
-                            <span key={perm} className="text-[10px] px-2 py-1 rounded-md bg-slate-50 text-nexus-text-secondary font-medium border border-nexus-border/50">
+                            <span key={perm} className="text-[10px] px-2 py-1 rounded-md bg-slate-50 text-thb-text-secondary font-medium border border-thb-border/50">
                               {perm}
                             </span>
                           ))}
@@ -1260,11 +1260,11 @@ function SettingsContent() {
           {activeTab === 'import' && (
             <div className="space-y-2">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-nexus-text-primary flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
                   <FiUpload className="w-5 h-5 text-blue-500" />
                   Bulk Import
                 </h2>
-                <p className="text-xs text-nexus-text-muted mt-0.5">Upload Excel sheets to import master data for initial setup</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">Upload Excel sheets to import master data for initial setup</p>
               </div>
               <BulkImportTab module="employees" />
             </div>
@@ -1272,15 +1272,15 @@ function SettingsContent() {
 
           {activeTab === 'notifications' && (
             <div className="space-y-4">
-              <div className="nexus-card">
+              <div className="thb-card">
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
                       <FiBell className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-nexus-text-primary">Notification Preferences</h2>
-                      <p className="text-xs text-nexus-text-muted">Choose what notifications you receive</p>
+                      <h2 className="text-lg font-semibold text-thb-text-primary">Notification Preferences</h2>
+                      <p className="text-xs text-thb-text-muted">Choose what notifications you receive</p>
                     </div>
                   </div>
 
@@ -1293,10 +1293,10 @@ function SettingsContent() {
                       { key: 'workflow' as const, label: 'Workflow Notifications', desc: 'Approval requests and workflow updates' },
                       { key: 'system' as const, label: 'System Alerts', desc: 'System maintenance and announcements' },
                     ].map(pref => (
-                      <div key={pref.key} className="flex items-center justify-between p-4 rounded-lg border border-nexus-border/50 hover:border-nexus-border transition-colors">
+                      <div key={pref.key} className="flex items-center justify-between p-4 rounded-lg border border-thb-border/50 hover:border-thb-border transition-colors">
                         <div>
-                          <p className="text-sm font-medium text-nexus-text-primary">{pref.label}</p>
-                          <p className="text-xs text-nexus-text-muted">{pref.desc}</p>
+                          <p className="text-sm font-medium text-thb-text-primary">{pref.label}</p>
+                          <p className="text-xs text-thb-text-muted">{pref.desc}</p>
                         </div>
                         <ToggleSwitch
                           enabled={notifPrefs[pref.key]}
@@ -1306,7 +1306,7 @@ function SettingsContent() {
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-end mt-6 pt-4 border-t border-nexus-border">
+                  <div className="flex items-center justify-end mt-6 pt-4 border-t border-thb-border">
                     <button onClick={handleSaveNotifPrefs} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors flex items-center gap-2">
                       <FiSave className="w-4 h-4" />
                       Save Preferences

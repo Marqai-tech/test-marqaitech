@@ -1,7 +1,7 @@
 import bcryptjs from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'nexus-hrms-fallback-secret');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '3boxes-hrms-fallback-secret');
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcryptjs.genSalt(12);

@@ -451,7 +451,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
 
   return (
     <aside
-      className={`${isMobileMenu ? 'w-full' : 'fixed left-0 top-0 h-full'} bg-nexus-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
+      className={`${isMobileMenu ? 'w-full' : 'fixed left-0 top-0 h-full'} bg-thb-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
         isMobileMenu ? '' : collapsed ? 'w-[68px]' : 'w-[260px]'
       }`}
     >
@@ -468,9 +468,9 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
-                Nexus <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
+                3Boxes <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
               </h1>
-              <p className="text-[10px] text-nexus-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
+              <p className="text-[10px] text-thb-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
             </div>
           )}
         </div>
@@ -494,14 +494,14 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative ${
                     isActive
                       ? 'bg-blue-500/15 text-blue-400'
-                      : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
+                      : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
                   } ${collapsed ? 'justify-center' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
                   {isActive && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
                   )}
-                  <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-nexus-sidebar-text hover:text-slate-200'} transition-colors`}>
+                  <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text hover:text-slate-200'} transition-colors`}>
                     {item.icon}
                   </span>
                   {!collapsed && <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>}
@@ -527,7 +527,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
                 router.push('/home');
                 if (isMobileMenu) onToggle();
               }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200 transition-colors ${
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200 transition-colors ${
                 collapsed ? 'justify-center' : ''
               }`}
               title={collapsed ? 'All Modules' : undefined}
@@ -544,7 +544,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
                     const SectionIcon = currentSection.sectionIcon;
                     return <SectionIcon className="w-4 h-4 text-blue-400" />;
                   })()}
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-nexus-sidebar-text/80">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/80">
                     {currentSection.label}
                   </span>
                 </div>
@@ -563,14 +563,14 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
                         isActive
                           ? 'bg-blue-500/15 text-blue-400'
-                          : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
+                          : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
                       } ${collapsed ? 'justify-center' : ''}`}
                       title={collapsed ? item.label : undefined}
                     >
                       {isActive && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
                       )}
-                      <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-nexus-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                      <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
                         {item.icon}
                       </span>
                       {!collapsed && (
@@ -592,7 +592,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
           <div>
             {!collapsed && (
               <div className="px-3 py-2 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-nexus-sidebar-text/60">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/60">
                   All Modules
                 </span>
               </div>
@@ -609,7 +609,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
                     className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg transition-all duration-200 group ${
                       isAutoActive
                         ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20'
-                        : 'text-nexus-sidebar-text hover:bg-nexus-sidebar-hover hover:text-slate-200'
+                        : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
                     } ${collapsed ? 'px-1' : ''}`}
                     title={collapsed ? section.label : undefined}
                   >
@@ -648,13 +648,13 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
           {!collapsed && user && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{user.name}</p>
-              <p className="text-xs text-nexus-sidebar-text truncate capitalize">{user.role?.replace('_', ' ')}</p>
+              <p className="text-xs text-thb-sidebar-text truncate capitalize">{user.role?.replace('_', ' ')}</p>
             </div>
           )}
           {!collapsed && (
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg text-nexus-sidebar-text hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="p-1.5 rounded-lg text-thb-sidebar-text hover:text-red-400 hover:bg-red-500/10 transition-colors"
               title="Logout"
             >
               <FiLogOut className="w-4 h-4" />
@@ -665,7 +665,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
         {/* Collapse Toggle */}
         <button
           onClick={onToggle}
-          className="w-full flex items-center justify-center py-2 text-nexus-sidebar-text hover:text-slate-300 hover:bg-white/[0.03] transition-colors"
+          className="w-full flex items-center justify-center py-2 text-thb-sidebar-text hover:text-slate-300 hover:bg-white/[0.03] transition-colors"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
@@ -681,7 +681,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
             <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marq-ai-logo.png" alt="Marq AI" className="w-4 h-4 rounded object-contain" />
-              <span className="text-[9px] text-nexus-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
+              <span className="text-[9px] text-thb-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
             </div>
           </div>
         )}

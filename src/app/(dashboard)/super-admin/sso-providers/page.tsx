@@ -97,11 +97,11 @@ export default function SSOProvidersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiLock className="w-6 h-6 text-blue-500" />
             SSO Providers
           </h1>
-          <p className="text-sm text-nexus-text-secondary mt-1">
+          <p className="text-sm text-thb-text-secondary mt-1">
             Configure Federated Login (REQ-SOC-03) and Just-In-Time Provisioning (REQ-SOC-04) via Azure AD, Google Workspace, Okta, etc.
           </p>
         </div>
@@ -116,29 +116,29 @@ export default function SSOProvidersPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {loading ? (
-          <div className="col-span-2 p-8 text-center text-sm text-nexus-text-muted">Loading...</div>
+          <div className="col-span-2 p-8 text-center text-sm text-thb-text-muted">Loading...</div>
         ) : providers.length === 0 ? (
-          <div className="col-span-2 p-8 text-center text-sm text-nexus-text-muted">
+          <div className="col-span-2 p-8 text-center text-sm text-thb-text-muted">
             No SSO providers configured. Add one to enable federated login.
           </div>
         ) : (
           providers.map((p) => (
-            <div key={p.id} className="nexus-card p-4">
+            <div key={p.id} className="thb-card p-4">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <h3 className="text-sm font-semibold text-nexus-text-primary flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
                     {p.name}
                     {p.isDefault && (
                       <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 border border-blue-200">Default</span>
                     )}
                   </h3>
-                  <p className="text-xs text-nexus-text-muted capitalize">{p.providerType}</p>
+                  <p className="text-xs text-thb-text-muted capitalize">{p.providerType}</p>
                 </div>
                 <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${p.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-50 text-slate-700 border border-slate-200'}`}>
                   {p.isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              <div className="space-y-1 text-xs text-nexus-text-secondary">
+              <div className="space-y-1 text-xs text-thb-text-secondary">
                 {p.clientId && <p><strong>Client ID:</strong> {p.clientId.substring(0, 16)}...</p>}
                 {p.issuer && <p><strong>Issuer:</strong> {p.issuer}</p>}
                 {p.redirectUri && <p><strong>Redirect URI:</strong> {p.redirectUri}</p>}
@@ -156,25 +156,25 @@ export default function SSOProvidersPage() {
 
       {showNewModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="nexus-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-nexus-text-primary mb-4">Add SSO Provider</h3>
+          <div className="thb-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Add SSO Provider</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Display Name *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Display Name *</label>
                 <input
                   type="text"
                   value={newProvider.name}
                   onChange={(e) => setNewProvider({ ...newProvider, name: e.target.value })}
                   placeholder="e.g. Corporate Azure AD"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Provider Type *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Provider Type *</label>
                 <select
                   value={newProvider.providerType}
                   onChange={(e) => setNewProvider({ ...newProvider, providerType: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 >
                   <option value="azuread">Microsoft Azure AD</option>
                   <option value="google">Google Workspace</option>
@@ -185,53 +185,53 @@ export default function SSOProvidersPage() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Client ID</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Client ID</label>
                   <input
                     type="text"
                     value={newProvider.clientId}
                     onChange={(e) => setNewProvider({ ...newProvider, clientId: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-nexus-text-secondary">Client Secret</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Client Secret</label>
                   <input
                     type="password"
                     value={newProvider.clientSecret}
                     onChange={(e) => setNewProvider({ ...newProvider, clientSecret: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Issuer URL (OIDC) or Entity ID (SAML)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Issuer URL (OIDC) or Entity ID (SAML)</label>
                 <input
                   type="text"
                   value={newProvider.issuer}
                   onChange={(e) => setNewProvider({ ...newProvider, issuer: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Metadata URL (SAML) or Discovery URL (OIDC)</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Metadata URL (SAML) or Discovery URL (OIDC)</label>
                 <input
                   type="url"
                   value={newProvider.metadataUrl}
                   onChange={(e) => setNewProvider({ ...newProvider, metadataUrl: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-nexus-text-secondary">Redirect URI</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Redirect URI</label>
                 <input
                   type="url"
                   value={newProvider.redirectUri}
                   onChange={(e) => setNewProvider({ ...newProvider, redirectUri: e.target.value })}
                   placeholder="https://hrms.example.com/api/auth/sso/callback"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-nexus-text-secondary">
+              <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
                 <input
                   type="checkbox"
                   checked={newProvider.jitProvisioningEnabled}
@@ -243,11 +243,11 @@ export default function SSOProvidersPage() {
               {newProvider.jitProvisioningEnabled && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs font-medium text-nexus-text-secondary">JIT Default Role</label>
+                    <label className="text-xs font-medium text-thb-text-secondary">JIT Default Role</label>
                     <select
                       value={newProvider.jitDefaultRole}
                       onChange={(e) => setNewProvider({ ...newProvider, jitDefaultRole: e.target.value })}
-                      className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                     >
                       <option value="employee">Employee</option>
                       <option value="manager">Manager</option>
@@ -255,11 +255,11 @@ export default function SSOProvidersPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-nexus-text-secondary">JIT Default Status</label>
+                    <label className="text-xs font-medium text-thb-text-secondary">JIT Default Status</label>
                     <select
                       value={newProvider.jitDefaultStatus}
                       onChange={(e) => setNewProvider({ ...newProvider, jitDefaultStatus: e.target.value })}
-                      className="w-full mt-1 px-3 py-2 rounded-lg border border-nexus-border text-sm"
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm"
                     >
                       <option value="pending_onboarding">Pending Onboarding</option>
                       <option value="active">Active</option>
@@ -267,7 +267,7 @@ export default function SSOProvidersPage() {
                   </div>
                 </div>
               )}
-              <label className="flex items-center gap-2 text-sm text-nexus-text-secondary">
+              <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
                 <input
                   type="checkbox"
                   checked={newProvider.isDefault}
@@ -280,7 +280,7 @@ export default function SSOProvidersPage() {
             <div className="flex items-center justify-end gap-2 mt-5">
               <button
                 onClick={() => setShowNewModal(false)}
-                className="px-3 py-1.5 text-sm text-nexus-text-secondary hover:bg-slate-100 rounded-md"
+                className="px-3 py-1.5 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-md"
               >
                 Cancel
               </button>

@@ -100,7 +100,7 @@ function NotificationPopupItem({
 
   return (
     <div
-      className={`w-80 nexus-card shadow-xl border-l-4 ${getPopupBorderColor(notification.type)} ${
+      className={`w-80 thb-card shadow-xl border-l-4 ${getPopupBorderColor(notification.type)} ${
         isExiting ? 'animate-slide-out-right' : 'animate-slide-in-right'
       }`}
     >
@@ -110,16 +110,16 @@ function NotificationPopupItem({
             {getPopupIcon(notification.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-nexus-text-primary truncate">
+            <p className="text-sm font-semibold text-thb-text-primary truncate">
               {notification.title}
             </p>
-            <p className="text-xs text-nexus-text-secondary mt-0.5 line-clamp-2">
+            <p className="text-xs text-thb-text-secondary mt-0.5 line-clamp-2">
               {notification.message}
             </p>
           </div>
           <button
             onClick={handleDismiss}
-            className="flex-shrink-0 p-1 rounded-md text-nexus-text-muted hover:text-nexus-text-primary hover:bg-white/60 transition-colors"
+            className="flex-shrink-0 p-1 rounded-md text-thb-text-muted hover:text-thb-text-primary hover:bg-white/60 transition-colors"
           >
             <FiX className="w-3.5 h-3.5" />
           </button>

@@ -30,7 +30,7 @@ export default function HomePage() {
   }, [isAuthenticated, isLoading, token, fetchUser, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-nexus-background">
+    <div className="min-h-screen flex items-center justify-center bg-thb-background">
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 mb-4 shadow-lg shadow-blue-500/25 animate-pulse-subtle">
           <svg
@@ -54,7 +54,7 @@ export default function HomePage() {
             />
           </svg>
         </div>
-        <p className="text-sm text-nexus-text-secondary font-medium">
+        <p className="text-sm text-thb-text-secondary font-medium">
           Redirecting...
         </p>
       </div>

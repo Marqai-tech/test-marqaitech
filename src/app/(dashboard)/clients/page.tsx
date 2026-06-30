@@ -20,11 +20,11 @@ function getAuthHeaders() {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'nexus-badge nexus-badge-success',
-    inactive: 'nexus-badge bg-slate-100 text-slate-600',
-    pending: 'nexus-badge nexus-badge-warning',
+    active: 'thb-badge thb-badge-success',
+    inactive: 'thb-badge bg-slate-100 text-slate-600',
+    pending: 'thb-badge thb-badge-warning',
   };
-  return map[status] || 'nexus-badge nexus-badge-info';
+  return map[status] || 'thb-badge thb-badge-info';
 }
 
 const emptyForm = {
@@ -160,7 +160,7 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h1 className="text-2xl font-bold text-nexus-text-primary">Clients</h1><p className="text-nexus-text-secondary mt-1">Manage client relationships and details</p></div>
+        <div><h1 className="text-2xl font-bold text-thb-text-primary">Clients</h1><p className="text-thb-text-secondary mt-1">Manage client relationships and details</p></div>
         <div className="flex flex-wrap items-center gap-3">
           <SeedEcosystemButton module="clients" label="Seed Sample Clients" compact />
           <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Client</button>
@@ -171,24 +171,24 @@ export default function ClientsPage() {
       <ModuleWorkflow moduleKey="clients" title="How to Manage Client Relationships" subtitle="Follow this workflow to build strong client partnerships" steps={clientWorkflowSteps} accentColor="violet" userRole={user?.role} />
 
       <div className="relative max-w-sm">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-muted" />
-        <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search clients..." className="w-full pl-9 pr-4 py-2.5 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+        <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search clients..." className="w-full pl-9 pr-4 py-2.5 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="nexus-card p-5 animate-pulse"><div className="h-5 w-3/4 bg-slate-200 rounded mb-3" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="thb-card p-5 animate-pulse"><div className="h-5 w-3/4 bg-slate-200 rounded mb-3" /><div className="h-3 w-1/2 bg-slate-100 rounded" /></div>))}</div>
       ) : filtered.length === 0 ? (
-        <div className="nexus-card p-12 text-center"><FiBriefcase className="w-12 h-12 text-nexus-text-muted mx-auto mb-3" /><p className="text-nexus-text-secondary">No clients found</p></div>
+        <div className="thb-card p-12 text-center"><FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary">No clients found</p></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c) => (
-            <div key={c.id} className="nexus-card overflow-hidden">
+            <div key={c.id} className="thb-card overflow-hidden">
               {deleteConfirmId === c.id ? (
                 <div className="p-5 bg-red-50">
                   <p className="text-sm text-red-700 font-medium mb-3">Are you sure you want to delete &quot;{c.name}&quot;?</p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleDelete(c.id)} disabled={deleting} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{deleting ? 'Deleting...' : 'Confirm'}</button>
-                    <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-nexus-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                    <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 border border-thb-border text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
                   </div>
                 </div>
               ) : (
@@ -197,18 +197,18 @@ export default function ClientsPage() {
                     <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">{c.name[0]}</div>
                     <span className={getStatusBadge(c.status)}>{c.status}</span>
                   </div>
-                  <h3 className="font-semibold text-nexus-text-primary">{c.name}</h3>
-                  <p className="text-xs text-nexus-text-muted mt-0.5">{c.code || 'No code'}</p>
-                  <div className="mt-3 space-y-1.5 text-sm text-nexus-text-secondary">
-                    {c.industry && <div className="flex items-center gap-2"><FiGlobe className="w-3.5 h-3.5 text-nexus-text-muted" />{c.industry}</div>}
-                    {c.contactName && <div className="flex items-center gap-2"><FiMail className="w-3.5 h-3.5 text-nexus-text-muted" />{c.contactName}</div>}
-                    {c.country && <div className="flex items-center gap-2"><FiMapPin className="w-3.5 h-3.5 text-nexus-text-muted" />{c.country}</div>}
+                  <h3 className="font-semibold text-thb-text-primary">{c.name}</h3>
+                  <p className="text-xs text-thb-text-muted mt-0.5">{c.code || 'No code'}</p>
+                  <div className="mt-3 space-y-1.5 text-sm text-thb-text-secondary">
+                    {c.industry && <div className="flex items-center gap-2"><FiGlobe className="w-3.5 h-3.5 text-thb-text-muted" />{c.industry}</div>}
+                    {c.contactName && <div className="flex items-center gap-2"><FiMail className="w-3.5 h-3.5 text-thb-text-muted" />{c.contactName}</div>}
+                    {c.country && <div className="flex items-center gap-2"><FiMapPin className="w-3.5 h-3.5 text-thb-text-muted" />{c.country}</div>}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-nexus-border flex items-center justify-between">
+                  <div className="mt-3 pt-3 border-t border-thb-border flex items-center justify-between">
                     <button onClick={() => { setViewingId(c.id); setShowForm(false); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="text-xs font-medium text-emerald-500 hover:text-emerald-600 flex items-center gap-1"><FiEye className="w-3.5 h-3.5" />View</button>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => handleEdit(c)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteConfirmId(c.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleEdit(c)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setDeleteConfirmId(c.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -223,28 +223,28 @@ export default function ClientsPage() {
         const client = clients.find(c => c.id === viewingId);
         if (!client) return null;
         return (
-          <div id="view-panel" className="nexus-card border-l-4 border-l-emerald-500">
+          <div id="view-panel" className="thb-card border-l-4 border-l-emerald-500">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-nexus-text-primary">Client Details</h2>
+                <h2 className="text-lg font-semibold text-thb-text-primary">Client Details</h2>
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleEdit(client)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
-                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+                  <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Name</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{client.name}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Code</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{client.code || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Industry</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{client.industry || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(client.status)}>{client.status}</span></p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Projects</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5">{client._count?.projects ?? client.projects?.length ?? 0}</p></div>
-                <div className="border-t border-nexus-border sm:border-t-0 pt-4 sm:pt-0"><span className="text-xs font-medium text-nexus-text-secondary">Contact Name</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiMail className="w-3.5 h-3.5 text-nexus-text-muted" />{client.contactName || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Contact Email</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiMail className="w-3.5 h-3.5 text-nexus-text-muted" />{client.contactEmail || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Contact Phone</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiPhone className="w-3.5 h-3.5 text-nexus-text-muted" />{client.contactPhone || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Address</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiMapPin className="w-3.5 h-3.5 text-nexus-text-muted shrink-0" />{[client.address, client.city, client.state, client.zipCode].filter(Boolean).join(', ') || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Country</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiGlobe className="w-3.5 h-3.5 text-nexus-text-muted" />{client.country || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Billing Currency</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiDollarSign className="w-3.5 h-3.5 text-nexus-text-muted" />{client.billingCurrency || '—'}</p></div>
-                <div><span className="text-xs font-medium text-nexus-text-secondary">Payment Terms</span><p className="text-sm font-medium text-nexus-text-primary mt-0.5 flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5 text-nexus-text-muted" />{client.paymentTerms ? client.paymentTerms.replace('net_', 'Net ').replace('_', ' ') : '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Name</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{client.name}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Code</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{client.code || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Industry</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{client.industry || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Status</span><p className="mt-0.5"><span className={getStatusBadge(client.status)}>{client.status}</span></p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Projects</span><p className="text-sm font-medium text-thb-text-primary mt-0.5">{client._count?.projects ?? client.projects?.length ?? 0}</p></div>
+                <div className="border-t border-thb-border sm:border-t-0 pt-4 sm:pt-0"><span className="text-xs font-medium text-thb-text-secondary">Contact Name</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiMail className="w-3.5 h-3.5 text-thb-text-muted" />{client.contactName || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Contact Email</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiMail className="w-3.5 h-3.5 text-thb-text-muted" />{client.contactEmail || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Contact Phone</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiPhone className="w-3.5 h-3.5 text-thb-text-muted" />{client.contactPhone || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Address</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiMapPin className="w-3.5 h-3.5 text-thb-text-muted shrink-0" />{[client.address, client.city, client.state, client.zipCode].filter(Boolean).join(', ') || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Country</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiGlobe className="w-3.5 h-3.5 text-thb-text-muted" />{client.country || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Billing Currency</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiDollarSign className="w-3.5 h-3.5 text-thb-text-muted" />{client.billingCurrency || '—'}</p></div>
+                <div><span className="text-xs font-medium text-thb-text-secondary">Payment Terms</span><p className="text-sm font-medium text-thb-text-primary mt-0.5 flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5 text-thb-text-muted" />{client.paymentTerms ? client.paymentTerms.replace('net_', 'Net ').replace('_', ' ') : '—'}</p></div>
               </div>
             </div>
           </div>
@@ -253,38 +253,38 @@ export default function ClientsPage() {
 
       {/* CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="nexus-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-nexus-text-primary">
+              <h2 className="text-lg font-semibold text-thb-text-primary">
                 {editingId ? 'Edit Client' : 'Add New Client'}
               </h2>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-nexus-text-muted hover:text-nexus-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
+              <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Code</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Code</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
               </div>
-              <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Industry</label><input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Industry</label><input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Contact Name</label><input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Email</label><input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Phone</label><input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Name</label><input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Phone</label><input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
               </div>
-              <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">State</label><input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Country</label><input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">ZIP</label><input value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">City</label><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">State</label><input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Country</label><input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">ZIP</label><input value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Currency</label><select value={form.billingCurrency} onChange={(e) => setForm({ ...form, billingCurrency: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
-                <div><label className="block text-sm font-medium text-nexus-text-secondary mb-1">Payment Terms</label><select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className="w-full px-3 py-2 border border-nexus-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="net_15">Net 15</option><option value="net_30">Net 30</option><option value="net_45">Net 45</option><option value="net_60">Net 60</option><option value="immediate">Immediate</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Currency</label><select value={form.billingCurrency} onChange={(e) => setForm({ ...form, billingCurrency: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Payment Terms</label><select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="net_15">Net 15</option><option value="net_30">Net 30</option><option value="net_45">Net 45</option><option value="net_60">Net 60</option><option value="immediate">Immediate</option></select></div>
               </div>
-              <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-nexus-border">
-                <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-nexus-border text-sm font-medium text-nexus-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
+              <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
+                <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add Client'}</button>
               </div>
             </form>

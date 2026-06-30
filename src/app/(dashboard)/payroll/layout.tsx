@@ -165,24 +165,24 @@ function PayrollSubMenu() {
   const isLandingPage = pathname === '/payroll';
 
   return (
-    <div className="nexus-card overflow-hidden">
+    <div className="thb-card overflow-hidden">
       {/* Top bar: Payroll title + breadcrumb */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border-b border-nexus-border">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border-b border-thb-border">
         <div className="flex items-center gap-2 text-sm">
-          <Link href="/payroll" className="flex items-center gap-1.5 font-semibold text-nexus-text-primary hover:text-emerald-600 transition-colors">
+          <Link href="/payroll" className="flex items-center gap-1.5 font-semibold text-thb-text-primary hover:text-emerald-600 transition-colors">
             <FiDollarSign className="w-4 h-4 text-emerald-500" />
             Payroll
           </Link>
           {currentItem && (
             <>
-              <FiChevronRight className="w-3 h-3 text-nexus-text-muted" />
-              <span className="text-nexus-text-secondary">{currentCategory?.label}</span>
-              <FiChevronRight className="w-3 h-3 text-nexus-text-muted" />
+              <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
+              <span className="text-thb-text-secondary">{currentCategory?.label}</span>
+              <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
               <span className="font-medium text-emerald-700">{currentItem.label}</span>
             </>
           )}
           {isLandingPage && (
-            <span className="ml-2 text-xs text-nexus-text-muted">Overview</span>
+            <span className="ml-2 text-xs text-thb-text-muted">Overview</span>
           )}
         </div>
         <Link
@@ -190,7 +190,7 @@ function PayrollSubMenu() {
           className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${
             isLandingPage
               ? 'bg-emerald-100 text-emerald-700'
-              : 'text-nexus-text-secondary hover:bg-slate-100 hover:text-nexus-text-primary'
+              : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
           }`}
         >
           Module Home
@@ -211,8 +211,8 @@ function PayrollSubMenu() {
                   isCurrentCat
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : isOpen
-                    ? 'bg-slate-100 text-nexus-text-primary'
-                    : 'text-nexus-text-secondary hover:bg-slate-50 hover:text-nexus-text-primary'
+                    ? 'bg-slate-100 text-thb-text-primary'
+                    : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
                 }`}
               >
                 <IconComp className="w-3.5 h-3.5" />
@@ -220,7 +220,7 @@ function PayrollSubMenu() {
                 <FiChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
               </button>
               {isOpen && (
-                <div className="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-nexus-border py-1 z-50">
+                <div className="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-thb-border py-1 z-50">
                   {cat.items.map((item) => {
                     const ItemIcon = item.icon;
                     const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -232,10 +232,10 @@ function PayrollSubMenu() {
                           setOpenCat(null);
                         }}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-slate-50 transition-colors ${
-                          isActive ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-nexus-text-secondary'
+                          isActive ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-thb-text-secondary'
                         }`}
                       >
-                        <ItemIcon className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-600' : 'text-nexus-text-muted'}`} />
+                        <ItemIcon className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-600' : 'text-thb-text-muted'}`} />
                         <span className="flex-1 text-left">{item.label}</span>
                         {item.isNew && (
                           <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-violet-100 text-violet-700">New</span>

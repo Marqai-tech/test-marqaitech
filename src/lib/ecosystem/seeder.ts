@@ -1027,7 +1027,7 @@ export async function seedWellness(companyId: string, employees: { id: string; f
   const giftEvents = [
     { empIdx: 0, trigger: 'work_anniversary', message: 'Happy 3rd work anniversary! Thank you for being part of the family.' },
     { empIdx: 1, trigger: 'birthday', message: 'Wishing you a fantastic birthday and an amazing year ahead!' },
-    { empIdx: 2, trigger: 'project_completion', message: 'Congratulations on the successful go-live of the NEXUS Platform!' },
+    { empIdx: 2, trigger: 'project_completion', message: 'Congratulations on the successful go-live of the 3Boxes Platform!' },
     { empIdx: 3, trigger: 'high_performance', message: 'Recognition for your outstanding Q1 performance review!' },
     { empIdx: 4, trigger: 'referral', message: 'Thank you for referring a great candidate who joined us last week!' },
     { empIdx: 5, trigger: 'work_anniversary', message: 'Happy 2nd work anniversary!' },
