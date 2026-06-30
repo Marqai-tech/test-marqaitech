@@ -16,6 +16,8 @@ import {
   FiHeart,
   FiShield,
   FiActivity,
+  FiGrid,
+  FiList,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -252,6 +254,9 @@ export default function EmployeesPage() {
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // View mode: list or grid
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   // Horizontal form tab state
   const [formTab, setFormTab] = useState('personal');
@@ -1357,7 +1362,26 @@ export default function EmployeesPage() {
         )}
       </div>
 
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={() => setViewMode('list')}
+          className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white text-nexus-text-secondary hover:bg-slate-50 border border-nexus-border'}`}
+          title="List View"
+        >
+          <FiList className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setViewMode('grid')}
+          className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white text-nexus-text-secondary hover:bg-slate-50 border border-nexus-border'}`}
+          title="Grid View"
+        >
+          <FiGrid className="w-5 h-5" />
+        </button>
+      </div>
+
       {/* Table */}
+      {viewMode === 'list' ? (
       <div className="nexus-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -1490,6 +1514,106 @@ export default function EmployeesPage() {
           </div>
         )}
       </div>
+      ) : (
+      /* Grid View */
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {employees.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-nexus-text-secondary">
+            <FiUsers className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No employees found</p>
+          </div>
+        ) : (
+          employees.map(emp => {
+            const statusBadge = getStatusBadge(emp.status);
+            const initials = `${emp.firstName?.[0] || ''}${emp.lastName?.[0] || ''}`.toUpperCase();
+            return (
+              <div key={emp.id} className="nexus-card hover:shadow-lg transition-all duration-200 overflow-hidden group">
+                {/* Photo/Avatar Section */}
+                <div className="h-32 bg-gradient-to-br from-blue-500 to-indigo-600 relative overflow-hidden">
+                  {emp.avatar ? (
+                    <img src={emp.avatar} alt={`${emp.firstName} ${emp.lastName}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white text-4xl font-bold">
+                      {initials}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+
+                {/* Employee Info */}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h3 className="font-semibold text-nexus-text-primary text-base truncate">
+                      {emp.firstName} {emp.lastName}
+                    </h3>
+                    <p className="text-xs text-nexus-text-secondary truncate">{emp.email}</p>
+                  </div>
+
+                  <div className="space-y-1.5 text-sm">
+                    {emp.designation && (
+                      <div className="flex items-center gap-2 text-nexus-text-secondary">
+                        <span className="text-xs truncate">{emp.designation.title}</span>
+                      </div>
+                    )}
+                    {emp.department && (
+                      <div className="flex items-center gap-2 text-nexus-text-secondary">
+                        <span className="text-xs truncate">{emp.department.name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-nexus-border">
+                    <span className={statusBadge.className}>{statusBadge.label}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => router.push(`/employees/${emp.id}`)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View Details">
+                        <FiEye className="w-4 h-4" />
+                      </button>
+                      {isAdmin && (
+                        <>
+                          <button onClick={() => handleOpenEditForm(emp)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit">
+                            <FiEdit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(emp.id)} className="p-1.5 rounded-lg text-nexus-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      )}
+
+      {/* Pagination for Grid View */}
+      {viewMode === 'grid' && pagination.totalPages > 1 && (
+        <div className="nexus-card">
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-sm text-nexus-text-muted">
+              Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+            </p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => fetchEmployees(pagination.page - 1)} disabled={pagination.page <= 1} className="p-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <FiChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                const p = i + 1;
+                return (
+                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white' : 'text-nexus-text-secondary hover:bg-slate-50'}`}>
+                    {p}
+                  </button>
+                );
+              })}
+              <button onClick={() => fetchEmployees(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg border border-nexus-border text-nexus-text-secondary hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <FiChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
