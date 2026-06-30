@@ -638,12 +638,26 @@ export default function CareersPage() {
             <a href="#why" className="hover:text-indigo-600 transition-colors">Why Join Us</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link
-              href="/candidate-portal/login"
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
-            >
-              Sign In <FiExternalLink className="w-3.5 h-3.5" />
-            </Link>
+            {loggedInCandidateEmail ? (
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                  {loggedInCandidateEmail.charAt(0).toUpperCase()}
+                </div>
+                <div className="text-sm">
+                  <div className="font-semibold text-slate-900">{loggedInCandidateEmail}</div>
+                  <Link href="/candidate-portal/dashboard" className="text-xs text-indigo-600 hover:text-indigo-700">
+                    Go to Dashboard →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <Link
+                href="/candidate-portal/login"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
+              >
+                Sign In <FiExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            )}
             <a
               href="#openings"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"

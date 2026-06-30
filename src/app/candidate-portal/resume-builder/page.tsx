@@ -4,8 +4,8 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  FiUpload, FiFileText, FiEye, FiDownload, FiArrowLeft, FiArrowRight,
-  FiCheck, FiZap, FiBriefcase, FiUser, FiMail, FiPhone, FiMapPin,
+  FiUpload, FiFileText, FiDownload, FiArrowLeft, FiArrowRight,
+  FiCheck, FiZap, FiMail, FiPhone, FiMapPin,
   FiGlobe, FiStar, FiAward, FiEdit2, FiRefreshCw,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
