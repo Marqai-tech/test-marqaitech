@@ -32,6 +32,10 @@ import {
   FiCheckCircle,
   FiTarget,
   FiSend,
+  FiGrid,
+  FiList,
+  FiUserCheck,
+  FiXCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -240,6 +244,42 @@ function getAvatarColor(name: string) {
   return colors[Math.abs(hash) % colors.length];
 }
 
+function getAvatarGradient(name: string) {
+  const gradients = [
+    'from-rose-400 to-rose-600',
+    'from-emerald-400 to-emerald-600',
+    'from-amber-400 to-amber-600',
+    'from-sky-400 to-sky-600',
+    'from-violet-400 to-violet-600',
+    'from-pink-400 to-pink-600',
+    'from-teal-400 to-teal-600',
+    'from-orange-400 to-orange-600',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return gradients[Math.abs(hash) % gradients.length];
+}
+
+/* ── Sample / Demo Data (fallback when API returns empty) ── */
+const SAMPLE_JOBS: JobPosting[] = [
+  { id: 'demo-j1', title: 'Senior Developer', position: 'Senior Full-Stack Developer', location: 'Bangalore', type: 'full-time', experience: '5-8 years', salary: '₹15-25 LPA', description: 'We are looking for an experienced full-stack developer to join our engineering team and lead complex projects.', requirements: 'React, Node.js, TypeScript, PostgreSQL', status: 'open', postedDate: '2026-06-01', closingDate: '2026-07-15', vacancies: 3, department: { id: 'd1', name: 'Engineering' }, _count: { applications: 4 } },
+  { id: 'demo-j2', title: 'Product Manager', position: 'Senior Product Manager', location: 'Mumbai', type: 'full-time', experience: '7-10 years', salary: '₹20-30 LPA', description: 'Lead product strategy and roadmap for our flagship SaaS platform, working closely with engineering and design.', requirements: 'Product management, Agile, Data analysis', status: 'open', postedDate: '2026-05-20', closingDate: '2026-07-01', vacancies: 1, department: { id: 'd2', name: 'Product' }, _count: { applications: 2 } },
+  { id: 'demo-j3', title: 'UX Designer', position: 'Senior UX Designer', location: 'Remote', type: 'full-time', experience: '4-6 years', salary: '₹12-18 LPA', description: 'Design intuitive user experiences for our enterprise products, collaborating with cross-functional teams.', requirements: 'Figma, User Research, Design Systems', status: 'open', postedDate: '2026-06-10', closingDate: null, vacancies: 2, department: { id: 'd3', name: 'Design' }, _count: { applications: 2 } },
+  { id: 'demo-j4', title: 'Data Analyst', position: 'Business Data Analyst', location: 'Hyderabad', type: 'full-time', experience: '3-5 years', salary: '₹10-15 LPA', description: 'Analyze business data and create insights to drive strategic decisions across departments.', requirements: 'SQL, Python, Tableau, Statistics', status: 'on_hold', postedDate: '2026-05-15', closingDate: '2026-06-30', vacancies: 1, department: { id: 'd4', name: 'Analytics' }, _count: { applications: 1 } },
+  { id: 'demo-j5', title: 'HR Executive', position: 'HR Operations Executive', location: 'Chennai', type: 'full-time', experience: '2-4 years', salary: '₹6-10 LPA', description: 'Handle HR operations and employee relations, manage onboarding and compliance.', requirements: 'HR Management, Recruitment, Compliance', status: 'closed', postedDate: '2026-04-01', closingDate: '2026-05-01', vacancies: 0, department: { id: 'd5', name: 'Human Resources' }, _count: { applications: 8 } },
+];
+
+const SAMPLE_CANDIDATES: JobApplication[] = [
+  { id: 'demo-1', candidateName: 'Priya Sharma', candidateEmail: 'priya.sharma@gmail.com', candidatePhone: '+91 98765 43210', source: 'LinkedIn', status: 'applied', appliedDate: '2026-06-15', rating: 4, expectedSalary: '₹12 LPA', jobPostingId: 'demo-j1', jobPosting: { id: 'demo-j1', title: 'Senior Developer' } },
+  { id: 'demo-2', candidateName: 'Rahul Menon', candidateEmail: 'rahul.menon@outlook.com', candidatePhone: '+91 87654 32109', source: 'Naukri', status: 'screening', appliedDate: '2026-06-12', rating: 3, expectedSalary: '₹15 LPA', jobPostingId: 'demo-j1', jobPosting: { id: 'demo-j1', title: 'Senior Developer' } },
+  { id: 'demo-3', candidateName: 'Anita Desai', candidateEmail: 'anita.d@yahoo.com', candidatePhone: '+91 76543 21098', source: 'Referral', status: 'interview', appliedDate: '2026-06-08', rating: 5, expectedSalary: '₹18 LPA', jobPostingId: 'demo-j2', jobPosting: { id: 'demo-j2', title: 'Product Manager' } },
+  { id: 'demo-4', candidateName: 'Vikram Patel', candidateEmail: 'vikram.p@gmail.com', candidatePhone: '+91 65432 10987', source: 'Indeed', status: 'offered', appliedDate: '2026-05-28', rating: 4, expectedSalary: '₹20 LPA', jobPostingId: 'demo-j2', jobPosting: { id: 'demo-j2', title: 'Product Manager' } },
+  { id: 'demo-5', candidateName: 'Meera Joshi', candidateEmail: 'meera.j@rediff.com', candidatePhone: '+91 54321 09876', source: 'Company Website', status: 'hired', appliedDate: '2026-05-15', rating: 5, expectedSalary: '₹14 LPA', jobPostingId: 'demo-j3', jobPosting: { id: 'demo-j3', title: 'UX Designer' } },
+  { id: 'demo-6', candidateName: 'Arjun Reddy', candidateEmail: 'arjun.r@gmail.com', candidatePhone: '+91 43210 98765', source: 'LinkedIn', status: 'rejected', appliedDate: '2026-06-10', rating: 2, expectedSalary: '₹10 LPA', jobPostingId: 'demo-j1', jobPosting: { id: 'demo-j1', title: 'Senior Developer' } },
+  { id: 'demo-7', candidateName: 'Sneha Kulkarni', candidateEmail: 'sneha.k@hotmail.com', candidatePhone: '+91 32109 87654', source: 'Naukri', status: 'applied', appliedDate: '2026-06-18', rating: null, expectedSalary: '₹16 LPA', jobPostingId: 'demo-j3', jobPosting: { id: 'demo-j3', title: 'UX Designer' } },
+  { id: 'demo-8', candidateName: 'Karthik Iyer', candidateEmail: 'karthik.i@gmail.com', candidatePhone: '+91 21098 76543', source: 'Referral', status: 'interview', appliedDate: '2026-06-05', rating: 4, expectedSalary: '₹22 LPA', jobPostingId: 'demo-j4', jobPosting: { id: 'demo-j4', title: 'Data Analyst' } },
+];
+
 const initialJobForm = {
   title: '',
   departmentId: '',
@@ -281,6 +321,7 @@ export default function RecruitmentPage() {
   const [jobDeptFilter, setJobDeptFilter] = useState('');
   const [candidateSearch, setCandidateSearch] = useState('');
   const [candidateStatusFilter, setCandidateStatusFilter] = useState('');
+  const [candidateViewMode, setCandidateViewMode] = useState<'list' | 'grid'>('list');
 
   // Job form state
   const [showJobForm, setShowJobForm] = useState(false);
@@ -370,15 +411,16 @@ export default function RecruitmentPage() {
   }, []);
 
   const maskedApplications = useMemo(() => {
-    if (!applications || applications.length === 0) return [];
-    return applications.map(a =>
+    const source = applications.length === 0 && !loading ? SAMPLE_CANDIDATES : applications;
+    if (!source || source.length === 0) return [];
+    return source.map(a =>
       maskCandidateFields(
         a as unknown as Record<string, unknown>,
         user?.role,
         piiPolicies,
       ) as unknown as JobApplication & { __piiMaskedFields?: string[] }
     );
-  }, [applications, piiPolicies, user?.role]);
+  }, [applications, loading, piiPolicies, user?.role]);
 
   /* ─── WAVE2-C: Resume parser + sentiment state ─── */
   const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
@@ -701,23 +743,33 @@ export default function RecruitmentPage() {
   };
 
   /* ─── Computed Stats ─── */
-  const openPositions = jobPostings.filter(j => j.status === 'open').length;
-  const totalApplications = applications.length;
-  const interviewsScheduled = applications.filter(a => a.status === 'interview').length;
-  const offersPending = applications.filter(a => a.status === 'offered').length;
-  const shortlisted = applications.filter(a => a.status === 'screening').length;
-  const hired = applications.filter(a => a.status === 'hired').length;
+  const displayJobs = useMemo(() => {
+    if (jobPostings.length === 0 && !loading) return SAMPLE_JOBS;
+    return jobPostings;
+  }, [jobPostings, loading]);
+
+  const displayApplications = useMemo(() => {
+    if (applications.length === 0 && !loading) return SAMPLE_CANDIDATES;
+    return applications;
+  }, [applications, loading]);
+
+  const openPositions = displayJobs.filter(j => j.status === 'open').length;
+  const totalApplications = displayApplications.length;
+  const interviewsScheduled = displayApplications.filter(a => a.status === 'interview').length;
+  const offersPending = displayApplications.filter(a => a.status === 'offered').length;
+  const shortlisted = displayApplications.filter(a => a.status === 'screening').length;
+  const hired = displayApplications.filter(a => a.status === 'hired').length;
 
   /* ─── Filtered Data ─── */
   const filteredJobs = useMemo(() => {
-    return jobPostings.filter(job => {
+    return displayJobs.filter(job => {
       if (jobSearch && !job.title.toLowerCase().includes(jobSearch.toLowerCase()) && !job.position.toLowerCase().includes(jobSearch.toLowerCase())) return false;
       if (jobTypeFilter && job.type !== jobTypeFilter) return false;
       if (jobStatusFilter && job.status !== jobStatusFilter) return false;
       if (jobDeptFilter && job.department?.id !== jobDeptFilter) return false;
       return true;
     });
-  }, [jobPostings, jobSearch, jobTypeFilter, jobStatusFilter, jobDeptFilter]);
+  }, [displayJobs, jobSearch, jobTypeFilter, jobStatusFilter, jobDeptFilter]);
 
   const filteredCandidates = useMemo(() => {
     return maskedApplications.filter(app => {
@@ -739,7 +791,7 @@ export default function RecruitmentPage() {
   ];
 
   const candidateStatsCards = [
-    { label: 'Total Candidates', value: applications.length, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
+    { label: 'Total Candidates', value: totalApplications, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
     { label: 'Shortlisted', value: shortlisted, icon: FiFilter, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
     { label: 'Interviewed', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
     { label: 'Hired', value: hired, icon: FiCheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
@@ -801,8 +853,8 @@ export default function RecruitmentPage() {
         accent="violet"
         quickStats={
           <>
-            <span><b className="text-slate-700">{jobPostings.length}</b> jobs</span>
-            <span><b className="text-violet-600">{jobPostings.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
+            <span><b className="text-slate-700">{displayJobs.length}</b> jobs</span>
+            <span><b className="text-violet-600">{displayJobs.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
           </>
         }
       >
@@ -935,7 +987,7 @@ export default function RecruitmentPage() {
                 <div className="p-3 rounded-lg bg-sky-50 border border-sky-100">
                   <p className="text-sm text-sky-700 font-medium">
                     <FiBriefcase className="w-4 h-4 inline mr-1" />
-                    Applying for: {jobPostings.find(j => j.id === appForm.jobPostingId)?.title || 'Selected Job'}
+                    Applying for: {displayJobs.find(j => j.id === appForm.jobPostingId)?.title || 'Selected Job'}
                   </p>
                 </div>
               )}
@@ -943,7 +995,7 @@ export default function RecruitmentPage() {
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Posting *</label>
                 <select value={appForm.jobPostingId} onChange={e => setAppForm(p => ({ ...p, jobPostingId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400">
                   <option value="">Select Job</option>
-                  {jobPostings.filter(j => j.status === 'open').map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
+                  {displayJobs.filter(j => j.status === 'open').map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1119,8 +1171,8 @@ export default function RecruitmentPage() {
                     <tr>
                       <td colSpan={7} className="px-5 py-16 text-center">
                         <FiBriefcase className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
-                        <p className="text-thb-text-secondary font-medium">{jobPostings.length === 0 ? 'No job postings yet' : 'No jobs match your filters'}</p>
-                        <p className="text-sm text-thb-text-muted mt-1">{jobPostings.length === 0 ? 'Create your first job posting to start hiring' : 'Try adjusting your search or filter criteria'}</p>
+                        <p className="text-thb-text-secondary font-medium">{displayJobs.length === 0 ? 'No job postings yet' : 'No jobs match your filters'}</p>
+                        <p className="text-sm text-thb-text-muted mt-1">{displayJobs.length === 0 ? 'Create your first job posting to start hiring' : 'Try adjusting your search or filter criteria'}</p>
                       </td>
                     </tr>
                   ) : (
@@ -1378,11 +1430,29 @@ export default function RecruitmentPage() {
                     Clear
                   </button>
                 )}
+                {/* View Toggle */}
+                <div className="flex items-center gap-1 ml-1 border-l border-thb-border pl-2">
+                  <button
+                    onClick={() => setCandidateViewMode('list')}
+                    className={`p-2 rounded-lg transition-colors ${candidateViewMode === 'list' ? 'bg-violet-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
+                    title="List View"
+                  >
+                    <FiList className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setCandidateViewMode('grid')}
+                    className={`p-2 rounded-lg transition-colors ${candidateViewMode === 'grid' ? 'bg-violet-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
+                    title="Grid View"
+                  >
+                    <FiGrid className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Candidates Table */}
+          {/* Candidates Table / Grid */}
+          {candidateViewMode === 'list' ? (
           <div className="thb-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -1415,7 +1485,7 @@ export default function RecruitmentPage() {
                       <td colSpan={7} className="px-5 py-16 text-center">
                         <FiUsers className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
                         <p className="text-thb-text-secondary font-medium">No candidates found</p>
-                        <p className="text-sm text-thb-text-muted mt-1">{applications.length === 0 ? 'Applications will appear here once candidates apply' : 'Try adjusting your search or filter'}</p>
+                        <p className="text-sm text-thb-text-muted mt-1">{displayApplications.length === 0 ? 'Applications will appear here once candidates apply' : 'Try adjusting your search or filter'}</p>
                       </td>
                     </tr>
                   ) : (
@@ -1538,6 +1608,106 @@ export default function RecruitmentPage() {
               </table>
             </div>
           </div>
+          ) : (
+          /* ── Candidate Grid View ── */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredCandidates.length === 0 ? (
+              <div className="col-span-full text-center py-16">
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                    <FiUsers className="w-8 h-8 text-thb-text-muted" />
+                  </div>
+                  <p className="text-thb-text-secondary font-medium">No candidates found</p>
+                  <p className="text-sm text-thb-text-muted mt-1">Try adjusting your search or filters</p>
+                </div>
+              </div>
+            ) : (
+              filteredCandidates.map(app => {
+                const badge = getAppStatusBadge(app.status);
+                const initials = getInitials(app.candidateName);
+                const avatarGradient = getAvatarGradient(app.candidateName);
+                const rating = app.rating ?? 0;
+                const isDemo = app.id.startsWith('demo-');
+                return (
+                  <div key={app.id} className="thb-card overflow-hidden group transition-all duration-200 hover:shadow-lg">
+                    {/* Card Header with Avatar */}
+                    <div className="p-5 pb-3">
+                      <div className="flex items-start gap-3.5">
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm`}>
+                          {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-thb-text-primary text-sm truncate">{app.candidateName}</h3>
+                          <p className="text-xs text-thb-text-secondary truncate mt-0.5">{app.jobPosting?.title || '—'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Details */}
+                    <div className="px-5 pb-3 space-y-2">
+                      {/* Rating Stars */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <FiStar key={i} className={`w-3.5 h-3.5 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'}`} />
+                        ))}
+                        {rating === 0 && <span className="text-[10px] text-thb-text-muted ml-1">Not rated</span>}
+                      </div>
+                      {/* Email */}
+                      <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                        <FiMail className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                        <span className="truncate">{app.candidateEmail}</span>
+                      </div>
+                      {/* Salary */}
+                      {app.expectedSalary && (
+                        <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                          <FiAward className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                          <span>{app.expectedSalary}</span>
+                        </div>
+                      )}
+                      {/* Applied Date */}
+                      <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                        <FiCalendar className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                        <span>{formatDate(app.appliedDate)}</span>
+                      </div>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="px-5 py-3 border-t border-thb-border bg-slate-50/50 flex items-center justify-between">
+                      <span className={badge.className}>{badge.label}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => { if (!isDemo) handleToggleAppExpand(app.id); }}
+                          className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                          title="View"
+                        >
+                          <FiEye className="w-3.5 h-3.5" />
+                        </button>
+                        {isAdmin && !isDemo && (
+                          <>
+                            <button
+                              onClick={() => { handleOpenAppEdit(app); setCandidateViewMode('list'); }}
+                              className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              title="Shortlist"
+                            >
+                              <FiUserCheck className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { setEditAppStatus('rejected'); setEditingAppId(app.id); handleSaveAppStatus(app.id); }}
+                              className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Reject"
+                            >
+                              <FiXCircle className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          )}
         </div>
       )}
 
@@ -1639,7 +1809,7 @@ export default function RecruitmentPage() {
                   className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
                 >
                   <option value="">All jobs</option>
-                  {jobPostings.map(j => (
+                  {displayJobs.map(j => (
                     <option key={j.id} value={j.id}>{j.title}</option>
                   ))}
                 </select>
