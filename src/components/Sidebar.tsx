@@ -97,32 +97,14 @@ const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards'];
 
 const navSections: NavSection[] = [
   {
-    key: 'dashboards',
-    sectionIcon: FiGrid,
-    label: 'Dashboards',
-    items: [
-      { label: 'Dashboard Overview', href: '/dashboards', icon: <FiGrid className="w-5 h-5" />, isNew: true },
-      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiShield className="w-5 h-5" /> },
-      { label: 'Employee Dashboard', href: '/dashboards/employee', icon: <FiUser className="w-5 h-5" /> },
-      { label: 'HR Dashboard', href: '/dashboards/hr', icon: <FiUsers className="w-5 h-5" />, isNew: true },
-      { label: 'Payroll Dashboard', href: '/dashboards/payroll', icon: <FiDollarSign className="w-5 h-5" />, isNew: true },
-      { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiBriefcase className="w-5 h-5" />, isNew: true },
-      { label: 'Attendance Dashboard', href: '/dashboards/attendance', icon: <FiClock className="w-5 h-5" />, isNew: true },
-      { label: 'Finance Dashboard', href: '/dashboards/finance', icon: <FiCreditCard className="w-5 h-5" />, isNew: true },
-      { label: 'IT Admin Dashboard', href: '/dashboards/it-admin', icon: <FiMonitor className="w-5 h-5" />, isNew: true },
-      { label: 'Asset Dashboard', href: '/dashboards/asset', icon: <FiPackage className="w-5 h-5" />, isNew: true },
-      { label: 'Help Desk Dashboard', href: '/dashboards/helpdesk', icon: <FiHeadphones className="w-5 h-5" />, isNew: true },
-      { label: 'Deals Dashboard', href: '/dashboards/deals', icon: <FiBriefcase className="w-5 h-5" /> },
-      { label: 'Leads Dashboard', href: '/dashboards/leads', icon: <FiTarget className="w-5 h-5" /> },
-    ],
-  },
-  {
     // SRS §3 — Super Admin (Platform Owner). Visible only to super_admin.
     // All links here map to SRS REQ-SA-* requirements.
     key: 'super-admin',
     sectionIcon: FiShield,
     label: 'Super Admin (Platform)',
     items: [
+      // Dashboard for admin
+      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiGrid className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // REQ-SA-01..06: Tenant lifecycle, subscriptions, global dashboard
       { label: 'Super Admin Console', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
       // REQ-SA-05: Feature flags per parent company
@@ -150,6 +132,7 @@ const navSections: NavSection[] = [
     sectionIcon: FiServer,
     label: 'Tenant Admin (Group)',
     items: [
+      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiGrid className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       // REQ-TA-04/05: Group dashboard + AI Group Health Score
       { label: 'Tenant Admin Console', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
       // REQ-TA-01/02/03: Sub-company management
@@ -173,7 +156,9 @@ const navSections: NavSection[] = [
     label: 'Core HR',
     sectionIcon: FiUsers,
     items: [
+      { label: 'HR Dashboard', href: '/dashboards/hr', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'My Profile', href: '/my-profile', icon: <FiUser className="w-5 h-5" /> },
+      { label: 'Employee Dashboard', href: '/dashboards/employee', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, moduleKey: 'employees' },
       { label: 'Company Management', href: '/company', icon: <FiLayers className="w-5 h-5" />, moduleKey: 'company' },
     ],
@@ -183,6 +168,7 @@ const navSections: NavSection[] = [
     sectionIcon: FiBriefcase,
     label: 'Talent Acquisition',
     items: [
+      { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Recruitment', href: '/recruitment', icon: <FiBriefcase className="w-5 h-5" />, moduleKey: 'recruitment' },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-5 h-5" />, moduleKey: 'recruitment' },
       { label: 'Offers', href: '/offers', icon: <FiStar className="w-5 h-5" />, moduleKey: 'recruitment' },
@@ -207,6 +193,7 @@ const navSections: NavSection[] = [
     sectionIcon: FiClock,
     label: 'Attendance',
     items: [
+      { label: 'Attendance Dashboard', href: '/dashboards/attendance', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'attendance', isNew: true },
       { label: 'Attendance', href: '/attendance', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-5 h-5" />, moduleKey: 'attendance' },
       { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-5 h-5" />, moduleKey: 'attendance' },
@@ -244,6 +231,7 @@ const navSections: NavSection[] = [
     label: 'Compensation',
     items: [
       // Landing / overview
+      { label: 'Payroll Dashboard', href: '/dashboards/payroll', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll' },
       // ─── Compensation Setup ───
       { label: 'CTC Templates', href: '/payroll/ctc-templates', icon: <FiLayers className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
@@ -299,10 +287,13 @@ const navSections: NavSection[] = [
     sectionIcon: FiFolder,
     label: 'Operations',
     items: [
+      { label: 'Finance Dashboard', href: '/dashboards/finance', icon: <FiGrid className="w-5 h-5" />, isNew: true },
+      { label: 'IT Admin Dashboard', href: '/dashboards/it-admin', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
       { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
       { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" />, moduleKey: 'travel' },
       { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'expenses' },
+      { label: 'Asset Dashboard', href: '/dashboards/asset', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, moduleKey: 'assets' },
       { label: 'Documents', href: '/documents', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'docs' },
     ],
@@ -312,6 +303,8 @@ const navSections: NavSection[] = [
     sectionIcon: FiGlobe,
     label: 'External Relations',
     items: [
+      { label: 'Deals Dashboard', href: '/dashboards/deals', icon: <FiGrid className="w-5 h-5" />, isNew: true },
+      { label: 'Leads Dashboard', href: '/dashboards/leads', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Clients', href: '/clients', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'company' },
       { label: 'SOWs', href: '/clients/sow', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'company', isNew: true },
       { label: 'Client Insights', href: '/clients/insights', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'company', isNew: true },
@@ -341,6 +334,7 @@ const navSections: NavSection[] = [
     sectionIcon: FiHelpCircle,
     label: 'Support & Intelligence',
     items: [
+      { label: 'Help Desk Dashboard', href: '/dashboards/helpdesk', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Helpdesk', href: '/helpdesk', icon: <FiHelpCircle className="w-5 h-5" />, moduleKey: 'helpdesk' },
       { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-5 h-5" />, moduleKey: 'grievances' },
       { label: 'AI Assistant', href: '/ai-assistant', icon: <FiMessageCircle className="w-5 h-5" /> },

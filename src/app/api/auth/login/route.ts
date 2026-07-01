@@ -113,26 +113,23 @@ export async function POST(request: Request) {
     }
 
     try {
-      // ─── De-duplicate previous login notifications ───
-      // Before creating a fresh "Login Successful" notification, mark all
-      // previous unread notifications of type 'login' for this user as read.
-      // Without this, every login piled a new row on top of the previous
-      // ones, so the bell icon showed a wall of "Login Successful" entries
-      // even though only the most recent was actually new.
+      // ─── Clean up ALL previous unread notifications on login ───
+      // Mark every previous unread notification as read so the user only sees
+      // a single fresh "Welcome" notification — not a wall of stale alerts.
       await prisma.notification.updateMany({
         where: {
           userId: user.id,
-          type: 'login',
           isRead: false,
         },
         data: { isRead: true },
       });
 
+      // Now create a single consolidated welcome notification
       await createNotification({
         tenantId: user.tenantId,
         userId: user.id,
-        title: 'Login Successful',
-        message: `Welcome back, ${user.name}! You have successfully logged in.`,
+        title: 'Welcome to 3Boxes HRMS',
+        message: `Hello ${user.name}! You have successfully logged in. Check your dashboard for updates.`,
         type: 'login',
         category: 'auth',
       });

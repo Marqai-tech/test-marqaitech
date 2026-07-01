@@ -135,18 +135,32 @@ export default function NotificationPopup() {
   const { notifications } = useNotificationStore();
   const { isAuthenticated: isAuthed } = useAuthStore();
   const prevAuthState = useRef(isAuthed);
+  // Track whether we've already shown a login notification for this session
+  const hasShownLoginNotif = useRef(false);
 
   const handleDismiss = useCallback((id: string) => {
     setPopups((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  // Track new notifications to display popups
+  // Track new notifications to display popups — but only show ONE per session
   useEffect(() => {
-    // Reset on auth change
+    // Reset on auth change (logout → login)
     if (prevAuthState.current !== isAuthed) {
       lastCheckedIds.current = new Set();
       setPopups([]);
+      hasShownLoginNotif.current = false;
       prevAuthState.current = isAuthed;
+
+      // On fresh login, mark ALL previous notifications as read to avoid a flood
+      if (isAuthed) {
+        fetch('/api/notifications', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markAll: true }),
+        }).catch(() => {
+          // Silently fail — this is just cleanup
+        });
+      }
       return;
     }
 
@@ -158,22 +172,33 @@ export default function NotificationPopup() {
     );
 
     if (newNotifs.length > 0) {
-      // Add to shown set
+      // Add all to the "seen" set so we don't re-process them
       newNotifs.forEach((n: Notification) => lastCheckedIds.current.add(n.id));
 
-      // Add to popups using functional update (not direct setState in effect body)
-      const newPopups: PopupNotification[] = newNotifs.map((n: Notification) => ({
-        id: n.id,
-        title: n.title,
-        message: n.message,
-        type: n.type,
-        createdAt: n.createdAt,
-      }));
+      // Only show ONE notification popup per login session — pick the most recent one
+      if (!hasShownLoginNotif.current && newNotifs.length > 0) {
+        hasShownLoginNotif.current = true;
+        const latest = newNotifs[newNotifs.length - 1];
+        const popup: PopupNotification = {
+          id: latest.id,
+          title: latest.title,
+          message: latest.message,
+          type: latest.type,
+          createdAt: latest.createdAt,
+        };
+        queueMicrotask(() => {
+          setPopups([popup]);
+        });
 
-      // Use queueMicrotask to avoid the synchronous setState-in-effect warning
-      queueMicrotask(() => {
-        setPopups((prev) => [...prev, ...newPopups]);
-      });
+        // Mark all other notifications as read in the background
+        fetch('/api/notifications', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markAll: true }),
+        }).catch(() => {
+          // Silently fail
+        });
+      }
     }
   }, [notifications, isAuthed]);
 
