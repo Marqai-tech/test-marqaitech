@@ -63,6 +63,8 @@ import {
   FiFile,
   FiArrowLeft,
   FiMail,
+  FiMonitor,
+  FiHeadphones,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -91,9 +93,29 @@ const PINNED_ITEMS: NavItem[] = [
 ];
 
 // Routes where the module picker (icon grid) is shown — no module auto-selected
-const PICKER_ROUTES = ['/', '/home', '/dashboard'];
+const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards'];
 
 const navSections: NavSection[] = [
+  {
+    key: 'dashboards',
+    sectionIcon: FiGrid,
+    label: 'Dashboards',
+    items: [
+      { label: 'Dashboard Overview', href: '/dashboards', icon: <FiGrid className="w-5 h-5" />, isNew: true },
+      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiShield className="w-5 h-5" /> },
+      { label: 'Employee Dashboard', href: '/dashboards/employee', icon: <FiUser className="w-5 h-5" /> },
+      { label: 'HR Dashboard', href: '/dashboards/hr', icon: <FiUsers className="w-5 h-5" />, isNew: true },
+      { label: 'Payroll Dashboard', href: '/dashboards/payroll', icon: <FiDollarSign className="w-5 h-5" />, isNew: true },
+      { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiBriefcase className="w-5 h-5" />, isNew: true },
+      { label: 'Attendance Dashboard', href: '/dashboards/attendance', icon: <FiClock className="w-5 h-5" />, isNew: true },
+      { label: 'Finance Dashboard', href: '/dashboards/finance', icon: <FiCreditCard className="w-5 h-5" />, isNew: true },
+      { label: 'IT Admin Dashboard', href: '/dashboards/it-admin', icon: <FiMonitor className="w-5 h-5" />, isNew: true },
+      { label: 'Asset Dashboard', href: '/dashboards/asset', icon: <FiPackage className="w-5 h-5" />, isNew: true },
+      { label: 'Help Desk Dashboard', href: '/dashboards/helpdesk', icon: <FiHeadphones className="w-5 h-5" />, isNew: true },
+      { label: 'Deals Dashboard', href: '/dashboards/deals', icon: <FiBriefcase className="w-5 h-5" /> },
+      { label: 'Leads Dashboard', href: '/dashboards/leads', icon: <FiTarget className="w-5 h-5" /> },
+    ],
+  },
   {
     // SRS §3 — Super Admin (Platform Owner). Visible only to super_admin.
     // All links here map to SRS REQ-SA-* requirements.

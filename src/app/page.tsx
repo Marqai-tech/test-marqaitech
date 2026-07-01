@@ -17,13 +17,13 @@ export default function HomePage() {
       fetchUser().then(() => {
         const { isAuthenticated: nowAuthed } = useAuthStore.getState();
         if (nowAuthed) {
-          router.replace('/todo');
+          router.replace('/dashboards/payroll');
         } else {
           router.replace('/login');
         }
       });
     } else if (isAuthenticated) {
-      router.replace('/todo');
+      router.replace('/dashboards/payroll');
     } else if (!isLoading) {
       router.replace('/login');
     }
