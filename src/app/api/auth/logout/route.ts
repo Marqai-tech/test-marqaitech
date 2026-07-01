@@ -49,14 +49,8 @@ export async function POST(request: Request) {
       },
     });
 
-    await createNotification({
-      tenantId: decoded.tenantId as string,
-      userId,
-      title: 'Logged Out',
-      message: 'You have successfully logged out.',
-      type: 'logout',
-      category: 'auth',
-    });
+    // No logout notification — reduces notification spam.
+    // The login notification is sufficient for session tracking.
 
     return NextResponse.json(
       { message: 'Logged out successfully' },

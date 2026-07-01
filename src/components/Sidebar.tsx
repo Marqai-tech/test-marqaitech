@@ -93,7 +93,7 @@ const PINNED_ITEMS: NavItem[] = [
 ];
 
 // Routes where the module picker (icon grid) is shown — no module auto-selected
-const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards'];
+const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management'];
 
 const navSections: NavSection[] = [
   {
@@ -283,19 +283,57 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    key: 'accounts-finance',
+    sectionIcon: FiDollarSign,
+    label: 'Accounts & Finance',
+    items: [
+      { label: 'Accounts Hub', href: '/accounts', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+      { label: 'Chart of Accounts', href: '/accounts/chart-of-accounts', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+      { label: 'Journal Entries', href: '/accounts/journal-entries', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+      { label: 'Invoices (AR)', href: '/accounts/invoices', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+      { label: 'Bills (AP)', href: '/accounts/bills', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+      { label: 'Bank Reconciliation', href: '/accounts/bank-reconciliation', icon: <FiRefreshCw className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+      { label: 'Financial Reports', href: '/accounts/reports', icon: <FiBarChart2 className="w-5 h-5" />, moduleKey: 'accounts', isNew: true },
+    ],
+  },
+  {
     key: 'operations',
     sectionIcon: FiFolder,
     label: 'Operations',
     items: [
-      { label: 'Finance Dashboard', href: '/dashboards/finance', icon: <FiGrid className="w-5 h-5" />, isNew: true },
-      { label: 'IT Admin Dashboard', href: '/dashboards/it-admin', icon: <FiGrid className="w-5 h-5" />, isNew: true },
-      { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
-      { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
       { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" />, moduleKey: 'travel' },
       { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'expenses' },
-      { label: 'Asset Dashboard', href: '/dashboards/asset', icon: <FiGrid className="w-5 h-5" />, isNew: true },
-      { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, moduleKey: 'assets' },
       { label: 'Documents', href: '/documents', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'docs' },
+    ],
+  },
+  {
+    key: 'project-management',
+    sectionIcon: FiFolder,
+    label: 'Project Management',
+    items: [
+      { label: 'PM Dashboard', href: '/project-management', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'projects', isNew: true },
+      { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
+      { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
+    ],
+  },
+  {
+    key: 'assets-it',
+    sectionIcon: FiPackage,
+    label: 'Assets & IT',
+    items: [
+      { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, moduleKey: 'assets' },
+      { label: 'IT Admin Console', href: '/it-admin', icon: <FiMonitor className="w-5 h-5" />, moduleKey: 'it_admin', isNew: true },
+    ],
+  },
+  {
+    key: 'crm',
+    sectionIcon: FiTarget,
+    label: 'CRM & Sales',
+    items: [
+      { label: 'CRM Dashboard', href: '/crm', icon: <FiTarget className="w-5 h-5" />, moduleKey: 'crm', isNew: true },
+      { label: 'Contacts', href: '/crm/contacts', icon: <FiUsers className="w-5 h-5" />, moduleKey: 'crm', isNew: true },
+      { label: 'Deals', href: '/crm/deals', icon: <FiBriefcase className="w-5 h-5" />, moduleKey: 'crm', isNew: true },
+      { label: 'Leads', href: '/crm/leads', icon: <FiUserPlus className="w-5 h-5" />, moduleKey: 'crm', isNew: true },
     ],
   },
   {
@@ -303,8 +341,6 @@ const navSections: NavSection[] = [
     sectionIcon: FiGlobe,
     label: 'External Relations',
     items: [
-      { label: 'Deals Dashboard', href: '/dashboards/deals', icon: <FiGrid className="w-5 h-5" />, isNew: true },
-      { label: 'Leads Dashboard', href: '/dashboards/leads', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Clients', href: '/clients', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'company' },
       { label: 'SOWs', href: '/clients/sow', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'company', isNew: true },
       { label: 'Client Insights', href: '/clients/insights', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'company', isNew: true },
@@ -334,7 +370,6 @@ const navSections: NavSection[] = [
     sectionIcon: FiHelpCircle,
     label: 'Support & Intelligence',
     items: [
-      { label: 'Help Desk Dashboard', href: '/dashboards/helpdesk', icon: <FiGrid className="w-5 h-5" />, isNew: true },
       { label: 'Helpdesk', href: '/helpdesk', icon: <FiHelpCircle className="w-5 h-5" />, moduleKey: 'helpdesk' },
       { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-5 h-5" />, moduleKey: 'grievances' },
       { label: 'AI Assistant', href: '/ai-assistant', icon: <FiMessageCircle className="w-5 h-5" /> },

@@ -82,12 +82,18 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated]);
 
-  // Fetch notifications when authenticated
+  // Fetch notifications when authenticated — debounced by 3s after auth to avoid
+  // race conditions with the login API's own notification cleanup.
   useEffect(() => {
     if (isAuthenticated) {
-      fetchNotifications();
+      const initialTimeout = setTimeout(() => {
+        fetchNotifications();
+      }, 3000);
       const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
+      return () => {
+        clearTimeout(initialTimeout);
+        clearInterval(interval);
+      };
     }
   }, [isAuthenticated, fetchNotifications]);
 
