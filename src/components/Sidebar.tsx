@@ -62,6 +62,7 @@ import {
   FiBook,
   FiFile,
   FiArrowLeft,
+  FiMail,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
@@ -331,8 +332,15 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Hub Home', href: '/collaboration', icon: <FiUsers className="w-5 h-5" />, isNew: true },
       { label: 'Chat', href: '/collaboration/chat', icon: <FiMessageCircle className="w-5 h-5" />, isNew: true },
-      { label: 'File Hub', href: '/collaboration/files', icon: <FiFileText className="w-5 h-5" />, isNew: true },
       { label: 'Calls', href: '/collaboration/calls', icon: <FiVideo className="w-5 h-5" />, isNew: true },
+      { label: 'Calendar', href: '/calendar', icon: <FiCalendar className="w-5 h-5" />, isNew: true },
+      { label: 'Email', href: '/email', icon: <FiMail className="w-5 h-5" />, isNew: true },
+      { label: 'To Do', href: '/todo', icon: <FiCheckSquare className="w-5 h-5" />, isNew: true },
+      { label: 'Notes', href: '/notes', icon: <FiEdit3 className="w-5 h-5" />, isNew: true },
+      { label: 'Social Feed', href: '/social-feed', icon: <FiUsers className="w-5 h-5" />, isNew: true },
+      { label: 'File Manager', href: '/file-manager', icon: <FiFolder className="w-5 h-5" />, isNew: true },
+      { label: 'Kanban Board', href: '/kanban', icon: <FiLayers className="w-5 h-5" />, isNew: true },
+      { label: 'File Hub', href: '/collaboration/files', icon: <FiFileText className="w-5 h-5" />, isNew: true },
     ],
   },
   {
