@@ -2183,3 +2183,24 @@ Stage Summary:
   - src/lib/candidate-resume-optimizer.ts (increased rawText limits + stronger prompts)
   - src/app/(dashboard)/home/page.tsx (added Candidate Flow quick-link card to 3 role home pages)
 - TypeScript clean (no new errors introduced)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Add SmartHR-style UI for Chat, Calls, Calendar, Email, To Do, Notes, Social Feed, File Manager, Kanban, Invoices
+
+Work Log:
+- Explored project structure and identified existing/missing pages
+- Created 7 new pages: Calendar, Email, To Do, Notes, Social Feed, File Manager, Kanban Board
+- Redesigned 3 existing pages: Chat (collaboration/chat), Calls (collaboration/calls), Invoices
+- All pages use SmartHR professional style with thb-* design system
+- Updated Sidebar.tsx to include all 7 new navigation items with FiMail import
+- Fixed build errors: replaced non-existent FiPin→FiMapPin, FiMegaphone→FiSpeaker
+- Build passed successfully, committed, pushed to GitHub main branch
+- Vercel auto-deployment triggered
+
+Stage Summary:
+- 12 files changed, 8967 insertions, 1377 deletions
+- All 10 SmartHR-style pages built with comprehensive sample data
+- Sidebar updated with Calendar, Email, To Do, Notes, Social Feed, File Manager, Kanban Board
+- Deployed to https://nexus-hrms-mu.vercel.app
