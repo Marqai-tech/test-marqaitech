@@ -279,7 +279,6 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Projects', href: '/projects', icon: <FiFolder className="w-5 h-5" />, moduleKey: 'projects' },
       { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-5 h-5" />, isNew: true },
-      { label: 'Invoices', href: '/invoices', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'invoices', isNew: true },
       { label: 'Travel', href: '/travel', icon: <FiMap className="w-5 h-5" />, moduleKey: 'travel' },
       { label: 'Expenses', href: '/expenses', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'expenses' },
       { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, moduleKey: 'assets' },
@@ -340,7 +339,7 @@ const navSections: NavSection[] = [
       { label: 'Social Feed', href: '/social-feed', icon: <FiUsers className="w-5 h-5" />, isNew: true },
       { label: 'File Manager', href: '/file-manager', icon: <FiFolder className="w-5 h-5" />, isNew: true },
       { label: 'Kanban Board', href: '/kanban', icon: <FiLayers className="w-5 h-5" />, isNew: true },
-      { label: 'File Hub', href: '/collaboration/files', icon: <FiFileText className="w-5 h-5" />, isNew: true },
+      { label: 'Invoices', href: '/invoices', icon: <FiFileText className="w-5 h-5" />, isNew: true },
     ],
   },
   {
