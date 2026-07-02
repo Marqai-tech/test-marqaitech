@@ -99,22 +99,39 @@ export async function POST(request: Request) {
 
     // ==================== DEPARTMENTS & DESIGNATIONS ====================
     const deptNames = ['Human Resources', 'Engineering', 'Finance', 'Operations', 'Sales & Marketing'];
-    const designationNames = ['CEO', 'CTO', 'HR Manager', 'Software Engineer', 'Senior Software Engineer', 'Team Lead', 'Finance Manager', 'Sales Manager'];
+    const designationDefs = [
+      { title: 'CEO', dept: 'Human Resources' },
+      { title: 'CTO', dept: 'Engineering' },
+      { title: 'HR Manager', dept: 'Human Resources' },
+      { title: 'Software Engineer', dept: 'Engineering' },
+      { title: 'Senior Software Engineer', dept: 'Engineering' },
+      { title: 'Team Lead', dept: 'Engineering' },
+      { title: 'Finance Manager', dept: 'Finance' },
+      { title: 'Sales Manager', dept: 'Sales & Marketing' },
+    ];
 
-    const allDepts = [];
+    const allDepts: { id: string; name: string; companyIndex: number }[] = [];
     for (let i = 0; i < createdCompanies.length; i++) {
       for (const dn of deptNames) {
         const dept = await prisma.department.create({
           data: { name: dn, companyId: createdCompanies[i].id, branchId: createdBranches[i].id, status: 'active' },
         });
-        allDepts.push({ ...dept, companyIndex: i });
+        allDepts.push({ id: dept.id, name: dept.name, companyIndex: i });
       }
     }
 
-    const allDesignations = [];
-    for (const desName of designationNames) {
-      const des = await prisma.designation.create({ data: { name: desName, status: 'active' } });
-      allDesignations.push(des);
+    // Designations require title + departmentId, so create per company
+    const allDesignations: { id: string; title: string; companyIndex: number }[] = [];
+    for (let i = 0; i < createdCompanies.length; i++) {
+      for (const dd of designationDefs) {
+        const dept = allDepts.find(d => d.companyIndex === i && d.name === dd.dept);
+        if (dept) {
+          const des = await prisma.designation.create({
+            data: { title: dd.title, departmentId: dept.id, status: 'active' },
+          });
+          allDesignations.push({ id: des.id, title: dd.title, companyIndex: i });
+        }
+      }
     }
 
     // ==================== SUPER ADMIN ====================
@@ -147,7 +164,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < createdCompanies.length; i++) {
       // HR Admin
       const hrDept = allDepts.find(d => d.companyIndex === i && d.name === 'Human Resources');
-      const hrDes = allDesignations.find(d => d.name === 'HR Manager');
+      const hrDes = allDesignations.find(d => d.companyIndex === i && d.title === 'HR Manager');
 
       const hrUser = await prisma.user.create({
         data: {
@@ -171,7 +188,7 @@ export async function POST(request: Request) {
       // Employee
       const emp = empData[i];
       const engDept = allDepts.find(d => d.companyIndex === i && d.name === 'Engineering') || allDepts.find(d => d.companyIndex === i && d.name === 'Finance');
-      const empDes = allDesignations.find(d => d.name === emp.desName);
+      const empDes = allDesignations.find(d => d.companyIndex === i && d.title === emp.desName);
 
       const empUser = await prisma.user.create({
         data: {
