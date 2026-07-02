@@ -74,7 +74,7 @@ export async function GET(request: Request) {
         where: { userId: user.id },
         include: {
           department: { select: { name: true } },
-          designation: { select: { name: true } },
+          designation: { select: { title: true } },
           branch: { select: { name: true } },
         },
       });
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
           firstName: employee.firstName,
           lastName: employee.lastName,
           department: employee.department?.name || null,
-          designation: employee.designation?.name || null,
+          designation: employee.designation?.title || null,
           branch: employee.branch?.name || null,
           status: employee.status,
           salary: employee.salary,
