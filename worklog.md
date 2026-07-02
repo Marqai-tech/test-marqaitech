@@ -2204,3 +2204,26 @@ Stage Summary:
 - All 10 SmartHR-style pages built with comprehensive sample data
 - Sidebar updated with Calendar, Email, To Do, Notes, Social Feed, File Manager, Kanban Board
 - Deployed to https://nexus-hrms-mu.vercel.app
+---
+Task ID: fix-crm-pm-errors
+Agent: Main
+Task: Fix CRM & Sales and Project Management page errors, build full sub-pages, push to git/Vercel
+
+Work Log:
+- Pulled latest changes from remote (4 new commits were missing locally)
+- Identified root cause: FiUser icon used but not imported in crm/page.tsx and project-management/page.tsx
+- Identified secondary cause: All sub-pages for CRM, Project Management, and IT Admin were stub redirects
+- Fixed FiUser import in both CRM and Project Management dashboard pages
+- Built 4 full CRM sub-pages: Contacts (CRUD), Deals (pipeline view), Leads (scoring), Activities (timeline)
+- Built 5 full Project Management sub-pages: Projects, Tasks (kanban), Sprints (burndown), Timeline (Gantt), Reports
+- Built 5 full IT Admin sub-pages: Devices, Network, Security, Software, Tickets
+- Created API routes for CRM contacts/deals/leads with [id] parameter support
+- Build verified with zero errors
+- Committed and pushed to GitHub (auto-deploys to Vercel)
+- Live site verified: CRM Dashboard, Contacts, Deals, Tasks, IT Admin Devices all working without errors
+
+Stage Summary:
+- Fixed FiUser ReferenceError that caused "Something went wrong" on CRM and PM pages
+- Replaced 14 stub redirect pages with full-featured sub-pages
+- All pages now have demo data, CRUD forms, charts, and proper error handling
+- Changes live at https://nexus-hrms-mu.vercel.app
