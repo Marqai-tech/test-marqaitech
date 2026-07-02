@@ -7,6 +7,19 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Allow all subdomains of 3boxeshrms.com for image optimization and links
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.3boxeshrms.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '3boxeshrms.com',
+      },
+    ],
+  },
   async headers() {
     return [
       {
@@ -37,6 +50,24 @@ const nextConfig: NextConfig = {
           {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      // Security headers for all pages
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
         ],
       },

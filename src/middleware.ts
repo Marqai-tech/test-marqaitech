@@ -27,10 +27,22 @@ import type { NextRequest } from 'next/server'
  *
  * No URL rewriting happens — `/login` stays `/login`, `/dashboard` stays
  * `/dashboard`. Locale is a runtime concept, not a URL structure.
+ *
+ * PRODUCTION (Hostinger): Subdomain routing works like this:
+ *   - 3boxeshrms.com          → main site (super admin login)
+ *   - marqaitechgroup.3boxeshrms.com → tenant "marqaitechgroup" login
+ *   - *.3boxeshrms.com        → any tenant subdomain
  */
 
 const LOCALES = ['en', 'es', 'fr', 'de', 'hi', 'ar'] as const;
 const DEFAULT_LOCALE = 'en';
+
+// Root domain for multi-tenant subdomain resolution
+// In production on Hostinger, this will be '3boxeshrms.com'
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '3boxeshrms.com';
+
+// Subdomains that should NOT be treated as tenant slugs
+const RESERVED_SUBDOMAINS = ['www', 'api', 'app', 'admin', 'mail', 'ftp', 'localhost', 'staging', 'dev', 'test'];
 
 function isSupportedLocale(loc: string | undefined | null): loc is typeof LOCALES[number] {
   return !!loc && (LOCALES as readonly string[]).includes(loc);
@@ -66,14 +78,25 @@ function extractTenantSlug(request: NextRequest): string {
 
   // 2. Subdomain extraction: <slug>.<root-domain>
   const host = request.headers.get('host') || '';
-  const hostname = host.split(':')[0];
-  const parts = hostname.split('.');
-  if (parts.length >= 3) {
-    const sub = parts[0].toLowerCase();
-    if (sub && !['www', 'api', 'app', 'admin', 'mail', 'ftp'].includes(sub)) {
+  const hostname = host.split(':')[0]; // strip port
+
+  // Check if this is a subdomain of our root domain
+  if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
+    const sub = hostname.replace(`.${ROOT_DOMAIN}`, '').toLowerCase();
+    if (sub && !RESERVED_SUBDOMAINS.includes(sub)) {
       return sub;
     }
   }
+
+  // 3. Generic subdomain extraction (for Vercel preview, localhost with port, etc.)
+  const parts = hostname.split('.');
+  if (parts.length >= 3) {
+    const sub = parts[0].toLowerCase();
+    if (sub && !RESERVED_SUBDOMAINS.includes(sub)) {
+      return sub;
+    }
+  }
+
   return '';
 }
 

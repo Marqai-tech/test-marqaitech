@@ -33,8 +33,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
   const [showMobileApp, setShowMobileApp] = useState(false);
+  const [tenantInfo, setTenantInfo] = useState<{ name: string; slug: string; logo?: string | null } | null>(null);
   const [loginMode, setLoginMode] = useState<'user' | 'candidate'>('user');
   // Candidate login state
   const [candidateEmail, setCandidateEmail] = useState('');
@@ -50,14 +50,30 @@ export default function LoginPage() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
-  const demoAccounts = [
-    { role: 'Super Admin', email: 'admin@3boxeshrms.com', password: 'admin123', color: 'bg-amber-500', desc: 'Full system access' },
-    { role: 'HR Admin', email: 'hr@3boxeshrms.com', password: 'hr123', color: 'bg-blue-500', desc: 'HR management' },
-    { role: 'Manager', email: 'manager@3boxeshrms.com', password: 'manager123', color: 'bg-violet-500', desc: 'Team management' },
-    { role: 'Employee', email: 'employee@3boxeshrms.com', password: 'employee123', color: 'bg-emerald-500', desc: 'Self-service portal' },
-    { role: 'Recruiter', email: 'recruiter@3boxeshrms.com', password: 'recruiter123', color: 'bg-pink-500', desc: 'Recruitment & AI interviews' },
-    { role: 'Candidate', email: 'candidate@3boxeshrms.com', password: 'candidate123', color: 'bg-cyan-500', desc: 'Interview & application' },
-  ];
+  // Detect tenant from subdomain (e.g., marqaitechgroup.3boxeshrms.com)
+  useEffect(() => {
+    const detectTenant = async () => {
+      try {
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (parts.length >= 3) {
+          const sub = parts[0].toLowerCase();
+          if (!['www', 'api', 'app', 'admin', 'mail', 'ftp', 'localhost'].includes(sub)) {
+            const res = await fetch(`/api/public/tenant-info?slug=${encodeURIComponent(sub)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.tenant) {
+                setTenantInfo(data.tenant);
+              }
+            }
+          }
+        }
+      } catch {
+        // Silently ignore - tenant detection is best-effort
+      }
+    };
+    detectTenant();
+  }, []);
 
   // Detect platform and PWA install capability
   useEffect(() => {
@@ -93,27 +109,6 @@ export default function LoginPage() {
       console.error('Install error:', err);
     }
   }, [deferredPrompt]);
-
-  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError('');
-    setIsSubmitting(true);
-
-    try {
-      const success = await login(demoEmail, demoPassword);
-      if (success) {
-        toast.success('Welcome back! Redirecting...');
-        router.push('/home');
-      }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,12 +435,31 @@ export default function LoginPage() {
 
           {/* Form header */}
           <div className="mb-8">
+            {tenantInfo && (
+              <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-100">
+                <div className="flex items-center gap-2.5">
+                  {tenantInfo.logo ? (
+                    <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-8 h-8 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">
+                      {tenantInfo.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{tenantInfo.name}</p>
+                    <p className="text-[10px] text-slate-400">Organization Portal</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
               {loginMode === 'user' ? 'Welcome back' : 'Candidate Portal'}
             </h2>
             <p className="text-sm text-slate-500">
               {loginMode === 'user'
-                ? 'Sign in to your account to continue'
+                ? tenantInfo
+                  ? `Sign in to ${tenantInfo.name} to continue`
+                  : 'Sign in to your account to continue'
                 : 'Track your applications, optimize your resume, and find matching jobs'}
             </p>
           </div>
@@ -792,49 +806,6 @@ export default function LoginPage() {
                 <FiArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-3 text-slate-400 font-medium">or try with demo account</span>
-              </div>
-            </div>
-
-            {/* Demo Accounts */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-                className="w-full flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors py-1"
-              >
-                {showDemoAccounts ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
-                Demo Accounts
-              </button>
-              {showDemoAccounts && (
-                <div className="mt-3 space-y-2 animate-slide-in-down">
-                  <div className="grid grid-cols-2 gap-2">
-                    {demoAccounts.map((account) => (
-                      <button
-                        key={account.role}
-                        type="button"
-                        onClick={() => handleDemoLogin(account.email, account.password)}
-                        disabled={isSubmitting}
-                        className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-100 hover:border-slate-300 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
-                      >
-                        <span className={`w-2.5 h-2.5 rounded-full ${account.color} shrink-0`} />
-                        <div className="min-w-0">
-                          <span className="text-xs font-semibold text-slate-800 block truncate">{account.role}</span>
-                          <span className="text-[10px] text-slate-400 block truncate">{account.desc}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </form>
           )}
 

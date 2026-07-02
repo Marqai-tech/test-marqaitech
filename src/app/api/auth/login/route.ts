@@ -27,6 +27,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── Subdomain-based tenant validation ───
+    // When the app is accessed via a tenant subdomain (e.g.,
+    // marqaitechgroup.3boxeshrms.com), we verify that the user
+    // belongs to that specific tenant. Super admins can log in
+    // from any domain. All other roles must match the subdomain tenant.
+    const tenantSlug = request.headers.get('x-tenant-slug') || '';
+    let subdomainTenantId: string | null = null;
+
+    if (tenantSlug) {
+      const subdomainTenant = await prisma.tenant.findUnique({
+        where: { slug: tenantSlug },
+        select: { id: true, status: true },
+      });
+      if (subdomainTenant && subdomainTenant.status === 'active') {
+        subdomainTenantId = subdomainTenant.id;
+      }
+    }
+
     // ⚠️ Use explicit `select` (not `include: { tenant: true }`) so we only
     // request columns we know exist on the User and Tenant tables. An
     // `include: { tenant: true }` would SELECT every Tenant column, which
@@ -79,6 +97,17 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401, headers: corsHeaders() }
+      );
+    }
+
+    // ─── Enforce subdomain-tenant matching ───
+    // If the login request came from a tenant subdomain, non-super-admin
+    // users must belong to that tenant. This prevents employees of one
+    // tenant from logging in through another tenant's subdomain.
+    if (subdomainTenantId && user.role !== 'super_admin' && user.tenantId !== subdomainTenantId) {
+      return NextResponse.json(
+        { error: 'You do not have access to this organization. Please use your organization\'s login page.' },
+        { status: 403, headers: corsHeaders() }
       );
     }
 

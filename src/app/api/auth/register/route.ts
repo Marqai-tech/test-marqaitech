@@ -48,15 +48,10 @@ export async function POST(request: Request) {
 
     if (!tenant) {
       const slug = tenantSlug || email.split('@')[1]?.split('.')[0] || 'default';
-      // BRANDING GUARD: Always create tenant with "Marq AI Tech Pvt Ltd" name
-      // Never allow eh2r, nexus, or any other wrong branding
-      const safeTenantName = tenantName && tenantName.toLowerCase().includes('3 boxes')
-        ? tenantName
-        : 'Marq AI Tech Pvt Ltd';
       tenant = await prisma.tenant.create({
         data: {
-          name: safeTenantName,
-          slug: slug === 'default' ? '3boxes-corp' : slug,
+          name: tenantName || slug,
+          slug: slug === 'default' ? `tenant-${Date.now()}` : slug,
           plan: 'starter',
           status: 'active',
         },
