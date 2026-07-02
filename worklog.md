@@ -2250,3 +2250,29 @@ Stage Summary:
 - Session timeout redirects to lock screen after 30 min inactivity
 - Super Admin section now has all SmartHR-matching pages
 - All changes live at https://nexus-hrms-mu.vercel.app
+
+---
+Task ID: vercel-deployment
+Agent: Main
+Task: Set up Vercel custom domain with multi-tenant subdomain routing
+
+Work Log:
+- Authenticated to Vercel API with user-provided token
+- Found project: nexus-hrms (prj_lmnU4URxxfOy6MMTkqxvuzkeGdoJ)
+- Added 4 custom domains via API: 3boxeshrms.com, www.3boxeshrms.com, marqaitechgroup.3boxeshrms.com, *.3boxeshrms.com
+- All domains verified on Vercel (wildcard confirmed - Pro plan)
+- Added NEXT_PUBLIC_ROOT_DOMAIN=3boxeshrms.com env var to Vercel
+- Created seed API endpoint (/api/admin/seed-marqai) for production data seeding
+- Fixed Designation model (requires title + departmentId, not just name)
+- Fixed Employee model (requires email + dateOfJoining, not joiningDate)
+- Successfully seeded MarqAI Tech Group data via API with force=true
+- Verified all login accounts work: super_admin, tenant_admin, company_hr_admin, employee
+- Disabled seed API endpoint for security after seeding
+- DNS not yet configured at registrar (3boxeshrms.com NXDOMAIN)
+
+Stage Summary:
+- All 4 custom domains added and verified on Vercel
+- MarqAI Tech Group data fully seeded in production Neon database
+- Login accounts verified working on nexus-hrms-mu.vercel.app
+- DNS configuration at registrar is the ONLY remaining step
+- Login credentials (password: MarqAI@2026) need to be changed after first login
