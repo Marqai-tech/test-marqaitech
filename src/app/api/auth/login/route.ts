@@ -185,6 +185,37 @@ export async function POST(request: Request) {
     // The previous branding-lockdown (forcing every tenant to "Marq AI Tech Pvt Ltd")
     // has been removed so each tenant keeps its own name (e.g. "Acme Global",
     // "TechStart Solutions", "GlobalHR Services", "Marq AI Tech Pvt Ltd", etc.).
+    
+    // Fetch company info with logo for non-super_admin users
+    let companyData = null;
+    if (user.role !== 'super_admin') {
+      try {
+        const employee = await prisma.employee.findUnique({
+          where: { userId: user.id },
+          select: { companyId: true },
+        });
+        if (employee?.companyId) {
+          const company = await prisma.company.findUnique({
+            where: { id: employee.companyId },
+            select: { id: true, name: true, code: true, logo: true, city: true, state: true, country: true },
+          });
+          if (company) {
+            companyData = {
+              id: company.id,
+              name: company.name,
+              code: company.code,
+              logo: company.logo,
+              city: company.city,
+              state: company.state,
+              country: company.country,
+            };
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch company for login response:', e);
+      }
+    }
+
     return NextResponse.json(
       {
         token,
@@ -203,6 +234,7 @@ export async function POST(request: Request) {
             currency: user.tenant.currency,
             timezone: user.tenant.timezone,
           },
+          company: companyData,
         },
       },
       { headers: corsHeaders() }

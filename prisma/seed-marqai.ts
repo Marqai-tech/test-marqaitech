@@ -267,6 +267,67 @@ async function main() {
   });
   console.log(`  ✓ Tenant Admin: ${tenantAdmin.email}`);
 
+  // ==================== COMPANY HR ADMINS ====================
+  console.log('\n📋 Creating Company HR Admin users...');
+  const hrAdminData = [
+    { email: 'admin@marqaitech.com', name: 'Admin - MARQ AI TECH', firstName: 'Admin', lastName: 'MARQ AI TECH', companyCode: 'MATPL' },
+    { email: 'admin@3boxesluxury.com', name: 'Admin - 3 BOXES LUXURY', firstName: 'Admin', lastName: '3 BOXES LUXURY', companyCode: '3BLC' },
+    { email: 'admin@3boxesconsulting.com', name: 'Admin - 3 BOXES CONSULTING', firstName: 'Admin', lastName: '3 BOXES CONSULTING', companyCode: '3BCS' },
+    { email: 'admin@3boxestechnologies.com', name: 'Admin - 3 BOXES TECH', firstName: 'Admin', lastName: '3 BOXES TECH', companyCode: '3BT' },
+  ];
+
+  for (const hr of hrAdminData) {
+    const company = createdCompanies.find(c => c.code === hr.companyCode);
+    if (!company) { console.log(`  ⚠ Company not found: ${hr.companyCode}`); continue; }
+    
+    const branch = branches.find(b => b.companyId === company.id);
+    const hrDept = departments.find(d => d.companyIndex === createdCompanies.indexOf(company) && d.name === 'Human Resources');
+    const hrDes = await prisma.designation.findFirst({
+      where: { title: 'HR Manager', department: { companyId: company.id } },
+    });
+
+    const hrAdmin = await prisma.user.upsert({
+      where: { email: hr.email },
+      update: { password: hashedPassword, name: hr.name, tenantId: tenant.id },
+      create: {
+        email: hr.email,
+        name: hr.name,
+        password: hashedPassword,
+        role: 'company_hr_admin',
+        status: 'active',
+        tenantId: tenant.id,
+      },
+    });
+
+    // Create employee record
+    if (branch && hrDept && hrDes) {
+      await prisma.employee.upsert({
+        where: { userId: hrAdmin.id },
+        update: {
+          companyId: company.id,
+          branchId: branch.id,
+          departmentId: hrDept.id,
+          designationId: hrDes.id,
+          email: hr.email,
+        },
+        create: {
+          userId: hrAdmin.id,
+          companyId: company.id,
+          branchId: branch.id,
+          departmentId: hrDept.id,
+          designationId: hrDes.id,
+          employeeId: `ADM-${hr.companyCode}-001`,
+          firstName: hr.firstName,
+          lastName: hr.lastName,
+          email: hr.email,
+          status: 'active',
+          dateOfJoining: new Date(),
+        },
+      });
+    }
+    console.log(`  ✓ HR Admin: ${hr.email} → ${company.name}`);
+  }
+
   // ==================== SUMMARY ====================
   console.log('\n========================================');
   console.log('  ✅ Marq AI Tech Group Seed Complete!');
@@ -285,6 +346,12 @@ async function main() {
   console.log('');
   console.log('  🔑 Tenant Admin (access to all 4 companies):');
   console.log('     admin@marqaitechgroup.com');
+  console.log('');
+  console.log('  🔑 Company HR Admins:');
+  console.log('     admin@marqaitech.com → MARQ AI TECH PVT LTD');
+  console.log('     admin@3boxesluxury.com → 3 BOXES LUXURY CURATIONS');
+  console.log('     admin@3boxesconsulting.com → 3 BOXES CONSULTING SERVICES');
+  console.log('     admin@3boxestechnologies.com → 3 BOXES TECHNOLOGIES');
   console.log('');
   console.log('  ⚠️  No sample employees created - HR admins will add their own data');
   console.log('  ⚠️  Change all passwords after first login!');

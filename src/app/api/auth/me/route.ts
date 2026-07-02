@@ -80,6 +80,30 @@ export async function GET(request: Request) {
       });
 
       if (employee) {
+        // Fetch company info with logo for the employee's company
+        let companyData = null;
+        try {
+          if (employee.companyId) {
+            const company = await prisma.company.findUnique({
+              where: { id: employee.companyId },
+              select: { id: true, name: true, code: true, logo: true, city: true, state: true, country: true },
+            });
+            if (company) {
+              companyData = {
+                id: company.id,
+                name: company.name,
+                code: company.code,
+                logo: company.logo,
+                city: company.city,
+                state: company.state,
+                country: company.country,
+              };
+            }
+          }
+        } catch (compErr) {
+          console.error('[Auth/Me] Company fetch error (non-fatal):', compErr);
+        }
+
         employeeData = {
           id: employee.id,
           employeeId: employee.employeeId,
@@ -90,6 +114,7 @@ export async function GET(request: Request) {
           branch: employee.branch?.name || null,
           status: employee.status,
           salary: employee.salary,
+          company: companyData,
         };
       }
     } catch (empErr) {

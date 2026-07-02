@@ -12,6 +12,16 @@ interface TenantInfo {
   logo?: string | null;
 }
 
+interface CompanyInfo {
+  id: string;
+  name: string;
+  code: string;
+  logo?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+}
+
 interface EmployeeInfo {
   id: string;
   employeeId: string;
@@ -22,6 +32,7 @@ interface EmployeeInfo {
   branch?: string | null;
   status?: string;
   salary?: number | null;
+  company?: CompanyInfo | null;
 }
 
 interface UserInfo {
@@ -32,6 +43,7 @@ interface UserInfo {
   avatar?: string | null;
   tenantId?: string;
   tenant?: TenantInfo;
+  company?: CompanyInfo | null;
   // Populated by /api/auth/me — required by marketplace pages (wallet, ewa, etc.)
   // that need the logged-in user's employeeId to fetch per-employee data.
   employee?: EmployeeInfo | null;

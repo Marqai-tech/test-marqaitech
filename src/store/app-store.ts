@@ -120,6 +120,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         name: apiCompany.name,
         code: apiCompany.code || '',
         industry: apiCompany.industry || '',
+        logo: apiCompany.logo || null,
         country: apiCompany.country || '',
         currency: apiCompany.currency || 'INR',
         employeeCount: 0,
