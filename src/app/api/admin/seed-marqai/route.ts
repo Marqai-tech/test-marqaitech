@@ -6,13 +6,21 @@ import bcryptjs from 'bcryptjs';
  * POST /api/admin/seed-marqai
  *
  * Seeds the database with MarqAI Tech Group data.
- * This is a one-time setup endpoint for production deployment.
+ * This endpoint is DISABLED after initial seeding for security.
  *
+ * To re-enable temporarily, change SEED_ENABLED to true.
  * SECURITY: Requires a secret key to prevent unauthorized seeding.
  * Pass ?key=MARQAI_SEED_2026 in the URL.
  */
+
+const SEED_ENABLED = false; // Set to true only when you need to (re-)seed
+
 export async function POST(request: Request) {
   try {
+    if (!SEED_ENABLED) {
+      return NextResponse.json({ error: 'Seed endpoint is disabled. Set SEED_ENABLED=true in source code to re-enable.' }, { status: 403 });
+    }
+
     // Security check - require a secret key
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
