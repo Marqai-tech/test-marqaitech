@@ -20,15 +20,50 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid seed key' }, { status: 403 });
     }
 
+    const force = searchParams.get('force') === 'true';
+
     // Check if MarqAI tenant already exists
     const existing = await prisma.tenant.findUnique({
       where: { slug: 'marqaitechgroup' },
     });
-    if (existing) {
+
+    if (existing && !force) {
       return NextResponse.json({
-        message: 'MarqAI Tech Group already seeded',
+        message: 'MarqAI Tech Group already seeded. Use ?force=true to re-seed.',
         tenantId: existing.id,
       });
+    }
+
+    // If force=true and tenant exists, clean up existing data
+    if (existing) {
+      console.log('[seed-marqai] Force re-seed: cleaning up existing data...');
+      // Delete in reverse dependency order
+      const existingGroup = await prisma.companyGroup.findFirst({
+        where: { tenantId: existing.id },
+      });
+      if (existingGroup) {
+        const existingCompanies = await prisma.company.findMany({
+          where: { companyGroupId: existingGroup.id },
+          select: { id: true },
+        });
+        const companyIds = existingCompanies.map(c => c.id);
+
+        // Delete employees, branches, departments for each company
+        for (const companyId of companyIds) {
+          await prisma.employee.deleteMany({ where: { companyId } });
+          await prisma.department.deleteMany({ where: { companyId } });
+          await prisma.branch.deleteMany({ where: { companyId } });
+        }
+        await prisma.company.deleteMany({ where: { companyGroupId: existingGroup.id } });
+        await prisma.companyGroup.deleteMany({ where: { id: existingGroup.id } });
+      }
+      // Delete users for this tenant (except super_admin from different tenant)
+      await prisma.user.deleteMany({
+        where: { tenantId: existing.id },
+      });
+      // Delete the tenant itself
+      await prisma.tenant.delete({ where: { id: existing.id } });
+      console.log('[seed-marqai] Cleanup complete, re-seeding...');
     }
 
     const hashedPassword = await bcryptjs.hash('MarqAI@2026', 12);
