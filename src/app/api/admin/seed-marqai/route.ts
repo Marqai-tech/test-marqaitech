@@ -215,7 +215,8 @@ export async function POST(request: Request) {
             userId: hrUser.id, companyId: createdCompanies[i].id, branchId: createdBranches[i].id,
             departmentId: hrDept.id, designationId: hrDes.id,
             employeeId: `EMP-${createdCompanies[i].code}-HR001`,
-            firstName: 'HR', lastName: 'Admin', status: 'active', joiningDate: new Date(),
+            firstName: 'HR', lastName: 'Admin', email: hrEmails[i],
+            status: 'active', dateOfJoining: new Date(),
           },
         });
       }
@@ -239,7 +240,8 @@ export async function POST(request: Request) {
             userId: empUser.id, companyId: createdCompanies[i].id, branchId: createdBranches[i].id,
             departmentId: engDept.id, designationId: empDes.id,
             employeeId: `EMP-${createdCompanies[i].code}-E001`,
-            firstName: emp.firstName, lastName: emp.lastName, status: 'active', joiningDate: new Date(),
+            firstName: emp.firstName, lastName: emp.lastName, email: emp.email,
+            status: 'active', dateOfJoining: new Date(),
           },
         });
       }
