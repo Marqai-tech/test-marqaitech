@@ -2276,3 +2276,31 @@ Stage Summary:
 - Login accounts verified working on nexus-hrms-mu.vercel.app
 - DNS configuration at registrar is the ONLY remaining step
 - Login credentials (password: MarqAI@2026) need to be changed after first login
+
+---
+Task ID: logo-update-2026-07-02
+Agent: Main Agent
+Task: Update company logos from official websites and implement dynamic logo display
+
+Work Log:
+- Downloaded official logos from 4 company websites:
+  - www.marqaitech.com → /logos/marq-ai-tech.png (500x500px)
+  - www.3boxesconsulting.com → /logos/3boxes-consulting.png (750x750px)
+  - www.3boxestechnologies.com → /logos/3boxes-technologies.png (982x624px, extracted from CDN)
+  - www.3boxes.in → /logos/3boxes-luxury.png (900x260px, extracted from inline SVG with gold gradients)
+- Updated /public/marq-ai-logo.png with official Marq AI logo (was generic placeholder)
+- Updated production database with correct logo paths for all 4 companies + tenant
+- Updated Sidebar.tsx to use dynamic tenant logo from authStore
+- Updated WelcomeGreeting.tsx to use dynamic tenant/company logo
+- Updated HRMS sidebar (hrms/sidebar.tsx) to show company logo instead of Hexagon icon
+- Fixed critical bug in /api/auth/me - Employee model has no 'company' relation, only 'companyId'
+  - The include: { company: ... } was invalid and caused entire employee fetch to fail silently
+  - Now uses separate company fetch result for companyLogo/companyName
+- Pushed all changes to GitHub (2 commits) → Vercel auto-deployed
+
+Stage Summary:
+- All 4 company logos now display correctly per logged-in user's company
+- Login page shows tenant logo via subdomain detection
+- Sidebar & welcome screen show dynamic logos from auth store
+- Admin users verified for all 4 companies with correct company logo mapping
+- All logos verified accessible on production: https://3boxeshrms.com/logos/
