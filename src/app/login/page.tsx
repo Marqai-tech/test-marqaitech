@@ -286,15 +286,32 @@ export default function LoginPage() {
           {/* Top — Logo & Brand */}
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <ThreeBoxesLogo size="lg" />
-              <div>
-                <h1 className="text-2xl font-extrabold text-white tracking-tight">
-                  3Boxes <span className="text-blue-400">HRMS</span>
-                </h1>
-                <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
-                  People &middot; Process &middot; Technology
-                </p>
-              </div>
+              {tenantInfo?.logo ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-12 h-12 rounded-xl object-contain bg-white/10 p-1.5" />
+                  <div>
+                    <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                      {tenantInfo.name}
+                    </h1>
+                    <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
+                      Powered by 3Boxes <span className="text-blue-400">HRMS</span>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ThreeBoxesLogo size="lg" />
+                  <div>
+                    <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                      3Boxes <span className="text-blue-400">HRMS</span>
+                    </h1>
+                    <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
+                      People &middot; Process &middot; Technology
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -398,11 +415,23 @@ export default function LoginPage() {
           {/* Mobile-only brand header */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-2.5 mb-3">
-              <ThreeBoxesLogo size="md" />
-              <h1 className="text-2xl font-extrabold tracking-tight">
-                <span className="gradient-text">3Boxes</span>
-                <span className="text-blue-500 ml-1 text-lg font-extrabold">HRMS</span>
-              </h1>
+              {tenantInfo?.logo ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-9 h-9 rounded-lg object-contain bg-slate-100 p-1" />
+                  <h1 className="text-2xl font-extrabold tracking-tight">
+                    <span className="gradient-text">{tenantInfo.name}</span>
+                  </h1>
+                </>
+              ) : (
+                <>
+                  <ThreeBoxesLogo size="md" />
+                  <h1 className="text-2xl font-extrabold tracking-tight">
+                    <span className="gradient-text">3Boxes</span>
+                    <span className="text-blue-500 ml-1 text-lg font-extrabold">HRMS</span>
+                  </h1>
+                </>
+              )}
             </div>
             <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
               People &middot; Process &middot; Technology
@@ -439,7 +468,7 @@ export default function LoginPage() {
               <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-100">
                 <div className="flex items-center gap-2.5">
                   {tenantInfo.logo ? (
-                    <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-8 h-8 rounded-lg object-cover" />
+                    <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-8 h-8 rounded-lg object-contain bg-white/50 p-0.5" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">
                       {tenantInfo.name.charAt(0).toUpperCase()}

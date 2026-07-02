@@ -55,6 +55,7 @@ export async function GET(request: Request) {
             plan: true,
             currency: true,
             timezone: true,
+            logo: true,
           },
         },
       },
@@ -76,6 +77,7 @@ export async function GET(request: Request) {
           department: { select: { name: true } },
           designation: { select: { title: true } },
           branch: { select: { name: true } },
+          company: { select: { id: true, name: true, logo: true } },
         },
       });
 
@@ -112,6 +114,9 @@ export async function GET(request: Request) {
           department: employee.department?.name || null,
           designation: employee.designation?.title || null,
           branch: employee.branch?.name || null,
+          companyId: employee.companyId,
+          companyLogo: employee.company?.logo || null,
+          companyName: employee.company?.name || null,
           status: employee.status,
           salary: employee.salary,
           company: companyData,
@@ -142,6 +147,7 @@ export async function GET(request: Request) {
           plan: user.tenant.plan,
           currency: user.tenant.currency,
           timezone: user.tenant.timezone,
+          logo: user.tenant.logo,
         },
         employee: employeeData,
         lastLogin: user.lastLogin,

@@ -33,6 +33,9 @@ interface EmployeeInfo {
   status?: string;
   salary?: number | null;
   company?: CompanyInfo | null;
+  companyId?: string | null;
+  companyLogo?: string | null;
+  companyName?: string | null;
 }
 
 interface UserInfo {
