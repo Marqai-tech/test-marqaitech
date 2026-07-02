@@ -77,7 +77,6 @@ export async function GET(request: Request) {
           department: { select: { name: true } },
           designation: { select: { title: true } },
           branch: { select: { name: true } },
-          company: { select: { id: true, name: true, logo: true } },
         },
       });
 
@@ -115,8 +114,8 @@ export async function GET(request: Request) {
           designation: employee.designation?.title || null,
           branch: employee.branch?.name || null,
           companyId: employee.companyId,
-          companyLogo: employee.company?.logo || null,
-          companyName: employee.company?.name || null,
+          companyLogo: companyData?.logo || null,
+          companyName: companyData?.name || null,
           status: employee.status,
           salary: employee.salary,
           company: companyData,
