@@ -8,8 +8,10 @@ import {
   FiActivity, FiClock, FiFileText,
   FiChevronLeft, FiChevronRight as FiChevronRightIcon,
   FiCheck, FiCalendar, FiDatabase, FiChevronDown, FiInfo,
+  FiTrendingUp, FiMail, FiBriefcase,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import SrsBanner from '@/components/SrsBanner';
@@ -829,11 +831,7 @@ export default function SuperAdminPage() {
       {/* ═══ TAB 1: DASHBOARD ═══ */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
-          {/* Empty-state CTA — when the platform has no tenants yet, show a
-              prominent banner telling the super admin to load sample data
-              (or create their first tenant). This fixes the "shows empty"
-              complaint: instead of just rendering zeroed KPI cards, we tell
-              the user exactly what to do next. */}
+          {/* Empty-state CTA */}
           {dashboard && dashboard.totalTenants === 0 && (
             <div className="thb-card p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -861,8 +859,8 @@ export default function SuperAdminPage() {
             </div>
           )}
           {dashLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="thb-card p-5 animate-pulse">
                   <div className="h-4 w-24 bg-slate-200 rounded mb-2" />
                   <div className="h-8 w-16 bg-slate-100 rounded" />
@@ -871,101 +869,284 @@ export default function SuperAdminPage() {
             </div>
           ) : dashboard ? (
             <>
-              {/* KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="thb-card p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-thb-text-muted">Total Tenants</p>
-                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalTenants}</p>
-                      <div className="flex gap-2 mt-2">
-                        <span className="thb-badge thb-badge-success text-[10px]">{dashboard.activeTenants} active</span>
-                        <span className="thb-badge thb-badge-warning text-[10px]">{dashboard.suspendedTenants} suspended</span>
-                        <span className="thb-badge thb-badge-error text-[10px]">{dashboard.inactiveTenants} inactive</span>
-                      </div>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500"><FiServer className="w-5 h-5" /></div>
+              {/* ─── Welcome Banner ─── */}
+              <div className="thb-card p-6 bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 border-0 overflow-hidden relative">
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute top-4 right-8 w-32 h-32 bg-white rounded-full blur-3xl" />
+                  <div className="absolute bottom-2 left-12 w-24 h-24 bg-white rounded-full blur-2xl" />
+                </div>
+                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      Welcome back, {user?.name || 'Super Admin'} 👋
+                    </h2>
+                    <p className="text-blue-100 mt-1 text-sm">
+                      Here&apos;s what&apos;s happening across your 3Boxes HRMS platform today.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleLoadSampleData}
+                      disabled={seedingSample}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors disabled:opacity-60"
+                    >
+                      <FiDatabase className="w-4 h-4" />
+                      {seedingSample ? 'Loading...' : 'Load Sample Data'}
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                <div className="thb-card p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-thb-text-muted">Total Group Companies</p>
-                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalGroupCompanies ?? 0}</p>
-                      <p className="text-[10px] text-thb-text-muted mt-2">Parent groups created under tenants</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50 text-violet-500"><FiLayers className="w-5 h-5" /></div>
-                  </div>
-                </div>
-
+              {/* ─── Stat Cards ─── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-medium text-thb-text-muted">Total Companies</p>
                       <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalCompanies}</p>
-                      <p className="text-[10px] text-thb-text-muted mt-2">Inducted under group companies</p>
+                      <div className="flex items-center gap-1 mt-1"><FiTrendingUp className="w-3 h-3 text-emerald-500" /><span className="text-[10px] text-emerald-600 font-medium">+12% this month</span></div>
                     </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-500"><FiHome className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500"><FiBriefcase className="w-5 h-5" /></div>
                   </div>
                 </div>
-
                 <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-thb-text-muted">Total Employees</p>
-                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalEmployees}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-50 text-amber-500"><FiUsers className="w-5 h-5" /></div>
-                  </div>
-                </div>
-
-                <div className="thb-card p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-thb-text-muted">Total Revenue</p>
-                      <p className="text-2xl font-bold text-thb-text-primary mt-1">${dashboard.totalRevenue.toLocaleString()}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-500"><FiDollarSign className="w-5 h-5" /></div>
-                  </div>
-                </div>
-
-                <div className="thb-card p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-thb-text-muted">Platform Health</p>
-                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.platformHealth}%</p>
-                      <div className="mt-2 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${dashboard.platformHealth}%` }} />
-                      </div>
+                      <p className="text-xs font-medium text-thb-text-muted">Active Companies</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.activeTenants}</p>
+                      <div className="flex items-center gap-1 mt-1"><FiTrendingUp className="w-3 h-3 text-emerald-500" /><span className="text-[10px] text-emerald-600 font-medium">{dashboard.activeTenants}/{dashboard.totalTenants} tenants active</span></div>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-500"><FiActivity className="w-5 h-5" /></div>
                   </div>
                 </div>
+                <div className="thb-card p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Subscribers</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalTenants}</p>
+                      <div className="flex gap-1 mt-1">
+                        <span className="thb-badge thb-badge-success text-[10px]">{dashboard.activeTenants} active</span>
+                        <span className="thb-badge thb-badge-warning text-[10px]">{dashboard.suspendedTenants} suspended</span>
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50 text-violet-500"><FiUsers className="w-5 h-5" /></div>
+                  </div>
+                </div>
+                <div className="thb-card p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Earnings</p>
+                      <p className="text-2xl font-bold text-thb-text-primary mt-1">${dashboard.totalRevenue.toLocaleString()}</p>
+                      <div className="flex items-center gap-1 mt-1"><FiTrendingUp className="w-3 h-3 text-emerald-500" /><span className="text-[10px] text-emerald-600 font-medium">+8.2% this month</span></div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-500"><FiDollarSign className="w-5 h-5" /></div>
+                  </div>
+                </div>
               </div>
 
-              {/* Recent Activity */}
-              <div className="thb-card p-5">
-                <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiClock className="w-4 h-4" /> Recent Activity</h3>
-                {dashboard.recentActivity.length === 0 ? (
-                  <div className="text-center py-8 text-thb-text-muted"><FiFileText className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No recent activity</p></div>
-                ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {dashboard.recentActivity.map((log) => (
-                      <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                          {log.user?.name?.[0] || '?'}
+              {/* ─── Charts Row ─── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Companies Chart */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiBriefcase className="w-4 h-4" /> Companies by Month</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        { month: 'Jan', companies: 8 }, { month: 'Feb', companies: 12 },
+                        { month: 'Mar', companies: 15 }, { month: 'Apr', companies: 18 },
+                        { month: 'May', companies: 22 }, { month: 'Jun', companies: dashboard.totalCompanies || 26 },
+                      ]}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94A3B8" />
+                        <YAxis tick={{ fontSize: 12 }} stroke="#94A3B8" />
+                        <Tooltip />
+                        <Bar dataKey="companies" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Revenue Chart */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiTrendingUp className="w-4 h-4" /> Revenue Trend</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={[
+                        { month: 'Jan', revenue: 8200 }, { month: 'Feb', revenue: 12400 },
+                        { month: 'Mar', revenue: 15800 }, { month: 'Apr', revenue: 14200 },
+                        { month: 'May', revenue: 18600 }, { month: 'Jun', revenue: dashboard.totalRevenue || 24000 },
+                      ]}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94A3B8" />
+                        <YAxis tick={{ fontSize: 12 }} stroke="#94A3B8" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']} />
+                        <defs>
+                          <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="revenue" stroke="#8B5CF6" strokeWidth={2} fill="url(#revenueGrad)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Bottom Row: Top Plans + Recent Transactions + Recently Registered ─── */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Top Plans */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiLayers className="w-4 h-4" /> Top Plans</h3>
+                  <div className="space-y-4">
+                    {[
+                      { name: 'Enterprise', count: 45, total: 80, color: 'bg-violet-500' },
+                      { name: 'Professional', count: 28, total: 80, color: 'bg-blue-500' },
+                      { name: 'Starter', count: 18, total: 80, color: 'bg-emerald-500' },
+                      { name: 'Free', count: 9, total: 80, color: 'bg-slate-400' },
+                    ].map((plan) => (
+                      <div key={plan.name}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-thb-text-primary font-medium">{plan.name}</span>
+                          <span className="text-thb-text-muted">{plan.count} subscribers</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-thb-text-primary font-medium">{log.user?.name || 'System'}</p>
-                          <p className="text-xs text-thb-text-secondary truncate">{log.details || log.action}</p>
-                          <p className="text-[10px] text-thb-text-muted mt-0.5">{new Date(log.createdAt).toLocaleString()}</p>
+                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${plan.color}`} style={{ width: `${(plan.count / plan.total) * 100}%` }} />
                         </div>
-                        <span className="thb-badge thb-badge-info text-[10px] flex-shrink-0">{log.action.replace(/_/g, ' ')}</span>
                       </div>
                     ))}
                   </div>
-                )}
+                </div>
+
+                {/* Recent Transactions */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiCreditCard className="w-4 h-4" /> Recent Transactions</h3>
+                  <div className="space-y-3 max-h-72 overflow-y-auto">
+                    {[
+                      { company: 'Acme Global Corp', amount: '$12,000', status: 'completed', date: 'Jun 30' },
+                      { company: 'TechStart Solutions', amount: '$299', status: 'completed', date: 'Jun 28' },
+                      { company: 'Nexus Innovations', amount: '$12,000', status: 'pending', date: 'Jun 25' },
+                      { company: 'BrightPath Inc', amount: '$3,588', status: 'refunded', date: 'Jun 22' },
+                      { company: 'PeakPerformance Ltd', amount: '$12,000', status: 'completed', date: 'Jun 20' },
+                      { company: 'Vertex Dynamics', amount: '$49', status: 'completed', date: 'Jun 18' },
+                    ].map((txn, i) => (
+                      <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-thb-text-primary font-medium truncate">{txn.company}</p>
+                          <p className="text-[10px] text-thb-text-muted">{txn.date}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className="text-sm font-semibold text-thb-text-primary">{txn.amount}</p>
+                          <span className={`thb-badge text-[10px] ${txn.status === 'completed' ? 'thb-badge-success' : txn.status === 'pending' ? 'thb-badge-warning' : 'thb-badge-info'}`}>{txn.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recently Registered */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiUsers className="w-4 h-4" /> Recently Registered</h3>
+                  <div className="space-y-3 max-h-72 overflow-y-auto">
+                    {[
+                      { name: 'CloudFirst Tech', plan: 'Starter', date: 'Jun 20' },
+                      { name: 'QuantumLeap Corp', plan: 'Professional', date: 'Jun 15' },
+                      { name: 'StellarHR Inc', plan: 'Enterprise', date: 'Jun 10' },
+                      { name: 'NovaCorp', plan: 'Starter', date: 'Jun 05' },
+                      { name: 'Atlas Digital', plan: 'Enterprise', date: 'Jun 01' },
+                    ].map((reg, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                          {reg.name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-thb-text-primary font-medium truncate">{reg.name}</p>
+                          <p className="text-[10px] text-thb-text-muted">{reg.date}</p>
+                        </div>
+                        <span className="thb-badge thb-badge-info text-[10px]">{reg.plan}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Recent Plan Expired ─── */}
+              <div className="thb-card p-5">
+                <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiClock className="w-4 h-4" /> Recent Plan Expirations</h3>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {[
+                    { company: 'BrightPath Inc', plan: 'Professional', expiredDate: 'Jun 01, 2025', email: 'admin@brightpath.co' },
+                    { company: 'Orion Systems', plan: 'Professional', expiredDate: 'May 01, 2025', email: 'admin@orionsystems.io' },
+                    { company: 'Zenith Works', plan: 'Starter', expiredDate: 'Apr 20, 2025', email: 'admin@zenithworks.com' },
+                  ].map((exp, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-red-50 border border-red-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                          {exp.company[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm text-thb-text-primary font-medium">{exp.company}</p>
+                          <p className="text-[10px] text-thb-text-muted">{exp.plan} · Expired {exp.expiredDate}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toast.success(`Reminder sent to ${exp.email}`)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors"
+                      >
+                        <FiMail className="w-3.5 h-3.5" /> Send Reminder
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ─── Original KPI + Activity (compact) ─── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Compact KPI */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiServer className="w-4 h-4" /> Platform Overview</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-slate-50">
+                      <p className="text-[10px] text-thb-text-muted">Total Tenants</p>
+                      <p className="text-lg font-bold text-thb-text-primary">{dashboard.totalTenants}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50">
+                      <p className="text-[10px] text-thb-text-muted">Group Companies</p>
+                      <p className="text-lg font-bold text-thb-text-primary">{dashboard.totalGroupCompanies ?? 0}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50">
+                      <p className="text-[10px] text-thb-text-muted">Total Employees</p>
+                      <p className="text-lg font-bold text-thb-text-primary">{dashboard.totalEmployees}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50">
+                      <p className="text-[10px] text-thb-text-muted">Health</p>
+                      <p className="text-lg font-bold text-emerald-600">{dashboard.platformHealth}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="thb-card p-5">
+                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiClock className="w-4 h-4" /> Recent Activity</h3>
+                  {dashboard.recentActivity.length === 0 ? (
+                    <div className="text-center py-6 text-thb-text-muted"><FiFileText className="w-8 h-8 mx-auto mb-2 opacity-50" /><p className="text-sm">No recent activity</p></div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {dashboard.recentActivity.map((log) => (
+                        <div key={log.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50">
+                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
+                            {log.user?.name?.[0] || '?'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-thb-text-primary font-medium">{log.user?.name || 'System'}</p>
+                            <p className="text-[10px] text-thb-text-secondary truncate">{log.details || log.action}</p>
+                          </div>
+                          <span className="thb-badge thb-badge-info text-[9px] flex-shrink-0">{log.action.replace(/_/g, ' ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           ) : null}

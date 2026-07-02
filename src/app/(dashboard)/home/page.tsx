@@ -210,20 +210,39 @@ function EmptyState({ icon, message }: { icon: React.ReactNode; message: string 
 
 function QuickLinkGrid({ links }: { links: { icon: React.ReactNode; label: string; href: string; bg: string; shadow: string }[] }) {
   const router = useRouter();
+  // Map gradient classes to accent colors for the icon circle
+  const accentMap: Record<string, string> = {
+    'from-indigo-400 to-blue-500': 'bg-indigo-50 text-indigo-600',
+    'from-violet-400 to-purple-500': 'bg-violet-50 text-violet-600',
+    'from-cyan-400 to-sky-500': 'bg-cyan-50 text-cyan-600',
+    'from-emerald-400 to-green-500': 'bg-emerald-50 text-emerald-600',
+    'from-amber-400 to-orange-500': 'bg-amber-50 text-amber-600',
+    'from-rose-400 to-pink-500': 'bg-rose-50 text-rose-600',
+    'from-fuchsia-400 to-pink-500': 'bg-fuchsia-50 text-fuchsia-600',
+    'from-teal-400 to-cyan-500': 'bg-teal-50 text-teal-600',
+    'from-blue-400 to-indigo-500': 'bg-blue-50 text-blue-600',
+    'from-green-400 to-emerald-500': 'bg-green-50 text-green-600',
+    'from-orange-400 to-red-500': 'bg-orange-50 text-orange-600',
+    'from-pink-400 to-rose-500': 'bg-pink-50 text-pink-600',
+  };
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-      {links.map((a) => (
-        <button
-          key={a.label}
-          onClick={() => router.push(a.href)}
-          className={`group flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br ${a.bg} ${a.shadow} shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all text-white`}
-        >
-          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-            {a.icon}
-          </div>
-          <span className="text-xs font-semibold text-center">{a.label}</span>
-        </button>
-      ))}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {links.map((a) => {
+        const accent = accentMap[a.bg] || 'bg-slate-50 text-slate-600';
+        return (
+          <button
+            key={a.label}
+            onClick={() => router.push(a.href)}
+            className="group flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
+          >
+            <div className={`w-10 h-10 rounded-lg ${accent} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+              {a.icon}
+            </div>
+            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 flex-1">{a.label}</span>
+            <FiChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors flex-shrink-0" />
+          </button>
+        );
+      })}
     </div>
   );
 }

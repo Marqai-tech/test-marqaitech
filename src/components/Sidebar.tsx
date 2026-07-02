@@ -103,21 +103,33 @@ const navSections: NavSection[] = [
     sectionIcon: FiShield,
     label: 'Super Admin (Platform)',
     items: [
-      // Dashboard for admin
-      { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiGrid className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-SA-01..06: Tenant lifecycle, subscriptions, global dashboard
-      { label: 'Super Admin Console', href: '/super-admin', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'] },
+      // SmartHR-style Dashboard (default view)
+      { label: 'Dashboard', href: '/super-admin', icon: <FiGrid className="w-5 h-5" />, roles: ['super_admin'] },
+      // Companies (tenant management)
+      { label: 'Companies', href: '/super-admin', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin'] },
+      // Subscriptions
+      { label: 'Subscriptions', href: '/super-admin/subscriptions', icon: <FiCreditCard className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // Packages / Plans
+      { label: 'Packages', href: '/super-admin/packages', icon: <FiPackage className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // Domain management
+      { label: 'Domain', href: '/super-admin/domain', icon: <FiGlobe className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // Purchase transactions
+      { label: 'Purchase Transaction', href: '/super-admin/purchase-transactions', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // Tenant usage metrics
+      { label: 'Tenant Usage Metrics', href: '/super-admin/tenant-usage', icon: <FiBarChart2 className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // Tenant support tickets
+      { label: 'Tenant Support Tickets', href: '/super-admin/tenant-tickets', icon: <FiHelpCircle className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // General tickets
+      { label: 'Tickets', href: '/super-admin/tickets', icon: <FiHelpCircle className="w-5 h-5" />, roles: ['super_admin'] },
       // REQ-SA-05: Feature flags per parent company
       { label: 'Feature Flags', href: '/super-admin/feature-flags', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-6.1: Storage quotas per tenant (REQ-SEC-EMP / Collaboration addendum)
+      // REQ-6.1: Storage quotas per tenant
       { label: 'Storage Quotas', href: '/super-admin/storage-quotas', icon: <FiHardDrive className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-6.1: eDiscovery & Legal Holds
-      { label: 'eDiscovery / Legal Holds', href: '/super-admin/ediscovery', icon: <FiShield className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // REQ-SOC-03/04: SSO provider config (per tenant)
       { label: 'SSO Providers', href: '/super-admin/sso-providers', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // REQ-6.1: Collaboration feature toggles per tenant
       { label: 'Collaboration Features', href: '/super-admin/collab-features', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-SEC-06 / REQ-SA-10: Audit logs (incl. context swaps)
+      // REQ-SEC-06 / REQ-SA-10: Audit logs
       { label: 'Audit Logs', href: '/super-admin/audit-logs', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // SRS §6 RBAC matrix
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },

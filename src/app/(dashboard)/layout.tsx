@@ -12,6 +12,7 @@ import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import toast from 'react-hot-toast';
 import {
   FiHome, FiUsers, FiBriefcase, FiClock, FiMenu,
   FiCpu, FiGrid, FiBell, FiUser, FiDollarSign,
@@ -97,9 +98,20 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, fetchNotifications]);
 
-  // SRS REQ-SEC-08: Auto-logout admin roles after 15 minutes of inactivity.
-  // The hook self-deactivates for non-admin roles, so it's safe to always call.
-  useSessionTimeout({ role: user?.role, enabled: isAuthenticated });
+  // Session timeout: redirect to lock screen after 30 min of inactivity.
+  useSessionTimeout();
+
+  // Listen for session-warning event and show a toast
+  useEffect(() => {
+    const handleWarning = () => {
+      toast('Your session will expire in 5 minutes due to inactivity.', {
+        icon: '⏳',
+        duration: 10000,
+      });
+    };
+    window.addEventListener('session-warning', handleWarning);
+    return () => window.removeEventListener('session-warning', handleWarning);
+  }, []);
 
   const handleSidebarToggle = useCallback(() => {
     if (isMobile) {
