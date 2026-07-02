@@ -1,23 +1,14 @@
 /**
- * 3Boxes HRMS - Marq AI Tech Group Seed Script
+ * 3Boxes HRMS - MarqAI Tech Group Seed Script
  *
  * Seeds the database with:
- *   - 1 Tenant: "Marq AI Tech Group" (slug: marqaitechgroup)
- *   - 1 Company Group: "Marq AI Tech Group"
- *   - 4 Companies:
- *       1) MARQ AI TECH PVT LTD
- *       2) 3 BOXES LUXURY CURATIONS
- *       3) 3 BOXES CONSULTING SERVICES
- *       4) 3 BOXES TECHNOLOGIES
- *   - Users: 1 super_admin, 1 tenant_admin (NO sample employees)
- *   - Basic master data: branches, departments, designations per company
- *
- * HR admins of each company will add their own employees and data.
+ *   - 1 Tenant: "MarqAI Tech Group" (slug: marqaitechgroup)
+ *   - 1 Company Group: "MarqAI Tech Group"
+ *   - 4 Companies: MARQ AI TECH PVT LTD, 3 BOXES LUXURY CURATIONS, 3 BOXES CONSULTING SERVICES, 3 BOXES TECHNOLOGIES
+ *   - Users: 1 super_admin, 1 tenant_admin, 4 company_hr_admins (no sample employees)
+ *   - Each company gets: 1 Head Office branch, 3 departments (HR, Finance, Operations), 4 designations (CEO, HR Manager, Finance Manager, Operations Manager)
  *
  * Usage: npx tsx prisma/seed-marqai.ts
- * 
- * Git Branch: marqai-tech-group
- * Last Updated: 2026-07-02
  */
 
 import bcryptjs from 'bcryptjs';
@@ -32,71 +23,37 @@ if (!connectionString) {
 const adapter = new PrismaNeon({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
-// ==================== COMPANY CONFIGURATION ====================
-const TENANT_CONFIG = {
-  name: 'Marq AI Tech Group',
-  slug: 'marqaitechgroup',
-  domain: 'marqaitechgroup.3boxeshrms.com',
-  plan: 'enterprise' as const,
-  country: 'IN',
-  currency: 'INR',
-  timezone: 'Asia/Kolkata',
-  language: 'en',
-  baseCurrency: 'INR',
-  maxCompaniesAllowed: 10,
-};
-
-const COMPANIES = [
-  { name: 'MARQ AI TECH PVT LTD', code: 'MATPL', city: 'Hyderabad', state: 'TS', email: 'info@marqaitech.com', website: 'https://marqaitech.com' },
-  { name: '3 BOXES LUXURY CURATIONS', code: '3BLC', city: 'Hyderabad', state: 'TS', email: 'info@3boxesluxury.com', website: 'https://3boxesluxury.com' },
-  { name: '3 BOXES CONSULTING SERVICES', code: '3BCS', city: 'Bangalore', state: 'KA', email: 'info@3boxesconsulting.com', website: 'https://3boxesconsulting.com' },
-  { name: '3 BOXES TECHNOLOGIES', code: '3BT', city: 'Chennai', state: 'TN', email: 'info@3boxestechnologies.com', website: 'https://3boxestechnologies.com' },
-];
-
-// Basic departments per company (HR will add more as needed)
-const DEPARTMENTS = ['Human Resources', 'Finance', 'Operations'];
-
-// Basic designations per department
-const DESIGNATIONS = [
-  { title: 'CEO', deptName: 'Human Resources', level: 10 },
-  { title: 'HR Manager', deptName: 'Human Resources', level: 5 },
-  { title: 'Finance Manager', deptName: 'Finance', level: 5 },
-  { title: 'Operations Manager', deptName: 'Operations', level: 5 },
-];
-
-const DEFAULT_PASSWORD = 'MarqAI@2026';
-
 async function hashPassword(password: string): Promise<string> {
   const salt = await bcryptjs.genSalt(12);
   return bcryptjs.hash(password, salt);
 }
 
 async function main() {
-  console.log('🌱 Seeding Marq AI Tech Group...');
+  console.log('🌱 Seeding MarqAI Tech Group (4-company structure)...');
   console.log('ℹ️  Using connection string prefix:', connectionString?.substring(0, 30) + '...');
 
-  const hashedPassword = await hashPassword(DEFAULT_PASSWORD);
+  const hashedPassword = await hashPassword('MarqAI@2026');
 
   // ==================== TENANT ====================
-  console.log('\n📋 Creating Tenant: Marq AI Tech Group...');
+  console.log('\n📋 Creating Tenant: MarqAI Tech Group...');
   const tenant = await prisma.tenant.upsert({
-    where: { slug: TENANT_CONFIG.slug },
+    where: { slug: 'marqaitechgroup' },
     update: {
-      name: TENANT_CONFIG.name,
-      domain: TENANT_CONFIG.domain,
+      logo: '/logos/marq-ai-group.png',
     },
     create: {
-      name: TENANT_CONFIG.name,
-      slug: TENANT_CONFIG.slug,
-      domain: TENANT_CONFIG.domain,
-      plan: TENANT_CONFIG.plan,
+      name: 'MarqAI Tech Group',
+      slug: 'marqaitechgroup',
+      domain: 'marqaitechgroup.3boxeshrms.com',
+      plan: 'enterprise',
       status: 'active',
-      country: TENANT_CONFIG.country,
-      currency: TENANT_CONFIG.currency,
-      timezone: TENANT_CONFIG.timezone,
-      language: TENANT_CONFIG.language,
-      baseCurrency: TENANT_CONFIG.baseCurrency,
-      maxCompaniesAllowed: TENANT_CONFIG.maxCompaniesAllowed,
+      country: 'IN',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      language: 'en',
+      logo: '/logos/marq-ai-group.png',
+      baseCurrency: 'INR',
+      maxCompaniesAllowed: 10,
       aiFeedbackEnabled: true,
       resumeScoreThreshold: 0,
       talentPoolCrossCompanyEnabled: true,
@@ -113,7 +70,7 @@ async function main() {
     update: {},
     create: {
       id: `cg-marqai-${tenant.id}`,
-      name: 'Marq AI Tech Group',
+      name: 'MarqAI Tech Group',
       tenantId: tenant.id,
       employeeLimitMode: 'group_total',
       maxEmployees: 500,
@@ -124,122 +81,145 @@ async function main() {
 
   // ==================== COMPANIES (4) ====================
   console.log('\n📋 Creating 4 Companies...');
+  const companies = [
+    {
+      name: 'MARQ AI TECH PVT LTD',
+      code: 'MATPL',
+      country: 'IN',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      city: 'Hyderabad',
+      state: 'TS',
+      email: 'info@marqaitech.com',
+      website: 'https://marqaitech.com',
+      logo: '/logos/marq-ai-tech.png',
+    },
+    {
+      name: '3 BOXES LUXURY CURATIONS',
+      code: '3BLC',
+      country: 'IN',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      city: 'Hyderabad',
+      state: 'TS',
+      email: 'info@3boxes.in',
+      website: 'https://3boxes.in',
+      logo: '/logos/3boxes-luxury.png',
+    },
+    {
+      name: '3 BOXES CONSULTING SERVICES',
+      code: '3BCS',
+      country: 'IN',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      city: 'Bangalore',
+      state: 'KA',
+      email: 'info@3boxesconsulting.com',
+      website: 'https://3boxesconsulting.com',
+      logo: '/logos/3boxes-consulting.png',
+    },
+    {
+      name: '3 BOXES TECHNOLOGIES',
+      code: '3BT',
+      country: 'IN',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      city: 'Chennai',
+      state: 'TN',
+      email: 'info@3boxestechnologies.com',
+      website: 'https://3boxestechnologies.com',
+      logo: '/logos/3boxes-technologies.png',
+    },
+  ];
+
   const createdCompanies = [];
-  for (const comp of COMPANIES) {
-    // Try to find existing by name within the group
-    const existing = await prisma.company.findFirst({
-      where: { name: comp.name, companyGroupId: companyGroup.id },
+  for (const company of companies) {
+    const created = await prisma.company.upsert({
+      where: { id: `comp-${company.code}-${tenant.id}` },
+      update: {
+        logo: company.logo,
+      },
+      create: {
+        id: `comp-${company.code}-${tenant.id}`,
+        name: company.name,
+        code: company.code,
+        companyGroupId: companyGroup.id,
+        country: company.country,
+        currency: company.currency,
+        timezone: company.timezone,
+        city: company.city,
+        state: company.state,
+        email: company.email,
+        website: company.website,
+        logo: company.logo,
+        status: 'active',
+        maxEmployees: 100,
+      },
     });
-    
-    if (existing) {
-      console.log(`  ✓ Company already exists: ${comp.name} (${comp.code})`);
-      createdCompanies.push(existing);
-    } else {
-      const created = await prisma.company.create({
-        data: {
-          name: comp.name,
-          code: comp.code,
-          companyGroupId: companyGroup.id,
-          country: 'IN',
-          currency: 'INR',
-          timezone: 'Asia/Kolkata',
-          city: comp.city,
-          state: comp.state,
-          email: comp.email,
-          website: comp.website,
-          status: 'active',
-          maxEmployees: 100,
-        },
-      });
-      createdCompanies.push(created);
-      console.log(`  ✓ Company: ${created.name} (${created.code})`);
-    }
+    createdCompanies.push(created);
+    console.log(`  ✓ Company: ${created.name} (${created.code}) → ${company.logo}`);
   }
 
   // ==================== BRANCHES ====================
   console.log('\n📋 Creating Branches...');
   const branches = [];
   for (const company of createdCompanies) {
-    const existing = await prisma.branch.findFirst({
-      where: { companyId: company.id, name: `${company.name} - Head Office` },
+    const branch = await prisma.branch.create({
+      data: {
+        name: `${company.name} - Head Office`,
+        code: `${company.code}-HO`,
+        companyId: company.id,
+        city: company.city || 'Hyderabad',
+        state: company.state || 'TS',
+        country: company.country || 'IN',
+        status: 'active',
+      },
     });
-    if (existing) {
-      branches.push(existing);
-      console.log(`  ✓ Branch exists: ${existing.name}`);
-    } else {
-      const branch = await prisma.branch.create({
-        data: {
-          name: `${company.name} - Head Office`,
-          code: `${company.code}-HO`,
-          companyId: company.id,
-          city: company.city || 'Hyderabad',
-          state: company.state || 'TS',
-          country: 'IN',
-          status: 'active',
-        },
-      });
-      branches.push(branch);
-      console.log(`  ✓ Branch: ${branch.name}`);
-    }
+    branches.push(branch);
+    console.log(`  ✓ Branch: ${branch.name}`);
   }
 
   // ==================== DEPARTMENTS ====================
-  console.log('\n📋 Creating Basic Departments...');
-  const departments = [];
+  console.log('\n📋 Creating Departments...');
+  const deptNames = ['Human Resources', 'Finance', 'Operations'];
+  const departments: Array<{ id: string; name: string; companyIndex: number }> = [];
   for (let i = 0; i < createdCompanies.length; i++) {
     const company = createdCompanies[i];
     const branch = branches[i];
-    for (const deptName of DEPARTMENTS) {
-      const existing = await prisma.department.findFirst({
-        where: { name: deptName, companyId: company.id, branchId: branch.id },
+    for (const deptName of deptNames) {
+      const dept = await prisma.department.create({
+        data: {
+          name: deptName,
+          companyId: company.id,
+          branchId: branch.id,
+          status: 'active',
+        },
       });
-      if (existing) {
-        departments.push({ ...existing, companyIndex: i });
-      } else {
-        const dept = await prisma.department.create({
-          data: {
-            name: deptName,
-            companyId: company.id,
-            branchId: branch.id,
-            status: 'active',
-          },
-        });
-        departments.push({ ...dept, companyIndex: i });
-      }
+      departments.push({ ...dept, companyIndex: i });
     }
-    console.log(`  ✓ ${company.code}: ${DEPARTMENTS.join(', ')}`);
   }
-  console.log(`  Total: ${departments.length} departments`);
+  console.log(`  ✓ ${departments.length} departments created`);
 
   // ==================== DESIGNATIONS ====================
-  console.log('\n📋 Creating Basic Designations...');
-  let desCount = 0;
-  for (const template of DESIGNATIONS) {
-    const matchingDepts = departments.filter(d => d.name === template.deptName);
-    for (const dept of matchingDepts) {
-      const existing = await prisma.designation.findFirst({
-        where: { title: template.title, departmentId: dept.id },
-      });
-      if (!existing) {
-        await prisma.designation.create({
-          data: {
-            title: template.title,
-            departmentId: dept.id,
-            level: template.level,
-            status: 'active',
-          },
-        });
-        desCount++;
-      }
-    }
+  console.log('\n📋 Creating Designations...');
+  const designationNames = ['CEO', 'HR Manager', 'Finance Manager', 'Operations Manager'];
+  const designations = [];
+  for (const desName of designationNames) {
+    const des = await prisma.designation.create({
+      data: {
+        name: desName,
+        status: 'active',
+      },
+    });
+    designations.push(des);
   }
-  console.log(`  ✓ Created ${desCount} new designations (basic set for HR to build upon)`);
+  console.log(`  ✓ ${designations.length} designations created`);
 
   // ==================== SUPER ADMIN USER ====================
   console.log('\n📋 Creating Super Admin user...');
   const superAdmin = await prisma.user.upsert({
     where: { email: 'superadmin@3boxeshrms.com' },
-    update: { password: hashedPassword },
+    update: {},
     create: {
       email: 'superadmin@3boxeshrms.com',
       name: '3Boxes Super Admin',
@@ -255,10 +235,10 @@ async function main() {
   console.log('\n📋 Creating Tenant Admin user...');
   const tenantAdmin = await prisma.user.upsert({
     where: { email: 'admin@marqaitechgroup.com' },
-    update: { password: hashedPassword },
+    update: {},
     create: {
       email: 'admin@marqaitechgroup.com',
-      name: 'Marq AI Tech Group Admin',
+      name: 'MarqAI Tech Group Admin',
       password: hashedPassword,
       role: 'tenant_admin',
       status: 'active',
@@ -270,74 +250,80 @@ async function main() {
   // ==================== COMPANY HR ADMINS ====================
   console.log('\n📋 Creating Company HR Admin users...');
   const hrAdminData = [
-    { email: 'admin@marqaitech.com', name: 'Admin - MARQ AI TECH', firstName: 'Admin', lastName: 'MARQ AI TECH', companyCode: 'MATPL' },
-    { email: 'admin@3boxesluxury.com', name: 'Admin - 3 BOXES LUXURY', firstName: 'Admin', lastName: '3 BOXES LUXURY', companyCode: '3BLC' },
-    { email: 'admin@3boxesconsulting.com', name: 'Admin - 3 BOXES CONSULTING', firstName: 'Admin', lastName: '3 BOXES CONSULTING', companyCode: '3BCS' },
-    { email: 'admin@3boxestechnologies.com', name: 'Admin - 3 BOXES TECH', firstName: 'Admin', lastName: '3 BOXES TECH', companyCode: '3BT' },
+    { email: 'admin@marqaitech.com', name: 'Admin - MARQ AI TECH' },
+    { email: 'admin@3boxesluxury.com', name: 'Admin - 3 BOXES LUXURY' },
+    { email: 'admin@3boxesconsulting.com', name: 'Admin - 3 BOXES CONSULTING' },
+    { email: 'admin@3boxestechnologies.com', name: 'Admin - 3 BOXES TECHNOLOGIES' },
   ];
-
-  for (const hr of hrAdminData) {
-    const company = createdCompanies.find(c => c.code === hr.companyCode);
-    if (!company) { console.log(`  ⚠ Company not found: ${hr.companyCode}`); continue; }
-    
-    const branch = branches.find(b => b.companyId === company.id);
-    const hrDept = departments.find(d => d.companyIndex === createdCompanies.indexOf(company) && d.name === 'Human Resources');
-    const hrDes = await prisma.designation.findFirst({
-      where: { title: 'HR Manager', department: { companyId: company.id } },
-    });
+  const hrAdmins = [];
+  for (let i = 0; i < createdCompanies.length; i++) {
+    const company = createdCompanies[i];
+    const branch = branches[i];
+    const hrDept = departments.find(d => d.companyIndex === i && d.name === 'Human Resources');
+    const hrDes = designations.find(d => d.name === 'HR Manager');
 
     const hrAdmin = await prisma.user.upsert({
-      where: { email: hr.email },
-      update: { password: hashedPassword, name: hr.name, tenantId: tenant.id },
+      where: { email: hrAdminData[i].email },
+      update: {},
       create: {
-        email: hr.email,
-        name: hr.name,
+        email: hrAdminData[i].email,
+        name: hrAdminData[i].name,
         password: hashedPassword,
         role: 'company_hr_admin',
         status: 'active',
         tenantId: tenant.id,
       },
     });
+    hrAdmins.push(hrAdmin);
 
-    // Create employee record
-    if (branch && hrDept && hrDes) {
+    // Create Employee record for HR admin
+    if (hrDept && hrDes) {
       await prisma.employee.upsert({
         where: { userId: hrAdmin.id },
-        update: {
-          companyId: company.id,
-          branchId: branch.id,
-          departmentId: hrDept.id,
-          designationId: hrDes.id,
-          email: hr.email,
-        },
+        update: {},
         create: {
           userId: hrAdmin.id,
           companyId: company.id,
           branchId: branch.id,
           departmentId: hrDept.id,
           designationId: hrDes.id,
-          employeeId: `ADM-${hr.companyCode}-001`,
-          firstName: hr.firstName,
-          lastName: hr.lastName,
-          email: hr.email,
+          employeeId: `EMP-${company.code}-HR001`,
+          firstName: 'Admin',
+          lastName: company.code,
           status: 'active',
-          dateOfJoining: new Date(),
+          joiningDate: new Date(),
         },
       });
     }
-    console.log(`  ✓ HR Admin: ${hr.email} → ${company.name}`);
+    console.log(`  ✓ HR Admin: ${hrAdmin.email} → ${company.name}`);
   }
+
+  // ==================== SUBSCRIPTION PLAN ====================
+  console.log('\n📋 Creating Subscription Plan...');
+  await prisma.subscriptionPlan.upsert({
+    where: { id: 'plan-enterprise-marqai' },
+    update: {},
+    create: {
+      id: 'plan-enterprise-marqai',
+      name: 'Enterprise',
+      price: 9999.00,
+      currency: 'INR',
+      billingCycle: 'monthly',
+      features: JSON.stringify(['Unlimited Employees', 'Multi-Company', 'AI Features', 'Priority Support']),
+      maxEmployees: 500,
+      maxCompanies: 10,
+    },
+  });
+  console.log('  ✓ Subscription Plan: Enterprise');
 
   // ==================== SUMMARY ====================
   console.log('\n========================================');
-  console.log('  ✅ Marq AI Tech Group Seed Complete!');
+  console.log('  ✅ MarqAI Tech Group Seed Complete!');
   console.log('========================================');
   console.log('');
-  console.log('  🏢 Tenant: Marq AI Tech Group');
+  console.log('  🏢 Tenant: MarqAI Tech Group');
   console.log('  🌐 Domain: marqaitechgroup.3boxeshrms.com');
-  console.log('');
-  console.log('  🏢 Group Companies:');
-  COMPANIES.forEach((c, i) => console.log(`     ${i + 1}. ${c.name} (${c.code})`));
+  console.log('  🖼️  Tenant Logo: /logos/marq-ai-group.png');
   console.log('');
   console.log('  📧 Login Credentials (all passwords: MarqAI@2026):');
   console.log('');
@@ -348,13 +334,16 @@ async function main() {
   console.log('     admin@marqaitechgroup.com');
   console.log('');
   console.log('  🔑 Company HR Admins:');
-  console.log('     admin@marqaitech.com → MARQ AI TECH PVT LTD');
-  console.log('     admin@3boxesluxury.com → 3 BOXES LUXURY CURATIONS');
-  console.log('     admin@3boxesconsulting.com → 3 BOXES CONSULTING SERVICES');
-  console.log('     admin@3boxestechnologies.com → 3 BOXES TECHNOLOGIES');
+  for (let i = 0; i < hrAdminData.length; i++) {
+    console.log(`     ${hrAdminData[i].email} → ${createdCompanies[i].name}`);
+  }
   console.log('');
-  console.log('  ⚠️  No sample employees created - HR admins will add their own data');
-  console.log('  ⚠️  Change all passwords after first login!');
+  console.log('  🏢 Company Logos:');
+  for (const c of companies) {
+    console.log(`     ${c.name} (${c.code}) → ${c.logo}`);
+  }
+  console.log('');
+  console.log('  ⚠️  IMPORTANT: Change all passwords after first login!');
   console.log('');
 
   await prisma.$disconnect();

@@ -750,7 +750,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
           <div className="px-4 pb-3 pt-1 text-center">
             <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/marq-ai-logo.png" alt="Marq AI" className="w-4 h-4 rounded object-contain" />
+              <img src={user?.tenant?.logo || '/marq-ai-logo.png'} alt="Marq AI" className="w-4 h-4 rounded object-contain" />
               <span className="text-[9px] text-thb-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
             </div>
           </div>

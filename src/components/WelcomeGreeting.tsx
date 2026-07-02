@@ -145,7 +145,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
             >
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg mx-auto mb-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/marq-ai-logo.png" alt="Marq AI Tech" className="w-12 h-12 rounded-xl object-contain" />
+                <img src={user?.tenant?.logo || user?.employee?.companyLogo || '/marq-ai-logo.png'} alt="Company Logo" className="w-12 h-12 rounded-xl object-contain" />
               </div>
             </div>
 
@@ -249,7 +249,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
             <div className="mb-4">
               <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mx-auto mb-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/marq-ai-logo.png" alt="Marq AI Tech" className="w-9 h-9 rounded-lg object-contain" />
+                <img src={user?.tenant?.logo || user?.employee?.companyLogo || '/marq-ai-logo.png'} alt="Company Logo" className="w-9 h-9 rounded-lg object-contain" />
               </div>
               <h2 className="text-2xl font-extrabold text-white mb-1">
                 Welcome to 3Boxes HRMS

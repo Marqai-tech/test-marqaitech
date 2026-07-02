@@ -175,11 +175,8 @@ export function Sidebar() {
         <div className="h-16 flex items-center px-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
             {currentCompany?.logo ? (
-              <img 
-                src={currentCompany.logo} 
-                alt={currentCompany.name || 'Company'} 
-                className="w-9 h-9 rounded-lg object-contain shrink-0 bg-white border border-border"
-              />
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={currentCompany.logo} alt={currentCompany.name} className="w-9 h-9 rounded-lg object-contain shrink-0" />
             ) : (
               <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shrink-0">
                 <Hexagon className="h-5 w-5 text-white" />
@@ -187,8 +184,8 @@ export function Sidebar() {
             )}
             {!sidebarCollapsed && (
               <div className="overflow-hidden">
-                <h1 className="font-bold text-sm tracking-tight whitespace-nowrap">{currentCompany?.name || '3Boxes HRMS'}</h1>
-                <p className="text-[10px] text-muted-foreground whitespace-nowrap">{currentCompany?.code ? `${currentCompany.code} · Marq AI Tech Group` : 'Enterprise'}</p>
+                <h1 className="font-bold text-sm tracking-tight whitespace-nowrap">3Boxes HRMS</h1>
+                <p className="text-[10px] text-muted-foreground whitespace-nowrap">{currentCompany?.name || 'Enterprise'}</p>
               </div>
             )}
           </div>
