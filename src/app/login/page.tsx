@@ -314,7 +314,7 @@ export default function LoginPage() {
             </h2>
 
             <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
-              The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Pvt Ltd.
+              The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Group.
             </p>
 
             {/* Three Pillars */}
@@ -971,7 +971,7 @@ export default function LoginPage() {
                 Enterprise-grade security
               </div>
               <p className="text-[11px] text-slate-400">
-                &copy; {new Date().getFullYear()} 3Boxes HRMS · A Proud Product of Marq AI Tech Pvt Ltd
+                &copy; {new Date().getFullYear()} 3Boxes HRMS · A Proud Product of Marq AI Tech Group
               </p>
             </div>
           </div>

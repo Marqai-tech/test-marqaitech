@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     default: "3Boxes HRMS",
     template: "%s | 3Boxes HRMS",
   },
-  description: "3Boxes HRMS — SaaS-Based AI HRMS Platform by Marq AI Tech Pvt Ltd. People · Process · Technology. Comprehensive human resource management with AI-powered interviews, recruitment, payroll, and more.",
+  description: "3Boxes HRMS — SaaS-Based AI HRMS Platform by Marq AI Tech Group. People · Process · Technology. Comprehensive human resource management with AI-powered interviews, recruitment, payroll, and more.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "3Boxes HRMS - AI-Powered HR Management",
-    description: "3Boxes HRMS — People · Process · Technology. A Proud Product of Marq AI Tech Pvt Ltd. SaaS-Based AI HRMS Platform with AI-powered interviews, recruitment, payroll, and more.",
+    description: "3Boxes HRMS — People · Process · Technology. A Proud Product of Marq AI Tech Group. SaaS-Based AI HRMS Platform with AI-powered interviews, recruitment, payroll, and more.",
     siteName: "3Boxes HRMS",
     type: "website",
   },

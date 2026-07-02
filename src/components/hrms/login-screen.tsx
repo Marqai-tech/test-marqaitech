@@ -145,7 +145,7 @@ export function LoginScreen() {
 
         {/* Footer */}
         <p className="text-center text-emerald-200/40 text-xs mt-6">
-          &copy; 2025 3Boxes HRMS. A Proud Product of Marq AI Tech Pvt Ltd.
+          &copy; 2025 3Boxes HRMS. A Proud Product of Marq AI Tech Group.
         </p>
       </div>
     </div>
