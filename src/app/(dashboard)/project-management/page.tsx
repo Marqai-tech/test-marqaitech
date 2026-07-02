@@ -6,7 +6,7 @@ import {
   FiPlus, FiSearch, FiFilter, FiGrid, FiList, FiChevronDown,
   FiCalendar, FiTrendingUp, FiAlertCircle, FiActivity, FiBarChart2,
   FiArrowRight, FiMoreHorizontal, FiEdit2, FiTrash2, FiX,
-  FiPlay, FiPause, FiZap, FiTarget, FiFileText,
+  FiPlay, FiPause, FiZap, FiTarget, FiFileText, FiUser,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';

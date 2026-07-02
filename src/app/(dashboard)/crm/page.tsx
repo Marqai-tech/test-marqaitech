@@ -5,7 +5,7 @@ import {
   FiUsers, FiBriefcase, FiDollarSign, FiTrendingUp, FiPhone, FiMail,
   FiPlus, FiSearch, FiFilter, FiEye, FiEdit2, FiTrash2, FiX,
   FiTarget, FiCalendar, FiCheckCircle, FiChevronRight, FiChevronDown,
-  FiClock, FiArrowRight, FiStar, FiMapPin, FiGlobe, FiLink, FiUserPlus,
+  FiClock, FiArrowRight, FiStar, FiMapPin, FiGlobe, FiLink, FiUserPlus, FiUser,
 } from 'react-icons/fi';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
