@@ -58,36 +58,21 @@ const DEFAULT_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'approve'
 const LIMITED_ACTION_MODULES = ['dashboard', 'notifications', 'docs'];
 const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
 
+// 3 standard roles only
 const SYSTEM_ROLES = [
   { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants — manages platform configuration, RBAC, audit logs, and all tenant operations', level: 0, isSystem: true, tenantId: null as string | null },
   { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations', level: 1, isSystem: true, tenantId: null as string | null },
-  { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access — manages all employees, payroll, recruitment, onboarding, leave, and compliance', level: 2, isSystem: true },
-  { key: 'finance_admin', name: 'Finance Administrator', description: 'Finance and payroll access — manages payroll processing, expenses, travel, financial reports, and bank file generation', level: 2, isSystem: true },
-  { key: 'it_admin', name: 'IT Administrator', description: 'IT management access — manages helpdesk, assets, system integrations, and technical configurations', level: 2, isSystem: true },
-  { key: 'manager', name: 'Manager', description: 'Team management access — views own reportees, approves requests, manages team performance and leave', level: 3, isSystem: true },
-  { key: 'employee', name: 'Employee', description: 'Basic employee self-service access — views own profile, applies leave, checks attendance, views payslips, raises tickets', level: 4, isSystem: true },
+  { key: 'admin', name: 'Administrator', description: 'Company-level admin access — manages all employees, HR operations, payroll, recruitment, onboarding, IT assets, finance, and compliance within their company', level: 2, isSystem: true },
 ];
 
-// HR Admin: Full access to all HR modules (employees, payroll, recruitment, etc.) but NOT super_admin/tenant_admin modules
-const HR_ADMIN_MODULES = ['dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance', 'leave', 'timesheets', 'payroll', 'salary_structures', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'grievances', 'ai_assistant', 'docs', 'workflows', 'reports', 'notifications', 'settings'];
-const HR_ADMIN_FULL_ACTIONS_MODULES = ['employees', 'company', 'recruitment', 'requisitions', 'offers', 'onboarding', 'preboarding', 'payroll', 'salary_structures', 'attendance', 'leave', 'performance', 'training', 'engagement', 'helpdesk', 'grievances', 'documents', 'settings'];
-
-// Finance Admin: Payroll processing, expenses, travel, financial reports
-const FINANCE_ADMIN_MODULES = ['dashboard', 'employees', 'payroll', 'salary_structures', 'expenses', 'travel', 'reports', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'];
-
-// Manager: View own reportees, approve requests, team performance (NO access to other managers' teams or admin settings)
-const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 'attendance', 'leave', 'timesheets', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects', 'expenses', 'travel'];
-
-// Employee: Self-service only — own profile, own leave, own attendance, own payslips, own expenses, own tickets
-const EMPLOYEE_MODULES = ['dashboard', 'employees', 'leave', 'attendance', 'timesheets', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'expenses', 'travel', 'training', 'payroll', 'performance'];
-const EMPLOYEE_VIEW_ONLY_MODULES = ['employees', 'payroll', 'performance'];
-
-// IT Admin: Helpdesk management, assets, system configuration
-const IT_ADMIN_MODULES = ['dashboard', 'employees', 'helpdesk', 'assets', 'documents', 'workflows', 'settings', 'notifications', 'ai_assistant', 'docs', 'reports'];
+// Admin gets full access to all non-super-admin modules
+const ADMIN_MODULES = ['dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance', 'leave', 'timesheets', 'payroll', 'salary_structures', 'performance', 'training', 'engagement', 'succession', 'documents', 'helpdesk', 'grievances', 'ai_assistant', 'docs', 'workflows', 'reports', 'notifications', 'settings', 'assets', 'projects', 'travel', 'expenses', 'clients', 'vendors', 'invoices', 'accounts', 'crm', 'it_admin_module', 'separation'];
+const ADMIN_FULL_ACTIONS_MODULES = ['employees', 'company', 'recruitment', 'requisitions', 'offers', 'onboarding', 'preboarding', 'payroll', 'salary_structures', 'attendance', 'leave', 'performance', 'training', 'engagement', 'helpdesk', 'grievances', 'documents', 'settings', 'assets', 'workflows', 'projects', 'expenses', 'travel', 'reports', 'separation', 'succession'];
 
 async function seedRBACData(userId?: string) {
   let modulesCreated = 0, permissionsCreated = 0, rolesCreated = 0, rolePermissionsCreated = 0, userRoleAssignmentsCreated = 0;
 
+  // Step 1: Create/update modules and permissions
   for (const modDef of MODULE_DEFINITIONS) {
     const existingModule = await prisma.module.findUnique({ where: { key: modDef.key } });
     if (!existingModule) {
@@ -99,6 +84,19 @@ async function seedRBACData(userId?: string) {
       }
       modulesCreated++;
     }
+  }
+
+  // Step 2: Create standard roles — remove any non-standard roles
+  // First, delete all existing roles that are NOT in the standard 3
+  const standardKeys = SYSTEM_ROLES.map(r => r.key);
+  const nonStandardRoles = await prisma.role.findMany({
+    where: { key: { notIn: standardKeys } }
+  });
+  for (const role of nonStandardRoles) {
+    // Delete role permissions and user assignments first (cascade should handle this)
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await prisma.userRoleAssignment.deleteMany({ where: { roleId: role.id } });
+    await prisma.role.delete({ where: { id: role.id } });
   }
 
   const createdRoles: Record<string, string> = {};
@@ -121,78 +119,115 @@ async function seedRBACData(userId?: string) {
       createdRoles[roleDef.key] = role.id;
       rolesCreated++;
     } else {
+      // Update existing role with current name/description
+      await prisma.role.update({
+        where: { id: existingRole.id },
+        data: { name: roleDef.name, description: roleDef.description, level: roleDef.level, isSystem: roleDef.isSystem }
+      });
       createdRoles[roleDef.key] = existingRole.id;
     }
   }
 
+  // Step 3: Assign permissions to roles
   const allModules = await prisma.module.findMany({ include: { permissions: true } });
   const moduleMap = new Map(allModules.map((m) => [m.key, m]));
 
   const assignPermissions = async (roleId: string, moduleKeys: string[], allowedActions?: string[]) => {
+    // Clear existing permissions first for clean slate
+    await prisma.rolePermission.deleteMany({ where: { roleId } });
+    
     for (const moduleKey of moduleKeys) {
       const mod = moduleMap.get(moduleKey);
       if (!mod) continue;
       for (const perm of mod.permissions) {
         if (allowedActions && !allowedActions.includes(perm.action)) continue;
         try {
-          const existing = await prisma.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: perm.id } } });
-          if (!existing) {
-            await prisma.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
-            rolePermissionsCreated++;
-          }
+          await prisma.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
+          rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
     }
   };
 
+  // super_admin: ALL modules, ALL actions
   if (createdRoles.super_admin) await assignPermissions(createdRoles.super_admin, MODULE_DEFINITIONS.map((m) => m.key));
+  
+  // tenant_admin: All except super_admin/tenant_admin/ai_admin modules
   if (createdRoles.tenant_admin) await assignPermissions(createdRoles.tenant_admin, MODULE_DEFINITIONS.filter((m) => !ADMIN_ONLY_MODULES.includes(m.key)).map((m) => m.key));
-  if (createdRoles.hr_admin) {
-    // HR Admin gets full actions on core HR modules, view-only on others
-    await assignPermissions(createdRoles.hr_admin, HR_ADMIN_FULL_ACTIONS_MODULES, ['view', 'create', 'edit', 'delete', 'export', 'approve']);
-    const hrViewOnlyModules = HR_ADMIN_MODULES.filter((m) => !HR_ADMIN_FULL_ACTIONS_MODULES.includes(m));
-    await assignPermissions(createdRoles.hr_admin, hrViewOnlyModules, ['view', 'create', 'edit', 'export']);
-  }
-  if (createdRoles.finance_admin) {
-    // Finance Admin: full actions on payroll/expenses/travel, view on others
-    await assignPermissions(createdRoles.finance_admin, ['payroll', 'salary_structures', 'expenses', 'travel', 'reports'], ['view', 'create', 'edit', 'delete', 'export', 'approve']);
-    await assignPermissions(createdRoles.finance_admin, ['dashboard', 'employees', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'], ['view']);
-  }
-  if (createdRoles.manager) {
-    // Manager: view/create/edit/approve on team-related modules, view-only on others
-    await assignPermissions(createdRoles.manager, ['employees', 'leave', 'attendance', 'timesheets', 'performance', 'expenses', 'travel', 'recruitment', 'onboarding', 'helpdesk', 'projects'], ['view', 'create', 'edit', 'approve']);
-    await assignPermissions(createdRoles.manager, ['dashboard', 'training', 'engagement', 'documents', 'ai_assistant', 'docs', 'notifications'], ['view']);
-  }
-  if (createdRoles.employee) {
-    // Employee: view-only on profile/payslips/performance, create/edit on self-service modules
-    await assignPermissions(createdRoles.employee, EMPLOYEE_VIEW_ONLY_MODULES, ['view']);
-    await assignPermissions(createdRoles.employee, ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'], ['view', 'create', 'edit']);
-    await assignPermissions(createdRoles.employee, ['dashboard', 'attendance', 'documents', 'ai_assistant', 'docs', 'notifications'], ['view']);
-  }
-  if (createdRoles.it_admin) {
-    await assignPermissions(createdRoles.it_admin, ['helpdesk', 'assets', 'workflows', 'settings'], ['view', 'create', 'edit', 'delete', 'export']);
-    await assignPermissions(createdRoles.it_admin, ['dashboard', 'employees', 'documents', 'notifications', 'ai_assistant', 'docs', 'reports'], ['view']);
+  
+  // admin: Full actions on core admin modules, view+create+edit+export on secondary modules
+  if (createdRoles.admin) {
+    await assignPermissions(createdRoles.admin, ADMIN_FULL_ACTIONS_MODULES, ['view', 'create', 'edit', 'delete', 'export', 'approve']);
+    const adminViewOnlyModules = ADMIN_MODULES.filter((m) => !ADMIN_FULL_ACTIONS_MODULES.includes(m));
+    // Re-add with limited actions (since we cleared all, we need to add these separately)
+    for (const moduleKey of adminViewOnlyModules) {
+      const mod = moduleMap.get(moduleKey);
+      if (!mod) continue;
+      for (const perm of mod.permissions) {
+        if (!['view', 'create', 'edit', 'export'].includes(perm.action)) continue;
+        try {
+          await prisma.rolePermission.create({ data: { roleId: createdRoles.admin, permissionId: perm.id, granted: true } });
+          rolePermissionsCreated++;
+        } catch { /* skip duplicates */ }
+      }
+    }
   }
 
+  // Step 4: Migrate users to the new 3-role system
+  const roleKeyMap: Record<string, string> = {
+    super_admin: 'super_admin',
+    tenant_admin: 'tenant_admin',
+    hr_admin: 'admin',
+    company_hr_admin: 'admin',
+    finance_admin: 'admin',
+    finance: 'admin',
+    it_admin: 'admin',
+    manager: 'admin',
+    employee: 'admin',
+    recruiter: 'admin',
+    candidate: 'admin',
+    job_seeker: 'admin',
+    admin: 'admin',
+    hrhead: 'admin',
+    recruitmenthead: 'admin',
+  };
+
   const users = await prisma.user.findMany();
-  const roleKeyMap: Record<string, string> = { super_admin: 'super_admin', tenant_admin: 'tenant_admin', hr_admin: 'hr_admin', company_hr_admin: 'hr_admin', finance_admin: 'finance_admin', finance: 'finance_admin', manager: 'manager', employee: 'employee', recruiter: 'hr_admin', candidate: 'employee', it_admin: 'it_admin' };
   for (const user of users) {
-    const roleKey = roleKeyMap[user.role];
-    if (!roleKey || !createdRoles[roleKey]) continue;
+    const newRoleKey = roleKeyMap[user.role];
+    if (!newRoleKey || !createdRoles[newRoleKey]) continue;
+    
+    // Update User.role field to new role
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: newRoleKey }
+    });
+
+    // Remove existing role assignments
+    await prisma.userRoleAssignment.deleteMany({ where: { userId: user.id } });
+
+    // Create new role assignment
     const companies = await prisma.company.findMany({ take: 1 });
     try {
-      await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: createdRoles[roleKey], companyId: companies.length > 0 && roleKey !== 'super_admin' && roleKey !== 'tenant_admin' ? companies[0].id : null, assignedBy: userId || null } });
+      await prisma.userRoleAssignment.create({
+        data: {
+          userId: user.id,
+          roleId: createdRoles[newRoleKey],
+          companyId: companies.length > 0 && newRoleKey !== 'super_admin' && newRoleKey !== 'tenant_admin' ? companies[0].id : null,
+          assignedBy: userId || null
+        }
+      });
       userRoleAssignmentsCreated++;
     } catch { /* skip */ }
   }
 
-  return { modulesCreated, permissionsCreated, rolesCreated, rolePermissionsCreated, userRoleAssignmentsCreated };
+  return { modulesCreated, permissionsCreated, rolesCreated, rolePermissionsCreated, userRoleAssignmentsCreated, nonStandardRolesRemoved: nonStandardRoles.length };
 }
 
 export async function GET() {
   try {
     const result = await seedRBACData();
-    return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });
+    return NextResponse.json({ success: true, message: 'RBAC data seeded successfully with 3 standard roles', data: result }, { headers: corsHeaders() });
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -221,7 +256,7 @@ export async function POST(request: Request) {
     if (!user || (user.role !== 'super_admin' && user.role !== 'tenant_admin')) return NextResponse.json({ error: 'Only administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
     
     const result = await seedRBACData(user.id);
-    return NextResponse.json({ success: true, message: 'RBAC data seeded successfully', data: result }, { headers: corsHeaders() });
+    return NextResponse.json({ success: true, message: 'RBAC data seeded successfully with 3 standard roles', data: result }, { headers: corsHeaders() });
   } catch (error) {
     console.error('RBAC seed error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -25,7 +25,7 @@ interface AuditLog {
 
 export default function AuditLogPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);

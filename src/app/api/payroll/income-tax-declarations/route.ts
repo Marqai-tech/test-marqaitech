@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
 
     // Non-admin users can only see their own declarations
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'hr_admin') {
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       const userId = (decoded as Record<string, unknown>).userId || (decoded as Record<string, unknown>).sub;
       const emp = await prisma.employee.findFirst({ where: { userId: userId as string } });
       if (emp) where.employeeId = emp.id;
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     let employeeId = body.employeeId;
 
     // If employee is creating their own declaration
-    if (!employeeId && userRole === 'employee') {
+    if (!employeeId && userRole === 'admin') {
       const emp = await prisma.employee.findFirst({ where: { userId: userId as string } });
       if (!emp) return Response.json({ error: 'Employee profile not found' }, { status: 404, headers: corsHeaders });
       employeeId = emp.id;

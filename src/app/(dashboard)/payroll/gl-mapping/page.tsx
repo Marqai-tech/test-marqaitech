@@ -98,7 +98,7 @@ const emptyForm = {
 
 export default function GLMappingPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin' || user?.role === 'finance_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin' || user?.role === 'admin';
 
   const [mappings, setMappings] = useState<GLAccountMapping[]>([]);
   const [components, setComponents] = useState<PayrollComponentRef[]>([]);

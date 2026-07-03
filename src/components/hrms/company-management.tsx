@@ -98,7 +98,7 @@ function getStatusBadge(status: string) {
 /* ── Main Component ── */
 export default function CompanyManagement() {
   const { user } = useAuthStore()
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '')
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '')
 
   // Company scope — read from the header CompanySwitcher via context store.
   // When the admin selects a company in the dropdown, we re-fetch companies

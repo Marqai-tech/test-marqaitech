@@ -118,7 +118,7 @@ const initialForm = {
 /* ── Component ── */
 export default function AssetsPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);

@@ -26,7 +26,7 @@ interface Branch { id: string; name: string; city: string | null }
 
 export default function GeofencePage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<Geofence[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);

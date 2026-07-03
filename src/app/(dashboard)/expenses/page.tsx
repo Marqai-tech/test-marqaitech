@@ -135,7 +135,7 @@ const initialForm = {
 /* ── Component ── */
 export default function ExpensesPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [expenses, setExpenses] = useState<ExpenseClaim[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

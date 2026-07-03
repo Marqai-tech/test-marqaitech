@@ -115,7 +115,7 @@ const grievancesWorkflowSteps = [
 /* ── Component ── */
 export default function GrievancesPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

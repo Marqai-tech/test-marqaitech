@@ -276,7 +276,7 @@ export default function HelpdeskPage() {
   };
 
   // Safely compare requester: use requesterId if available, fall back to name match
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const myTickets = tickets.filter((t) => {
     const ticketAny = t as Record<string, unknown>;
     if (ticketAny.requesterId && user?.id) return ticketAny.requesterId === user.id;

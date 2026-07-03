@@ -157,7 +157,7 @@ const initialForm = {
 /* ── Component ── */
 export default function PreboardingPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [candidates, setCandidates] = useState<PreboardingCandidate[]>(demoCandidates);
   const [loading, setLoading] = useState(false);

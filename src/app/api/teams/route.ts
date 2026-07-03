@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (companyId) where.companyId = companyId;
 
     // Non-admins: only teams they're a member of (or teams they lead)
-    if (!['super_admin', 'tenant_admin', 'hr_admin'].includes(decoded.role)) {
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
       const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
       if (employee) {
         where.OR = [

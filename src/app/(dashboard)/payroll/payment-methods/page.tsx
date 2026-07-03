@@ -127,7 +127,7 @@ const emptyForm = {
 
 export default function EmployeePaymentMethodsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [paymentMethods, setPaymentMethods] = useState<EmployeePaymentMethod[]>([]);
   const [employees, setEmployees] = useState<EmployeeInfo[]>([]);

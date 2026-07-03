@@ -63,7 +63,7 @@ export async function findEmployeeByEmail(email: string | undefined | null) {
 
 /** True if the user role is admin-level. */
 export function isAdminRole(role: string | undefined | null) {
-  return !!role && ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(role);
+  return !!role && ['super_admin', 'tenant_admin', 'admin'].includes(role);
 }
 
 /** Parse a JSON body safely. */

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     // REQ-6.2: Tenant Admin controls who can create announcement channels
-    if (isAnnouncement && !['super_admin', 'tenant_admin', 'hr_admin'].includes(decoded.role)) {
+    if (isAnnouncement && !['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Only admins can create announcement channels' }, { status: 403 });
     }
 

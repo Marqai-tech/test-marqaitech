@@ -113,7 +113,7 @@ function getDemoEmployeeById(id: string) {
     department: departments[deptIdx],
     designation: designations[desigIdx],
     branch: branches[branchIdx],
-    user: { id: `user-${idx + 1}`, email: `${name.firstName.toLowerCase()}.${name.lastName.toLowerCase()}@3boxestech.com`, role: idx === 0 ? 'super_admin' : idx < 3 ? 'hr_admin' : 'employee', avatar: null },
+    user: { id: `user-${idx + 1}`, email: `${name.firstName.toLowerCase()}.${name.lastName.toLowerCase()}@3boxestech.com`, role: idx === 0 ? 'super_admin' : idx < 3 ? 'admin' : 'employee', avatar: null },
     leaveBalances: [
       { id: `lb-${idx + 1}-1`, total: 24, used: 5 + idx, remaining: 19 - idx, year: 2025, leaveType: { id: 'lt-1', name: 'Casual Leave', code: 'CL' } },
       { id: `lb-${idx + 1}-2`, total: 15, used: 2 + idx, remaining: 13 - idx, year: 2025, leaveType: { id: 'lt-2', name: 'Sick Leave', code: 'SL' } },

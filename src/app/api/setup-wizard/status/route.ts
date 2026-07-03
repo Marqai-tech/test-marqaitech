@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userRole = decoded.role as string;
-    if (!['super_admin', 'tenant_admin', 'hr_admin'].includes(userRole)) {
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(userRole)) {
       return NextResponse.json({ error: 'Only admins can mark setup as completed' }, { status: 403, headers: corsHeaders() });
     }
 

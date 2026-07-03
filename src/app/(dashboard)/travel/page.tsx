@@ -132,7 +132,7 @@ const initialForm = {
 /* ── Component ── */
 export default function TravelPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [travels, setTravels] = useState<TravelRequest[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

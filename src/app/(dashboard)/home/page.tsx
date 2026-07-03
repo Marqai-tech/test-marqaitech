@@ -1330,16 +1330,16 @@ export default function HomePage() {
     // but with full company-switcher support (no tenant switcher).
     return <HRAdminHome {...heroProps} />;
   }
-  if (role === 'hr_admin') {
+  if (role === 'admin') {
     return <HRAdminHome {...heroProps} />;
   }
-  if (role === 'manager') {
+  if (role === 'admin') {
     return <ManagerHome {...heroProps} />;
   }
-  if (role === 'finance_admin') {
+  if (role === 'admin') {
     return <FinanceHome {...heroProps} />;
   }
-  if (role === 'it_admin') {
+  if (role === 'admin') {
     return <ITAdminHome {...heroProps} />;
   }
   return <EmployeeHome {...heroProps} />;

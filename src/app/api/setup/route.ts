@@ -121,16 +121,16 @@ export async function POST(req: NextRequest) {
 
     // ==================== USERS ====================
     const adminUser = await db.user.create({ data: { email: 'admin@3boxeshrms.com', password: 'admin123', name: 'Admin 3Boxes', role: 'super_admin', isActive: true } });
-    const sarahUser = await db.user.create({ data: { email: 'sarah.j@techcorp.com', password: 'sarah123', name: 'Sarah Johnson', role: 'company_hr_admin', companyId: tcg.id, isActive: true } });
+    const sarahUser = await db.user.create({ data: { email: 'sarah.j@techcorp.com', password: 'sarah123', name: 'Sarah Johnson', role: 'admin', companyId: tcg.id, isActive: true } });
     const rajUser = await db.user.create({ data: { email: 'raj.p@techcorp.com', password: 'raj123', name: 'Raj Patel', role: 'reporting_manager', companyId: tcg.id, isActive: true } });
-    const emilyUser = await db.user.create({ data: { email: 'emily.c@techcorp.com', password: 'emily123', name: 'Emily Chen', role: 'employee', companyId: tcg.id, isActive: true } });
-    const michaelUser = await db.user.create({ data: { email: 'michael.b@techcorp.com', password: 'michael123', name: 'Michael Brown', role: 'employee', companyId: tcg.id, isActive: true } });
+    const emilyUser = await db.user.create({ data: { email: 'emily.c@techcorp.com', password: 'emily123', name: 'Emily Chen', role: 'admin', companyId: tcg.id, isActive: true } });
+    const michaelUser = await db.user.create({ data: { email: 'michael.b@techcorp.com', password: 'michael123', name: 'Michael Brown', role: 'admin', companyId: tcg.id, isActive: true } });
     const priyaUser = await db.user.create({ data: { email: 'priya.s@manufactpro.com', password: 'priya123', name: 'Priya Sharma', role: 'reporting_manager', companyId: mpi.id, isActive: true } });
-    const davidUser = await db.user.create({ data: { email: 'david.w@healthfirst.com', password: 'david123', name: 'David Wilson', role: 'employee', companyId: hfs.id, isActive: true } });
-    const aikoUser = await db.user.create({ data: { email: 'aiko.t@logitrans.com', password: 'aiko123', name: 'Aiko Tanaka', role: 'employee', companyId: ltw.id, isActive: true } });
-    const carlosUser = await db.user.create({ data: { email: 'carlos.r@retailmax.com', password: 'carlos123', name: 'Carlos Rodriguez', role: 'employee', companyId: rmg.id, isActive: true } });
+    const davidUser = await db.user.create({ data: { email: 'david.w@healthfirst.com', password: 'david123', name: 'David Wilson', role: 'admin', companyId: hfs.id, isActive: true } });
+    const aikoUser = await db.user.create({ data: { email: 'aiko.t@logitrans.com', password: 'aiko123', name: 'Aiko Tanaka', role: 'admin', companyId: ltw.id, isActive: true } });
+    const carlosUser = await db.user.create({ data: { email: 'carlos.r@retailmax.com', password: 'carlos123', name: 'Carlos Rodriguez', role: 'admin', companyId: rmg.id, isActive: true } });
     const lisaUser = await db.user.create({ data: { email: 'lisa.a@techcorp.com', password: 'lisa123', name: 'Lisa Anderson', role: 'finance', companyId: tcg.id, isActive: true } });
-    const arjunUser = await db.user.create({ data: { email: 'arjun.k@manufactpro.com', password: 'arjun123', name: 'Arjun Kumar', role: 'employee', companyId: mpi.id, isActive: true } });
+    const arjunUser = await db.user.create({ data: { email: 'arjun.k@manufactpro.com', password: 'arjun123', name: 'Arjun Kumar', role: 'admin', companyId: mpi.id, isActive: true } });
     const recruiterUser = await db.user.create({ data: { email: 'recruiter@techcorp.com', password: 'recruit123', name: 'Recruiter Kim', role: 'recruiter', companyId: tcg.id, isActive: true } });
     const clientUser = await db.user.create({ data: { email: 'hr@acme.com', password: 'acme123', name: 'Acme Corp', role: 'client', companyId: tcg.id, isActive: true } });
     const vendorUser = await db.user.create({ data: { email: 'info@talenthunt.com', password: 'thunt123', name: 'TalentHunt Agency', role: 'vendor', companyId: tcg.id, isActive: true } });
@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
       data: { name: 'Leave Approval Workflow', type: 'approval', entity: 'leave', description: 'Standard leave approval: Manager → HR', isActive: true, companyId: tcg.id,
         steps: { create: [
           { name: 'Manager Approval', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'HR Approval', stepOrder: 1, approverRole: 'company_hr_admin', approverType: 'role', action: 'approve_reject' },
+          { name: 'HR Approval', stepOrder: 1, approverRole: 'admin', approverType: 'role', action: 'approve_reject' },
         ]}
       }
     });
@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
       data: { name: 'Travel Request Workflow', type: 'approval', entity: 'travel', description: 'Travel approval: Manager → HR → Finance', isActive: true, companyId: tcg.id,
         steps: { create: [
           { name: 'Manager Approval', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'HR Approval', stepOrder: 1, approverRole: 'company_hr_admin', approverType: 'role', action: 'approve_reject' },
+          { name: 'HR Approval', stepOrder: 1, approverRole: 'admin', approverType: 'role', action: 'approve_reject' },
           { name: 'Finance Approval', stepOrder: 2, approverRole: 'finance', approverType: 'role', action: 'approve_reject' },
         ]}
       }
@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
     await db.workflowDefinition.create({
       data: { name: 'Recruitment Approval Workflow', type: 'approval', entity: 'recruitment', description: 'Recruitment: HR → Department Head → CEO', isActive: true, companyId: tcg.id,
         steps: { create: [
-          { name: 'HR Review', stepOrder: 0, approverRole: 'company_hr_admin', approverType: 'role', action: 'approve_reject' },
+          { name: 'HR Review', stepOrder: 0, approverRole: 'admin', approverType: 'role', action: 'approve_reject' },
           { name: 'Department Head Approval', stepOrder: 1, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
           { name: 'CEO Approval', stepOrder: 2, approverRole: 'super_admin', approverType: 'role', autoApprove: true, action: 'approve_reject' },
         ]}
@@ -299,8 +299,8 @@ export async function POST(req: NextRequest) {
     await db.workflowDefinition.create({
       data: { name: 'Onboarding Workflow', type: 'sequential', entity: 'onboarding', description: 'Onboarding: HR → IT → Department Manager', isActive: true, companyId: tcg.id,
         steps: { create: [
-          { name: 'HR Orientation', stepOrder: 0, approverRole: 'company_hr_admin', approverType: 'role', action: 'confirm' },
-          { name: 'IT Setup', stepOrder: 1, approverRole: 'it_admin', approverType: 'role', action: 'confirm' },
+          { name: 'HR Orientation', stepOrder: 0, approverRole: 'admin', approverType: 'role', action: 'confirm' },
+          { name: 'IT Setup', stepOrder: 1, approverRole: 'admin', approverType: 'role', action: 'confirm' },
           { name: 'Department Introduction', stepOrder: 2, approverRole: 'reporting_manager', approverType: 'role', action: 'confirm' },
         ]}
       }
@@ -311,8 +311,8 @@ export async function POST(req: NextRequest) {
       data: { name: 'Offboarding Workflow', type: 'sequential', entity: 'offboarding', description: 'Offboarding: Manager → HR → IT → Finance', isActive: true, companyId: tcg.id,
         steps: { create: [
           { name: 'Manager Exit Review', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'HR Clearance', stepOrder: 1, approverRole: 'company_hr_admin', approverType: 'role', action: 'approve_reject' },
-          { name: 'IT Asset Recovery', stepOrder: 2, approverRole: 'it_admin', approverType: 'role', action: 'confirm' },
+          { name: 'HR Clearance', stepOrder: 1, approverRole: 'admin', approverType: 'role', action: 'approve_reject' },
+          { name: 'IT Asset Recovery', stepOrder: 2, approverRole: 'admin', approverType: 'role', action: 'confirm' },
           { name: 'Finance Settlement', stepOrder: 3, approverRole: 'finance', approverType: 'role', action: 'approve_reject' },
         ]}
       }
@@ -324,7 +324,7 @@ export async function POST(req: NextRequest) {
         steps: { create: [
           { name: 'Self Assessment', stepOrder: 0, approverRole: 'employee', approverType: 'self', action: 'submit' },
           { name: 'Manager Review', stepOrder: 1, approverRole: 'reporting_manager', approverType: 'role', action: 'rate_approve' },
-          { name: 'HR Review', stepOrder: 2, approverRole: 'company_hr_admin', approverType: 'role', action: 'approve_reject' },
+          { name: 'HR Review', stepOrder: 2, approverRole: 'admin', approverType: 'role', action: 'approve_reject' },
         ]}
       }
     });
@@ -334,7 +334,7 @@ export async function POST(req: NextRequest) {
       data: { name: 'Probation Completion Workflow', type: 'approval', entity: 'probation', description: 'Probation: Manager → HR → Admin', isActive: true, companyId: tcg.id,
         steps: { create: [
           { name: 'Manager Evaluation', stepOrder: 0, approverRole: 'reporting_manager', approverType: 'role', action: 'approve_reject' },
-          { name: 'HR Review', stepOrder: 1, approverRole: 'company_hr_admin', approverType: 'role', action: 'approve_reject' },
+          { name: 'HR Review', stepOrder: 1, approverRole: 'admin', approverType: 'role', action: 'approve_reject' },
           { name: 'Admin Confirmation', stepOrder: 2, approverRole: 'super_admin', approverType: 'role', autoApprove: true, action: 'approve_reject' },
         ]}
       }

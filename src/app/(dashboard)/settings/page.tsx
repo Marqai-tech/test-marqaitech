@@ -112,7 +112,7 @@ function getAuthHeaders() {
 const rolesData = [
   { name: 'Super Admin', key: 'super_admin', description: 'Full system access across all tenants', permissions: ['All Permissions'] },
   { name: 'Tenant Admin', key: 'tenant_admin', description: 'Full access within their tenant', permissions: ['User Management', 'Employee Management', 'Payroll', 'Reports', 'Settings'] },
-  { name: 'HR Admin', key: 'hr_admin', description: 'HR module access', permissions: ['Employee Management', 'Leave Management', 'Attendance', 'Recruitment', 'Performance', 'Training'] },
+  { name: 'HR Admin', key: description: 'HR module access', permissions: ['Employee Management', 'Leave Management', 'Attendance', 'Recruitment', 'Performance', 'Training'] },
   { name: 'Manager', key: 'manager', description: 'Team management access', permissions: ['Team View', 'Leave Approvals', 'Performance Reviews', 'Timesheet Approvals'] },
   { name: 'Employee', key: 'employee', description: 'Self-service access', permissions: ['Self Profile', 'Leave Request', 'Attendance', 'Timesheet', 'Documents'] },
 ];
@@ -608,7 +608,7 @@ function SettingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   // ALL hooks must be called before any conditional returns (Rules of Hooks)
 
@@ -1220,7 +1220,7 @@ function SettingsContent() {
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
                               role.key === 'super_admin' ? 'bg-red-500' :
                               role.key === 'tenant_admin' ? 'bg-orange-500' :
-                              role.key === 'hr_admin' ? 'bg-blue-500' :
+                              role.key === 'admin' ? 'bg-blue-500' :
                               role.key === 'manager' ? 'bg-emerald-500' :
                               'bg-slate-500'
                             }`}>

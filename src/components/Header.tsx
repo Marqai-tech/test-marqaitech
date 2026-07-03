@@ -269,7 +269,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                 <FiUser className="w-4 h-4" />
                 My Profile
               </Link>
-              {['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '') && (
+              {['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '') && (
               <Link
                 href="/settings"
                 onClick={() => setShowUserMenu(false)}

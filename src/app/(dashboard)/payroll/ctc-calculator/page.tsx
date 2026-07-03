@@ -167,7 +167,7 @@ const IND_DEDUCTION_LABELS: Record<string, string> = {
 // ─── Main Component ───
 export default function CTCCalculatorPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   // Input state
   const [ctcAmount, setCtcAmount] = useState<string>('');

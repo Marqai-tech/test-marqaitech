@@ -150,7 +150,7 @@ const engagementWorkflowSteps = [
 /* ── Component ── */
 export default function EngagementPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [surveys, setSurveys] = useState(demoSurveys);
   const [recognitions, setRecognitions] = useState(demoRecognitions);

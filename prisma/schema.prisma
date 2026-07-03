@@ -304,7 +304,7 @@ model User {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  role       String @default("employee") // super_admin, tenant_admin, hr_admin, manager, employee
+  role       String @default("admin") // super_admin, tenant_admin, admin
   status     String @default("active")
   lastLogin  DateTime?
   lastLogout DateTime?

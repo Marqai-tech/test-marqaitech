@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Exclude super_admin users from HR admin view
-    if (userRole === 'hr_admin') {
+    if (userRole === 'admin') {
       employeeFilter = {
         ...employeeFilter,
         user: { role: { not: 'super_admin' } },

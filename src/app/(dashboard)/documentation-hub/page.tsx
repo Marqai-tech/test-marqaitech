@@ -1414,12 +1414,12 @@ const initialForm = {
   isFeatured: false,
 };
 
-const ROLES = ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'];
+const ROLES = ['super_admin', 'tenant_admin', 'manager', 'employee'];
 
 /* ── Component ── */
 export default function DocumentationHubPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const isSuperAdmin = user?.role === 'super_admin';
 
   const [search, setSearch] = useState('');

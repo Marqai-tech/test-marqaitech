@@ -41,7 +41,7 @@ export const useHRMSStore = create<HRMSState>((set) => ({
 export function getDashboardModule(dashboard: string): ModuleKey {
   switch (dashboard) {
     case 'super_admin': return 'super-admin'
-    case 'company_admin': case 'hr_admin': return 'dashboard'
+    case 'company_admin': case 'admin': return 'dashboard'
     default: return 'dashboard'
   }
 }

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const defaultPolicies = [
       {
         policyKey: 'announcement_creators',
-        policyValue: JSON.stringify({ allowed_roles: ['tenant_admin', 'hr_admin'] }),
+        policyValue: JSON.stringify({ allowed_roles: ['super_admin', 'tenant_admin', 'admin'] }),
         appliesToRoomType: 'announcement',
       },
       {

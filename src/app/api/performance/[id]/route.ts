@@ -96,7 +96,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     // Check if user is admin
     const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
-    if (!user || !['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user.role)) {
+    if (!user || !['super_admin', 'tenant_admin', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 

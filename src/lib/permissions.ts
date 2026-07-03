@@ -29,7 +29,7 @@
 // super_admin to model sub-clusters inside the same parent company.
 // ============================================================================
 
-export type AdminRole = 'super_admin' | 'tenant_admin';
+export type AdminRole = 'super_admin' | 'tenant_admin' | 'admin';
 
 export interface PermissionRule {
   /** SRS requirement ID, e.g. 'REQ-SA-01'. */
@@ -172,32 +172,32 @@ export const TENANT_ADMIN_PERMISSIONS = {
 
 export const RBAC_MATRIX = {
   // Company Management
-  CREATE_PARENT_COMPANY: { super_admin: true,  tenant_admin: false, srsId: 'REQ-SA-01' },
-  CREATE_GROUP_COMPANY:  { super_admin: true,  tenant_admin: false, srsId: 'SA-Group-1' }, // groups are super-admin only per clarified hierarchy
-  CREATE_SUB_COMPANY:    { super_admin: true,  tenant_admin: true,  srsId: 'REQ-TA-01', scope: 'own_tenant' },
-  DELETE_COMPANY:        { super_admin: true,  tenant_admin: true,  srsId: 'SA-TA-DEL',  scope: 'own_tenant' },
-  EDIT_COMPANY_INFO:     { super_admin: true,  tenant_admin: true,  srsId: 'SA-TA-EDT',  scope: 'own_tenant' },
+  CREATE_PARENT_COMPANY: { super_admin: true,  tenant_admin: false, admin: false, srsId: 'REQ-SA-01' },
+  CREATE_GROUP_COMPANY:  { super_admin: true,  tenant_admin: false, admin: false, srsId: 'SA-Group-1' },
+  CREATE_SUB_COMPANY:    { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'REQ-TA-01', scope: 'own_tenant' },
+  DELETE_COMPANY:        { super_admin: true,  tenant_admin: true,  admin: false, srsId: 'SA-TA-DEL',  scope: 'own_tenant' },
+  EDIT_COMPANY_INFO:     { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'SA-TA-EDT',  scope: 'own_tenant' },
 
   // User Management
-  CREATE_TENANT_ADMINS:  { super_admin: true,  tenant_admin: false, srsId: 'SA-TA-USR-1' },
-  VIEW_ALL_USERS:        { super_admin: true,  tenant_admin: true,  srsId: 'SA-TA-USR-2', scope: 'own_tenant' },
-  IMPERSONATE_USERS:     { super_admin: true,  tenant_admin: true,  srsId: 'SA-TA-USR-3', scope: 'own_tenant' },
+  CREATE_TENANT_ADMINS:  { super_admin: true,  tenant_admin: false, admin: false, srsId: 'SA-TA-USR-1' },
+  VIEW_ALL_USERS:        { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'SA-TA-USR-2', scope: 'own_tenant' },
+  IMPERSONATE_USERS:     { super_admin: true,  tenant_admin: true,  admin: false, srsId: 'SA-TA-USR-3', scope: 'own_tenant' },
 
   // Subscription
-  VIEW_INVOICES:         { super_admin: true,  tenant_admin: true,  srsId: 'SA-TA-SUB-1', scope: 'own_tenant' },
-  UPGRADE_PLAN:          { super_admin: true,  tenant_admin: false, srsId: 'SA-TA-SUB-2' }, // tenant_admin can only "request access"
+  VIEW_INVOICES:         { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'SA-TA-SUB-1', scope: 'own_tenant' },
+  UPGRADE_PLAN:          { super_admin: true,  tenant_admin: false, admin: false, srsId: 'SA-TA-SUB-2' },
 
   // Dashboard
-  GLOBAL_PLATFORM_STATS: { super_admin: true,  tenant_admin: false, srsId: 'REQ-SA-06' },
-  GROUP_STATS:           { super_admin: true,  tenant_admin: true,  srsId: 'REQ-TA-04', scope: 'own_tenant' },
+  GLOBAL_PLATFORM_STATS: { super_admin: true,  tenant_admin: false, admin: false, srsId: 'REQ-SA-06' },
+  GROUP_STATS:           { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'REQ-TA-04', scope: 'own_tenant' },
 
   // Settings
-  CONFIGURE_LANGUAGES:   { super_admin: true,  tenant_admin: false, srsId: 'REQ-GL-01' }, // super_admin adds new languages
-  CONFIGURE_CURRENCIES:  { super_admin: true,  tenant_admin: true,  srsId: 'REQ-GL-04', scope: 'own_tenant' }, // tenant_admin sets exchange-rate source
+  CONFIGURE_LANGUAGES:   { super_admin: true,  tenant_admin: false, admin: false, srsId: 'REQ-GL-01' },
+  CONFIGURE_CURRENCIES:  { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'REQ-GL-04', scope: 'own_tenant' },
 
   // Security
-  VIEW_AUDIT_LOGS:       { super_admin: true,  tenant_admin: true,  srsId: 'REQ-SEC-06', scope: 'own_tenant' },
-  MANAGE_API_KEYS:       { super_admin: true,  tenant_admin: true,  srsId: 'SA-TA-SEC',  scope: 'own_tenant' },
+  VIEW_AUDIT_LOGS:       { super_admin: true,  tenant_admin: true,  admin: true,  srsId: 'REQ-SEC-06', scope: 'own_tenant' },
+  MANAGE_API_KEYS:       { super_admin: true,  tenant_admin: true,  admin: false, srsId: 'SA-TA-SEC',  scope: 'own_tenant' },
 } as const;
 
 // ----------------------------------------------------------------------------
@@ -216,6 +216,7 @@ export function can(
   if (!role) return false;
   if (role === 'super_admin') return RBAC_MATRIX[action].super_admin;
   if (role === 'tenant_admin') return RBAC_MATRIX[action].tenant_admin;
+  if (role === 'admin') return (RBAC_MATRIX[action] as any).admin ?? false;
   return false;
 }
 
@@ -231,7 +232,7 @@ export function canActOnTenant(
 ): boolean {
   if (!role) return false;
   if (role === 'super_admin') return true;
-  if (role === 'tenant_admin') {
+  if (role === 'tenant_admin' || role === 'admin') {
     return !!callerTenantId && !!targetTenantId && callerTenantId === targetTenantId;
   }
   return false;
@@ -270,6 +271,10 @@ export function listCapabilitiesForRole(role: string): string[] {
     return Object.values(SUPER_ADMIN_PERMISSIONS).map((p) => p.srsId);
   }
   if (role === 'tenant_admin') {
+    return Object.values(TENANT_ADMIN_PERMISSIONS).map((p) => p.srsId);
+  }
+  if (role === 'admin') {
+    // Admin inherits tenant admin capabilities within their scope
     return Object.values(TENANT_ADMIN_PERMISSIONS).map((p) => p.srsId);
   }
   return [];

@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     const requesterId = searchParams.get('requesterId');
     const assignedAgentId = searchParams.get('assignedAgentId');
 
-    const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(decoded.role as string);
+    const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string);
 
     const where: Record<string, unknown> = {};
 

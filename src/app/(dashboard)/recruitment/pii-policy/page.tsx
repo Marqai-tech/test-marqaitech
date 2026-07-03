@@ -101,7 +101,7 @@ const STRATEGY_META: Array<{
 const ROLE_OPTIONS = [
   { value: 'recruiter', label: 'Recruiter' },
   { value: 'recruiter_admin', label: 'Recruiter Admin' },
-  { value: 'hr_admin', label: 'HR Admin' },
+  { value: label: 'HR Admin' },
   { value: 'tenant_admin', label: 'Tenant Admin' },
   { value: 'super_admin', label: 'Super Admin' },
   { value: 'hiring_panel', label: 'Hiring Panel' },
@@ -133,7 +133,7 @@ const DEFAULT_NEW_POLICY: {
 
 export default function PiiPolicyAdminPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [policies, setPolicies] = useState<PolicyRow[]>([]);
   const [loading, setLoading] = useState(true);

@@ -212,7 +212,7 @@ export async function POST(request: Request) {
       const hrUser = await prisma.user.create({
         data: {
           email: hrEmails[i], name: `HR Admin - ${createdCompanies[i].name}`,
-          password: hashedPassword, role: 'company_hr_admin', status: 'active', tenantId: tenant.id,
+          password: hashedPassword, role: 'admin', status: 'active', tenantId: tenant.id,
         },
       });
       createdUsers.push(hrUser);
@@ -237,7 +237,7 @@ export async function POST(request: Request) {
       const empUser = await prisma.user.create({
         data: {
           email: emp.email, name: `${emp.firstName} ${emp.lastName}`,
-          password: hashedPassword, role: 'employee', status: 'active', tenantId: tenant.id,
+          password: hashedPassword, role: 'admin', status: 'active', tenantId: tenant.id,
         },
       });
       createdUsers.push(empUser);

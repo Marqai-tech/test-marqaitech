@@ -112,7 +112,7 @@ const separationWorkflowSteps = [
 /* ── Component ── */
 export default function SeparationPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [separations, setSeparations] = useState<Separation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

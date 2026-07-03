@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    if (!['super_admin', 'tenant_admin', 'hr_admin'].includes(decoded.role)) {
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

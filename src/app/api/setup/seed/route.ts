@@ -411,22 +411,22 @@ export async function POST() {
       db.user.upsert({
         where: { email: 'sarah.j@techcorp.com' },
         update: {},
-        create: { email: 'sarah.j@techcorp.com', password: 'sarah123', name: 'Sarah Johnson', role: 'company_hr_admin', companyId: tcg.id, isActive: true },
+        create: { email: 'sarah.j@techcorp.com', password: 'sarah123', name: 'Sarah Johnson', role: 'admin', companyId: tcg.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'raj.p@techcorp.com' },
         update: {},
-        create: { email: 'raj.p@techcorp.com', password: 'raj123', name: 'Raj Patel', role: 'employee', companyId: tcg.id, isActive: true },
+        create: { email: 'raj.p@techcorp.com', password: 'raj123', name: 'Raj Patel', role: 'admin', companyId: tcg.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'emily.c@techcorp.com' },
         update: {},
-        create: { email: 'emily.c@techcorp.com', password: 'emily123', name: 'Emily Chen', role: 'employee', companyId: tcg.id, isActive: true },
+        create: { email: 'emily.c@techcorp.com', password: 'emily123', name: 'Emily Chen', role: 'admin', companyId: tcg.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'michael.b@techcorp.com' },
         update: {},
-        create: { email: 'michael.b@techcorp.com', password: 'michael123', name: 'Michael Brown', role: 'employee', companyId: tcg.id, isActive: true },
+        create: { email: 'michael.b@techcorp.com', password: 'michael123', name: 'Michael Brown', role: 'admin', companyId: tcg.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'priya.s@manufactpro.com' },
@@ -436,17 +436,17 @@ export async function POST() {
       db.user.upsert({
         where: { email: 'david.w@healthfirst.com' },
         update: {},
-        create: { email: 'david.w@healthfirst.com', password: 'david123', name: 'David Wilson', role: 'employee', companyId: hfs.id, isActive: true },
+        create: { email: 'david.w@healthfirst.com', password: 'david123', name: 'David Wilson', role: 'admin', companyId: hfs.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'aiko.t@logitrans.com' },
         update: {},
-        create: { email: 'aiko.t@logitrans.com', password: 'aiko123', name: 'Aiko Tanaka', role: 'employee', companyId: ltw.id, isActive: true },
+        create: { email: 'aiko.t@logitrans.com', password: 'aiko123', name: 'Aiko Tanaka', role: 'admin', companyId: ltw.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'carlos.r@retailmax.com' },
         update: {},
-        create: { email: 'carlos.r@retailmax.com', password: 'carlos123', name: 'Carlos Rodriguez', role: 'employee', companyId: rmg.id, isActive: true },
+        create: { email: 'carlos.r@retailmax.com', password: 'carlos123', name: 'Carlos Rodriguez', role: 'admin', companyId: rmg.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'lisa.a@techcorp.com' },
@@ -456,7 +456,7 @@ export async function POST() {
       db.user.upsert({
         where: { email: 'arjun.k@manufactpro.com' },
         update: {},
-        create: { email: 'arjun.k@manufactpro.com', password: 'arjun123', name: 'Arjun Kumar', role: 'employee', companyId: mpi.id, isActive: true },
+        create: { email: 'arjun.k@manufactpro.com', password: 'arjun123', name: 'Arjun Kumar', role: 'admin', companyId: mpi.id, isActive: true },
       }),
       db.user.upsert({
         where: { email: 'hr@acme.com' },

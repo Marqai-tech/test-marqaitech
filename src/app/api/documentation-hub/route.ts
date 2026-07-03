@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     }
 
     // RBAC: non-admin users can only see published docs they have permission for
-    if (!['super_admin', 'tenant_admin', 'hr_admin'].includes(userRole)) {
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(userRole)) {
       where.status = 'published';
       where.OR = [
         // Documents with no permissions set (public)
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     const userRole = (decoded as Record<string, unknown>).role as string;
     const userName = (decoded as Record<string, unknown>).name as string;
 
-    if (!['super_admin', 'tenant_admin', 'hr_admin'].includes(userRole)) {
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(userRole)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 

@@ -294,7 +294,7 @@ export async function GET() {
     // ============ DEMO USERS (login page accounts with individual passwords) ============
     const demoUsers = [
       { id: 'user-admin', name: 'Admin 3Boxes', email: 'admin@3boxeshrms.com', role: 'super_admin' },
-      { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@3boxeshrms.com', role: 'hr_admin' },
+      { id: 'user-hr', name: 'Sarah Johnson', email: 'hr@3boxeshrms.com', role: 'admin' },
       { id: 'user-manager', name: 'Priya Sharma', email: 'manager@3boxeshrms.com', role: 'manager' },
       { id: 'user-employee', name: 'Raj Patel', email: 'employee@3boxeshrms.com', role: 'employee' },
       { id: 'user-recruiter', name: 'Kim Chen', email: 'recruiter@3boxeshrms.com', role: 'recruiter' },
@@ -320,7 +320,7 @@ export async function GET() {
 
     // Additional non-demo users (all use admin123 password)
     const additionalUsers = [
-      { id: 'user-sarah', name: 'Sarah Johnson', email: 'sarah.hr@3boxeshrms.com', role: 'hr_admin' },
+      { id: 'user-sarah', name: 'Sarah Johnson', email: 'sarah.hr@3boxeshrms.com', role: 'admin' },
       { id: 'user-john', name: 'John Williams', email: 'john.manager@3boxeshrms.com', role: 'manager' },
       { id: 'user-alice', name: 'Alice Chen', email: 'alice.emp@3boxeshrms.com', role: 'employee' },
       { id: 'user-bob', name: 'Bob Martinez', email: 'bob.dev@3boxeshrms.com', role: 'employee' },
@@ -1325,8 +1325,8 @@ export async function GET() {
 
     // ============ WORKFLOW DEFINITIONS ============
     const workflowData = [
-      { id: 'wf-leave', name: 'Leave Approval', module: 'leave', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: 'hr_admin', isRequired: true }]), version: 1 },
-      { id: 'wf-requisition', name: 'Requisition Approval', module: 'recruitment', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: 'hr_admin', isRequired: true }, { stepNumber: 3, approverRole: 'tenant_admin', isRequired: false }]), version: 1 },
+      { id: 'wf-leave', name: 'Leave Approval', module: 'leave', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: isRequired: true }]), version: 1 },
+      { id: 'wf-requisition', name: 'Requisition Approval', module: 'recruitment', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: isRequired: true }, { stepNumber: 3, approverRole: 'tenant_admin', isRequired: false }]), version: 1 },
     ];
     for (const wf of workflowData) { await prisma.workflowDefinition.upsert({ where: { id: wf.id }, update: {}, create: wf }); }
 
@@ -1402,7 +1402,7 @@ export async function GET() {
       const RBAC_ROLES = [
         { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
         { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
-        { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true },
+        { key: name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true },
         { key: 'manager', name: 'Manager', description: 'Team management access', level: 3, isSystem: true },
         { key: 'employee', name: 'Employee', description: 'Basic employee self-service access', level: 4, isSystem: true },
         { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access', level: 2, isSystem: true },
@@ -1462,7 +1462,7 @@ export async function GET() {
       if (createdRoleIds.candidate) await assignPerms(createdRoleIds.candidate, CAND_MODS, ['view','create']);
 
       // Assign roles to users
-      const roleMapping: Record<string, string> = { super_admin: 'super_admin', hr_admin: 'hr_admin', manager: 'manager', employee: 'employee', recruiter: 'recruiter', candidate: 'candidate' };
+      const roleMapping: Record<string, string> = { super_admin: 'super_admin', hr_admin: manager: 'manager', employee: 'employee', recruiter: 'recruiter', candidate: 'candidate' };
       for (const u of demoUsers) {
         const rKey = roleMapping[u.role];
         if (!rKey || !createdRoleIds[rKey]) continue;

@@ -150,7 +150,7 @@ export default function JobDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [jobPosting, setJobPosting] = useState<JobPosting | null>(null);
   const [loading, setLoading] = useState(true);

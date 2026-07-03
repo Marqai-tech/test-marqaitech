@@ -118,7 +118,7 @@ const initialForm = {
 /* ── Component ── */
 export default function PerformancePage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [reviews, setReviews] = useState<PerformanceReview[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

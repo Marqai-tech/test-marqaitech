@@ -167,7 +167,7 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 
 export default function PayrollProcessingPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   // --- State ---
   const [runs, setRuns] = useState<PayrollRun[]>([]);

@@ -268,7 +268,7 @@ const SAMPLE_EMPLOYEES: Employee[] = [
 export default function EmployeesPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const { effectiveCompanyId, selectedTenantId } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;

@@ -160,7 +160,7 @@ const emptyForm = {
 
 export default function PayrollComponentsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [components, setComponents] = useState<PayrollComponent[]>([]);
   const [loading, setLoading] = useState(true);

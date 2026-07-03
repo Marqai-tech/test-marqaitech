@@ -137,7 +137,7 @@ const emptyForm = {
 
 export default function CTCTemplatesPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [templates, setTemplates] = useState<CTCTemplate[]>([]);
   const [loading, setLoading] = useState(true);

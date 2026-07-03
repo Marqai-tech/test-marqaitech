@@ -73,7 +73,7 @@ export async function GET(request: Request) {
       // privileged role. This is a coarse check — finer permissions can be
       // layered on top via the RBAC tables.
       const callerRole = (decoded.role as string) || '';
-      const privileged = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(
+      const privileged = ['super_admin', 'tenant_admin', 'admin'].includes(
         callerRole
       );
       if (!privileged) {

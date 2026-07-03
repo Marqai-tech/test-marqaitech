@@ -842,7 +842,7 @@ export default function TenantAdminRBACPage() {
                               <div className="flex items-center gap-2">
                                 <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)} className="text-xs px-2 py-1.5 rounded border border-thb-border bg-white">
                                   <option value="">Select role</option>
-                                  {roles.filter((r) => !r.isSystem || r.key === 'hr_admin' || r.key === 'manager' || r.key === 'employee').map((r) => (
+                                  {roles.filter((r) => !r.isSystem || r.key === 'admin' || r.key === 'manager' || r.key === 'employee').map((r) => (
                                     <option key={r.id} value={r.id}>{r.name}{r.company ? ` (${r.company.name})` : ''}</option>
                                   ))}
                                 </select>

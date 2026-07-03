@@ -111,7 +111,7 @@ const biometricWorkflowSteps = [
 /* ── Component ── */
 export default function BiometricPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [tab, setTab] = useState<'devices' | 'enrollments' | 'punches' | 'thresholds'>('devices');
   const [devices, setDevices] = useState<BiometricDevice[]>([]);

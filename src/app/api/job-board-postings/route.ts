@@ -207,7 +207,7 @@ export async function POST(request: Request) {
         const hrAdmins = await prisma.user.findMany({
           where: {
             tenantId: decoded.tenantId as string,
-            role: { in: ['super_admin', 'tenant_admin', 'hr_admin'] },
+            role: { in: ['super_admin', 'tenant_admin', 'admin'] },
           },
         });
         for (const admin of hrAdmins) {

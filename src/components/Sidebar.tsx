@@ -291,7 +291,7 @@ const navSections: NavSection[] = [
       { label: 'OKR Cascade', href: '/okrs', icon: <FiTarget className="w-5 h-5" />, moduleKey: 'performance', isNew: true },
       { label: 'Training', href: '/training', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'training' },
       { label: 'Engagement', href: '/engagement', icon: <FiHeart className="w-5 h-5" />, moduleKey: 'engagement', isNew: true },
-      { label: 'Succession Planning', href: '/succession', icon: <FiTarget className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'hr_admin'], isNew: true },
+      { label: 'Succession Planning', href: '/succession', icon: <FiTarget className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
     ],
   },
   {
@@ -334,7 +334,7 @@ const navSections: NavSection[] = [
     label: 'Assets & IT',
     items: [
       { label: 'Assets', href: '/assets', icon: <FiPackage className="w-5 h-5" />, moduleKey: 'assets' },
-      { label: 'IT Admin Console', href: '/it-admin', icon: <FiMonitor className="w-5 h-5" />, moduleKey: 'it_admin', isNew: true },
+      { label: 'IT Admin Console', href: '/it-admin', icon: <FiMonitor className="w-5 h-5" />, moduleKey: 'it_admin_module', isNew: true },
     ],
   },
   {
@@ -438,7 +438,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const userRole = user?.role || 'employee';
+  const userRole = user?.role || 'admin';
 
   // Filter sections based on user role — uses both explicit roles and canRoleAccessModule
   const filteredSections = useMemo(() => {

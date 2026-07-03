@@ -458,7 +458,7 @@ export async function GET(request: Request) {
     for (const slug of restrictedArticles) {
       const article = await prisma.docArticle.findUnique({ where: { slug } });
       if (article) {
-        for (const role of ['hr_admin', 'tenant_admin', 'super_admin']) {
+        for (const role of ['tenant_admin', 'super_admin']) {
           const existingRule = await prisma.docAccessRule.findFirst({
             where: { articleId: article.id, role },
           });

@@ -287,7 +287,7 @@ export default function OnboardingWalkthrough() {
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
   const [isAnimating, setIsAnimating] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const isAdmin = user?.role === 'tenant_admin' || user?.role === 'hr_admin' || user?.role === 'super_admin';
+  const isAdmin = user?.role === 'tenant_admin' || user?.role === 'admin' || user?.role === 'super_admin';
   const steps = isAdmin ? adminSteps : employeeSteps;
 
   useEffect(() => {

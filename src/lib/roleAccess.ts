@@ -2,14 +2,15 @@
 // Role-Based Access Control Configuration for HRMS Application
 // ============================================================================
 //
-// Standard Roles (7):
+// Standard Roles (3):
 //   1. super_admin  (level 0) - Platform-level full access
 //   2. tenant_admin (level 1) - Tenant-level full access
-//   3. hr_admin      (level 2) - HR management (includes recruitment)
-//   4. finance_admin (level 2) - Finance & payroll management
-//   5. it_admin      (level 2) - IT & asset management
-//   6. manager       (level 3) - Team management
-//   7. employee      (level 4) - Self-service
+//   3. admin        (level 2) - Company-level admin access (HR, Finance, IT combined)
+//
+// All other roles (hr_admin, finance_admin, it_admin, manager, employee,
+// recruiter, candidate, etc.) have been consolidated into these 3 roles.
+// The "admin" role replaces hr_admin, finance_admin, it_admin, and manager
+// for company-level administration needs.
 //
 
 /**
@@ -19,11 +20,7 @@
 export const ROLE_LEVELS: Record<string, number> = {
   super_admin: 0,
   tenant_admin: 1,
-  hr_admin: 2,
-  finance_admin: 2,
-  it_admin: 2,
-  manager: 3,
-  employee: 4,
+  admin: 2,
 };
 
 /**
@@ -31,40 +28,49 @@ export const ROLE_LEVELS: Record<string, number> = {
  * This is the centralized access control configuration for sidebar and page-level guards.
  */
 export const MODULE_ACCESS: Record<string, string[]> = {
-  dashboard: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin', 'manager', 'employee'],
-  employees: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin', 'manager', 'employee'],
-  company: ['super_admin', 'tenant_admin', 'hr_admin'],
-  recruitment: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'],
-  onboarding: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'],
-  attendance: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
-  leave: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
-  payroll: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'employee'],
-  salary_structures: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin'],
-  performance: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
-  training: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
-  engagement: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'],
-  reports: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin'],
-  settings: ['super_admin', 'tenant_admin', 'hr_admin', 'it_admin'],
-  docs: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin', 'manager', 'employee'],
-  helpdesk: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin', 'manager', 'employee'],
-  assets: ['super_admin', 'tenant_admin', 'hr_admin', 'it_admin'],
-  projects: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'],
-  invoices: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin'],
-  expenses: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'manager', 'employee'],
-  travel: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'manager', 'employee'],
-  accounts: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin'],
-  crm: ['super_admin', 'tenant_admin', 'hr_admin', 'manager'],
-  it_admin_module: ['super_admin', 'tenant_admin', 'it_admin'],
-  separation: ['super_admin', 'tenant_admin', 'hr_admin'],
-  grievances: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
+  dashboard: ['super_admin', 'tenant_admin', 'admin'],
+  employees: ['super_admin', 'tenant_admin', 'admin'],
+  company: ['super_admin', 'tenant_admin', 'admin'],
+  recruitment: ['super_admin', 'tenant_admin', 'admin'],
+  onboarding: ['super_admin', 'tenant_admin', 'admin'],
+  attendance: ['super_admin', 'tenant_admin', 'admin'],
+  leave: ['super_admin', 'tenant_admin', 'admin'],
+  payroll: ['super_admin', 'tenant_admin', 'admin'],
+  salary_structures: ['super_admin', 'tenant_admin', 'admin'],
+  performance: ['super_admin', 'tenant_admin', 'admin'],
+  training: ['super_admin', 'tenant_admin', 'admin'],
+  engagement: ['super_admin', 'tenant_admin', 'admin'],
+  reports: ['super_admin', 'tenant_admin', 'admin'],
+  settings: ['super_admin', 'tenant_admin', 'admin'],
+  docs: ['super_admin', 'tenant_admin', 'admin'],
+  helpdesk: ['super_admin', 'tenant_admin', 'admin'],
+  assets: ['super_admin', 'tenant_admin', 'admin'],
+  projects: ['super_admin', 'tenant_admin', 'admin'],
+  invoices: ['super_admin', 'tenant_admin', 'admin'],
+  expenses: ['super_admin', 'tenant_admin', 'admin'],
+  travel: ['super_admin', 'tenant_admin', 'admin'],
+  accounts: ['super_admin', 'tenant_admin', 'admin'],
+  crm: ['super_admin', 'tenant_admin', 'admin'],
+  it_admin_module: ['super_admin', 'tenant_admin', 'admin'],
+  separation: ['super_admin', 'tenant_admin', 'admin'],
+  grievances: ['super_admin', 'tenant_admin', 'admin'],
   super_admin: ['super_admin'],
   tenant_admin_module: ['super_admin', 'tenant_admin'],
   rbac: ['super_admin', 'tenant_admin'],
-  workflows: ['super_admin', 'tenant_admin', 'hr_admin', 'it_admin'],
-  timesheets: ['super_admin', 'tenant_admin', 'hr_admin', 'manager', 'employee'],
-  documents: ['super_admin', 'tenant_admin', 'hr_admin', 'it_admin', 'manager', 'employee'],
-  ai_assistant: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin', 'manager', 'employee'],
-  notifications: ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin', 'it_admin', 'manager', 'employee'],
+  workflows: ['super_admin', 'tenant_admin', 'admin'],
+  timesheets: ['super_admin', 'tenant_admin', 'admin'],
+  documents: ['super_admin', 'tenant_admin', 'admin'],
+  ai_assistant: ['super_admin', 'tenant_admin', 'admin'],
+  notifications: ['super_admin', 'tenant_admin', 'admin'],
+  requisitions: ['super_admin', 'tenant_admin', 'admin'],
+  offers: ['super_admin', 'tenant_admin', 'admin'],
+  job_portal: ['super_admin', 'tenant_admin', 'admin'],
+  ai_interview: ['super_admin', 'tenant_admin', 'admin'],
+  preboarding: ['super_admin', 'tenant_admin', 'admin'],
+  succession: ['super_admin', 'tenant_admin', 'admin'],
+  clients: ['super_admin', 'tenant_admin', 'admin'],
+  vendors: ['super_admin', 'tenant_admin', 'admin'],
+  ai_admin: ['super_admin'],
 };
 
 /**
@@ -81,7 +87,7 @@ export const ROLE_ACCESS_DETAILS: Record<string, {
 }> = {
   super_admin: {
     label: 'Super Admin',
-    description: 'Full system access across all tenants and modules',
+    description: 'Full system access across all tenants and modules — manages platform configuration, RBAC, audit logs, and all tenant operations',
     dashboardAccess: 'full',
     employeeAccess: 'all',
     reportAccess: 'all',
@@ -89,51 +95,19 @@ export const ROLE_ACCESS_DETAILS: Record<string, {
   },
   tenant_admin: {
     label: 'Tenant Admin',
-    description: 'Full access within their tenant',
+    description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations',
     dashboardAccess: 'full',
     employeeAccess: 'all',
     reportAccess: 'all',
     settingsAccess: 'all',
   },
-  hr_admin: {
-    label: 'HR Admin',
-    description: 'HR management — employees, payroll, recruitment, onboarding, leave, and compliance',
+  admin: {
+    label: 'Admin',
+    description: 'Company-level admin access — manages all employees, HR operations, payroll, recruitment, onboarding, IT assets, finance, and compliance within their company',
     dashboardAccess: 'full',
     employeeAccess: 'all',
     reportAccess: 'all',
     settingsAccess: 'module',
-  },
-  finance_admin: {
-    label: 'Finance Admin',
-    description: 'Finance and payroll — payroll processing, expenses, travel, and financial reports',
-    dashboardAccess: 'full',
-    employeeAccess: 'team',
-    reportAccess: 'all',
-    settingsAccess: 'module',
-  },
-  it_admin: {
-    label: 'IT Admin',
-    description: 'IT management — helpdesk, assets, system integrations, and technical configurations',
-    dashboardAccess: 'team',
-    employeeAccess: 'team',
-    reportAccess: 'team',
-    settingsAccess: 'module',
-  },
-  manager: {
-    label: 'Manager',
-    description: 'Team management — views own reportees, approves requests, manages team performance and leave',
-    dashboardAccess: 'team',
-    employeeAccess: 'team',
-    reportAccess: 'team',
-    settingsAccess: 'none',
-  },
-  employee: {
-    label: 'Employee',
-    description: 'Self-service access — own profile, leave, attendance, payslips, and tickets',
-    dashboardAccess: 'self',
-    employeeAccess: 'self',
-    reportAccess: 'self',
-    settingsAccess: 'none',
   },
 };
 
@@ -154,10 +128,7 @@ export function canRoleAccessModule(role: string, moduleKey: string): boolean {
  * - 'self': Access to own records only
  */
 export function getDataScope(role: string): 'all' | 'team' | 'self' {
-  if (['super_admin', 'tenant_admin'].includes(role)) return 'all';
-  if (role === 'hr_admin') return 'all';
-  if (role === 'finance_admin') return 'all';
-  if (['manager', 'it_admin'].includes(role)) return 'team';
+  if (['super_admin', 'tenant_admin', 'admin'].includes(role)) return 'all';
   return 'self';
 }
 
@@ -204,26 +175,55 @@ export function getAccessibleModules(role: string): string[] {
  * Check if a role can create/edit content in the docs module.
  */
 export function canManageDocs(role: string): boolean {
-  return ['super_admin', 'hr_admin', 'tenant_admin'].includes(role);
+  return ['super_admin', 'admin', 'tenant_admin'].includes(role);
 }
 
 /**
  * Check if a role can access statutory reports.
  */
 export function canAccessStatutoryReports(role: string): boolean {
-  return ['super_admin', 'tenant_admin', 'hr_admin', 'finance_admin'].includes(role);
+  return ['super_admin', 'tenant_admin', 'admin'].includes(role);
 }
 
 /**
  * Check if a role can access AI reports.
  */
 export function canAccessAIReports(role: string): boolean {
-  return ['super_admin', 'tenant_admin', 'hr_admin'].includes(role);
+  return ['super_admin', 'tenant_admin', 'admin'].includes(role);
 }
 
 /**
  * Check if a role can see the full employee list (all departments).
  */
 export function canSeeAllEmployees(role: string): boolean {
-  return ['super_admin', 'tenant_admin', 'hr_admin'].includes(role);
+  return ['super_admin', 'tenant_admin', 'admin'].includes(role);
+}
+
+/**
+ * Legacy role migration map — maps old role keys to the new 3-role system.
+ * Used for migrating existing users and role assignments.
+ */
+export const LEGACY_ROLE_MAP: Record<string, string> = {
+  super_admin: 'super_admin',
+  tenant_admin: 'tenant_admin',
+  hr_admin: 'admin',
+  company_hr_admin: 'admin',
+  finance_admin: 'admin',
+  finance: 'admin',
+  it_admin: 'admin',
+  manager: 'admin',
+  employee: 'admin',
+  recruiter: 'admin',
+  candidate: 'admin',
+  job_seeker: 'admin',
+  admin: 'admin',
+  hrhead: 'admin',
+  recruitmenthead: 'admin',
+};
+
+/**
+ * Get the new role for a legacy role key.
+ */
+export function migrateRole(legacyRole: string): string {
+  return LEGACY_ROLE_MAP[legacyRole] || 'admin';
 }

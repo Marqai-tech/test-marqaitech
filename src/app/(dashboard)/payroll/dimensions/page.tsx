@@ -107,7 +107,7 @@ const emptyForm = {
 
 export default function DimensionsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [dimensions, setDimensions] = useState<DimensionDefinition[]>([]);
   const [loading, setLoading] = useState(true);

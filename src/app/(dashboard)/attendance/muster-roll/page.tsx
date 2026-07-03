@@ -92,7 +92,7 @@ function getMonthName(month: number) {
 export default function MusterRollPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Map<string, Map<string, AttendanceRecord>>>(new Map());

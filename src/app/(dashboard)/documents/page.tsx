@@ -127,7 +127,7 @@ const initialForm = {
 /* ── Component ── */
 export default function DocumentsPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

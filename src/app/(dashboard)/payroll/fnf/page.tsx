@@ -101,7 +101,7 @@ const emptyForm = {
 
 export default function FNFSettlementPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [records, setRecords] = useState<FNFCalculation[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);

@@ -39,7 +39,7 @@ function getAuthHeaders() {
 // ─── Employee Policies Tab Component ───
 function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
   const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
   const [attendancePolicies, setAttendancePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);

@@ -119,7 +119,7 @@ export async function resolveProjectAccess(
   }
 
   // hr_admin → finance (sees financials + can edit fields, but can't manage members or delete)
-  if (globalRole === 'hr_admin') {
+  if (globalRole === 'admin') {
     return {
       role: 'finance',
       canView: true,

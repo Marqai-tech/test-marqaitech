@@ -85,7 +85,7 @@ export async function PUT(request: NextRequest) {
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const userRole = (decoded as Record<string, unknown>).role as string;
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'hr_admin') {
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       return Response.json({ error: 'Only HR/Admin can update salary settings' }, { status: 403, headers: corsHeaders });
     }
 

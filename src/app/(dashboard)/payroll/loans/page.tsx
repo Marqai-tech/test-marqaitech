@@ -126,7 +126,7 @@ function calculateEMI(principal: number, rate: number, months: number): number {
 
 export default function LoansPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [loans, setLoans] = useState<Loan[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);

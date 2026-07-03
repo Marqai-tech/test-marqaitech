@@ -59,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Only admin/HR can approve/reject
     if ((body.status === 'APPROVED' || body.status === 'REJECTED') &&
-        userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'hr_admin') {
+        userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       return Response.json({ error: 'Only HR/Admin can approve or reject declarations' }, { status: 403, headers: corsHeaders });
     }
 

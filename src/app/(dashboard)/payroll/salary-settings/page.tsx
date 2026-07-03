@@ -69,7 +69,7 @@ function SettingSection({ title, icon, enabled, onToggle, children }: {
 
 export default function SalarySettingsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [settings, setSettings] = useState<SalarySettings>(defaultSettings);
   const [loading, setLoading] = useState(true);

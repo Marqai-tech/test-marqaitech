@@ -103,7 +103,7 @@ function getDemoEmployees() {
       department: departments[deptIdx],
       designation: designations[desigIdx],
       branch: branches[branchIdx],
-      user: { id: `user-${i + 1}`, email: `${name.firstName.toLowerCase()}.${name.lastName.toLowerCase()}@3boxestech.com`, role: i === 0 ? 'super_admin' : i < 3 ? 'hr_admin' : 'employee', avatar: null },
+      user: { id: `user-${i + 1}`, email: `${name.firstName.toLowerCase()}.${name.lastName.toLowerCase()}@3boxestech.com`, role: i === 0 ? 'super_admin' : i < 3 ? 'admin' : 'employee', avatar: null },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -199,7 +199,7 @@ export async function GET(request: Request) {
           if (ownEmp) {
             where.departmentId = ownEmp.departmentId;
           }
-        } else if (userRole === 'hr_admin') {
+        } else if (userRole === 'admin') {
           where.user = { role: { not: 'super_admin' } };
         }
       }

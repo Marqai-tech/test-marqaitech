@@ -149,7 +149,7 @@ export async function PATCH(
       if (notificationInfo) {
         // Notify the HR admin / approvers
         const hrAdmins = await prisma.user.findMany({
-          where: { tenantId: decoded.tenantId as string, role: { in: ['hr_admin', 'tenant_admin'] } },
+          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin'] } },
         });
 
         for (const admin of hrAdmins) {

@@ -72,7 +72,7 @@ type TabType = 'calculator' | 'declarations';
 
 export default function IncomeTaxPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<TabType>('calculator');
   const [taxInput, setTaxInput] = useState<TaxInput>(defaultTaxInput);

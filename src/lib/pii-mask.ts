@@ -56,7 +56,7 @@ export type PiiField = (typeof PII_FIELDS)[number];
 const DEFAULT_RECRUITER_ROLES = new Set([
   'recruiter',
   'recruiter_admin',
-  'hr_admin',
+  'admin',
   'tenant_admin',
   'super_admin',
 ]);

@@ -23,7 +23,7 @@ interface CompOff {
 
 export default function CompOffPage() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<CompOff[]>([]);
   const [loading, setLoading] = useState(true);

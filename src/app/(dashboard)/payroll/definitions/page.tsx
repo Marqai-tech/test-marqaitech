@@ -115,7 +115,7 @@ const emptyForm = {
 
 export default function PayrollDefinitionsPage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'hr_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [definitions, setDefinitions] = useState<PayrollDefinition[]>([]);
   const [loading, setLoading] = useState(true);
