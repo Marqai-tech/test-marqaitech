@@ -61,21 +61,19 @@ const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
 const SYSTEM_ROLES = [
   { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants — manages platform configuration, RBAC, audit logs, and all tenant operations', level: 0, isSystem: true, tenantId: null as string | null },
   { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations', level: 1, isSystem: true, tenantId: null as string | null },
-  { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant — manages all employees, payroll, recruitment, onboarding, leave, and compliance', level: 2, isSystem: true },
-  { key: 'finance', name: 'Finance Manager', description: 'Finance and payroll access — manages payroll processing, expenses, travel, financial reports, and bank file generation', level: 2, isSystem: true },
-  { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access — manages job postings, candidate pipeline, interviews, and offers', level: 2, isSystem: true },
+  { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access — manages all employees, payroll, recruitment, onboarding, leave, and compliance', level: 2, isSystem: true },
+  { key: 'finance_admin', name: 'Finance Administrator', description: 'Finance and payroll access — manages payroll processing, expenses, travel, financial reports, and bank file generation', level: 2, isSystem: true },
   { key: 'it_admin', name: 'IT Administrator', description: 'IT management access — manages helpdesk, assets, system integrations, and technical configurations', level: 2, isSystem: true },
   { key: 'manager', name: 'Manager', description: 'Team management access — views own reportees, approves requests, manages team performance and leave', level: 3, isSystem: true },
   { key: 'employee', name: 'Employee', description: 'Basic employee self-service access — views own profile, applies leave, checks attendance, views payslips, raises tickets', level: 4, isSystem: true },
-  { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access — views open positions, applies for jobs, attends AI interviews', level: 5, isSystem: true },
 ];
 
 // HR Admin: Full access to all HR modules (employees, payroll, recruitment, etc.) but NOT super_admin/tenant_admin modules
 const HR_ADMIN_MODULES = ['dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance', 'leave', 'timesheets', 'payroll', 'salary_structures', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'grievances', 'ai_assistant', 'docs', 'workflows', 'reports', 'notifications', 'settings'];
 const HR_ADMIN_FULL_ACTIONS_MODULES = ['employees', 'company', 'recruitment', 'requisitions', 'offers', 'onboarding', 'preboarding', 'payroll', 'salary_structures', 'attendance', 'leave', 'performance', 'training', 'engagement', 'helpdesk', 'grievances', 'documents', 'settings'];
 
-// Finance: Payroll processing, expenses, travel, financial reports
-const FINANCE_MODULES = ['dashboard', 'employees', 'payroll', 'salary_structures', 'expenses', 'travel', 'reports', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'];
+// Finance Admin: Payroll processing, expenses, travel, financial reports
+const FINANCE_ADMIN_MODULES = ['dashboard', 'employees', 'payroll', 'salary_structures', 'expenses', 'travel', 'reports', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'];
 
 // Manager: View own reportees, approve requests, team performance (NO access to other managers' teams or admin settings)
 const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 'attendance', 'leave', 'timesheets', 'performance', 'training', 'engagement', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects', 'expenses', 'travel'];
@@ -84,14 +82,8 @@ const MANAGER_MODULES = ['dashboard', 'employees', 'recruitment', 'onboarding', 
 const EMPLOYEE_MODULES = ['dashboard', 'employees', 'leave', 'attendance', 'timesheets', 'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'expenses', 'travel', 'training', 'payroll', 'performance'];
 const EMPLOYEE_VIEW_ONLY_MODULES = ['employees', 'payroll', 'performance'];
 
-// Recruiter: Recruitment pipeline access
-const RECRUITER_MODULES = ['dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant', 'reports'];
-
 // IT Admin: Helpdesk management, assets, system configuration
 const IT_ADMIN_MODULES = ['dashboard', 'employees', 'helpdesk', 'assets', 'documents', 'workflows', 'settings', 'notifications', 'ai_assistant', 'docs', 'reports'];
-
-// Candidate: Job portal and interview only
-const CANDIDATE_MODULES = ['job_portal', 'ai_interview', 'docs', 'notifications'];
 
 async function seedRBACData(userId?: string) {
   let modulesCreated = 0, permissionsCreated = 0, rolesCreated = 0, rolePermissionsCreated = 0, userRoleAssignmentsCreated = 0;
@@ -161,10 +153,10 @@ async function seedRBACData(userId?: string) {
     const hrViewOnlyModules = HR_ADMIN_MODULES.filter((m) => !HR_ADMIN_FULL_ACTIONS_MODULES.includes(m));
     await assignPermissions(createdRoles.hr_admin, hrViewOnlyModules, ['view', 'create', 'edit', 'export']);
   }
-  if (createdRoles.finance) {
-    // Finance: full actions on payroll/expenses/travel, view on others
-    await assignPermissions(createdRoles.finance, ['payroll', 'salary_structures', 'expenses', 'travel'], ['view', 'create', 'edit', 'export', 'approve']);
-    await assignPermissions(createdRoles.finance, ['dashboard', 'employees', 'reports', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'], ['view']);
+  if (createdRoles.finance_admin) {
+    // Finance Admin: full actions on payroll/expenses/travel, view on others
+    await assignPermissions(createdRoles.finance_admin, ['payroll', 'salary_structures', 'expenses', 'travel', 'reports'], ['view', 'create', 'edit', 'delete', 'export', 'approve']);
+    await assignPermissions(createdRoles.finance_admin, ['dashboard', 'employees', 'notifications', 'docs', 'helpdesk', 'ai_assistant', 'settings'], ['view']);
   }
   if (createdRoles.manager) {
     // Manager: view/create/edit/approve on team-related modules, view-only on others
@@ -177,18 +169,13 @@ async function seedRBACData(userId?: string) {
     await assignPermissions(createdRoles.employee, ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'], ['view', 'create', 'edit']);
     await assignPermissions(createdRoles.employee, ['dashboard', 'attendance', 'documents', 'ai_assistant', 'docs', 'notifications'], ['view']);
   }
-  if (createdRoles.recruiter) {
-    await assignPermissions(createdRoles.recruiter, ['recruitment', 'requisitions', 'offers', 'job_portal', 'ai_interview'], ['view', 'create', 'edit', 'export']);
-    await assignPermissions(createdRoles.recruiter, ['dashboard', 'employees', 'docs', 'notifications', 'ai_assistant', 'reports'], ['view']);
-  }
   if (createdRoles.it_admin) {
     await assignPermissions(createdRoles.it_admin, ['helpdesk', 'assets', 'workflows', 'settings'], ['view', 'create', 'edit', 'delete', 'export']);
     await assignPermissions(createdRoles.it_admin, ['dashboard', 'employees', 'documents', 'notifications', 'ai_assistant', 'docs', 'reports'], ['view']);
   }
-  if (createdRoles.candidate) await assignPermissions(createdRoles.candidate, CANDIDATE_MODULES, ['view', 'create']);
 
   const users = await prisma.user.findMany();
-  const roleKeyMap: Record<string, string> = { super_admin: 'super_admin', tenant_admin: 'tenant_admin', hr_admin: 'hr_admin', finance: 'finance', manager: 'manager', employee: 'employee', recruiter: 'recruiter', it_admin: 'it_admin', candidate: 'candidate' };
+  const roleKeyMap: Record<string, string> = { super_admin: 'super_admin', tenant_admin: 'tenant_admin', hr_admin: 'hr_admin', company_hr_admin: 'hr_admin', finance_admin: 'finance_admin', finance: 'finance_admin', manager: 'manager', employee: 'employee', recruiter: 'hr_admin', candidate: 'employee', it_admin: 'it_admin' };
   for (const user of users) {
     const roleKey = roleKeyMap[user.role];
     if (!roleKey || !createdRoles[roleKey]) continue;

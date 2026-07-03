@@ -940,7 +940,7 @@ function FinanceHome({ firstName, greeting, today }: { firstName: string; greeti
   return (
     <div className="space-y-6">
       <RoleHero
-        role="finance"
+        role="finance_admin"
         firstName={firstName}
         greeting={greeting}
         today={today}
@@ -1336,10 +1336,7 @@ export default function HomePage() {
   if (role === 'manager') {
     return <ManagerHome {...heroProps} />;
   }
-  if (role === 'recruiter') {
-    return <RecruiterHome {...heroProps} />;
-  }
-  if (role === 'finance') {
+  if (role === 'finance_admin') {
     return <FinanceHome {...heroProps} />;
   }
   if (role === 'it_admin') {

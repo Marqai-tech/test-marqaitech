@@ -44,8 +44,7 @@ export type HrmsRole =
   | 'hr_admin'
   | 'manager'
   | 'employee'
-  | 'recruiter'
-  | 'finance'
+  | 'finance_admin'
   | 'it_admin';
 
 // ============================================================================
@@ -80,12 +79,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Financial Snapshot',
         description: 'Finance users see a financial snapshot widget with pending payroll runs, expense approvals, and budget utilization summaries.',
-        roles: ['finance', 'hr_admin', 'tenant_admin'],
+        roles: ['finance_admin', 'hr_admin', 'tenant_admin'],
       },
       {
         title: 'Recruitment Pipeline Summary',
         description: 'Recruiters see an at-a-glance view of open positions, candidates in pipeline, and upcoming interviews right on the dashboard.',
-        roles: ['recruiter', 'hr_admin'],
+        roles: ['hr_admin', 'hr_admin'],
       },
     ],
     workflowSteps: [
@@ -106,7 +105,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Review Pending Approvals',
         description: 'Check the approvals queue for leave, expense, or timesheet requests from your team',
         route: '/dashboard',
-        roles: ['manager', 'hr_admin', 'finance'],
+        roles: ['manager', 'hr_admin', 'finance_admin'],
       },
       {
         step: 3,
@@ -120,7 +119,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Check Payroll Status',
         description: 'View the current payroll processing status and any pending runs',
         route: '/payroll',
-        roles: ['finance', 'hr_admin'],
+        roles: ['finance_admin', 'hr_admin'],
       },
       {
         step: 4,
@@ -133,7 +132,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Explore Reports',
         description: 'Navigate to the Reports module for deeper analytics and data insights',
         route: '/reports',
-        roles: ['manager', 'hr_admin', 'finance', 'tenant_admin', 'super_admin'],
+        roles: ['manager', 'hr_admin', 'finance_admin', 'tenant_admin', 'super_admin'],
       },
     ],
     workflowTitle: 'Getting Started with Dashboard',
@@ -228,7 +227,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Generate Reports',
         description: 'Export employee data or generate headcount reports for HR analytics',
         route: '/reports',
-        roles: ['hr_admin', 'finance', 'tenant_admin', 'super_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin', 'super_admin'],
       },
     ],
     workflowTitle: 'Managing Employees',
@@ -335,27 +334,27 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Job Requisition Workflow',
         description: 'All hiring starts with a job requisition. Managers raise requisitions, which are approved by department heads and HR before a job posting is created.',
-        roles: ['manager', 'hr_admin', 'recruiter'],
+        roles: ['manager', 'hr_admin', 'hr_admin'],
       },
       {
         title: 'AI-Powered Candidate Screening',
         description: 'Use the AI screening feature to automatically rank candidates based on job description match, reducing manual screening time by up to 70%.',
-        roles: ['recruiter', 'hr_admin'],
+        roles: ['hr_admin', 'hr_admin'],
       },
       {
         title: 'Interview Scheduling',
         description: 'Schedule interviews directly from the candidate profile. The system sends calendar invites to interviewers and automated reminders to candidates.',
-        roles: ['recruiter', 'hr_admin', 'manager'],
+        roles: ['hr_admin', 'hr_admin', 'manager'],
       },
       {
         title: 'Pipeline Management',
         description: 'Track candidates through each stage of the hiring pipeline—Applied, Screening, Interview, Offer, Hired—with drag-and-drop Kanban boards.',
-        roles: ['recruiter', 'hr_admin', 'manager'],
+        roles: ['hr_admin', 'hr_admin', 'manager'],
       },
       {
         title: 'Offer Letter Generation',
         description: 'Generate offer letters from templates with pre-filled compensation details, joining dates, and terms. Send digitally for e-signature.',
-        roles: ['hr_admin', 'recruiter', 'tenant_admin'],
+        roles: ['hr_admin', 'hr_admin', 'tenant_admin'],
       },
       {
         title: 'Referral Tracking',
@@ -390,35 +389,35 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Post Job Opening',
         description: 'Create a job posting with detailed JD, requirements, and publish to job portals',
         route: '/recruitment',
-        roles: ['recruiter', 'hr_admin'],
+        roles: ['hr_admin', 'hr_admin'],
       },
       {
         step: 4,
         title: 'Screen Candidates',
         description: 'Review applications, use AI screening, and shortlist candidates for interviews',
         route: '/recruitment',
-        roles: ['recruiter', 'hr_admin'],
+        roles: ['hr_admin', 'hr_admin'],
       },
       {
         step: 5,
         title: 'Conduct Interviews',
         description: 'Schedule and conduct interviews, collect feedback from interviewers',
         route: '/recruitment',
-        roles: ['recruiter', 'manager', 'hr_admin'],
+        roles: ['hr_admin', 'manager', 'hr_admin'],
       },
       {
         step: 6,
         title: 'Generate Offer',
         description: 'Create and send the offer letter with compensation breakdown and joining details',
         route: '/offers',
-        roles: ['hr_admin', 'recruiter'],
+        roles: ['hr_admin', 'hr_admin'],
       },
       {
         step: 7,
         title: 'Initiate Onboarding',
         description: 'Convert accepted candidates to employees and trigger the onboarding workflow',
         route: '/onboarding',
-        roles: ['hr_admin', 'recruiter'],
+        roles: ['hr_admin', 'hr_admin'],
       },
     ],
     workflowTitle: 'End-to-End Recruitment Process',
@@ -558,7 +557,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Attendance Reports & Compliance',
         description: 'Generate attendance summaries, overtime reports, and compliance reports for payroll processing and statutory requirements.',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
     ],
     workflowSteps: [
@@ -616,7 +615,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Generate Reports',
         description: 'Export attendance data for payroll processing and compliance filing',
         route: '/reports',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
     ],
     workflowTitle: 'Attendance Management Workflow',
@@ -657,7 +656,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Leave Encashment & Settlement',
         description: 'Process leave encashment during payroll or full-and-final settlement. Configurable rules determine which leave types are encashable.',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
     ],
     workflowSteps: [
@@ -701,14 +700,14 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Leave Deduction in Payroll',
         description: 'Unpaid leaves and LOP days are automatically reflected in payroll calculations',
         route: '/payroll',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         step: 6,
         title: 'Leave Encashment',
         description: 'Process leave encashment for eligible employees during year-end or separation',
         route: '/payroll',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
     ],
     workflowTitle: 'Leave Management Workflow',
@@ -739,17 +738,17 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Payroll Processing Cycle',
         description: 'The payroll cycle includes: verify attendance → collect inputs → validate data → run payroll → review → lock → generate payslips. Follow each step in order.',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         title: 'Tax & Statutory Compliance',
         description: 'Configure tax slabs, PF, ESI, TDS, and professional tax settings. The system auto-calculates statutory deductions during payroll processing.',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
       {
         title: 'Payroll Reports & Bank Files',
         description: 'Generate salary registers, statutory reports (PF ECR, ESI, TDS), and bank payment files after locking the payroll run.',
-        roles: ['finance', 'hr_admin', 'tenant_admin'],
+        roles: ['finance_admin', 'hr_admin', 'tenant_admin'],
       },
     ],
     workflowSteps: [
@@ -786,28 +785,28 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Collect Payroll Inputs',
         description: 'Gather attendance, leave, overtime, and variable inputs for the payroll period',
         route: '/payroll/inputs',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         step: 5,
         title: 'Run Payroll',
         description: 'Execute the payroll run, review calculations, and validate for errors',
         route: '/payroll/processing',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         step: 6,
         title: 'Review & Lock',
         description: 'Review payroll registers, resolve validation errors, and lock the payroll run',
         route: '/payroll/validations',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         step: 7,
         title: 'Generate Payslips & Reports',
         description: 'Publish payslips for employees and generate bank files and statutory reports',
         route: '/payroll/payslips',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
     ],
     workflowTitle: 'How to Process Payroll',
@@ -1218,12 +1217,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Travel Advance Processing',
         description: 'Process travel advances through payroll or direct payment. Advances are reconciled against actual expenses after the trip.',
-        roles: ['finance', 'hr_admin'],
+        roles: ['finance_admin', 'hr_admin'],
       },
       {
         title: 'Travel Policy Configuration',
         description: 'Define travel policies including class of travel, accommodation limits, per diem rates, and approval thresholds by grade and destination.',
-        roles: ['hr_admin', 'tenant_admin', 'finance'],
+        roles: ['hr_admin', 'tenant_admin', 'finance_admin'],
       },
     ],
     workflowSteps: [
@@ -1232,7 +1231,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Travel Policy',
         description: 'Define travel rules, per diem rates, and approval thresholds by grade',
         route: '/travel',
-        roles: ['hr_admin', 'tenant_admin', 'finance'],
+        roles: ['hr_admin', 'tenant_admin', 'finance_admin'],
       },
       {
         step: 1,
@@ -1253,7 +1252,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Process Travel Advance',
         description: 'Issue travel advance payment if applicable based on policy',
         route: '/travel',
-        roles: ['finance'],
+        roles: ['finance_admin'],
       },
       {
         step: 4,
@@ -1274,7 +1273,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Reconcile Expenses',
         description: 'Compare actual expenses with advances and process reimbursement or recovery',
         route: '/expenses',
-        roles: ['finance'],
+        roles: ['finance_admin'],
       },
     ],
     workflowTitle: 'Business Travel Management',
@@ -1305,17 +1304,17 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Finance Review & Reimbursement',
         description: 'Finance team reviews approved expenses, verifies accounting codes, processes reimbursements through payroll or direct payment.',
-        roles: ['finance'],
+        roles: ['finance_admin'],
       },
       {
         title: 'Expense Analytics',
         description: 'Track expense trends by department, category, and employee. Identify cost-saving opportunities and policy violation patterns.',
-        roles: ['finance', 'hr_admin', 'tenant_admin'],
+        roles: ['finance_admin', 'hr_admin', 'tenant_admin'],
       },
       {
         title: 'Expense Policy Configuration',
         description: 'Define expense categories, spending limits, required documentation, and multi-level approval thresholds by employee grade.',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
     ],
     workflowSteps: [
@@ -1324,7 +1323,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Configure Expense Policy',
         description: 'Set up expense categories, limits, and approval rules by grade',
         route: '/expenses',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
       {
         step: 1,
@@ -1345,14 +1344,14 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Finance Review',
         description: 'Verify accounting codes, tax calculations, and receipt authenticity',
         route: '/expenses',
-        roles: ['finance'],
+        roles: ['finance_admin'],
       },
       {
         step: 4,
         title: 'Process Reimbursement',
         description: 'Schedule reimbursement through payroll or direct bank transfer',
         route: '/expenses',
-        roles: ['finance'],
+        roles: ['finance_admin'],
       },
       {
         step: 5,
@@ -1395,12 +1394,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Asset Depreciation Tracking',
         description: 'Finance can track asset depreciation for accounting purposes. The system calculates depreciation schedules and provides reports for financial statements.',
-        roles: ['finance', 'tenant_admin'],
+        roles: ['finance_admin', 'tenant_admin'],
       },
       {
         title: 'Audit & Compliance',
         description: 'Conduct periodic asset audits, generate asset tracking reports, and ensure all assets are accounted for and properly assigned.',
-        roles: ['it_admin', 'finance', 'super_admin'],
+        roles: ['it_admin', 'finance_admin', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -1451,7 +1450,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Depreciation & Audit',
         description: 'Calculate asset depreciation and generate audit reports for compliance',
         route: '/reports',
-        roles: ['finance', 'it_admin'],
+        roles: ['finance_admin', 'it_admin'],
       },
     ],
     workflowTitle: 'Asset Management Lifecycle',
@@ -1572,7 +1571,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Client Billing Integration',
         description: 'Map project hours to client billing rates, generate invoices, and track receivables. Timesheet approvals trigger billing events automatically.',
-        roles: ['finance', 'manager'],
+        roles: ['finance_admin', 'manager'],
       },
       {
         title: 'Project Portfolio Management',
@@ -1628,7 +1627,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Client Billing',
         description: 'Generate invoices based on approved timesheets and billing rates',
         route: '/projects',
-        roles: ['finance'],
+        roles: ['finance_admin'],
       },
       {
         step: 7,
@@ -1743,7 +1742,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Pre-Built Report Library',
         description: 'Access a library of pre-built HR, payroll, attendance, and compliance reports. Filter by date range, department, location, and employee status.',
-        roles: ['hr_admin', 'finance', 'tenant_admin', 'super_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin', 'super_admin'],
       },
       {
         title: 'View Personal Reports',
@@ -1758,12 +1757,12 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Custom Report Builder',
         description: 'Create custom reports by selecting data fields, filters, grouping, and chart types. Save custom reports for reuse and schedule automated generation.',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
       {
         title: 'Compliance & Statutory Reports',
         description: 'Generate statutory compliance reports including PF ECR, ESI, TDS, Professional Tax, and labor law returns for government filing.',
-        roles: ['finance', 'hr_admin'],
+        roles: ['finance_admin', 'hr_admin'],
       },
       {
         title: 'AI-Powered Insights',
@@ -1783,7 +1782,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Select Report Type',
         description: 'Choose from pre-built reports or start a custom report from scratch',
         route: '/reports',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
       {
         step: 2,
@@ -1803,21 +1802,21 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Generate & Preview',
         description: 'Run the report and preview results with interactive charts and tables',
         route: '/reports',
-        roles: ['hr_admin', 'finance', 'manager'],
+        roles: ['hr_admin', 'finance_admin', 'manager'],
       },
       {
         step: 5,
         title: 'Export & Share',
         description: 'Export reports as PDF, Excel, or CSV and share with stakeholders',
         route: '/reports',
-        roles: ['hr_admin', 'finance', 'tenant_admin', 'super_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin', 'super_admin'],
       },
       {
         step: 6,
         title: 'Schedule Recurring Reports',
         description: 'Set up automated report generation on a daily, weekly, or monthly schedule',
         route: '/reports',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
       {
         step: 7,
@@ -1860,7 +1859,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Full & Final Settlement',
         description: 'Process the F&F settlement including pending salary, leave encashment, bonus, deductions, loan recoveries, and asset returns. The system auto-calculates based on configured rules.',
-        roles: ['hr_admin', 'finance', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin'],
       },
       {
         title: 'Knowledge Transfer & Handover',
@@ -1923,7 +1922,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'F&F Settlement',
         description: 'Process full and final settlement including leave encashment, pending dues, and recoveries',
         route: '/fnf',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         step: 8,
@@ -1970,7 +1969,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Compliance & Audit Trail',
         description: 'All grievance actions are logged with full audit trails for legal compliance. Reports show resolution rates, average time-to-resolution, and category trends for organizational improvement.',
-        roles: ['hr_admin', 'finance', 'tenant_admin', 'super_admin'],
+        roles: ['hr_admin', 'finance_admin', 'tenant_admin', 'super_admin'],
       },
     ],
     workflowSteps: [
@@ -2059,7 +2058,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Project & Billing Integration',
         description: 'Timesheets integrate with project management and billing. Billable hours flow into client invoices, and project dashboards show actual vs. estimated effort.',
-        roles: ['manager', 'finance', 'hr_admin'],
+        roles: ['manager', 'finance_admin', 'hr_admin'],
       },
       {
         title: 'Timesheet Policies & Compliance',
@@ -2069,7 +2068,7 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
       {
         title: 'Time Tracking Reports',
         description: 'Generate reports on time utilization, project profitability, employee productivity, and billing accuracy. Identify trends in overtime, under-utilization, and project overruns.',
-        roles: ['hr_admin', 'finance', 'manager', 'tenant_admin'],
+        roles: ['hr_admin', 'finance_admin', 'manager', 'tenant_admin'],
       },
     ],
     workflowSteps: [
@@ -2120,14 +2119,14 @@ export const roleTipsConfig: Record<string, RoleTipsConfig> = {
         title: 'Sync with Payroll & Billing',
         description: 'Approved timesheet data flows into payroll for overtime calculation and billing for client invoicing',
         route: '/payroll',
-        roles: ['hr_admin', 'finance'],
+        roles: ['hr_admin', 'finance_admin'],
       },
       {
         step: 7,
         title: 'Generate Time Reports',
         description: 'Analyze time utilization, project costing, and productivity metrics',
         route: '/reports',
-        roles: ['manager', 'hr_admin', 'finance'],
+        roles: ['manager', 'hr_admin', 'finance_admin'],
       },
     ],
     workflowTitle: 'Timesheet Management Workflow',
