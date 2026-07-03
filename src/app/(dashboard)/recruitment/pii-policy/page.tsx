@@ -101,7 +101,7 @@ const STRATEGY_META: Array<{
 const ROLE_OPTIONS = [
   { value: 'recruiter', label: 'Recruiter' },
   { value: 'recruiter_admin', label: 'Recruiter Admin' },
-  { value: label: 'HR Admin' },
+  { value: 'admin', label: 'HR Admin' },
   { value: 'tenant_admin', label: 'Tenant Admin' },
   { value: 'super_admin', label: 'Super Admin' },
   { value: 'hiring_panel', label: 'Hiring Panel' },

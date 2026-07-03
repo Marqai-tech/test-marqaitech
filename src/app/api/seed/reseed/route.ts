@@ -143,11 +143,9 @@ export async function POST(request: Request) {
 
       const demoUsers = [
         { email: 'admin@3boxeshrms.com', name: 'Admin 3Boxes', role: 'super_admin', password: passwordHashes[0] },
-        { email: 'hr@3boxeshrms.com', name: 'Sarah Johnson', role: password: passwordHashes[1] },
-        { email: 'manager@3boxeshrms.com', name: 'Priya Sharma', role: 'manager', password: passwordHashes[2] },
-        { email: 'employee@3boxeshrms.com', name: 'Raj Patel', role: 'employee', password: passwordHashes[3] },
-        { email: 'recruiter@3boxeshrms.com', name: 'Kim Chen', role: 'recruiter', password: passwordHashes[4] },
-        { email: 'candidate@3boxeshrms.com', name: 'Alex Turner', role: 'candidate', password: passwordHashes[5] },
+        { email: 'hr@3boxeshrms.com', name: 'Sarah Johnson', role: 'admin', password: passwordHashes[1] },
+        { email: 'manager@3boxeshrms.com', name: 'Priya Sharma', role: 'admin', password: passwordHashes[2] },
+        { email: 'employee@3boxeshrms.com', name: 'Raj Patel', role: 'admin', password: passwordHashes[3] },
       ];
 
       const upsertedUsers = [];

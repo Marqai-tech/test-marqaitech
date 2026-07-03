@@ -1325,8 +1325,8 @@ export async function GET() {
 
     // ============ WORKFLOW DEFINITIONS ============
     const workflowData = [
-      { id: 'wf-leave', name: 'Leave Approval', module: 'leave', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: isRequired: true }]), version: 1 },
-      { id: 'wf-requisition', name: 'Requisition Approval', module: 'recruitment', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'manager', isRequired: true }, { stepNumber: 2, approverRole: isRequired: true }, { stepNumber: 3, approverRole: 'tenant_admin', isRequired: false }]), version: 1 },
+      { id: 'wf-leave', name: 'Leave Approval', module: 'leave', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'admin', isRequired: true }, { stepNumber: 2, approverRole: 'admin', isRequired: true }]), version: 1 },
+      { id: 'wf-requisition', name: 'Requisition Approval', module: 'recruitment', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'admin', isRequired: true }, { stepNumber: 2, approverRole: 'admin', isRequired: true }, { stepNumber: 3, approverRole: 'tenant_admin', isRequired: false }]), version: 1 },
     ];
     for (const wf of workflowData) { await prisma.workflowDefinition.upsert({ where: { id: wf.id }, update: {}, create: wf }); }
 
@@ -1402,11 +1402,7 @@ export async function GET() {
       const RBAC_ROLES = [
         { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
         { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
-        { key: name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true },
-        { key: 'manager', name: 'Manager', description: 'Team management access', level: 3, isSystem: true },
-        { key: 'employee', name: 'Employee', description: 'Basic employee self-service access', level: 4, isSystem: true },
-        { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access', level: 2, isSystem: true },
-        { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access', level: 5, isSystem: true },
+        { key: 'admin', name: 'Administrator', description: 'Company-level admin access — manages all employees, HR operations, payroll, recruitment, IT, and finance', level: 2, isSystem: true },
       ];
 
       const createdRoleIds: Record<string, string> = {};
@@ -1462,7 +1458,7 @@ export async function GET() {
       if (createdRoleIds.candidate) await assignPerms(createdRoleIds.candidate, CAND_MODS, ['view','create']);
 
       // Assign roles to users
-      const roleMapping: Record<string, string> = { super_admin: 'super_admin', hr_admin: manager: 'manager', employee: 'employee', recruiter: 'recruiter', candidate: 'candidate' };
+      const roleMapping: Record<string, string> = { super_admin: 'super_admin', tenant_admin: 'tenant_admin', admin: 'admin' };
       for (const u of demoUsers) {
         const rKey = roleMapping[u.role];
         if (!rKey || !createdRoleIds[rKey]) continue;

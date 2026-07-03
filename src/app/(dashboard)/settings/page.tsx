@@ -112,9 +112,7 @@ function getAuthHeaders() {
 const rolesData = [
   { name: 'Super Admin', key: 'super_admin', description: 'Full system access across all tenants', permissions: ['All Permissions'] },
   { name: 'Tenant Admin', key: 'tenant_admin', description: 'Full access within their tenant', permissions: ['User Management', 'Employee Management', 'Payroll', 'Reports', 'Settings'] },
-  { name: 'HR Admin', key: description: 'HR module access', permissions: ['Employee Management', 'Leave Management', 'Attendance', 'Recruitment', 'Performance', 'Training'] },
-  { name: 'Manager', key: 'manager', description: 'Team management access', permissions: ['Team View', 'Leave Approvals', 'Performance Reviews', 'Timesheet Approvals'] },
-  { name: 'Employee', key: 'employee', description: 'Self-service access', permissions: ['Self Profile', 'Leave Request', 'Attendance', 'Timesheet', 'Documents'] },
+  { name: 'Admin', key: 'admin', description: 'Company-level admin — manages employees, HR, payroll, recruitment, IT, finance', permissions: ['Employee Management', 'Leave Management', 'Attendance', 'Recruitment', 'Performance', 'Training', 'Payroll', 'Helpdesk', 'Assets', 'Reports'] },
 ];
 
 /* ──────────────────────────────────────────────
