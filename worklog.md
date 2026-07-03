@@ -2304,3 +2304,28 @@ Stage Summary:
 - Sidebar & welcome screen show dynamic logos from auth store
 - Admin users verified for all 4 companies with correct company logo mapping
 - All logos verified accessible on production: https://3boxeshrms.com/logos/
+
+---
+Task ID: rbac-cleanup-2026-07-03
+Agent: Main Agent
+Task: Clean up duplicate RBAC roles and set standard 7-role structure with proper permissions
+
+Work Log:
+- Analyzed production DB: found 102 duplicate roles (hr_admin x15, recruiter x15, manager x15, employee x15, candidate x15, finance x7, it_admin x7, plus NULL-key roles and custom roles)
+- Created cleanup scripts: cleanup-rbac-roles.ts, cleanup-rbac-phase2.ts, set-rbac-permissions-fast.ts
+- Phase 1: Updated 6 standard roles, deleted ~30 duplicate roles
+- Phase 2: Deleted remaining non-standard roles (finance, recruiter, candidate, hrhead, recruitmenthead, hr, NULL-key roles)
+- Phase 3: Deleted remaining standard role duplicates (employee x2)
+- Phase 4: Set standard permissions for all 7 roles using bulk SQL insert (690 total permissions)
+- Updated User.role legacy field: recruiter→hr_admin (2 users), candidate→employee (2), hr→hr_admin (1), company_hr_admin→hr_admin (4), finance→finance_admin (4)
+- Updated src/lib/roleAccess.ts: 7 standard roles (super_admin, tenant_admin, hr_admin, finance_admin, it_admin, manager, employee)
+- Updated src/app/api/rbac/seed/route.ts: 7 standard roles, removed recruiter/candidate
+- Updated src/lib/roleTips.ts: finance→finance_admin, recruiter→hr_admin
+- Updated src/app/(dashboard)/home/page.tsx: finance→finance_admin, recruiter→hr_admin
+- Pushed to GitHub and verified on Vercel production
+
+Stage Summary:
+- Production DB now has exactly 7 standard roles (down from 102 duplicates)
+- Role permissions: super_admin=207, tenant_admin=189, hr_admin=137, finance_admin=38, it_admin=39, manager=51, employee=29
+- All users migrated to new standard roles
+- RBAC admin page and my-permissions API working correctly
