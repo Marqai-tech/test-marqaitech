@@ -31,6 +31,7 @@ export type ModuleKey =
   | 'onboarding'
   | 'companies'
   | 'audit_logs'
+  | 'trial_requests'
   | 'help_training';
 
 export interface CompanyInfo {

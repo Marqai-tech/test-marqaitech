@@ -1,39 +1,35 @@
-import prisma from '../src/lib/prisma';
+import { PrismaClient } from '../src/generated/prisma/client.ts';
+import { PrismaNeon } from '@prisma/adapter-neon';
 
-async function main() {
-  const tenants = await prisma.tenant.findMany({
-    include: {
-      _count: { select: { companyGroups: true, users: true } },
-      companyGroups: {
-        include: {
-          _count: { select: { companies: true } },
-          companies: { select: { id: true, name: true, code: true, status: true } },
-        },
-      },
-    },
-  });
-  for (const t of tenants) {
-    console.log('════════════════════════════════════════════');
-    console.log(`Tenant: ${t.name} (id=${t.id}, slug=${t.slug}, plan=${t.plan}, status=${t.status})`);
-    console.log(`  users=${t._count.users}, groups=${t._count.companyGroups}`);
-    if (t.companyGroups.length === 0) {
-      console.log('  ⚠️  NO GROUP COMPANIES UNDER THIS TENANT');
-    }
-    for (const g of t.companyGroups) {
-      console.log(`  ─ Group: ${g.name} (id=${g.id}) — ${g._count.companies} companies`);
-      for (const c of g.companies) {
-        console.log(`      • Company: ${c.name} (code=${c.code || '—'}, status=${c.status})`);
-      }
-    }
+const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const adapter = new PrismaNeon({ connectionString });
+const p = new PrismaClient({ adapter });
+
+async function run() {
+  try {
+    const tenants = await p.tenant.findMany({ select: { id: true, name: true, slug: true, domain: true, status: true, plan: true } });
+    console.log('=== TENANTS ===');
+    console.log(JSON.stringify(tenants, null, 2));
+
+    const users = await p.user.findMany({ select: { id: true, email: true, name: true, role: true, tenantId: true, status: true } });
+    console.log('=== USERS ===');
+    console.log(JSON.stringify(users, null, 2));
+
+    const roles = await p.role.findMany({ select: { id: true, name: true, key: true, isSystem: true, level: true, tenantId: true, companyId: true } });
+    console.log('=== ROLES ===');
+    console.log(JSON.stringify(roles, null, 2));
+
+    const companies = await p.company.findMany({ select: { id: true, name: true, code: true, companyGroupId: true } });
+    console.log('=== COMPANIES ===');
+    console.log(JSON.stringify(companies, null, 2));
+
+    const empCount = await p.employee.count();
+    console.log('EMPLOYEE COUNT: ' + empCount);
+  } catch (err) {
+    console.error('DB Error:', err);
+  } finally {
+    await p.$disconnect();
   }
-  // Also check users
-  console.log('════════════════════════════════════════════');
-  console.log('Users (with roles):');
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, tenantId: true, status: true } });
-  for (const u of users) {
-    console.log(`  • ${u.name || '—'} <${u.email}> role=${u.role} tenantId=${u.tenantId} status=${u.status}`);
-  }
-  await prisma.$disconnect();
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+run();

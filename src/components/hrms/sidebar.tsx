@@ -14,7 +14,7 @@ import {
   Heart, Headphones, Plane, Monitor, ShieldCheck, WorkflowIcon,
   Building2, Truck, UserCog, BarChart3, MessageSquare, UserMinus,
   Building, ClipboardList, Settings, ChevronLeft, ChevronRight,
-  Hexagon, BookOpen, Video, FileText
+  Hexagon, BookOpen, Video, FileText, Zap
 } from 'lucide-react';
 
 interface NavSection {
@@ -115,6 +115,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'ADMIN',
     items: [
       { key: 'companies', label: 'Companies', icon: <Building className="h-4 w-4" /> },
+      { key: 'trial_requests', label: 'Trial Requests', icon: <Zap className="h-4 w-4" /> },
       { key: 'audit_logs', label: 'Audit Logs', icon: <ClipboardList className="h-4 w-4" /> },
       { key: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
     ],

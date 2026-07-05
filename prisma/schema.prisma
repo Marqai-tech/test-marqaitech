@@ -69,12 +69,13 @@ model Tenant {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  companyGroups CompanyGroup[]
-  users         User[]
-  notifications Notification[]
-  subscriptions Subscription[]
-  roles         Role[]
-  featureFlags  FeatureFlag[]
+  companyGroups       CompanyGroup[]
+  users               User[]
+  notifications       Notification[]
+  subscriptions       Subscription[]
+  roles               Role[]
+  featureFlags        FeatureFlag[]
+  trialRegistrations  TrialRegistration[]
 }
 
 // ============ SRS REQ-SA-05: FEATURE FLAGS ============

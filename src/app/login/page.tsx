@@ -835,6 +835,27 @@ export default function LoginPage() {
                 <FiArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
+
+            {/* Free Trial Registration Link */}
+            <Link
+              href="/register"
+              className="group block w-full mt-3 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white flex-shrink-0">
+                  <FiZap className="w-4 h-4" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-green-700 transition-colors">
+                    New Company? Start Free Trial
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                    15-day free trial — no credit card required. Explore all features.
+                  </p>
+                </div>
+                <FiArrowRight className="w-4 h-4 text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </Link>
           </form>
           )}
 
