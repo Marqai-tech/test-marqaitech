@@ -6217,3 +6217,59 @@ model CandidateJobAlert {
   @@index([candidateEmail])
   @@index([jobPostingId])
 }
+
+// ============ TRIAL REGISTRATION SYSTEM ============
+// For 3boxeshrms.com - companies can register for a trial,
+// super admin approves, temp password + trial days (default 15) assigned.
+
+model TrialRegistration {
+  id              String   @id @default(cuid())
+
+  // Company details from registration form
+  companyName     String
+  companyCode     String   @unique   // slug-safe code, becomes tenant slug
+  companyEmail    String   @unique   // official email domain
+  companyPhone    String?
+  companyWebsite  String?
+  industry        String?
+  country         String   @default("IN")
+  currency        String   @default("INR")
+  employeeCount   Int      @default(10)  // expected number of employees
+
+  // Contact person (will become the tenant_admin)
+  contactName     String
+  contactEmail    String   @unique
+  contactPhone    String?
+  designation     String?
+
+  // Address
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+
+  // Trial management
+  status          String   @default("pending")  // pending, approved, rejected, active, expired, suspended
+  trialDays       Int      @default(15)
+  trialStart      DateTime?
+  trialEnd        DateTime?
+  tempPassword    String?  // auto-generated temp password for the tenant admin
+
+  // Super admin actions
+  reviewedBy      String?  // super admin user ID
+  reviewedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+
+  // Link to tenant once approved
+  tenantId        String?  @unique  // links to Tenant once created
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([companyEmail])
+  @@index([contactEmail])
+  @@index([tenantId])
+}
