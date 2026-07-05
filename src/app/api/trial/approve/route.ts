@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       // 9. Create tenant-level role assignments
       const superAdminRole = await tx.role.findFirst({ where: { key: 'super_admin' } });
       const tenantAdminRole = await tx.role.findFirst({ where: { key: 'tenant_admin' } });
-      const adminRole = await tx.role.findFirst({ Where: { key: 'admin' } });
+      const adminRole = await tx.role.findFirst({ where: { key: 'admin' } });
 
       if (tenantAdminRole) {
         await tx.userRoleAssignment.create({
