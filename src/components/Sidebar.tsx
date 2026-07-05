@@ -131,6 +131,8 @@ const navSections: NavSection[] = [
       { label: 'Collaboration Features', href: '/super-admin/collab-features', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // REQ-SEC-06 / REQ-SA-10: Audit logs
       { label: 'Audit Logs', href: '/super-admin/audit-logs', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
+      // Trial Registration Management
+      { label: 'Trial Requests', href: '/super-admin/trial-requests', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
       // SRS §6 RBAC matrix
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },
       // REQ-SA-11/12: AI platform management
