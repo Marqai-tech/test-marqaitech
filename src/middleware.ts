@@ -28,7 +28,7 @@ import type { NextRequest } from 'next/server'
  * No URL rewriting happens — `/login` stays `/login`, `/dashboard` stays
  * `/dashboard`. Locale is a runtime concept, not a URL structure.
  *
- * PRODUCTION (Hostinger): Subdomain routing works like this:
+ * PRODUCTION (Vercel): Subdomain routing works like this:
  *   - 3boxeshrms.com          → main site (super admin login)
  *   - marqaitechgroup.3boxeshrms.com → tenant "marqaitechgroup" login
  *   - *.3boxeshrms.com        → any tenant subdomain
@@ -38,113 +38,116 @@ const LOCALES = ['en', 'es', 'fr', 'de', 'hi', 'ar'] as const;
 const DEFAULT_LOCALE = 'en';
 
 // Root domain for multi-tenant subdomain resolution
-// In production on Hostinger, this will be '3boxeshrms.com'
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '3boxeshrms.com';
 
 // Subdomains that should NOT be treated as tenant slugs
 const RESERVED_SUBDOMAINS = ['www', 'api', 'app', 'admin', 'mail', 'ftp', 'localhost', 'staging', 'dev', 'test'];
+
+// API routes that need tenant context headers (x-tenant-slug, x-tenant-domain)
+const TENANT_AWARE_API_PREFIXES = [
+  '/api/auth/',
+  '/api/public/',
+  '/api/rbac/',
+  '/api/fix-tenant',
+  '/api/trial/',
+];
 
 function isSupportedLocale(loc: string | undefined | null): loc is typeof LOCALES[number] {
   return !!loc && (LOCALES as readonly string[]).includes(loc);
 }
 
 function detectLocale(request: NextRequest): string {
-  // 1. NEXT_LOCALE cookie (user has explicitly chosen a locale)
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
-  if (isSupportedLocale(cookieLocale)) {
-    return cookieLocale;
-  }
+  if (isSupportedLocale(cookieLocale)) return cookieLocale;
 
-  // 2. Accept-Language header (browser preference)
   const acceptLang = request.headers.get('accept-language') || '';
   const candidates = acceptLang
     .split(',')
     .map((part) => part.trim().split(';')[0].toLowerCase())
-    .map((tag) => tag.split('-')[0]); // 'en-US' → 'en'
+    .map((tag) => tag.split('-')[0]);
   for (const lang of candidates) {
-    if (isSupportedLocale(lang)) {
-      return lang;
-    }
+    if (isSupportedLocale(lang)) return lang;
   }
 
-  // 3. Default
   return DEFAULT_LOCALE;
 }
 
 function extractTenantSlug(request: NextRequest): string {
-  // 1. ?tenant=xxx query param (explicit override — useful for testing)
   const fromQuery = request.nextUrl.searchParams.get('tenant');
   if (fromQuery) return fromQuery;
 
-  // 2. Subdomain extraction: <slug>.<root-domain>
   const host = request.headers.get('host') || '';
-  const hostname = host.split(':')[0]; // strip port
+  const hostname = host.split(':')[0];
 
-  // Check if this is a subdomain of our root domain
   if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
     const sub = hostname.replace(`.${ROOT_DOMAIN}`, '').toLowerCase();
-    if (sub && !RESERVED_SUBDOMAINS.includes(sub)) {
-      return sub;
-    }
+    if (sub && !RESERVED_SUBDOMAINS.includes(sub)) return sub;
   }
 
-  // 3. Generic subdomain extraction (for Vercel preview, localhost with port, etc.)
   const parts = hostname.split('.');
   if (parts.length >= 3) {
     const sub = parts[0].toLowerCase();
-    if (sub && !RESERVED_SUBDOMAINS.includes(sub)) {
-      return sub;
-    }
+    if (sub && !RESERVED_SUBDOMAINS.includes(sub)) return sub;
   }
 
   return '';
 }
 
 export function middleware(request: NextRequest) {
-  // 1. Detect locale (cookie → Accept-Language → default)
+  const pathname = request.nextUrl.pathname;
+  const isApiRoute = pathname.startsWith('/api/');
+
+  // For API routes: only process those that need tenant context
+  if (isApiRoute) {
+    const needsTenantContext = TENANT_AWARE_API_PREFIXES.some(prefix => pathname.startsWith(prefix));
+    if (!needsTenantContext) {
+      // Skip middleware for most API routes (performance)
+      return NextResponse.next();
+    }
+  }
+
+  // 1. Detect locale
   const locale = detectLocale(request);
 
-  // 2. Extract tenant slug (subdomain or ?tenant=)
+  // 2. Extract tenant slug
   const tenantSlug = extractTenantSlug(request);
   const host = request.headers.get('host') || '';
 
   // 3. Build augmented request headers
   const requestHeaders = new Headers(request.headers);
-  // next-intl's getLocale() reads this header (set by next-intl middleware
-  // normally; we set it ourselves since we're not using their middleware).
-  requestHeaders.set('x-next-intl-locale', locale);
+  if (!isApiRoute) {
+    requestHeaders.set('x-next-intl-locale', locale);
+  }
   if (tenantSlug) {
     requestHeaders.set('x-tenant-slug', tenantSlug);
   }
   requestHeaders.set('x-tenant-domain', host);
 
-  // 4. Continue with the SAME URL (no rewriting!) + augmented headers
+  // 4. Continue with the SAME URL + augmented headers
   const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
+    request: { headers: requestHeaders },
   });
 
-  // 5. Persist locale as a cookie so future requests remember it
-  const existingCookie = request.cookies.get('NEXT_LOCALE')?.value;
-  if (existingCookie !== locale) {
-    response.cookies.set('NEXT_LOCALE', locale, {
-      path: '/',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-    });
+  // 5. Persist locale cookie (non-API only)
+  if (!isApiRoute) {
+    const existingCookie = request.cookies.get('NEXT_LOCALE')?.value;
+    if (existingCookie !== locale) {
+      response.cookies.set('NEXT_LOCALE', locale, {
+        path: '/',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
   }
 
   return response;
 }
 
 export const config = {
-  // Run middleware on every page and API route except:
-  //   - static assets (_next/static, _next/image, icons)
-  //   - API routes (we don't want locale routing on /api/*)
-  //   - service worker + manifest
-  //   - Next 16 special files (icon-*, robots.txt, etc.)
+  // Run middleware on every page route and selected API routes.
+  // Static assets, images, service worker, manifest are excluded.
+  // Most API routes skip through quickly for performance.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon-|robots.txt|sw.js|manifest.json|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon-|robots.txt|sw.js|manifest.json).*)',
   ],
 }

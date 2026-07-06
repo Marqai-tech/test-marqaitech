@@ -103,6 +103,8 @@ function createFallbackProxy(): PrismaClient {
         'requisition', 'referral',
         // Trial registration system (3boxeshrms.com)
         'trialRegistration',
+        // Per-tenant database isolation
+        'tenantDatabase',
       ]
 
       if (modelNames.includes(prop)) {

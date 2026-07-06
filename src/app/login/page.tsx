@@ -51,6 +51,8 @@ export default function LoginPage() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [showDemoLogins, setShowDemoLogins] = useState(false);
   const [isDemoSite, setIsDemoSite] = useState(false);
+  const [demoCredentials, setDemoCredentials] = useState<any>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   // Detect tenant from subdomain (e.g., marqaitechgroup.3boxeshrms.com)
   useEffect(() => {
@@ -77,10 +79,28 @@ export default function LoginPage() {
     detectTenant();
   }, []);
 
-  // Detect if running on demo site
+  // Detect site type and load demo credentials
   useEffect(() => {
-    setIsDemoSite(window.location.hostname === 'nexus-hrms-mu.vercel.app');
+    const hostname = window.location.hostname;
+    setIsDemoSite(hostname === 'nexus-hrms-mu.vercel.app');
   }, []);
+
+  // Fetch demo credentials from API
+  const fetchDemoCredentials = async () => {
+    if (demoCredentials || demoLoading) return;
+    setDemoLoading(true);
+    try {
+      const res = await fetch('/api/public/demo-credentials');
+      if (res.ok) {
+        const data = await res.json();
+        setDemoCredentials(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch demo credentials:', e);
+    } finally {
+      setDemoLoading(false);
+    }
+  };
 
   // Detect platform and PWA install capability
   useEffect(() => {
@@ -822,62 +842,194 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* Demo Login Credentials - only on demo site */}
-            {isDemoSite && (
-              <div className="mt-4 w-full rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/50 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowDemoLogins(!showDemoLogins)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-amber-50/80 transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white flex-shrink-0">
-                      <FiUsers className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm font-bold text-slate-800">Demo Logins</span>
+            {/* Demo Login Credentials — shown on ALL sites */}
+            <div className="mt-4 w-full rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/50 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  const newState = !showDemoLogins;
+                  setShowDemoLogins(newState);
+                  if (newState && !demoCredentials) fetchDemoCredentials();
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-amber-50/80 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white flex-shrink-0">
+                    <FiUsers className="w-4 h-4" />
                   </div>
-                  {showDemoLogins ? (
-                    <FiChevronUp className="w-4 h-4 text-slate-400" />
-                  ) : (
-                    <FiChevronDown className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-bold text-slate-800">Login Credentials</span>
+                </div>
+                {showDemoLogins ? (
+                  <FiChevronUp className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <FiChevronDown className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+              {showDemoLogins && (
+                <div className="px-4 pb-3 space-y-2">
+                  <p className="text-[10px] text-slate-500 mb-2">Click any role to auto-fill credentials. Password: <code className="bg-white/60 px-1 py-0.5 rounded text-[10px] font-mono">{demoCredentials?.password || 'MarqAI@2026'}</code></p>
+                  
+                  {demoLoading && (
+                    <div className="flex items-center gap-2 py-2">
+                      <FiRefreshCw className="w-3 h-3 animate-spin text-amber-500" />
+                      <span className="text-[10px] text-slate-400">Loading credentials...</span>
+                    </div>
                   )}
-                </button>
-                {showDemoLogins && (
-                  <div className="px-4 pb-3 space-y-1.5">
-                    <p className="text-[10px] text-slate-500 mb-2">Click any role to auto-fill credentials. All passwords: <code className="bg-white/60 px-1 py-0.5 rounded text-[10px] font-mono">MarqAI@2026</code></p>
-                    {[
-                      { role: 'Super Admin', email: 'superadmin@3boxes.in', tenant: 'Platform' },
-                      { role: 'Tenant Admin', email: 'admin@marqaitechgroup.com', tenant: 'MARQ AI' },
-                      { role: 'HR Admin', email: 'hr@3boxesluxury.com', tenant: '3BLC' },
-                      { role: 'HR Executive', email: 'hrexec@3boxesconsulting.com', tenant: '3BCS' },
-                      { role: 'Employee', email: 'employee@3boxestechnologies.com', tenant: '3BT' },
-                      { role: 'Finance', email: 'finance@marqaitechgroup.com', tenant: 'MARQ AI' },
-                      { role: 'Recruiter', email: 'recruiter@3boxesconsulting.com', tenant: '3BCS' },
-                    ].map((demo) => (
+
+                  {/* Demo Site (nexus-hrms-mu.vercel.app) — show all users by tenant */}
+                  {demoCredentials?.site === 'demo' && demoCredentials.tenants?.map((tenant: any) => (
+                    <div key={tenant.tenant.slug} className="space-y-1">
+                      <p className="text-[10px] font-semibold text-slate-600 mt-2 px-1">{tenant.tenant.name}</p>
+                      {tenant.users.map((u: any) => (
+                        <button
+                          key={u.email}
+                          type="button"
+                          onClick={() => {
+                            setEmail(u.email);
+                            setPassword(demoCredentials.password || 'MarqAI@2026');
+                            setLoginMode('user');
+                            toast.success(`Filled: ${u.functionalRole}`, { duration: 2000 });
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.functionalRole}</p>
+                            <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
+                          </div>
+                          <span className={`text-[8px] font-medium px-1.5 py-0.5 rounded transition-colors ${
+                            u.role === 'super_admin' ? 'bg-red-100 text-red-600' :
+                            u.role === 'tenant_admin' ? 'bg-blue-100 text-blue-600' :
+                            'bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600'
+                          }`}>
+                            {u.functionalRole}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+
+                  {/* Platform Site (3boxeshrms.com) — show super admins + tenant admins */}
+                  {demoCredentials?.site === 'platform' && (
+                    <>
+                      <p className="text-[10px] font-semibold text-slate-600 mt-1 px-1">Platform Super Admins</p>
+                      {demoCredentials.superAdmins?.map((u: any) => (
+                        <button
+                          key={u.email}
+                          type="button"
+                          onClick={() => {
+                            setEmail(u.email);
+                            setPassword(demoCredentials.password || 'MarqAI@2026');
+                            setLoginMode('user');
+                            toast.success(`Filled: ${u.functionalRole}`, { duration: 2000 });
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.functionalRole}</p>
+                            <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
+                          </div>
+                          <span className="text-[8px] font-medium bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                            Super Admin
+                          </span>
+                        </button>
+                      ))}
+                      <p className="text-[10px] font-semibold text-slate-600 mt-2 px-1">Tenant Admins</p>
+                      {demoCredentials.tenantAdmins?.map((u: any) => (
+                        <button
+                          key={u.email}
+                          type="button"
+                          onClick={() => {
+                            setEmail(u.email);
+                            setPassword(demoCredentials.password || 'MarqAI@2026');
+                            setLoginMode('user');
+                            toast.success(`Filled: ${u.tenant} Admin`, { duration: 2000 });
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.tenant}</p>
+                            <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
+                          </div>
+                          <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                            Tenant Admin
+                          </span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Tenant Subdomain — show tenant-specific users */}
+                  {demoCredentials?.site === 'tenant' && (
+                    <>
+                      <p className="text-[10px] font-semibold text-slate-600 mt-1 px-1">{demoCredentials.tenantName}</p>
+                      {demoCredentials.users?.map((u: any) => (
+                        <button
+                          key={u.email}
+                          type="button"
+                          onClick={() => {
+                            setEmail(u.email);
+                            setPassword(demoCredentials.password || 'MarqAI@2026');
+                            setLoginMode('user');
+                            toast.success(`Filled: ${u.functionalRole}`, { duration: 2000 });
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.functionalRole}</p>
+                            <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
+                          </div>
+                          <span className={`text-[8px] font-medium px-1.5 py-0.5 rounded ${
+                            u.role === 'super_admin' ? 'bg-red-100 text-red-600' :
+                            u.role === 'tenant_admin' ? 'bg-blue-100 text-blue-600' :
+                            'bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600'
+                          }`}>
+                            {u.functionalRole}
+                          </span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Fallback if no API response yet */}
+                  {!demoCredentials && !demoLoading && (
+                    <div className="space-y-1.5">
                       <button
-                        key={demo.email}
                         type="button"
                         onClick={() => {
-                          setEmail(demo.email);
+                          setEmail('superadmin@3boxeshrms.com');
                           setPassword('MarqAI@2026');
                           setLoginMode('user');
-                          toast.success(`Filled: ${demo.role}`, { duration: 2000 });
+                          toast.success('Filled: Super Admin', { duration: 2000 });
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{demo.role}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{demo.email}</p>
+                          <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700">Super Admin</p>
+                          <p className="text-[9px] text-slate-400 truncate">superadmin@3boxeshrms.com</p>
                         </div>
-                        <span className="text-[9px] font-medium text-slate-400 bg-slate-100 group-hover:bg-amber-100 group-hover:text-amber-600 px-1.5 py-0.5 rounded transition-colors">
-                          {demo.tenant}
-                        </span>
+                        <span className="text-[8px] font-medium bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Super Admin</span>
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmail('admin@marqaitechgroup.com');
+                          setPassword('MarqAI@2026');
+                          setLoginMode('user');
+                          toast.success('Filled: Tenant Admin', { duration: 2000 });
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700">Tenant Admin</p>
+                          <p className="text-[9px] text-slate-400 truncate">admin@marqaitechgroup.com</p>
+                        </div>
+                        <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Tenant Admin</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Job Portal / Career Link */}
             <Link

@@ -76,6 +76,44 @@ model Tenant {
   roles               Role[]
   featureFlags        FeatureFlag[]
   trialRegistrations  TrialRegistration[]
+  tenantDatabase      TenantDatabase?
+}
+
+// ============ PER-TENANT DATABASE ISOLATION ============
+//
+// Each tenant can have its own separate Neon database.
+// The TenantDatabase record stores the connection details for that tenant's DB.
+// When a tenant has a TenantDatabase record, the platform routes data queries
+// to that tenant's dedicated database instead of the shared platform DB.
+//
+// This ensures complete data isolation between tenants - each tenant's
+// employees, companies, payroll, etc. live in their own Neon database.
+model TenantDatabase {
+  id          String   @id @default(cuid())
+  tenantId    String   @unique
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Neon database connection details
+  // The pooled connection string used by the PrismaNeon adapter for serverless
+  connectionString  String
+  // Direct (non-pooled) connection string, stored for migrations/admin
+  directUrl         String?
+  // The name of the Neon database (e.g., "tenant_marqaitechgroup")
+  databaseName      String
+  // Neon branch ID if using branching (optional)
+  neonBranchId      String?
+  // Neon project ID that hosts this database
+  neonProjectId     String?
+  // Whether this tenant DB is active and receiving queries
+  isActive          Boolean  @default(true)
+  // When the database was provisioned
+  provisionedAt     DateTime @default(now())
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([isActive])
 }
 
 // ============ SRS REQ-SA-05: FEATURE FLAGS ============
