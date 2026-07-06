@@ -842,8 +842,8 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* Demo Login Credentials — shown ONLY on main platform / demo site, NOT on tenant subdomains */}
-            {!tenantInfo && (
+            {/* Demo Login Credentials — shown ONLY on demo site (nexus-hrms-mu.vercel.app), NOT on platform or tenant subdomains */}
+            {isDemoSite && !tenantInfo && (
             <div className="mt-4 w-full rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/50 overflow-hidden">
               <button
                 type="button"
@@ -877,42 +877,10 @@ export default function LoginPage() {
                     </div>
                   )}
 
-                  {/* Demo Site (nexus-hrms-mu.vercel.app) — show all users by tenant */}
-                  {demoCredentials?.site === 'demo' && demoCredentials.tenants?.map((tenant: any) => (
-                    <div key={tenant.tenant.slug} className="space-y-1">
-                      <p className="text-[10px] font-semibold text-slate-600 mt-2 px-1">{tenant.tenant.name}</p>
-                      {tenant.users.map((u: any) => (
-                        <button
-                          key={u.email}
-                          type="button"
-                          onClick={() => {
-                            setEmail(u.email);
-                            setPassword(demoCredentials.password || 'MarqAI@2026');
-                            setLoginMode('user');
-                            toast.success(`Filled: ${u.functionalRole}`, { duration: 2000 });
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.functionalRole}</p>
-                            <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
-                          </div>
-                          <span className={`text-[8px] font-medium px-1.5 py-0.5 rounded transition-colors ${
-                            u.role === 'super_admin' ? 'bg-red-100 text-red-600' :
-                            u.role === 'tenant_admin' ? 'bg-blue-100 text-blue-600' :
-                            'bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600'
-                          }`}>
-                            {u.functionalRole}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-
-                  {/* Platform Site (3boxeshrms.com) — show super admins + tenant admins */}
-                  {demoCredentials?.site === 'platform' && (
+                  {/* Demo Site — show ONLY super admins + tenant admins with company details */}
+                  {demoCredentials?.site === 'demo' && (
                     <>
-                      <p className="text-[10px] font-semibold text-slate-600 mt-1 px-1">Platform Super Admins</p>
+                      <p className="text-[10px] font-semibold text-slate-600 mt-1 px-1">Super Admins</p>
                       {demoCredentials.superAdmins?.map((u: any) => (
                         <button
                           key={u.email}
@@ -959,39 +927,7 @@ export default function LoginPage() {
                     </>
                   )}
 
-                  {/* Tenant Subdomain — show tenant-specific users */}
-                  {demoCredentials?.site === 'tenant' && (
-                    <>
-                      <p className="text-[10px] font-semibold text-slate-600 mt-1 px-1">{demoCredentials.tenantName}</p>
-                      {demoCredentials.users?.map((u: any) => (
-                        <button
-                          key={u.email}
-                          type="button"
-                          onClick={() => {
-                            setEmail(u.email);
-                            setPassword(demoCredentials.password || 'MarqAI@2026');
-                            setLoginMode('user');
-                            toast.success(`Filled: ${u.functionalRole}`, { duration: 2000 });
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.functionalRole}</p>
-                            <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
-                          </div>
-                          <span className={`text-[8px] font-medium px-1.5 py-0.5 rounded ${
-                            u.role === 'super_admin' ? 'bg-red-100 text-red-600' :
-                            u.role === 'tenant_admin' ? 'bg-blue-100 text-blue-600' :
-                            'bg-slate-100 text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600'
-                          }`}>
-                            {u.functionalRole}
-                          </span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Fallback if no API response yet */}
+                  {/* Fallback if no API response yet — only super admin + tenant admins */}
                   {!demoCredentials && !demoLoading && (
                     <div className="space-y-1.5">
                       <button
