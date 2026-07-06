@@ -148,6 +148,44 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // 8.5. Create standard tenant-level roles for this new tenant
+      // These roles will be used for assigning access rights to employees
+      const standardTenantRoles = [
+        { key: 'hr_admin', name: 'HR Administrator', description: 'HR operations - employees, recruitment, onboarding, leave, attendance', level: 3, isSystem: true },
+        { key: 'finance_admin', name: 'Finance Administrator', description: 'Finance operations - payroll, salary structures, expenses, invoices', level: 3, isSystem: true },
+        { key: 'it_admin', name: 'IT Administrator', description: 'IT operations - assets, helpdesk, system settings', level: 3, isSystem: true },
+        { key: 'manager', name: 'Manager', description: 'Team management - team employees, timesheets, performance reviews, leave approvals', level: 4, isSystem: true },
+        { key: 'employee', name: 'Employee', description: 'Basic employee access - view own profile, request leave, view payslips, submit timesheets', level: 5, isSystem: true },
+        { key: 'recruiter', name: 'Recruiter', description: 'Recruitment operations - job postings, candidate screening, interview scheduling', level: 4, isSystem: true },
+      ];
+
+      const createdRoles: Record<string, string> = {};
+      for (const roleDef of standardTenantRoles) {
+        // Check if role already exists for this tenant
+        const existingRole = await tx.role.findFirst({
+          where: { key: roleDef.key, tenantId: tenant.id, companyId: null }
+        });
+        
+        if (!existingRole) {
+          const newRole = await tx.role.create({
+            data: {
+              name: roleDef.name,
+              key: roleDef.key,
+              description: roleDef.description,
+              level: roleDef.level,
+              isSystem: roleDef.isSystem,
+              tenantId: tenant.id,
+              companyId: null,
+              status: 'active',
+              createdBy: reviewedBy,
+            }
+          });
+          createdRoles[roleDef.key] = newRole.id;
+        } else {
+          createdRoles[roleDef.key] = existingRole.id;
+        }
+      }
+
       // 9. Create tenant-level role assignments
       const superAdminRole = await tx.role.findFirst({ where: { key: 'super_admin' } });
       const tenantAdminRole = await tx.role.findFirst({ where: { key: 'tenant_admin' } });
