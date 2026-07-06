@@ -842,7 +842,8 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* Demo Login Credentials — shown on ALL sites */}
+            {/* Demo Login Credentials — shown ONLY on main platform / demo site, NOT on tenant subdomains */}
+            {!tenantInfo && (
             <div className="mt-4 w-full rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/50 overflow-hidden">
               <button
                 type="button"
@@ -1030,6 +1031,7 @@ export default function LoginPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Job Portal / Career Link */}
             <Link
@@ -1052,7 +1054,8 @@ export default function LoginPage() {
               </div>
             </Link>
 
-            {/* Free Trial Registration Link */}
+            {/* Free Trial Registration Link — shown ONLY on main platform / demo site, NOT on tenant subdomains */}
+            {!tenantInfo && (
             <Link
               href="/register"
               className="group block w-full mt-3 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
@@ -1072,6 +1075,7 @@ export default function LoginPage() {
                 <FiArrowRight className="w-4 h-4 text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
+            )}
           </form>
           )}
 
