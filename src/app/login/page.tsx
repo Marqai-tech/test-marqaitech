@@ -49,6 +49,8 @@ export default function LoginPage() {
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showDemoLogins, setShowDemoLogins] = useState(false);
+  const [isDemoSite, setIsDemoSite] = useState(false);
 
   // Detect tenant from subdomain (e.g., marqaitechgroup.3boxeshrms.com)
   useEffect(() => {
@@ -73,6 +75,11 @@ export default function LoginPage() {
       }
     };
     detectTenant();
+  }, []);
+
+  // Detect if running on demo site
+  useEffect(() => {
+    setIsDemoSite(window.location.hostname === 'nexus-hrms-mu.vercel.app');
   }, []);
 
   // Detect platform and PWA install capability
@@ -814,6 +821,63 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+
+            {/* Demo Login Credentials - only on demo site */}
+            {isDemoSite && (
+              <div className="mt-4 w-full rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/50 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowDemoLogins(!showDemoLogins)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-amber-50/80 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white flex-shrink-0">
+                      <FiUsers className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-bold text-slate-800">Demo Logins</span>
+                  </div>
+                  {showDemoLogins ? (
+                    <FiChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <FiChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </button>
+                {showDemoLogins && (
+                  <div className="px-4 pb-3 space-y-1.5">
+                    <p className="text-[10px] text-slate-500 mb-2">Click any role to auto-fill credentials. All passwords: <code className="bg-white/60 px-1 py-0.5 rounded text-[10px] font-mono">MarqAI@2026</code></p>
+                    {[
+                      { role: 'Super Admin', email: 'superadmin@3boxes.in', tenant: 'Platform' },
+                      { role: 'Tenant Admin', email: 'admin@marqaitechgroup.com', tenant: 'MARQ AI' },
+                      { role: 'HR Admin', email: 'hr@3boxesluxury.com', tenant: '3BLC' },
+                      { role: 'HR Executive', email: 'hrexec@3boxesconsulting.com', tenant: '3BCS' },
+                      { role: 'Employee', email: 'employee@3boxestechnologies.com', tenant: '3BT' },
+                      { role: 'Finance', email: 'finance@marqaitechgroup.com', tenant: 'MARQ AI' },
+                      { role: 'Recruiter', email: 'recruiter@3boxesconsulting.com', tenant: '3BCS' },
+                    ].map((demo) => (
+                      <button
+                        key={demo.email}
+                        type="button"
+                        onClick={() => {
+                          setEmail(demo.email);
+                          setPassword('MarqAI@2026');
+                          setLoginMode('user');
+                          toast.success(`Filled: ${demo.role}`, { duration: 2000 });
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{demo.role}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{demo.email}</p>
+                        </div>
+                        <span className="text-[9px] font-medium text-slate-400 bg-slate-100 group-hover:bg-amber-100 group-hover:text-amber-600 px-1.5 py-0.5 rounded transition-colors">
+                          {demo.tenant}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Job Portal / Career Link */}
             <Link

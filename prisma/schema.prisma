@@ -6262,6 +6262,12 @@ model TrialRegistration {
   rejectionReason String?
   notes           String?
 
+  // Trial customization
+  selectedModules String?  // comma-separated module keys selected for trial
+  companyLogo     String?  // URL to uploaded company logo
+  employeeDataJson String? // JSON string of sample employee data (5 employees from Excel upload)
+  planConfirmed   Boolean  @default(false)  // whether user confirmed a plan after trial
+
   // Link to tenant once approved
   tenantId        String?  @unique  // links to Tenant once created
   tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)

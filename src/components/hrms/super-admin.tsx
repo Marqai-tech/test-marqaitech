@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Shield, Building2, Users, CreditCard, Activity, Server, Zap, TrendingUp, CheckCircle2, Search, Plus, Eye, Edit, Trash2, BarChart3, Cpu, Loader2 } from 'lucide-react'
+import { Shield, Building2, Users, CreditCard, Activity, Server, Zap, TrendingUp, CheckCircle2, Search, Plus, Eye, Edit, Trash2, BarChart3, Cpu, Loader2, LogIn, Clock, XCircle, Timer } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { apiGet, apiPost } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
+import { useAuthStore } from '@/store/authStore'
 
 interface CompanyData {
   id: string
@@ -53,6 +54,47 @@ export default function SuperAdmin() {
   })
   const [creating, setCreating] = useState(false)
 
+  // Trial stats state
+  const [trialStats, setTrialStats] = useState<{
+    activeTrials: number
+    evaluatingCompanies: number
+    onboardedCompanies: number
+    notOnboarded: number
+    registrations: Array<{
+      id: string
+      companyName: string
+      companyCode: string
+      companyEmail: string
+      contactName: string
+      contactEmail: string
+      contactPhone: string | null
+      status: string
+      trialDays: number
+      trialStart: string | null
+      trialEnd: string | null
+      tempPassword: string | null
+      rejectionReason: string | null
+      notes: string | null
+      tenantId: string | null
+      createdAt: string
+      reviewedAt: string | null
+      industry: string | null
+      country: string
+      currency: string
+      employeeCount: number
+      isExpired: boolean
+      daysRemaining: number | null
+    }>
+  } | null>(null)
+  const [trialLoading, setTrialLoading] = useState(false)
+  const [trialActionLoading, setTrialActionLoading] = useState<string | null>(null)
+  const [extendDays, setExtendDays] = useState<Record<string, number>>({})
+  const [rejectionReason, setRejectionReason] = useState<Record<string, string>>({})
+  const [trialMessage, setTrialMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(null)
+
+  const { user: authUser, setToken } = useAuthStore()
+
   const fetchCompanies = useCallback(async () => {
     try {
       setLoading(true)
@@ -70,6 +112,23 @@ export default function SuperAdmin() {
   useEffect(() => {
     fetchCompanies()
   }, [fetchCompanies])
+
+  // Fetch trial stats
+  const fetchTrialStats = useCallback(async () => {
+    try {
+      setTrialLoading(true)
+      const data = await apiGet<typeof trialStats>('/api/super-admin/trial-stats')
+      if (data) setTrialStats(data)
+    } catch (err: any) {
+      console.error('Failed to load trial stats:', err)
+    } finally {
+      setTrialLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTrialStats()
+  }, [fetchTrialStats])
 
   // Derived stats from real data
   const totalEmployees = companies.reduce((sum, c) => sum + (c._count?.employees || 0), 0)
@@ -109,6 +168,10 @@ export default function SuperAdmin() {
     { label: 'Active Tenants', value: String(activeCompanies), icon: CheckCircle2, color: 'text-teal-400', bg: 'bg-teal-500/10' },
     { label: 'Total Employees', value: totalEmployees.toLocaleString(), icon: Users, color: 'text-amber-400', bg: 'bg-amber-500/10' },
     { label: 'AI Credits Used', value: '12,450', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Active Trials', value: String(trialStats?.activeTrials ?? 0), icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+    { label: 'Evaluating', value: String(trialStats?.evaluatingCompanies ?? 0), icon: Timer, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+    { label: 'Onboarded', value: String(trialStats?.onboardedCompanies ?? 0), icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-500/10' },
+    { label: 'Not Onboarded', value: String(trialStats?.notOnboarded ?? 0), icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
   ]
 
   const filteredTenants = tenants.filter(t =>
@@ -209,6 +272,7 @@ export default function SuperAdmin() {
       <Tabs defaultValue="dashboard" className="space-y-6">
         <TabsList className="bg-slate-900 border border-slate-700 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="dashboard" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
+          <TabsTrigger value="trials" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> Trials</TabsTrigger>
           <TabsTrigger value="tenants" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Tenants</TabsTrigger>
           <TabsTrigger value="subscriptions" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Subscriptions</TabsTrigger>
           <TabsTrigger value="packages" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Packages</TabsTrigger>
@@ -297,6 +361,263 @@ export default function SuperAdmin() {
           )}
         </TabsContent>
 
+        <TabsContent value="trials">
+          {/* Trial stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-400">Active Trials</p>
+                    <p className="text-2xl font-bold text-white mt-1">{trialStats?.activeTrials ?? 0}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-cyan-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-400">Evaluating Companies</p>
+                    <p className="text-2xl font-bold text-white mt-1">{trialStats?.evaluatingCompanies ?? 0}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                    <Timer className="w-5 h-5 text-yellow-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-400">Onboarded Companies</p>
+                    <p className="text-2xl font-bold text-white mt-1">{trialStats?.onboardedCompanies ?? 0}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-400">Not Onboarded</p>
+                    <p className="text-2xl font-bold text-white mt-1">{trialStats?.notOnboarded ?? 0}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+                    <XCircle className="w-5 h-5 text-red-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Trial message */}
+          {trialMessage && (
+            <div className={`mt-4 p-4 rounded-xl ${trialMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200 dark:bg-green-950 dark:text-green-200' : 'bg-red-50 text-red-800 border border-red-200 dark:bg-red-950 dark:text-red-200'}`}>
+              <pre className="whitespace-pre-wrap font-sans text-sm">{trialMessage.text}</pre>
+            </div>
+          )}
+
+          {/* Trial registrations table */}
+          <Card className="bg-slate-900 border-slate-800 mt-4">
+            <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Zap className="w-5 h-5 text-cyan-400" /> Trial Registrations</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {trialLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+                  <span className="ml-3 text-slate-400">Loading trials...</span>
+                </div>
+              ) : !trialStats?.registrations?.length ? (
+                <div className="text-center py-12 text-slate-500">No trial registrations found.</div>
+              ) : (
+                <Table>
+                  <TableHeader><TableRow className="border-slate-700">
+                    <TableHead className="text-slate-400">Company</TableHead>
+                    <TableHead className="text-slate-400">Contact</TableHead>
+                    <TableHead className="text-slate-400">Status</TableHead>
+                    <TableHead className="text-slate-400">Trial Days</TableHead>
+                    <TableHead className="text-slate-400">Days Remaining</TableHead>
+                    <TableHead className="text-slate-400">Actions</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {trialStats.registrations.map((reg) => {
+                      let displayStatus = reg.status
+                      if (reg.isExpired && ['approved', 'active'].includes(reg.status)) {
+                        displayStatus = 'expired'
+                      }
+                      const statusColors: Record<string, string> = {
+                        pending: 'bg-yellow-600/20 text-yellow-400',
+                        approved: 'bg-green-600/20 text-green-400',
+                        active: 'bg-cyan-600/20 text-cyan-400',
+                        rejected: 'bg-red-600/20 text-red-400',
+                        expired: 'bg-orange-600/20 text-orange-400',
+                        suspended: 'bg-slate-600/20 text-slate-400',
+                      }
+
+                      return (
+                        <TableRow key={reg.id} className="border-slate-800 hover:bg-slate-800/50">
+                          <TableCell>
+                            <div className="text-white font-medium">{reg.companyName}</div>
+                            <div className="text-slate-500 text-xs">{reg.companyCode} · {reg.industry || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-slate-300 text-sm">{reg.contactName}</div>
+                            <div className="text-slate-500 text-xs">{reg.contactEmail}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={statusColors[displayStatus] || 'bg-slate-600/20 text-slate-400'}>
+                              {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-300">{reg.trialDays}</TableCell>
+                          <TableCell>
+                            {reg.isExpired ? (
+                              <span className="text-red-400 text-sm font-medium">Expired</span>
+                            ) : reg.daysRemaining !== null ? (
+                              <span className="text-cyan-400 text-sm font-medium">{reg.daysRemaining}d</span>
+                            ) : (
+                              <span className="text-slate-500 text-sm">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {reg.status === 'pending' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    disabled={trialActionLoading === reg.id}
+                                    onClick={async () => {
+                                      setTrialActionLoading(reg.id)
+                                      setTrialMessage(null)
+                                      try {
+                                        const res = await fetch('/api/trial/approve', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ registrationId: reg.id, trialDays: 15, reviewedBy: authUser?.id }),
+                                        })
+                                        const data = await res.json()
+                                        if (res.ok) {
+                                          setTrialMessage({ type: 'success', text: `Approved! Login: ${data.loginEmail} | Password: ${data.tempPassword} | URL: ${data.loginUrl}` })
+                                          fetchTrialStats()
+                                        } else {
+                                          setTrialMessage({ type: 'error', text: data.error || 'Approval failed' })
+                                        }
+                                      } catch {
+                                        setTrialMessage({ type: 'error', text: 'Network error' })
+                                      } finally {
+                                        setTrialActionLoading(null)
+                                      }
+                                    }}
+                                  >
+                                    {trialActionLoading === reg.id ? '...' : 'Approve'}
+                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Input
+                                      placeholder="Reason"
+                                      value={rejectionReason[reg.id] || ''}
+                                      onChange={e => setRejectionReason(prev => ({ ...prev, [reg.id]: e.target.value }))}
+                                      className="h-7 w-24 text-xs bg-slate-800 border-slate-700 text-slate-300"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white"
+                                      disabled={trialActionLoading === reg.id}
+                                      onClick={async () => {
+                                        setTrialActionLoading(reg.id)
+                                        setTrialMessage(null)
+                                        try {
+                                          const res = await fetch('/api/trial/reject', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ registrationId: reg.id, rejectionReason: rejectionReason[reg.id] || 'Not specified', reviewedBy: authUser?.id }),
+                                          })
+                                          const data = await res.json()
+                                          if (res.ok) {
+                                            setTrialMessage({ type: 'success', text: 'Registration rejected.' })
+                                            fetchTrialStats()
+                                          } else {
+                                            setTrialMessage({ type: 'error', text: data.error || 'Rejection failed' })
+                                          }
+                                        } catch {
+                                          setTrialMessage({ type: 'error', text: 'Network error' })
+                                        } finally {
+                                          setTrialActionLoading(null)
+                                        }
+                                      }}
+                                    >
+                                      {trialActionLoading === reg.id ? '...' : 'Reject'}
+                                    </Button>
+                                  </div>
+                                </>
+                              )}
+                              {['approved', 'active'].includes(reg.status) && (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={365}
+                                    value={extendDays[reg.id] || 7}
+                                    onChange={e => setExtendDays(prev => ({ ...prev, [reg.id]: parseInt(e.target.value) || 7 }))}
+                                    className="h-7 w-14 text-xs text-center bg-slate-800 border-slate-700 text-slate-300"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
+                                    disabled={trialActionLoading === `extend-${reg.id}`}
+                                    onClick={async () => {
+                                      const days = extendDays[reg.id] || 7
+                                      setTrialActionLoading(`extend-${reg.id}`)
+                                      setTrialMessage(null)
+                                      try {
+                                        const res = await fetch('/api/trial/extend', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ registrationId: reg.id, additionalDays: days }),
+                                        })
+                                        const data = await res.json()
+                                        if (res.ok) {
+                                          setTrialMessage({ type: 'success', text: `Trial extended by ${days} days. New end: ${new Date(data.newTrialEnd).toLocaleDateString()}` })
+                                          fetchTrialStats()
+                                        } else {
+                                          setTrialMessage({ type: 'error', text: data.error || 'Extension failed' })
+                                        }
+                                      } catch {
+                                        setTrialMessage({ type: 'error', text: 'Network error' })
+                                      } finally {
+                                        setTrialActionLoading(null)
+                                      }
+                                    }}
+                                  >
+                                    {trialActionLoading === `extend-${reg.id}` ? '...' : 'Extend'}
+                                  </Button>
+                                </div>
+                              )}
+                              {reg.status === 'rejected' && (
+                                <span className="text-slate-500 text-xs">No actions</span>
+                              )}
+                              {reg.isExpired && ['approved', 'active'].includes(reg.status) && (
+                                <span className="text-orange-400 text-xs">Expired</span>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="tenants">
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1 max-w-xs">
@@ -347,9 +668,54 @@ export default function SuperAdmin() {
                           <TableCell className="text-slate-300">{t.branches}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white"><Edit className="w-3.5 h-3.5" /></Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" title="View"><Eye className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" title="Edit"><Edit className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400" title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-cyan-400 hover:text-cyan-300"
+                                title="Switch To Tenant"
+                                disabled={switchingTenantId === c.tenantId}
+                                onClick={async () => {
+                                  setSwitchingTenantId(c.tenantId)
+                                  try {
+                                    const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null
+                                    const res = await fetch('/api/auth/switch-tenant', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                      },
+                                      body: JSON.stringify({ tenantId: c.tenantId }),
+                                    })
+                                    const data = await res.json()
+                                    if (res.ok) {
+                                      // Update auth store with new token and user
+                                      if (typeof window !== 'undefined') {
+                                        localStorage.setItem('tb_token', data.token)
+                                      }
+                                      setToken(data.token)
+                                      useAuthStore.setState({
+                                        token: data.token,
+                                        user: data.user,
+                                        isAuthenticated: true,
+                                      })
+                                      toast({ title: 'Tenant Switched', description: `Switched to ${data.user.tenant?.name || c.name}` })
+                                      // Redirect to dashboard
+                                      window.location.href = '/'
+                                    } else {
+                                      toast({ title: 'Error', description: data.error || 'Failed to switch tenant', variant: 'destructive' })
+                                    }
+                                  } catch (err: any) {
+                                    toast({ title: 'Error', description: 'Network error while switching tenant', variant: 'destructive' })
+                                  } finally {
+                                    setSwitchingTenantId(null)
+                                  }
+                                }}
+                              >
+                                {switchingTenantId === c.tenantId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
