@@ -2353,3 +2353,31 @@ Stage Summary:
 - Sidebar "Trial Requests" nav item now correctly renders the trial management UI
 - All 6 API routes working: register, approve, reject, extend, list, check-domain
 - Deployment live on: nexus-hrms-mu.vercel.app, 3boxeshrms.com, *.3boxeshrms.com
+
+---
+Task ID: enhanced-trial-system-deploy
+Agent: Main Agent
+Task: Enhanced trial registration system with auto-approve, module selection, logo upload, Excel template, plan selection, super admin trial dashboard, tenant switching, demo logins
+
+Work Log:
+- Added demo login credentials section to login page (visible only on nexus-hrms-mu.vercel.app)
+- Enhanced trial registration form with 6 steps: Company Info, Contact, Address, Logo Upload, Sample Employee Data (CSV), Module Selection
+- Created auto-approve flow - registrations are instantly approved, tenant created, temp password generated
+- Created /api/trial/excel-template endpoint for CSV template download
+- Created /api/trial/choose-plan endpoint for plan confirmation after trial
+- Created /choose-plan page with Starter/Professional/Enterprise plan cards
+- Created /api/super-admin/trial-stats endpoint for trial metrics
+- Created /api/auth/switch-tenant endpoint for super admin tenant switching
+- Enhanced super admin component with Trials tab and tenant switching
+- Added selectedModules, companyLogo, employeeDataJson, planConfirmed columns to TrialRegistration schema
+- Added columns to production Neon DB via ALTER TABLE
+- Built successfully, committed (fe82f01), pushed to GitHub, deployed to Vercel (dpl_HqvNmzX2VMk68HdhLfygMgYDnFmm READY)
+
+Stage Summary:
+- All features deployed to: nexus-hrms-mu.vercel.app, 3boxeshrms.com, *.3boxeshrms.com
+- Demo logins visible on nexus-hrms-mu.vercel.app/login
+- Trial registration with auto-approve at /register
+- Plan selection at /choose-plan
+- Super admin trial dashboard with metrics + tenant switching
+- Excel template download at /api/trial/excel-template
+- Tenant-specific separate DB is pending (requires Neon branching infrastructure)
