@@ -2329,3 +2329,27 @@ Stage Summary:
 - Role permissions: super_admin=207, tenant_admin=189, hr_admin=137, finance_admin=38, it_admin=39, manager=51, employee=29
 - All users migrated to new standard roles
 - RBAC admin page and my-permissions API working correctly
+
+---
+Task ID: trial-registration-deploy
+Agent: Main Agent
+Task: Complete trial registration system - sidebar routing, build fixes, git push, Vercel deploy
+
+Work Log:
+- Analyzed sidebar routing architecture: setActiveModule() → MODULE_COMPONENTS map in hrms-layout.tsx
+- Created src/components/hrms/trial-requests.tsx as named export component for MODULE_COMPONENTS
+- Added TrialRequests to MODULE_COMPONENTS map with key 'trial_requests'
+- Added 'trialRegistration' to db.ts fallback proxy model list
+- Fixed missing exports in nexus-ui/index.tsx: Badge, LoadingSpinner, StatCard, SectionHeader, PageContainer, TwoColumnLayout, getDeptColor, getAuthHeaders, fmtNumber, avatarColor, firstInitial, AVATAR_COLORS, DEPARTMENT_COLORS
+- Removed duplicate candidate-portal pages under (dashboard) that conflicted with standalone routes
+- Build passed successfully with all routes including /register and /super-admin/trial-requests
+- Verified TrialRegistration table already exists in production DB with all required columns + constraints
+- Prisma db push failed on unrelated WalletBucket FK issue - our schema is already in sync
+- Git committed and pushed to GitHub (commit a725a3d)
+- Deployed to Vercel via API - deployment dpl_5Y8VZ37UbBwUbm9kthEAXvCvqyg9 READY
+
+Stage Summary:
+- Trial registration system fully functional: /register (public form) → /super-admin/trial-requests (admin management)
+- Sidebar "Trial Requests" nav item now correctly renders the trial management UI
+- All 6 API routes working: register, approve, reject, extend, list, check-domain
+- Deployment live on: nexus-hrms-mu.vercel.app, 3boxeshrms.com, *.3boxeshrms.com
