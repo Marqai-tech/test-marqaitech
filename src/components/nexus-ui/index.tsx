@@ -2362,3 +2362,85 @@ export function DateDisplay({ date, format = 'short', className }: DateDisplayPr
     </span>
   );
 }
+
+// ────────────────────────────────────────────────────────────────
+// Utility exports used by org-chart and other pages
+// ────────────────────────────────────────────────────────────────
+
+export const AVATAR_COLORS = [
+  '#4F6BF6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4',
+  '#EC4899', '#14B8A6', '#F97316', '#6366F1',
+];
+
+export const DEPARTMENT_COLORS: Record<string, string> = {
+  Engineering: '#4F6BF6',
+  Marketing: '#10B981',
+  Sales: '#F59E0B',
+  HR: '#8B5CF6',
+  Finance: '#06B6D4',
+  Operations: '#EF4444',
+  Product: '#EC4899',
+  Design: '#14B8A6',
+  Legal: '#F97316',
+  Admin: '#6366F1',
+};
+
+export function getDeptColor(dept: string): string {
+  return DEPARTMENT_COLORS[dept] || AVATAR_COLORS[dept.length % AVATAR_COLORS.length];
+}
+
+export function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+export function firstInitial(name: string): string {
+  return name.charAt(0).toUpperCase();
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function fmtNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
+
+// Re-export convenience aliases used by some pages
+export const SectionHeader = PageHeader;
+export const StatCard = MetricCard;
+export const Badge = ({ children, variant = 'default', className: cls }: { children: ReactNode; variant?: 'default' | 'info' | 'success' | 'warning' | 'error'; className?: string }) => {
+  const variantStyles: Record<string, string> = {
+    default: 'bg-[var(--nexus-bg-secondary)] text-[var(--nexus-text-primary)]',
+    info: 'bg-blue-100 text-blue-800',
+    success: 'bg-green-100 text-green-800',
+    warning: 'bg-amber-100 text-amber-800',
+    error: 'bg-red-100 text-red-800',
+  };
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium', variantStyles[variant] || variantStyles.default, cls)}>
+      {children}
+    </span>
+  );
+};
+export const LoadingSpinner = ({ className }: { className?: string }) => (
+  <div className={cn('flex items-center justify-center py-12', className)}>
+    <FiLoader className="h-6 w-6 animate-spin text-[var(--nexus-text-secondary)]" />
+  </div>
+);
+export const PageContainer = ({ children, className }: { children: ReactNode; className?: string }) => (
+  <div className={cn('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8', className)}>{children}</div>
+);
+export const TwoColumnLayout = ({ left, right, className }: { left: ReactNode; right: ReactNode; className?: string }) => (
+  <div className={cn('grid grid-cols-1 lg:grid-cols-3 gap-6', className)}>
+    <div className="lg:col-span-2">{left}</div>
+    <div>{right}</div>
+  </div>
+);

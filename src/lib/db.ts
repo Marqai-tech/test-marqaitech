@@ -101,6 +101,8 @@ function createFallbackProxy(): PrismaClient {
         'resumeParse', 'candidateSentimentScore', 'interviewFeedback',
         // WAVE2-E — Recruitment analytics + job boards (REQ-SRC-01/02/03)
         'requisition', 'referral',
+        // Trial registration system (3boxeshrms.com)
+        'trialRegistration',
       ]
 
       if (modelNames.includes(prop)) {
