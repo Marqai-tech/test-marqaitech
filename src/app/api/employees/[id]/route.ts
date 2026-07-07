@@ -109,10 +109,10 @@ export async function PUT(
       if (lastName !== undefined) updateData.lastName = lastName;
       if (email !== undefined) updateData.email = email;
       if (phone !== undefined) updateData.phone = phone;
-      if (departmentId !== undefined) updateData.departmentId = departmentId;
-      if (designationId !== undefined) updateData.designationId = designationId;
-      if (branchId !== undefined) updateData.branchId = branchId;
-      if (companyId !== undefined) updateData.companyId = companyId;
+      if (departmentId !== undefined) updateData.departmentId = departmentId || undefined;
+      if (designationId !== undefined) updateData.designationId = designationId || undefined;
+      if (branchId !== undefined) updateData.branchId = branchId || null;
+      if (companyId !== undefined) updateData.companyId = companyId || null;
       if (dateOfJoining !== undefined) updateData.dateOfJoining = new Date(dateOfJoining);
       if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
       if (gender !== undefined) updateData.gender = gender;

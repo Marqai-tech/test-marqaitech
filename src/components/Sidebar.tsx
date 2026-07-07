@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   FiHome,
@@ -61,7 +61,6 @@ import {
   FiUserCheck,
   FiBook,
   FiFile,
-  FiArrowLeft,
   FiMail,
   FiMonitor,
   FiHeadphones,
@@ -438,7 +437,6 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useAuthStore();
   const userRole = user?.role || 'admin';
 
@@ -524,7 +522,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
   return (
     <aside
       className={`${isMobileMenu ? 'w-full' : 'fixed left-0 top-0 h-full'} bg-thb-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
-        isMobileMenu ? '' : collapsed ? 'w-[68px]' : 'w-[260px]'
+        isMobileMenu ? '' : collapsed ? 'w-[68px]' : 'w-[320px]'
       }`}
     >
       {/* Brand Header - hidden in mobile menu mode */}
@@ -585,110 +583,96 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
 
         <div className="mx-3 my-2 border-t border-white/[0.06]" />
 
-        {/* Module picker OR module submenu */}
-        {currentSection ? (
-          /* ─── Module Submenu View ─── */
-          <div>
-            {/* Back button — clears explicit selection AND navigates to /home
-                (a picker route) so the picker view actually shows. Without the
-                navigation, autoDetectedModuleKey would keep the submenu visible
-                on any non-picker route, making the button appear dead. */}
-            <button
-              onClick={() => {
-                setExplicitSelection(null);
-                router.push('/home');
-                if (isMobileMenu) onToggle();
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200 transition-colors ${
-                collapsed ? 'justify-center' : ''
-              }`}
-              title={collapsed ? 'All Modules' : undefined}
-            >
-              <FiArrowLeft className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>All Modules</span>}
-            </button>
-
-            {/* Section header */}
-            {!collapsed && (
-              <div className="px-3 py-2 mt-1">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const SectionIcon = currentSection.sectionIcon;
-                    return <SectionIcon className="w-4 h-4 text-blue-400" />;
-                  })()}
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/80">
-                    {currentSection.label}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Section items */}
-            <ul className="space-y-0.5">
-              {currentSection.items.map((item) => {
-                const isActive = isItemActive(item.href);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={() => { if (isMobileMenu) onToggle(); }}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
-                        isActive
-                          ? 'bg-blue-500/15 text-blue-400'
-                          : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
-                      } ${collapsed ? 'justify-center' : ''}`}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
-                      )}
-                      <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
-                        {item.icon}
+        {/* Two-column layout: Left = submenu, Right = module icons */}
+        <div className={`flex ${collapsed ? 'flex-col' : 'flex-row'} gap-0 min-h-0`}>
+          {/* Left column: Selected Module Submenu */}
+          {!collapsed && (
+            <div className="flex-1 min-w-0 border-r border-white/[0.06] pr-1">
+              {currentSection ? (
+                <>
+                  {/* Section header */}
+                  <div className="px-3 py-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const SectionIcon = currentSection.sectionIcon;
+                        return <SectionIcon className="w-4 h-4 text-blue-400" />;
+                      })()}
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/80">
+                        {currentSection.label}
                       </span>
-                      {!collapsed && (
-                        <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>
-                      )}
-                      {!collapsed && item.isNew && (
-                        <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                          NEW
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : (
-          /* ─── Module Picker View (icon grid) ─── */
-          <div>
+                    </div>
+                  </div>
+                  {/* Section items */}
+                  <ul className="space-y-0.5">
+                    {currentSection.items.map((item) => {
+                      const isActive = isItemActive(item.href);
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={() => { if (isMobileMenu) onToggle(); }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
+                              isActive
+                                ? 'bg-blue-500/15 text-blue-400'
+                                : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
+                            }`}
+                            title={item.label}
+                          >
+                            {isActive && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-500 rounded-r-full" />
+                            )}
+                            <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                              {item.icon}
+                            </span>
+                            <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>
+                            {item.isNew && (
+                              <span className="flex-shrink-0 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                NEW
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              ) : (
+                <div className="px-3 py-6 text-center">
+                  <FiGrid className="w-6 h-6 text-thb-sidebar-text/30 mx-auto mb-2" />
+                  <p className="text-[10px] text-thb-sidebar-text/40">Select a module</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Right column: Module Icons (vertical strip) */}
+          <div className={`${collapsed ? 'w-full' : 'w-[88px] flex-shrink-0'} py-1`}>
             {!collapsed && (
-              <div className="px-3 py-2 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/60">
-                  All Modules
+              <div className="px-2 py-1.5 mb-1 text-center">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-thb-sidebar-text/50">
+                  Modules
                 </span>
               </div>
             )}
-            {/* Icon grid — 2 columns when expanded, 1 column when collapsed */}
-            <div className={`grid ${collapsed ? 'grid-cols-1 gap-1' : 'grid-cols-2 gap-1.5'} px-1`}>
+            <div className={`flex flex-col gap-0.5 ${collapsed ? 'items-center' : 'items-center'} px-1`}>
               {filteredSections.map((section) => {
                 const SectionIcon = section.sectionIcon;
-                const isAutoActive = autoDetectedModuleKey === section.key;
+                const isActive = currentModuleKey === section.key;
                 return (
                   <button
                     key={section.key}
-                    onClick={() => setExplicitSelection(section.key)}
-                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg transition-all duration-200 group ${
-                      isAutoActive
+                    onClick={() => setExplicitSelection(isActive ? null : section.key)}
+                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all duration-200 group w-full ${
+                      isActive
                         ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20'
                         : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
-                    } ${collapsed ? 'px-1' : ''}`}
-                    title={collapsed ? section.label : undefined}
+                    }`}
+                    title={section.label}
                   >
-                    <SectionIcon className={`w-5 h-5 flex-shrink-0 ${isAutoActive ? 'text-blue-400' : 'group-hover:text-slate-200'} transition-colors`} />
+                    <SectionIcon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : 'group-hover:text-slate-200'} transition-colors`} />
                     {!collapsed && (
-                      <span className="text-[10px] font-medium text-center leading-tight line-clamp-2">
-                        {section.label}
+                      <span className="text-[8px] font-medium text-center leading-tight line-clamp-2 w-full">
+                        {section.label.length > 12 ? section.label.substring(0, 10) + '…' : section.label}
                       </span>
                     )}
                   </button>
@@ -696,7 +680,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
               })}
             </div>
           </div>
-        )}
+        </div>
       </nav>
 
 

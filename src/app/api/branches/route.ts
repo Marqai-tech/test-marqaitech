@@ -42,22 +42,9 @@ export async function GET(req: NextRequest) {
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Branches GET error:', error);
-    // Demo data fallback when database is unavailable
-    const url = new URL(req.url);
-    const companyId = url.searchParams.get('companyId');
-
-    const demoBranches = [
-      { id: 'branch-1', name: 'Mumbai HQ', code: 'MUM', city: 'Mumbai', state: 'Maharashtra', country: 'India', address: 'BKC, Bandra East', zipCode: '400051', phone: '+91 22 4567 8901', email: 'mumbai@3boxes.com', status: 'active', companyId: companyId || 'comp-1', company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd', code: '3BOXES' }, _count: { employees: 5 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'branch-2', name: 'Bangalore Tech Park', code: 'BLR', city: 'Bangalore', state: 'Karnataka', country: 'India', address: 'Whitefield Main Road', zipCode: '560066', phone: '+91 80 2345 6789', email: 'blr@3boxes.com', status: 'active', companyId: companyId || 'comp-1', company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd', code: '3BOXES' }, _count: { employees: 4 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'branch-3', name: 'Delhi NCR Office', code: 'DEL', city: 'New Delhi', state: 'Delhi', country: 'India', address: 'Connaught Place', zipCode: '110001', phone: '+91 11 3456 7890', email: 'delhi@3boxes.com', status: 'active', companyId: companyId || 'comp-1', company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd', code: '3BOXES' }, _count: { employees: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'branch-4', name: 'Hyderabad Campus', code: 'HYD', city: 'Hyderabad', state: 'Telangana', country: 'India', address: 'HITEC City, Madhapur', zipCode: '500081', phone: '+91 40 4567 8901', email: 'hyd@3boxes.com', status: 'active', companyId: 'comp-2', company: { id: 'comp-2', name: '3Boxes Solutions', code: 'NEXSOL' }, _count: { employees: 6 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'branch-5', name: 'Chennai Center', code: 'CHN', city: 'Chennai', state: 'Tamil Nadu', country: 'India', address: 'OMR, Thoraipakkam', zipCode: '600097', phone: '+91 44 5678 9012', email: 'chn@3boxes.com', status: 'active', companyId: 'comp-2', company: { id: 'comp-2', name: '3Boxes Solutions', code: 'NEXSOL' }, _count: { employees: 4 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'branch-6', name: 'Pune Office', code: 'PUN', city: 'Pune', state: 'Maharashtra', country: 'India', address: 'Hinjewadi Phase 2', zipCode: '411057', phone: '+91 20 6789 0123', email: 'pune@3boxes.com', status: 'active', companyId: 'comp-3', company: { id: 'comp-3', name: '3Boxes Staffing', code: 'NEXSTAFF' }, _count: { employees: 10 }, createdAt: new Date(), updatedAt: new Date() },
-    ];
-
     return NextResponse.json({
-      data: demoBranches,
-      pagination: { page: 1, limit: 100, total: demoBranches.length, totalPages: 1 },
+      data: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
     }, { headers: corsHeaders() });
   }
 }

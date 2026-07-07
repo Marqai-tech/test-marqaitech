@@ -42,21 +42,9 @@ export async function GET(req: NextRequest) {
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Designations GET error:', error);
-    // Demo data fallback
-    const demoDesignations = [
-      { id: 'des-1', title: 'Software Engineer', departmentId: 'dept-1', level: 1, minSalary: 300000, maxSalary: 600000, status: 'active', department: { id: 'dept-1', name: 'Engineering' }, _count: { employees: 4 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-2', title: 'Senior Engineer', departmentId: 'dept-1', level: 2, minSalary: 600000, maxSalary: 1200000, status: 'active', department: { id: 'dept-1', name: 'Engineering' }, _count: { employees: 3 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-3', title: 'Tech Lead', departmentId: 'dept-1', level: 3, minSalary: 1200000, maxSalary: 2000000, status: 'active', department: { id: 'dept-1', name: 'Engineering' }, _count: { employees: 1 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-4', title: 'HR Executive', departmentId: 'dept-2', level: 1, minSalary: 300000, maxSalary: 600000, status: 'active', department: { id: 'dept-2', name: 'Human Resources' }, _count: { employees: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-5', title: 'HR Manager', departmentId: 'dept-2', level: 4, minSalary: 2000000, maxSalary: 3500000, status: 'active', department: { id: 'dept-2', name: 'Human Resources' }, _count: { employees: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-6', title: 'Finance Manager', departmentId: 'dept-3', level: 4, minSalary: 2000000, maxSalary: 3500000, status: 'active', department: { id: 'dept-3', name: 'Finance' }, _count: { employees: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-7', title: 'Sales Manager', departmentId: 'dept-4', level: 4, minSalary: 2000000, maxSalary: 3500000, status: 'active', department: { id: 'dept-4', name: 'Sales' }, _count: { employees: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'des-8', title: 'Operations Manager', departmentId: 'dept-6', level: 4, minSalary: 2000000, maxSalary: 3500000, status: 'active', department: { id: 'dept-6', name: 'Operations' }, _count: { employees: 2 }, createdAt: new Date(), updatedAt: new Date() },
-    ];
-
     return NextResponse.json({
-      data: demoDesignations,
-      pagination: { page: 1, limit: 100, total: demoDesignations.length, totalPages: 1 },
+      data: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
     }, { headers: corsHeaders() });
   }
 }

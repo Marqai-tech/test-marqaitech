@@ -354,7 +354,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div
         className={`transition-all duration-300 ${
-          isMobile ? '' : sidebarCollapsed ? 'ml-[68px]' : 'ml-[260px]'
+          isMobile ? '' : sidebarCollapsed ? 'ml-[68px]' : 'ml-[320px]'
         }`}
       >
         <Header onSidebarToggle={handleSidebarToggle} />

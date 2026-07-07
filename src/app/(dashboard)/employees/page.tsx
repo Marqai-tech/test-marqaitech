@@ -24,6 +24,7 @@ import {
   FiUserCheck,
   FiUserX,
   FiUserPlus,
+  FiUpload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -31,6 +32,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import ModuleIntro from '@/components/ModuleIntro';
+import BulkImportTab from '@/components/BulkImportTab';
 
 /* ── Employee Tips ── */
 const employeeTips = [
@@ -249,22 +251,6 @@ const initialForm = {
   salaryStructureId: '',
 };
 
-/* ── Sample Employee Data (fallback when API returns empty) ── */
-const SAMPLE_EMPLOYEES: Employee[] = [
-  { id: 'demo-1', employeeId: 'EMP-001', firstName: 'Rajesh', lastName: 'Kumar', email: 'rajesh.kumar@3boxeshrms.com', phone: '+91 98765 43210', avatar: null, department: { id: 'd1', name: 'Engineering' }, designation: { id: 'des1', title: 'Senior Developer' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2024-03-15', status: 'active', dateOfBirth: '1990-05-20', gender: 'male', maritalStatus: 'married', nationality: 'Indian', address: '123 MG Road', city: 'Bangalore', state: 'Karnataka', zipCode: '560001', country: 'India', bankName: 'HDFC Bank', bankAccountNo: '1234567890', bankIfscCode: 'HDFC0001234', panNumber: 'ABCPK1234A', aadhaarNumber: '1234 5678 9012', salary: 1500000, salaryCurrency: 'INR', emergencyContactName: 'Priya Kumar', emergencyContactPhone: '+91 98765 43211' },
-  { id: 'demo-2', employeeId: 'EMP-002', firstName: 'Priya', lastName: 'Sharma', email: 'priya.sharma@3boxeshrms.com', phone: '+91 87654 32109', avatar: null, department: { id: 'd2', name: 'Product' }, designation: { id: 'des2', title: 'Product Manager' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2023-08-01', status: 'active', dateOfBirth: '1992-11-14', gender: 'female', maritalStatus: 'single', nationality: 'Indian', address: '456 Brigade Road', city: 'Bangalore', state: 'Karnataka', zipCode: '560025', country: 'India', salary: 1800000, salaryCurrency: 'INR', emergencyContactName: 'Ravi Sharma', emergencyContactPhone: '+91 87654 32108' },
-  { id: 'demo-3', employeeId: 'EMP-003', firstName: 'Arjun', lastName: 'Menon', email: 'arjun.menon@3boxeshrms.com', phone: '+91 76543 21098', avatar: null, department: { id: 'd3', name: 'Design' }, designation: { id: 'des3', title: 'UX Designer' }, branch: { id: 'b2', name: 'Mumbai Office' }, dateOfJoining: '2025-01-10', status: 'active', dateOfBirth: '1994-07-25', gender: 'male', maritalStatus: 'single', nationality: 'Indian', address: '789 Link Road', city: 'Mumbai', state: 'Maharashtra', zipCode: '400053', country: 'India', salary: 1200000, salaryCurrency: 'INR' },
-  { id: 'demo-4', employeeId: 'EMP-004', firstName: 'Meera', lastName: 'Joshi', email: 'meera.joshi@3boxeshrms.com', phone: '+91 65432 10987', avatar: null, department: { id: 'd4', name: 'Analytics' }, designation: { id: 'des4', title: 'Data Analyst' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2025-02-20', status: 'active', dateOfBirth: '1996-03-12', gender: 'female', maritalStatus: 'single', nationality: 'Indian', salary: 1000000, salaryCurrency: 'INR' },
-  { id: 'demo-5', employeeId: 'EMP-005', firstName: 'Vikram', lastName: 'Patel', email: 'vikram.patel@3boxeshrms.com', phone: '+91 54321 09876', avatar: null, department: { id: 'd1', name: 'Engineering' }, designation: { id: 'des5', title: 'Tech Lead' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2022-06-15', status: 'active', dateOfBirth: '1988-09-30', gender: 'male', maritalStatus: 'married', nationality: 'Indian', salary: 2200000, salaryCurrency: 'INR' },
-  { id: 'demo-6', employeeId: 'EMP-006', firstName: 'Sneha', lastName: 'Kulkarni', email: 'sneha.k@3boxeshrms.com', phone: '+91 43210 98765', avatar: null, department: { id: 'd5', name: 'Human Resources' }, designation: { id: 'des6', title: 'HR Manager' }, branch: { id: 'b2', name: 'Mumbai Office' }, dateOfJoining: '2023-01-05', status: 'on_leave', dateOfBirth: '1991-12-08', gender: 'female', maritalStatus: 'married', nationality: 'Indian', salary: 1400000, salaryCurrency: 'INR' },
-  { id: 'demo-7', employeeId: 'EMP-007', firstName: 'Karthik', lastName: 'Iyer', email: 'karthik.i@3boxeshrms.com', phone: '+91 32109 87654', avatar: null, department: { id: 'd1', name: 'Engineering' }, designation: { id: 'des7', title: 'Frontend Developer' }, branch: { id: 'b3', name: 'Hyderabad Office' }, dateOfJoining: '2024-09-01', status: 'active', dateOfBirth: '1995-04-17', gender: 'male', maritalStatus: 'single', nationality: 'Indian', salary: 900000, salaryCurrency: 'INR' },
-  { id: 'demo-8', employeeId: 'EMP-008', firstName: 'Anita', lastName: 'Desai', email: 'anita.desai@3boxeshrms.com', phone: '+91 21098 76543', avatar: null, department: { id: 'd2', name: 'Product' }, designation: { id: 'des8', title: 'Associate PM' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2025-04-12', status: 'active', dateOfBirth: '1997-08-22', gender: 'female', maritalStatus: 'single', nationality: 'Indian', salary: 800000, salaryCurrency: 'INR' },
-  { id: 'demo-9', employeeId: 'EMP-009', firstName: 'Rahul', lastName: 'Reddy', email: 'rahul.reddy@3boxeshrms.com', phone: '+91 10987 65432', avatar: null, department: { id: 'd4', name: 'Analytics' }, designation: { id: 'des9', title: 'Senior Analyst' }, branch: { id: 'b3', name: 'Hyderabad Office' }, dateOfJoining: '2024-01-20', status: 'active', dateOfBirth: '1993-06-05', gender: 'male', maritalStatus: 'married', nationality: 'Indian', salary: 1600000, salaryCurrency: 'INR' },
-  { id: 'demo-10', employeeId: 'EMP-010', firstName: 'Deepa', lastName: 'Nair', email: 'deepa.nair@3boxeshrms.com', phone: '+91 09876 54321', avatar: null, department: { id: 'd5', name: 'Human Resources' }, designation: { id: 'des10', title: 'Recruiter' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2025-05-01', status: 'active', dateOfBirth: '1998-01-15', gender: 'female', maritalStatus: 'single', nationality: 'Indian', salary: 600000, salaryCurrency: 'INR' },
-  { id: 'demo-11', employeeId: 'EMP-011', firstName: 'Suresh', lastName: 'Babu', email: 'suresh.babu@3boxeshrms.com', phone: '+91 88776 65544', avatar: null, department: { id: 'd1', name: 'Engineering' }, designation: { id: 'des1', title: 'Senior Developer' }, branch: { id: 'b4', name: 'Chennai Office' }, dateOfJoining: '2023-11-01', status: 'resigned', dateOfBirth: '1991-10-10', gender: 'male', maritalStatus: 'married', nationality: 'Indian', salary: 1300000, salaryCurrency: 'INR' },
-  { id: 'demo-12', employeeId: 'EMP-012', firstName: 'Lakshmi', lastName: 'Venkat', email: 'lakshmi.v@3boxeshrms.com', phone: '+91 77665 54433', avatar: null, department: { id: 'd6', name: 'Finance' }, designation: { id: 'des11', title: 'Accountant' }, branch: { id: 'b1', name: 'Bangalore HQ' }, dateOfJoining: '2024-07-15', status: 'terminated', dateOfBirth: '1989-02-28', gender: 'female', maritalStatus: 'married', nationality: 'Indian', salary: 700000, salaryCurrency: 'INR' },
-];
-
 /* ── Component ── */
 export default function EmployeesPage() {
   const router = useRouter();
@@ -304,6 +290,7 @@ export default function EmployeesPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [activeMainTab, setActiveMainTab] = useState<'list' | 'import'>('list');
 
   // Row selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -366,17 +353,16 @@ export default function EmployeesPage() {
       const data = await res.json();
       const fetched = data.employees || [];
       if (fetched.length === 0) {
-        // Use sample data as fallback when API returns empty
-        setEmployees(SAMPLE_EMPLOYEES.slice(0, 10));
-        setPagination({ page: 1, limit: 10, total: SAMPLE_EMPLOYEES.length, totalPages: Math.ceil(SAMPLE_EMPLOYEES.length / 10) });
+        setEmployees([]);
+        setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
       } else {
         setEmployees(fetched);
         setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
       }
     } catch (err) {
-      console.error('Failed to load employees from API, using sample data:', err);
-      setEmployees(SAMPLE_EMPLOYEES.slice(0, 10));
-      setPagination({ page: 1, limit: 10, total: SAMPLE_EMPLOYEES.length, totalPages: Math.ceil(SAMPLE_EMPLOYEES.length / 10) });
+      console.error('Failed to load employees from API:', err);
+      setEmployees([]);
+      setPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
     } finally {
       setLoading(false);
     }
@@ -393,15 +379,15 @@ export default function EmployeesPage() {
         const data = await res.json();
         const fetched = data.employees || [];
         if (fetched.length === 0) {
-          setAllEmployees(SAMPLE_EMPLOYEES);
+          setAllEmployees([]);
         } else {
           setAllEmployees(fetched);
         }
       } else {
-        setAllEmployees(SAMPLE_EMPLOYEES);
+        setAllEmployees([]);
       }
     } catch {
-      setAllEmployees(SAMPLE_EMPLOYEES);
+      setAllEmployees([]);
     }
   }, [scopeCompanyId, scopeTenantId]);
 
@@ -409,36 +395,26 @@ export default function EmployeesPage() {
   const fetchDropdowns = useCallback(async () => {
     try {
       const headers = getAuthHeaders();
-      const allEmpRes = await fetch('/api/employees?limit=500', { headers });
-      if (allEmpRes.ok) {
-        const allData = await allEmpRes.json();
-        const emps = allData.employees || [];
-        const sourceList = emps.length > 0 ? emps : SAMPLE_EMPLOYEES;
-        const deptMap = new Map<string, Department>();
-        const desigMap = new Map<string, Designation>();
-        const branchMap = new Map<string, Branch>();
-        sourceList.forEach((e: Employee) => {
-          if (e.department) deptMap.set(e.department.id, e.department);
-          if (e.designation) desigMap.set(e.designation.id, e.designation);
-          if (e.branch) branchMap.set(e.branch.id, e.branch);
-        });
-        setDepartments(Array.from(deptMap.values()));
-        setDesignations(Array.from(desigMap.values()));
-        setBranches(Array.from(branchMap.values()));
-      } else {
-        // Fallback: extract dropdowns from sample data
-        const deptMap = new Map<string, Department>();
-        const desigMap = new Map<string, Designation>();
-        const branchMap = new Map<string, Branch>();
-        SAMPLE_EMPLOYEES.forEach((e: Employee) => {
-          if (e.department) deptMap.set(e.department.id, e.department);
-          if (e.designation) desigMap.set(e.designation.id, e.designation);
-          if (e.branch) branchMap.set(e.branch.id, e.branch);
-        });
-        setDepartments(Array.from(deptMap.values()));
-        setDesignations(Array.from(desigMap.values()));
-        setBranches(Array.from(branchMap.values()));
+
+      // Fetch departments, designations, and branches from their own APIs
+      const [deptRes, desigRes, branchRes] = await Promise.allSettled([
+        fetch('/api/departments?limit=100', { headers }),
+        fetch('/api/designations?limit=100', { headers }),
+        fetch('/api/branches?limit=100', { headers }),
+      ]);
+      if (deptRes.status === 'fulfilled' && deptRes.value.ok) {
+        const d = await deptRes.value.json();
+        setDepartments(d.data || []);
       }
+      if (desigRes.status === 'fulfilled' && desigRes.value.ok) {
+        const d = await desigRes.value.json();
+        setDesignations(d.data || []);
+      }
+      if (branchRes.status === 'fulfilled' && branchRes.value.ok) {
+        const d = await branchRes.value.json();
+        setBranches(d.data || []);
+      }
+
       const [lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
         fetch('/api/policies?category=leave', { headers }),
         fetch('/api/policies?category=attendance', { headers }),
@@ -915,6 +891,35 @@ export default function EmployeesPage() {
         userRole={user?.role}
       />
 
+      {/* Main Tabs: List / Bulk Import */}
+      <div className="flex items-center gap-1 mb-4">
+        <button
+          onClick={() => setActiveMainTab('list')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeMainTab === 'list'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'bg-white text-thb-text-secondary border border-thb-border hover:bg-slate-50'
+          }`}
+        >
+          <FiUsers className="w-4 h-4 inline mr-1.5" />
+          Employee List
+        </button>
+        <button
+          onClick={() => setActiveMainTab('import')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeMainTab === 'import'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'bg-white text-thb-text-secondary border border-thb-border hover:bg-slate-50'
+          }`}
+        >
+          <FiUpload className="w-4 h-4 inline mr-1.5" />
+          Bulk Import
+        </button>
+      </div>
+
+      {activeMainTab === 'import' && <BulkImportTab />}
+
+      {activeMainTab === 'list' && (<>
       {/* ── Add/Edit Employee Form ── */}
       {showForm && (
         <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 transition-all duration-300 ease-in-out">
@@ -2176,6 +2181,7 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

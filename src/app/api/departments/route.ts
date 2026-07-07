@@ -43,24 +43,9 @@ export async function GET(req: NextRequest) {
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Departments GET error:', error);
-    // Demo data fallback when database is unavailable
-    const url = new URL(req.url);
-    const companyId = url.searchParams.get('companyId');
-
-    const demoDepartments = [
-      { id: 'dept-1', name: 'Engineering', code: 'ENG', description: 'Software Engineering Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 8, designations: 3 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-2', name: 'Human Resources', code: 'HR', description: 'Human Resources Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 4, designations: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-3', name: 'Finance', code: 'FIN', description: 'Finance & Accounting Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 3, designations: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-4', name: 'Sales', code: 'SAL', description: 'Sales Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 3, designations: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-5', name: 'Marketing', code: 'MKT', description: 'Marketing & Communications Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 3, designations: 1 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-6', name: 'Operations', code: 'OPS', description: 'Operations Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 3, designations: 2 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-7', name: 'Quality', code: 'QA', description: 'Quality Assurance Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 3, designations: 1 }, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'dept-8', name: 'Admin', code: 'ADM', description: 'Administration Department', status: 'active', companyId: companyId || 'comp-1', branchId: null, company: { id: companyId || 'comp-1', name: 'Marq AI Tech Pvt Ltd' }, branch: null, _count: { employees: 3, designations: 1 }, createdAt: new Date(), updatedAt: new Date() },
-    ];
-
     return NextResponse.json({
-      data: demoDepartments,
-      pagination: { page: 1, limit: 100, total: demoDepartments.length, totalPages: 1 },
+      data: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
     }, { headers: corsHeaders() });
   }
 }

@@ -16,6 +16,10 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  // Declare outside try so the global catch can access them
+  let isAuthed = false;
+  let scope = 'all';
+
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -33,7 +37,6 @@ export async function GET(request: Request) {
     // Try to authenticate, but don't block if no auth (demo mode)
     let userRole = 'employee';
     let userId: string | undefined;
-    let isAuthed = false;
 
     try {
       const token = getTokenFromHeaders(request);
@@ -53,7 +56,6 @@ export async function GET(request: Request) {
       // Auth check failed entirely, continue in demo mode
     }
 
-    let scope = 'all';
     try {
       if (isAuthed) {
         scope = getDataScope(userRole);
@@ -142,7 +144,6 @@ export async function GET(request: Request) {
           { headers: corsHeaders() }
         );
       }
-
       // DB returned 0 results — return empty list (no demo fallback)
       return NextResponse.json(
         {
