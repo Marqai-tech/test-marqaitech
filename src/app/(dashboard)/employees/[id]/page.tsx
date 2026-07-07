@@ -139,10 +139,10 @@ function formatDateTime(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'thb-badge thb-badge-success',
-    on_leave: 'thb-badge thb-badge-warning',
-    terminated: 'thb-badge thb-badge-error',
-    resigned: 'bg-slate-100 text-slate-600 thb-badge',
+    active: 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white thb-badge shadow-sm shadow-emerald-200',
+    on_leave: 'bg-gradient-to-r from-amber-500 to-orange-400 text-white thb-badge shadow-sm shadow-amber-200',
+    terminated: 'bg-gradient-to-r from-red-500 to-rose-400 text-white thb-badge shadow-sm shadow-red-200',
+    resigned: 'bg-gradient-to-r from-slate-500 to-slate-400 text-white thb-badge shadow-sm shadow-slate-200',
   };
   const labels: Record<string, string> = { active: 'Active', on_leave: 'On Leave', terminated: 'Terminated', resigned: 'Resigned' };
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
@@ -200,10 +200,10 @@ const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Atten
 type TabName = typeof tabs[number];
 
 // ─── Info Field Component ───
-function InfoField({ label, value, icon }: { label: string; value?: string | null; icon?: React.ReactNode }) {
+function InfoField({ label, value, icon, accentColor }: { label: string; value?: string | null; icon?: React.ReactNode; accentColor?: string }) {
   return (
-    <div className="flex items-start gap-3 py-3">
-      {icon && <span className="mt-0.5 text-thb-text-muted flex-shrink-0">{icon}</span>}
+    <div className="flex items-start gap-3 py-3 pl-3 border-l-2 border-transparent hover:border-l-blue-400 transition-colors group">
+      {icon && <span className="mt-0.5 text-thb-text-muted flex-shrink-0 group-hover:text-blue-500 transition-colors">{icon}</span>}
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted mb-0.5">{label}</p>
         <p className="text-sm font-medium text-thb-text-primary break-words">{value || '—'}</p>
@@ -213,10 +213,13 @@ function InfoField({ label, value, icon }: { label: string; value?: string | nul
 }
 
 // ─── Section Card Component ───
-function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function SectionCard({ title, icon, children, accentGradient }: { title: string; icon?: React.ReactNode; children: React.ReactNode; accentGradient?: string }) {
+  const gradient = accentGradient || 'from-violet-500 via-blue-500 to-cyan-400';
   return (
-    <div className="thb-card overflow-hidden">
-      <div className="px-6 py-4 border-b border-thb-border bg-gradient-to-r from-slate-50/80 to-transparent">
+    <div className="thb-card overflow-hidden relative">
+      {/* Colorful left border */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${gradient}`} />
+      <div className={`px-6 py-4 border-b border-thb-border bg-gradient-to-r from-violet-50/60 via-blue-50/40 to-cyan-50/30`}>
         <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
           {icon}
           {title}
@@ -230,10 +233,12 @@ function SectionCard({ title, icon, children }: { title: string; icon?: React.Re
 }
 
 // ─── Stat Card Component ───
-function StatCard({ icon, label, value, subtitle, colorClass }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string; colorClass: string }) {
+function StatCard({ icon, label, value, subtitle, colorClass, borderGradient }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string; colorClass: string; borderGradient: string }) {
   return (
-    <div className="thb-card p-5 flex items-start gap-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+    <div className={`thb-card p-5 flex items-start gap-4 relative overflow-hidden border-l-4 border-transparent`}>
+      {/* Gradient left border */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${borderGradient}`} />
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${colorClass}`}>
         {icon}
       </div>
       <div>
@@ -371,7 +376,7 @@ export default function EmployeeDetailPage() {
           ═══════════════════════════════════════════ */}
       <div className="thb-card overflow-hidden">
         {/* Gradient Strip */}
-        <div className="h-32 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-400 relative">
+        <div className="h-32 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400 relative">
           {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
         </div>
@@ -388,7 +393,7 @@ export default function EmployeeDetailPage() {
                   className="w-[120px] h-[120px] rounded-2xl object-cover border-4 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-[120px] h-[120px] rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
+                <div className="w-[120px] h-[120px] rounded-2xl bg-gradient-to-br from-rose-500 via-purple-500 to-indigo-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
                   {initials}
                 </div>
               )}
@@ -430,8 +435,8 @@ export default function EmployeeDetailPage() {
             {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-shrink-0 sm:pb-1">
               <button
-                onClick={() => router.push(`/employees/${id}/edit`)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                onClick={() => router.push(`/employees?editId=${id}`)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-violet-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
               >
                 <FiEdit2 className="w-3.5 h-3.5" />
                 Edit
@@ -457,28 +462,32 @@ export default function EmployeeDetailPage() {
           label="Days Employed"
           value={daysEmployed}
           subtitle={`Since ${formatDate(employee.dateOfJoining)}`}
-          colorClass="bg-blue-50"
+          colorClass="bg-gradient-to-br from-blue-100 to-blue-50"
+          borderGradient="from-blue-500 via-blue-400 to-cyan-400"
         />
         <StatCard
           icon={<FiClock className="w-5 h-5 text-emerald-600" />}
           label="Attendance Rate"
           value={`${attendanceRate}%`}
           subtitle="Last 30 days"
-          colorClass="bg-emerald-50"
+          colorClass="bg-gradient-to-br from-emerald-100 to-emerald-50"
+          borderGradient="from-emerald-500 via-teal-400 to-green-400"
         />
         <StatCard
           icon={<FiCalendar className="w-5 h-5 text-amber-600" />}
           label="Leave Balance"
           value={totalLeaveBalance}
           subtitle="Days remaining"
-          colorClass="bg-amber-50"
+          colorClass="bg-gradient-to-br from-amber-100 to-amber-50"
+          borderGradient="from-amber-500 via-orange-400 to-yellow-400"
         />
         <StatCard
           icon={<FiDollarSign className="w-5 h-5 text-violet-600" />}
           label="Salary"
           value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
           subtitle={employee.salary ? employee.salary.toLocaleString() : undefined}
-          colorClass="bg-violet-50"
+          colorClass="bg-gradient-to-br from-violet-100 to-violet-50"
+          borderGradient="from-violet-500 via-purple-400 to-fuchsia-400"
         />
       </div>
 
@@ -487,21 +496,21 @@ export default function EmployeeDetailPage() {
           ═══════════════════════════════════════════ */}
       <div className="thb-card overflow-hidden">
         {/* Tab Bar */}
-        <div className="border-b border-thb-border bg-gradient-to-r from-slate-50/50 to-transparent overflow-x-auto">
+        <div className="border-b border-thb-border bg-gradient-to-r from-violet-50/30 via-blue-50/20 to-cyan-50/30 overflow-x-auto">
           <nav className="flex px-6">
             {tabs.map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`relative px-4 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`relative px-4 py-3.5 text-sm font-medium whitespace-nowrap transition-all ${
                   activeTab === tab
-                    ? 'text-blue-600'
+                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-cyan-500'
                     : 'text-thb-text-muted hover:text-thb-text-primary'
                 }`}
               >
                 {tab}
                 {activeTab === tab && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-600 rounded-full" />
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 rounded-full" />
                 )}
               </button>
             ))}
@@ -515,7 +524,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Overview' && (
             <div className="space-y-6">
               {/* Personal Information */}
-              <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-blue-500" />}>
+              <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Full Name" value={`${employee.firstName} ${employee.lastName}`} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Birth" value={formatDate(employee.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
@@ -527,7 +536,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Contact Information */}
-              <SectionCard title="Contact Information" icon={<FiMail className="w-4 h-4 text-emerald-500" />}>
+              <SectionCard title="Contact Information" icon={<FiMail className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Email" value={employee.email} icon={<FiMail className="w-3.5 h-3.5" />} />
                   <InfoField label="Phone" value={employee.phone} icon={<FiPhone className="w-3.5 h-3.5" />} />
@@ -540,7 +549,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Emergency Contact */}
-              <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />}>
+              <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
@@ -549,10 +558,10 @@ export default function EmployeeDetailPage() {
 
               {/* Skills */}
               {employee.skills && employee.skills.length > 0 && (
-                <SectionCard title="Skills" icon={<FiAward className="w-4 h-4 text-violet-500" />}>
+                <SectionCard title="Skills" icon={<FiAward className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-purple-400 to-fuchsia-400">
                   <div className="flex flex-wrap gap-2">
                     {employee.skills.map(s => (
-                      <span key={s.id} className="inline-flex items-center gap-1.5 thb-badge thb-badge-info">
+                      <span key={s.id} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-100 to-fuchsia-100 text-violet-700 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
                         <FiTrendingUp className="w-3 h-3" />
                         {s.skill}
                         <span className="opacity-60">·</span>
@@ -569,7 +578,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Personal' && (
             <div className="space-y-6">
               {/* Personal Details */}
-              <SectionCard title="Personal Details" icon={<FiUser className="w-4 h-4 text-blue-500" />}>
+              <SectionCard title="Personal Details" icon={<FiUser className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="First Name" value={employee.firstName} />
                   <InfoField label="Last Name" value={employee.lastName} />
@@ -584,7 +593,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Address */}
-              <SectionCard title="Address" icon={<FiMapPin className="w-4 h-4 text-emerald-500" />}>
+              <SectionCard title="Address" icon={<FiMapPin className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Street Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
                   <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
@@ -595,7 +604,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Emergency Contact */}
-              <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />}>
+              <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
@@ -604,7 +613,7 @@ export default function EmployeeDetailPage() {
 
               {/* Dependents */}
               {employee.dependents && employee.dependents.length > 0 && (
-                <SectionCard title="Dependents" icon={<FiUsers className="w-4 h-4 text-amber-500" />}>
+                <SectionCard title="Dependents" icon={<FiUsers className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -636,7 +645,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Employment' && (
             <div className="space-y-6">
               {/* Employment Details */}
-              <SectionCard title="Employment Details" icon={<FiBriefcase className="w-4 h-4 text-blue-500" />}>
+              <SectionCard title="Employment Details" icon={<FiBriefcase className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Employee ID" value={employee.employeeId} icon={<FiHash className="w-3.5 h-3.5" />} />
                   <InfoField label="Department" value={employee.department?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
@@ -648,7 +657,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Salary Information */}
-              <SectionCard title="Salary Information" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />}>
+              <SectionCard title="Salary Information" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Salary" value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'} icon={<FiDollarSign className="w-3.5 h-3.5" />} />
                   <InfoField label="Currency" value={employee.salaryCurrency || 'INR'} />
@@ -656,7 +665,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Bank Details */}
-              <SectionCard title="Bank & Statutory Details" icon={<FiShield className="w-4 h-4 text-violet-500" />}>
+              <SectionCard title="Bank & Statutory Details" icon={<FiShield className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-purple-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Bank Name" value={employee.bankName} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
                   <InfoField label="Account No" value={employee.bankAccountNo} icon={<FiHash className="w-3.5 h-3.5" />} />
@@ -668,11 +677,11 @@ export default function EmployeeDetailPage() {
 
               {/* Work Experience */}
               {employee.experiences && employee.experiences.length > 0 && (
-                <SectionCard title="Work Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />}>
+                <SectionCard title="Work Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                   <div className="space-y-4">
                     {employee.experiences.map(exp => (
                       <div key={exp.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0">
                           <FiBriefcase className="w-5 h-5 text-amber-600" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -693,11 +702,11 @@ export default function EmployeeDetailPage() {
 
               {/* Qualifications */}
               {employee.qualifications && employee.qualifications.length > 0 && (
-                <SectionCard title="Qualifications" icon={<FiAward className="w-4 h-4 text-blue-500" />}>
+                <SectionCard title="Qualifications" icon={<FiAward className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
                   <div className="space-y-4">
                     {employee.qualifications.map(q => (
                       <div key={q.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0">
                           <FiAward className="w-5 h-5 text-blue-600" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -771,19 +780,19 @@ export default function EmployeeDetailPage() {
             <div className="space-y-6">
               {/* Leave Balances */}
               {employee.leaveBalances && employee.leaveBalances.length > 0 && (
-                <SectionCard title="Leave Balances" icon={<FiCalendar className="w-4 h-4 text-blue-500" />}>
+                <SectionCard title="Leave Balances" icon={<FiCalendar className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {employee.leaveBalances.map(lb => {
                       const pct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
-                      const barColor = pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-500' : 'bg-blue-500';
+                      const barColor = pct > 80 ? 'bg-gradient-to-r from-red-500 to-rose-400' : pct > 50 ? 'bg-gradient-to-r from-amber-500 to-orange-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400';
                       return (
-                        <div key={lb.id} className="p-4 rounded-xl border border-thb-border hover:shadow-sm transition-shadow">
+                        <div key={lb.id} className="p-4 rounded-xl border border-thb-border hover:shadow-md transition-all hover:border-blue-200">
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-semibold text-thb-text-primary">{lb.leaveType.name}</p>
                             <span className="text-xs font-medium text-thb-text-muted">{lb.year}</span>
                           </div>
-                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-                            <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+                            <div className={`h-full rounded-full transition-all shadow-sm ${barColor}`} style={{ width: `${pct}%` }} />
                           </div>
                           <div className="flex items-center justify-between text-xs text-thb-text-muted">
                             <span>Total: <strong className="text-thb-text-secondary">{lb.total}</strong></span>
@@ -798,7 +807,7 @@ export default function EmployeeDetailPage() {
               )}
 
               {/* Leave History */}
-              <SectionCard title="Leave History" icon={<FiClock className="w-4 h-4 text-amber-500" />}>
+              <SectionCard title="Leave History" icon={<FiClock className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                 {leaveRequests.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
@@ -841,7 +850,7 @@ export default function EmployeeDetailPage() {
 
           {/* ── Attendance Tab ── */}
           {activeTab === 'Attendance' && (
-            <SectionCard title="Recent Attendance" icon={<FiClock className="w-4 h-4 text-emerald-500" />}>
+            <SectionCard title="Recent Attendance" icon={<FiClock className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
               {attendance.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
@@ -885,7 +894,7 @@ export default function EmployeeDetailPage() {
 
           {/* ── Payroll Tab ── */}
           {activeTab === 'Payroll' && (
-            <SectionCard title="Recent Payslips" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />}>
+            <SectionCard title="Recent Payslips" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
               {payrolls.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
@@ -930,7 +939,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Health' && (
             <div className="space-y-6">
               {/* Vitals & Blood */}
-              <SectionCard title="Vitals & Blood Information" icon={<FiHeart className="w-4 h-4 text-red-500" />}>
+              <SectionCard title="Vitals & Blood Information" icon={<FiHeart className="w-4 h-4 text-red-500" />} accentGradient="from-red-500 via-rose-400 to-pink-400">
                 <p className="text-xs text-thb-text-muted mb-4">Employee health information for workplace safety and emergency preparedness.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0">
                   <InfoField label="Blood Group" value={employee.bloodGroup} icon={<FiDroplet className="w-3.5 h-3.5" />} />
@@ -939,7 +948,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Medical History */}
-              <SectionCard title="Medical History" icon={<FiShield className="w-4 h-4 text-amber-500" />}>
+              <SectionCard title="Medical History" icon={<FiShield className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                 <div className="space-y-3">
                   {[
                     { label: 'Chronic Illness', value: (employee as Record<string, unknown>).hasChronicIllness as string, details: (employee as Record<string, unknown>).chronicIllnessDetails as string },
@@ -964,7 +973,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Physician & Insurance */}
-              <SectionCard title="Physician & Insurance" icon={<FiShield className="w-4 h-4 text-blue-500" />}>
+              <SectionCard title="Physician & Insurance" icon={<FiShield className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-0">
                   <InfoField label="Primary Physician" value={(employee as Record<string, unknown>).primaryPhysicianName as string} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Physician Phone" value={(employee as Record<string, unknown>).primaryPhysicianPhone as string} icon={<FiPhone className="w-3.5 h-3.5" />} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiUsers,
   FiPlus,
@@ -169,6 +169,7 @@ const initialForm = {
   state: '',
   zipCode: '',
   country: '',
+  companyId: '',
   departmentId: '',
   designationId: '',
   branchId: '',
@@ -267,9 +268,11 @@ const SAMPLE_EMPLOYEES: Employee[] = [
 /* ── Component ── */
 export default function EmployeesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editIdFromUrl = searchParams.get('editId');
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const { effectiveCompanyId, selectedTenantId } = useCompanyContextStore();
+  const { effectiveCompanyId, selectedTenantId, availableCompanies } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
 
@@ -463,12 +466,153 @@ export default function EmployeesPage() {
     queueMicrotask(() => fetchAllEmployees());
   }, [fetchAllEmployees]);
 
+  /* Handle editId from URL (navigated from employee view page Edit button) */
+  useEffect(() => {
+    if (!editIdFromUrl) return;
+    const fetchAndOpenEdit = async () => {
+      try {
+        const res = await fetch(`/api/employees/${editIdFromUrl}`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        const emp = data.employee;
+        if (!emp) return;
+        // Build form from fetched employee
+        setEditingId(emp.id);
+        setForm({
+          employeeId: emp.employeeId || '',
+          firstName: emp.firstName || '',
+          lastName: emp.lastName || '',
+          email: emp.email || '',
+          phone: emp.phone || '',
+          dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
+          gender: emp.gender || '',
+          maritalStatus: emp.maritalStatus || '',
+          nationality: emp.nationality || '',
+          address: emp.address || '',
+          city: emp.city || '',
+          state: emp.state || '',
+          zipCode: emp.zipCode || '',
+          country: emp.country || '',
+          companyId: emp.companyId || emp.company?.id || '',
+          departmentId: emp.department?.id || '',
+          designationId: emp.designation?.id || '',
+          branchId: emp.branch?.id || '',
+          dateOfJoining: emp.dateOfJoining ? emp.dateOfJoining.split('T')[0] : '',
+          bankName: emp.bankName || '',
+          bankAccountNo: emp.bankAccountNo || '',
+          bankIfscCode: emp.bankIfscCode || '',
+          panNumber: emp.panNumber || '',
+          aadhaarNumber: emp.aadhaarNumber || '',
+          salary: emp.salary?.toString() || '',
+          salaryCurrency: emp.salaryCurrency || 'INR',
+          emergencyContactName: emp.emergencyContactName || '',
+          emergencyContactPhone: emp.emergencyContactPhone || '',
+          bloodGroup: emp.bloodGroup || '',
+          hasChronicIllness: (emp as Record<string, unknown>).hasChronicIllness as string || '',
+          chronicIllnessDetails: (emp as Record<string, unknown>).chronicIllnessDetails as string || '',
+          hasAllergies: (emp as Record<string, unknown>).hasAllergies as string || '',
+          allergyDetails: (emp as Record<string, unknown>).allergyDetails as string || '',
+          hasDisability: (emp as Record<string, unknown>).hasDisability as string || '',
+          disabilityDetails: (emp as Record<string, unknown>).disabilityDetails as string || '',
+          isOnMedication: (emp as Record<string, unknown>).isOnMedication as string || '',
+          medicationDetails: (emp as Record<string, unknown>).medicationDetails as string || '',
+          hasHadSurgery: (emp as Record<string, unknown>).hasHadSurgery as string || '',
+          surgeryDetails: (emp as Record<string, unknown>).surgeryDetails as string || '',
+          emergencyMedicalCondition: (emp as Record<string, unknown>).emergencyMedicalCondition as string || '',
+          primaryPhysicianName: (emp as Record<string, unknown>).primaryPhysicianName as string || '',
+          primaryPhysicianPhone: (emp as Record<string, unknown>).primaryPhysicianPhone as string || '',
+          healthInsuranceProvider: (emp as Record<string, unknown>).healthInsuranceProvider as string || '',
+          healthInsurancePolicyNo: (emp as Record<string, unknown>).healthInsurancePolicyNo as string || '',
+          leavePolicyId: emp.leavePolicyId || '',
+          attendancePolicyId: emp.attendancePolicyId || '',
+          travelPolicyId: emp.travelPolicyId || '',
+          salaryStructureId: emp.salaryStructureId || '',
+          // Statutory
+          pfNumber: (emp as Record<string, unknown>).pfNumber as string || '',
+          pfUAN: (emp as Record<string, unknown>).pfUAN as string || '',
+          pfNomineeName: (emp as Record<string, unknown>).pfNomineeName as string || '',
+          pfNomineeRelation: (emp as Record<string, unknown>).pfNomineeRelation as string || '',
+          pfNomineePercentage: (emp as Record<string, unknown>).pfNomineePercentage as string || '',
+          esiNumber: (emp as Record<string, unknown>).esiNumber as string || '',
+          esiDispensary: (emp as Record<string, unknown>).esiDispensary as string || '',
+          esiNomineeName: (emp as Record<string, unknown>).esiNomineeName as string || '',
+          esiNomineeRelation: (emp as Record<string, unknown>).esiNomineeRelation as string || '',
+          professionalTaxNumber: (emp as Record<string, unknown>).professionalTaxNumber as string || '',
+          lwfNumber: (emp as Record<string, unknown>).lwfNumber as string || '',
+          // Overseas
+          hasForeignCitizenship: (emp as Record<string, unknown>).hasForeignCitizenship as string || '',
+          foreignCitizenshipCountry: (emp as Record<string, unknown>).foreignCitizenshipCountry as string || '',
+          foreignPassportNumber: (emp as Record<string, unknown>).foreignPassportNumber as string || '',
+          foreignPassportExpiry: (emp as Record<string, unknown>).foreignPassportExpiry as string || '',
+          hasForeignSojourn: (emp as Record<string, unknown>).hasForeignSojourn as string || '',
+          foreignSojournCountry: (emp as Record<string, unknown>).foreignSojournCountry as string || '',
+          foreignSojournPurpose: (emp as Record<string, unknown>).foreignSojournPurpose as string || '',
+          foreignSojournDuration: (emp as Record<string, unknown>).foreignSojournDuration as string || '',
+          hasVisa: (emp as Record<string, unknown>).hasVisa as string || '',
+          visaType: (emp as Record<string, unknown>).visaType as string || '',
+          visaCountry: (emp as Record<string, unknown>).visaCountry as string || '',
+          visaExpiry: (emp as Record<string, unknown>).visaExpiry as string || '',
+          hasIntlDrivingLicense: (emp as Record<string, unknown>).hasIntlDrivingLicense as string || '',
+          intlDrivingLicenseCountry: (emp as Record<string, unknown>).intlDrivingLicenseCountry as string || '',
+          intlDrivingLicenseExpiry: (emp as Record<string, unknown>).intlDrivingLicenseExpiry as string || '',
+          // Experience
+          previousEmployer1: (emp as Record<string, unknown>).previousEmployer1 as string || '',
+          previousDesignation1: (emp as Record<string, unknown>).previousDesignation1 as string || '',
+          previousDuration1: (emp as Record<string, unknown>).previousDuration1 as string || '',
+          previousReason1: (emp as Record<string, unknown>).previousReason1 as string || '',
+          previousEmployer2: (emp as Record<string, unknown>).previousEmployer2 as string || '',
+          previousDesignation2: (emp as Record<string, unknown>).previousDesignation2 as string || '',
+          previousDuration2: (emp as Record<string, unknown>).previousDuration2 as string || '',
+          previousReason2: (emp as Record<string, unknown>).previousReason2 as string || '',
+          previousEmployer3: (emp as Record<string, unknown>).previousEmployer3 as string || '',
+          previousDesignation3: (emp as Record<string, unknown>).previousDesignation3 as string || '',
+          previousDuration3: (emp as Record<string, unknown>).previousDuration3 as string || '',
+          previousReason3: (emp as Record<string, unknown>).previousReason3 as string || '',
+          totalExperience: (emp as Record<string, unknown>).totalExperience as string || '',
+        });
+        setShowForm(true);
+        setFormTab('personal');
+        setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      } catch (err) {
+        console.error('Failed to load employee for editing:', err);
+      }
+    };
+    fetchAndOpenEdit();
+  }, [editIdFromUrl]);
+
+  /* Read employee code settings from localStorage */
+  const getEmployeeCodeSettings = useCallback(() => {
+    try {
+      const stored = localStorage.getItem('3boxes_hrms_settings');
+      if (stored) {
+        const settings = JSON.parse(stored);
+        return {
+          autoGeneration: settings.employee_code_auto_generation !== false,
+          prefix: settings.employee_code_prefix || 'EMP',
+          sequence: settings.employee_code_sequence || 1001,
+        };
+      }
+    } catch { /* ignore */ }
+    return { autoGeneration: true, prefix: 'EMP', sequence: 1001 };
+  }, []);
+
+  /* Generate the next employee code based on settings */
+  const generateNextEmployeeCode = useCallback(() => {
+    const settings = getEmployeeCodeSettings();
+    if (!settings.autoGeneration) return ''; // Manual mode — leave empty for user to fill
+    // Use prefix + timestamp-based unique suffix to avoid collisions
+    const ts = String(Date.now()).slice(-6);
+    return `${settings.prefix}${ts}`;
+  }, [getEmployeeCodeSettings]);
+
   /* Form handlers */
   const handleOpenAddForm = () => {
     setEditingId(null);
+    const settings = getEmployeeCodeSettings();
     setForm({
       ...initialForm,
-      employeeId: `EMP${String(Date.now()).slice(-6)}`,
+      employeeId: settings.autoGeneration ? generateNextEmployeeCode() : '',
+      companyId: scopeCompanyId || '',
     });
     setShowForm(true);
     setFormTab('personal');
@@ -494,6 +638,7 @@ export default function EmployeesPage() {
       state: emp.state || '',
       zipCode: emp.zipCode || '',
       country: emp.country || '',
+      companyId: (emp as Record<string, unknown>).companyId as string || '',
       departmentId: emp.department?.id || '',
       designationId: emp.designation?.id || '',
       branchId: emp.branch?.id || '',
@@ -544,8 +689,24 @@ export default function EmployeesPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!form.firstName || !form.lastName || !form.email || !form.departmentId || !form.designationId || !form.dateOfJoining) {
-      toast.error('Please fill in all required fields');
+    // Enhanced validation: show exactly which required fields are missing
+    const missingFields: string[] = [];
+    const settings = getEmployeeCodeSettings();
+    if (settings.autoGeneration && !form.employeeId) missingFields.push('Employee ID');
+    if (!settings.autoGeneration && !form.employeeId) missingFields.push('Employee ID');
+    if (!form.firstName) missingFields.push('First Name');
+    if (!form.lastName) missingFields.push('Last Name');
+    if (!form.email) missingFields.push('Email');
+    if (!form.departmentId) missingFields.push('Department');
+    if (!form.designationId) missingFields.push('Designation');
+    if (!form.dateOfJoining) missingFields.push('Date of Joining');
+    if (missingFields.length > 0) {
+      toast.error(`Missing required fields: ${missingFields.join(', ')}`, { duration: 5000 });
+      // Auto-navigate to the tab that contains the first missing field
+      const personalFields = ['Employee ID', 'First Name', 'Last Name', 'Email'];
+      const employmentFields = ['Department', 'Designation', 'Date of Joining'];
+      if (personalFields.includes(missingFields[0])) setFormTab('personal');
+      else if (employmentFields.includes(missingFields[0])) setFormTab('employment');
       return;
     }
     try {
@@ -553,6 +714,7 @@ export default function EmployeesPage() {
       const payload = {
         ...form,
         salary: form.salary ? parseFloat(form.salary) : null,
+        companyId: form.companyId || scopeCompanyId || null,
       };
 
       if (editingId) {
@@ -814,8 +976,24 @@ export default function EmployeesPage() {
                       <input type="text" value={form.lastName} onChange={e => updateForm('lastName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee ID *</label>
-                      <input type="text" value={form.employeeId} onChange={e => updateForm('employeeId', e.target.value)} required disabled={!!editingId} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50" />
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
+                        Employee ID *
+                        {getEmployeeCodeSettings().autoGeneration && !editingId && (
+                          <span className="ml-1.5 text-[10px] font-normal text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">Auto-generated</span>
+                        )}
+                        {!getEmployeeCodeSettings().autoGeneration && !editingId && (
+                          <span className="ml-1.5 text-[10px] font-normal text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Manual</span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={form.employeeId}
+                        onChange={e => updateForm('employeeId', e.target.value)}
+                        required
+                        disabled={!!editingId || (getEmployeeCodeSettings().autoGeneration && !editingId)}
+                        placeholder={getEmployeeCodeSettings().autoGeneration ? 'Auto-generated on save' : 'Enter employee ID'}
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50"
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
@@ -901,6 +1079,25 @@ export default function EmployeesPage() {
               {formTab === 'employment' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
+                        Company *
+                        {availableCompanies.length > 1 && (
+                          <span className="ml-1 text-[10px] font-normal text-thb-text-muted">({availableCompanies.length} companies)</span>
+                        )}
+                      </label>
+                      <select
+                        value={form.companyId}
+                        onChange={e => updateForm('companyId', e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      >
+                        <option value="">Select Company</option>
+                        {availableCompanies.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
+                      </select>
+                      {availableCompanies.length <= 1 && form.companyId && (
+                        <p className="text-[10px] text-thb-text-muted mt-1">Auto-assigned to your company</p>
+                      )}
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
                       <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
