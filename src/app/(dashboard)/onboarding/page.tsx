@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import {
   FiUserPlus,
@@ -13,7 +13,9 @@ import {
   FiCheck,
   FiUserCheck,
   FiLink,
+  FiGrid, FiFileText, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
@@ -129,8 +131,69 @@ const initialForm = {
   status: 'pending',
 };
 
-/* ── Component ── */
+/* ── Placeholder Tabs ── */
+
+const onboardingTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function OnboardingReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Onboarding Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Onboarding progress reports, completion rates, and analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function OnboardingSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Onboarding Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure onboarding templates, task checklists, and buddy assignments. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function OnboardingPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="onboarding"
+      moduleLabel="Onboarding"
+      moduleIcon={<FiUserPlus className="w-5 h-5 text-white" />}
+      gradientColor="from-emerald-500 to-teal-600"
+      tabs={onboardingTabs}
+      overviewContent={<OnboardingContent />}
+      children={{
+        reports: <OnboardingReportsPlaceholder />,
+        settings: <OnboardingSettingsPlaceholder />,
+      }}
+    />
+  );
+}
+
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" /></div>}>
+      <OnboardingPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Component ── */
+function OnboardingContent() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 

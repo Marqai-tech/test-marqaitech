@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import {
   FiPackage,
   FiPlus,
@@ -11,7 +11,9 @@ import {
   FiFilter,
   FiMonitor,
   FiSmartphone,
+  FiGrid, FiFileText, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
@@ -115,8 +117,69 @@ const initialForm = {
   notes: '',
 };
 
-/* ── Component ── */
+/* ── Placeholder Tabs ── */
+
+const assetsTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function AssetsReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Assets Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Asset inventory reports, depreciation schedules, and assignment analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function AssetsSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Assets Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure asset categories, depreciation policies, and assignment rules. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function AssetsPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="assets"
+      moduleLabel="Assets & IT"
+      moduleIcon={<FiPackage className="w-5 h-5 text-white" />}
+      gradientColor="from-slate-500 to-gray-600"
+      tabs={assetsTabs}
+      overviewContent={<AssetsContent />}
+      children={{
+        reports: <AssetsReportsPlaceholder />,
+        settings: <AssetsSettingsPlaceholder />,
+      }}
+    />
+  );
+}
+
 export default function AssetsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-slate-500 border-t-transparent rounded-full" /></div>}>
+      <AssetsPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Component ── */
+function AssetsContent() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import {
   FiBriefcase, FiFileText, FiCalendar, FiClock,
   FiUserCheck, FiTrendingUp, FiArrowUp, FiArrowDown,
   FiPlus, FiUsers, FiEye, FiLayers, FiSend,
   FiBarChart2, FiChevronRight, FiVideo, FiPhone,
-  FiMapPin, FiStar,
+  FiMapPin, FiStar, FiUserPlus, FiGrid, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
@@ -270,11 +271,70 @@ function InterviewTypeBadge({ type }: { type: string }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Recruitment Dashboard Page Component
-   ═══════════════════════════════════════════════════ */
+/* ── Placeholder Tabs ── */
+
+const recruitmentTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function RecruitmentReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Recruitment Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Hiring analytics, pipeline reports, and recruitment metrics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function RecruitmentSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Recruitment Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure hiring workflows, approval chains, and recruitment preferences. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function RecruitmentPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="recruitment"
+      moduleLabel="Recruitment"
+      moduleIcon={<FiUserPlus className="w-5 h-5 text-white" />}
+      gradientColor="from-purple-500 to-violet-600"
+      tabs={recruitmentTabs}
+      overviewContent={<RecruitmentContent />}
+      children={{
+        reports: <RecruitmentReportsPlaceholder />,
+        settings: <RecruitmentSettingsPlaceholder />,
+      }}
+    />
+  );
+}
 
 export default function RecruitmentDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" /></div>}>
+      <RecruitmentPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Recruitment Content ── */
+
+function RecruitmentContent() {
   const { user } = useAuthStore();
   const { selectedCompany } = useCompanyContextStore();
 

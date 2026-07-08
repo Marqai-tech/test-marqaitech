@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import {
   FiPlus, FiX, FiSearch, FiGlobe, FiMail,
   FiMapPin, FiBriefcase, FiEye, FiEdit2, FiTrash2,
   FiPhone, FiDollarSign, FiCalendar,
+  FiGrid, FiFileText,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
@@ -37,6 +39,51 @@ interface Client {
   _count?: { projects: number };
 }
 
+/* ── Placeholder Tabs ── */
+
+const externalTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+];
+
+function ExternalReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">External Relations Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Client engagement reports, billing summaries, and relationship analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function ClientsPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="external"
+      moduleLabel="External Relations"
+      moduleIcon={<FiGlobe className="w-5 h-5 text-white" />}
+      gradientColor="from-violet-500 to-purple-600"
+      tabs={externalTabs}
+      overviewContent={<ClientsContent />}
+      children={{
+        reports: <ExternalReportsPlaceholder />,
+      }}
+    />
+  );
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full" /></div>}>
+      <ClientsPageContent />
+    </Suspense>
+  );
+}
+
 /* ── Module Tips & Workflow Data ── */
 const clientTips = [
   { title: 'Streamline Client Onboarding', description: 'Create a consistent onboarding process with standardized forms, required documents, and welcome kits to ensure no steps are missed.' },
@@ -56,7 +103,7 @@ const clientWorkflowSteps = [
   { step: 7, title: 'Renew or Close', description: 'Renew engagement terms or formally close the relationship' },
 ];
 
-export default function ClientsPage() {
+function ClientsContent() {
   const { user } = useAuthStore();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);

@@ -7,7 +7,7 @@
    arrivals panel, and quick-action shortcuts.
    ─────────────────────────────────────────────────────────────── */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiCheckCircle,
@@ -26,7 +26,9 @@ import {
   FiClipboard,
   FiNavigation,
   FiAlertTriangle,
+  FiGrid, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import {
   AreaChart,
   Area,
@@ -199,11 +201,70 @@ function SkeletonTable() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   Attendance Dashboard Page
-   ══════════════════════════════════════════════════════════════ */
+/* ── Placeholder Tabs ── */
+
+const attendanceTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+];
+
+function AttendanceSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-sky-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Attendance Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure work schedules, grace periods, overtime rules, and attendance policies. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function AttendanceReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-sky-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Attendance Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Attendance trends, punctuality reports, and time-tracking analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function AttendancePageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="attendance"
+      moduleLabel="Attendance"
+      moduleIcon={<FiClock className="w-5 h-5 text-white" />}
+      gradientColor="from-cyan-500 to-sky-600"
+      tabs={attendanceTabs}
+      overviewContent={<AttendanceContent />}
+      children={{
+        settings: <AttendanceSettingsPlaceholder />,
+        reports: <AttendanceReportsPlaceholder />,
+      }}
+    />
+  );
+}
 
 export default function AttendanceDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full" /></div>}>
+      <AttendancePageContent />
+    </Suspense>
+  );
+}
+
+/* ── Attendance Content ── */
+
+function AttendanceContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { selectedCompany } = useCompanyContextStore();

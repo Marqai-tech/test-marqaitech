@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiCalendar, FiClock, FiFileText, FiHeadphones,
   FiDollarSign, FiCheckCircle, FiAlertCircle, FiChevronRight,
   FiActivity, FiTarget, FiClock as FiTimeEntry,
   FiArrowRight, FiEdit3,
-  FiBell, FiUsers,
+  FiBell, FiUsers, FiGrid, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer,
   Tooltip, XAxis, YAxis, CartesianGrid,
@@ -247,9 +248,70 @@ const DEMO_ANNOUNCEMENTS: Announcement[] = [
   },
 ];
 
-/* ─────────────────── component ─────────────────── */
+/* ─────────────────── placeholder tabs ─────────────────── */
+
+const employeeTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function EmployeeReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Employee Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Reports and analytics for employee data. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function EmployeeSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Employee Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure employee module settings and preferences. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function EmployeePageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="employee"
+      moduleLabel="Employee"
+      moduleIcon={<FiUsers className="w-5 h-5 text-white" />}
+      gradientColor="from-blue-500 to-indigo-600"
+      tabs={employeeTabs}
+      overviewContent={<EmployeeContent />}
+      children={{
+        reports: <EmployeeReportsPlaceholder />,
+        settings: <EmployeeSettingsPlaceholder />,
+      }}
+    />
+  );
+}
 
 export default function EmployeeDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+      <EmployeePageContent />
+    </Suspense>
+  );
+}
+
+/* ─────────────────── component ─────────────────── */
+
+function EmployeeContent() {
   const router = useRouter();
   const { user } = useAuthStore();
 

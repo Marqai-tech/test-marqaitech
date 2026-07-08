@@ -1,10 +1,55 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { FiShoppingBag, FiGrid, FiFileText } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import SeedEcosystemButton from '@/components/SeedEcosystemButton';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
+const marketplaceTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+];
+
+function MarketplaceReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Marketplace Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Wallet usage analytics, spending reports, and wellness program metrics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function MarketplacePageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="marketplace"
+      moduleLabel="Marketplace & Wellness"
+      moduleIcon={<FiShoppingBag className="w-5 h-5 text-white" />}
+      gradientColor="from-rose-500 to-pink-600"
+      tabs={marketplaceTabs}
+      overviewContent={<MarketplaceContent />}
+      children={{
+        reports: <MarketplaceReportsPlaceholder />,
+      }}
+    />
+  );
+}
+
 export default function MarketplaceHub() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-rose-500 border-t-transparent rounded-full" /></div>}>
+      <MarketplacePageContent />
+    </Suspense>
+  );
+}
+
+function MarketplaceContent() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 

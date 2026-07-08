@@ -7,7 +7,7 @@
    quick-action shortcuts.
    ─────────────────────────────────────────────────────────────── */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import {
   FiDollarSign,
   FiTrendingDown,
@@ -30,7 +30,9 @@ import {
   FiRefreshCw,
   FiExternalLink,
   FiZap,
+  FiGrid,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import {
   AreaChart,
   Area,
@@ -292,11 +294,70 @@ function SkeletonTable() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MAIN COMPONENT
-   ═══════════════════════════════════════════════════════════════ */
+/* ── Placeholder Tabs ── */
+
+const payrollTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function PayrollReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Payroll Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Payroll registers, tax reports, and salary analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function PayrollSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Payroll Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure salary structures, tax slabs, deduction rules, and payroll cycles. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function PayrollPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="payroll"
+      moduleLabel="Payroll"
+      moduleIcon={<FiDollarSign className="w-5 h-5 text-white" />}
+      gradientColor="from-green-500 to-emerald-600"
+      tabs={payrollTabs}
+      overviewContent={<PayrollContent />}
+      children={{
+        reports: <PayrollReportsPlaceholder />,
+        settings: <PayrollSettingsPlaceholder />,
+      }}
+    />
+  );
+}
 
 export default function PayrollDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" /></div>}>
+      <PayrollPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Payroll Content ── */
+
+function PayrollContent() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

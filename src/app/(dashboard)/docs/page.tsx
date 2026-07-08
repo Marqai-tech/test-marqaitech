@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { canManageDocs } from '@/lib/roleAccess';
@@ -9,7 +9,9 @@ import {
   FiZap, FiClipboard, FiPlay, FiLock, FiUnlock, FiEye, FiChevronRight,
   FiPlus, FiEdit3, FiTrash2, FiX, FiUsers, FiUser,
   FiArrowLeft, FiHash, FiLayers,
+  FiGrid,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 
 // Types
 interface DocCategory {
@@ -163,7 +165,36 @@ function getCategoryColorClass(color: string) {
   return colors[color] || 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
+/* ── Placeholder Tabs ── */
+
+const knowledgeTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+];
+
+function DocsPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="knowledge"
+      moduleLabel="Knowledge Base"
+      moduleIcon={<FiBookOpen className="w-5 h-5 text-white" />}
+      gradientColor="from-blue-500 to-cyan-600"
+      tabs={knowledgeTabs}
+      overviewContent={<DocsContent />}
+      children={{}}
+    />
+  );
+}
+
 export default function DocsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+      <DocsPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Docs Content ── */
+function DocsContent() {
   const { user, token } = useAuthStore();
   const canEditDocs = canManageDocs(user?.role || 'employee');
 

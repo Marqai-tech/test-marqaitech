@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import {
   FiMap,
   FiPlus,
@@ -11,7 +11,9 @@ import {
   FiFilter,
   FiCalendar,
   FiNavigation,
+  FiGrid, FiFileText, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
@@ -129,8 +131,69 @@ const initialForm = {
   approvalNotes: '',
 };
 
-/* ── Component ── */
+/* ── Placeholder Tabs ── */
+
+const travelTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function TravelReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Travel & Expense Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Travel spending reports, expense breakdowns, and policy compliance analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function TravelSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Travel Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure travel policies, approval hierarchies, and expense categories. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function TravelPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="travel-expense"
+      moduleLabel="Travel & Expense"
+      moduleIcon={<FiMap className="w-5 h-5 text-white" />}
+      gradientColor="from-orange-500 to-red-600"
+      tabs={travelTabs}
+      overviewContent={<TravelContent />}
+      children={{
+        reports: <TravelReportsPlaceholder />,
+        settings: <TravelSettingsPlaceholder />,
+      }}
+    />
+  );
+}
+
 export default function TravelPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full" /></div>}>
+      <TravelPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Component ── */
+function TravelContent() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 

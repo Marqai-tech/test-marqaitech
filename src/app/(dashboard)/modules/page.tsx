@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   FiGrid, FiSearch, FiArrowRight, FiChevronRight,
+  FiLayers, FiSettings, FiFileText, FiDatabase,
+  FiBarChart2, FiCpu,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { canRoleAccessModule } from '@/lib/roleAccess';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
-import type { NavSection, ModuleGroup } from '@/lib/navData';
+import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
 
 export default function ModulesPage() {
   const router = useRouter();
@@ -16,7 +18,6 @@ export default function ModulesPage() {
   const { user } = useAuthStore();
   const userRole = user?.role || 'admin';
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
   // Filter sections based on role
   const filteredGroups = useMemo(() => {
@@ -53,100 +54,137 @@ export default function ModulesPage() {
 
   const totalModules = searchFilteredGroups.reduce((acc, g) => acc + g.sections.length, 0);
 
+  // Click handler: navigate to the dashboard and let the layout auto-detect sidebar
+  const handleModuleClick = (section: NavSection) => {
+    // Navigate to the first item (dashboard) href
+    const dashboardHref = section.items[0]?.href;
+    if (dashboardHref) {
+      router.push(dashboardHref);
+    }
+  };
+
+  const handleSubItemClick = (href: string) => {
+    router.push(href);
+  };
+
+  // Get the tab icon for dashboard tabs
+  const getTabIcon = (key: string) => {
+    switch (key) {
+      case 'overview': return <FiGrid className="w-3 h-3" />;
+      case 'masters': return <FiDatabase className="w-3 h-3" />;
+      case 'settings': return <FiSettings className="w-3 h-3" />;
+      case 'reports': return <FiFileText className="w-3 h-3" />;
+      case 'ai-insights': return <FiCpu className="w-3 h-3" />;
+      default: return <FiLayers className="w-3 h-3" />;
+    }
+  };
+
   return (
     <div className="min-h-screen">
       {/* Page Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-thb-text-primary tracking-tight">Modules</h1>
             <p className="text-sm text-thb-text-secondary mt-1">
-              {totalModules} modules available &middot; Click a module to explore its features
+              {totalModules} modules &middot; Click to explore
             </p>
           </div>
         </div>
         {/* Search Bar */}
-        <div className="relative max-w-md">
+        <div className="relative max-w-sm">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search modules..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50/30 text-sm text-thb-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-blue-200 bg-blue-50/30 text-sm text-thb-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
           />
         </div>
       </div>
 
       {/* Module Groups */}
-      <div className="space-y-10">
-        {searchFilteredGroups.map((group) => (
-          <div key={group.groupLabel}>
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-thb-text-primary">{group.groupLabel}</h2>
-              <p className="text-xs text-thb-text-secondary mt-0.5">{group.groupDescription}</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {group.sections.map((section) => {
-                const SectionIcon = section.sectionIcon;
-                const isExpanded = expandedModule === section.key;
-                const gradientColor = section.sectionColor || 'from-blue-500 to-indigo-600';
-                return (
-                  <div
-                    key={section.key}
-                    className={`rounded-xl border transition-all duration-200 overflow-hidden ${
-                      isExpanded
-                        ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-blue-300 shadow-lg shadow-blue-500/10'
-                        : 'border-slate-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-500/5 cursor-pointer'
-                    }`}
-                  >
+      <div className="space-y-8">
+        {searchFilteredGroups.map((group) => {
+          const GroupIcon = group.groupIcon;
+          return (
+            <div key={group.groupLabel}>
+              {/* Group Header */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <GroupIcon className="w-3.5 h-3.5 text-slate-500" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-thb-text-primary leading-tight">{group.groupLabel}</h2>
+                  <p className="text-[10px] text-thb-text-secondary">{group.groupDescription}</p>
+                </div>
+              </div>
+
+              {/* Module Cards Grid - Compact Layout */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                {group.sections.map((section) => {
+                  const SectionIcon = section.sectionIcon;
+                  const gradientColor = section.sectionColor || 'from-blue-500 to-indigo-600';
+                  const tabCount = section.dashboardTabs?.length || 0;
+                  const itemCount = section.items.length;
+
+                  return (
                     <div
-                      className="p-4 flex items-center gap-3"
-                      onClick={() => setExpandedModule(isExpanded ? null : section.key)}
+                      key={section.key}
+                      onClick={() => handleModuleClick(section)}
+                      className="group relative rounded-xl border border-slate-200 hover:border-blue-300 bg-white hover:bg-gradient-to-b hover:from-white hover:to-blue-50/30 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-blue-500/8 overflow-hidden"
                     >
-                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradientColor} flex items-center justify-center shadow-md flex-shrink-0`}>
-                        <SectionIcon className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-bold text-thb-text-primary truncate">{section.label}</h3>
-                        <p className="text-[11px] text-thb-text-secondary">{section.items.length} features</p>
-                      </div>
-                      <FiChevronRight className={`w-4 h-4 text-thb-text-secondary transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                    </div>
-                    {isExpanded && (
-                      <div className="border-t border-slate-100 bg-slate-50/50 p-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                          {section.items.map((item) => (
-                            <button
-                              key={item.href}
-                              onClick={(e) => { e.stopPropagation(); router.push(item.href); }}
-                              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group ${
-                                pathname === item.href
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'hover:bg-white hover:shadow-sm text-thb-text-secondary hover:text-thb-text-primary'
-                              }`}
-                            >
-                              <span className="flex-shrink-0 text-thb-text-secondary group-hover:text-blue-500 transition-colors">
-                                {item.icon}
-                              </span>
-                              <span className="text-xs font-medium truncate flex-1">{item.label}</span>
-                              {item.isNew && (
-                                <span className="flex-shrink-0 text-[7px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200">
-                                  NEW
-                                </span>
-                              )}
-                              <FiArrowRight className="w-3 h-3 text-slate-300 group-hover:text-blue-400 transition-colors flex-shrink-0" />
-                            </button>
-                          ))}
+                      {/* Card Content */}
+                      <div className="p-3">
+                        {/* Icon */}
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradientColor} flex items-center justify-center shadow-md mb-2 group-hover:scale-105 transition-transform`}>
+                          <SectionIcon className="w-5 h-5 text-white" />
                         </div>
+
+                        {/* Module Name */}
+                        <h3 className="text-xs font-bold text-thb-text-primary truncate leading-tight">{section.label}</h3>
+                        <p className="text-[10px] text-thb-text-secondary mt-0.5 leading-tight line-clamp-2">{section.description}</p>
+
+                        {/* Stats Row */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[9px] font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                            {itemCount} {itemCount === 1 ? 'section' : 'sections'}
+                          </span>
+                          {tabCount > 0 && (
+                            <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              {tabCount} tabs
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Dashboard Tabs Preview */}
+                        {section.dashboardTabs && section.dashboardTabs.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {section.dashboardTabs.map((tab) => (
+                              <span
+                                key={tab.key}
+                                className="inline-flex items-center gap-0.5 text-[8px] font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded group-hover:text-blue-500 group-hover:bg-blue-50/50 transition-colors"
+                              >
+                                {getTabIcon(tab.key)}
+                                {tab.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                      {/* Hover Arrow */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FiArrowRight className="w-3.5 h-3.5 text-blue-400" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {searchFilteredGroups.length === 0 && searchQuery && (

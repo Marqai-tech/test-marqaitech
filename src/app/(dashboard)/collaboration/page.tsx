@@ -1,12 +1,15 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiMessageCircle, FiVideo, FiCalendar, FiMail, FiCheckSquare,
   FiEdit3, FiUsers, FiFolder, FiLayers, FiFileText, FiDollarSign,
   FiShield, FiLock, FiCpu, FiArrowRight, FiActivity, FiClock,
   FiZap, FiSearch, FiSend, FiPhone, FiStar, FiBookmark,
+  FiGrid,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
 interface ModuleTile {
@@ -134,7 +137,36 @@ const FINANCE_APPS: ModuleTile[] = [
 
 const ALL_APPS = [...COMMUNICATION_APPS, ...PRODUCTIVITY_APPS, ...SHARING_APPS, ...FINANCE_APPS];
 
+/* ── Placeholder Tabs ── */
+
+const collaborationTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+];
+
+function CollaborationPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="collaboration"
+      moduleLabel="Collaboration"
+      moduleIcon={<FiMessageCircle className="w-5 h-5 text-white" />}
+      gradientColor="from-teal-500 to-emerald-600"
+      tabs={collaborationTabs}
+      overviewContent={<CollaborationContent />}
+      children={{}}
+    />
+  );
+}
+
 export default function CollaborationHubPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full" /></div>}>
+      <CollaborationPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Collaboration Content ── */
+function CollaborationContent() {
   const router = useRouter();
   // Silently trigger collaboration demo-data seed on first load so the
   // Vercel deployment shows chat rooms / files / call recordings.

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import {
   FiUsers, FiBriefcase, FiDollarSign, FiTrendingUp, FiPhone, FiMail,
   FiPlus, FiSearch, FiFilter, FiEye, FiEdit2, FiTrash2, FiX,
   FiTarget, FiCalendar, FiCheckCircle, FiChevronRight, FiChevronDown,
   FiClock, FiArrowRight, FiStar, FiMapPin, FiGlobe, FiLink, FiUserPlus, FiUser,
+  FiGrid, FiFileText, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -118,7 +120,69 @@ function getTempBadge(temp: string) {
   return map[temp] || 'thb-badge thb-badge-info';
 }
 
+/* ── Placeholder Tabs ── */
+
+const crmTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function CRMReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">CRM Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Sales pipeline reports, revenue forecasts, and deal analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function CRMSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">CRM Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure pipeline stages, lead sources, and sales automation rules. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function CRMPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="crm"
+      moduleLabel="CRM & Sales"
+      moduleIcon={<FiTarget className="w-5 h-5 text-white" />}
+      gradientColor="from-pink-500 to-rose-600"
+      tabs={crmTabs}
+      overviewContent={<CRMContent />}
+      children={{
+        reports: <CRMReportsPlaceholder />,
+        settings: <CRMSettingsPlaceholder />,
+      }}
+    />
+  );
+}
+
 export default function CRMPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full" /></div>}>
+      <CRMPageContent />
+    </Suspense>
+  );
+}
+
+/* ── CRM Content ── */
+function CRMContent() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');

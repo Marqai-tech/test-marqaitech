@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import {
   FiBriefcase, FiLayers, FiCheckSquare, FiClock, FiUsers, FiFlag,
   FiPlus, FiSearch, FiFilter, FiGrid, FiList, FiChevronDown,
   FiCalendar, FiTrendingUp, FiAlertCircle, FiActivity, FiBarChart2,
   FiArrowRight, FiMoreHorizontal, FiEdit2, FiTrash2, FiX,
   FiPlay, FiPause, FiZap, FiTarget, FiFileText, FiUser,
+  FiFolder, FiSettings,
 } from 'react-icons/fi';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -162,8 +164,69 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'reports', label: 'Reports', icon: <FiTrendingUp className="w-4 h-4" /> },
 ];
 
-/* ── Main Component ── */
+/* ── Placeholder Tabs ── */
+
+const projectTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+];
+
+function ProjectReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Project Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Project progress reports, resource utilization, and timeline analytics. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function ProjectSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Project Settings</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Configure project templates, default views, and notification preferences. Coming soon.
+      </p>
+    </div>
+  );
+}
+
+function ProjectManagementPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="project"
+      moduleLabel="Project Management"
+      moduleIcon={<FiFolder className="w-5 h-5 text-white" />}
+      gradientColor="from-fuchsia-500 to-pink-600"
+      tabs={projectTabs}
+      overviewContent={<ProjectManagementContent />}
+      children={{
+        reports: <ProjectReportsPlaceholder />,
+        settings: <ProjectSettingsPlaceholder />,
+      }}
+    />
+  );
+}
+
 export default function ProjectManagementPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-fuchsia-500 border-t-transparent rounded-full" /></div>}>
+      <ProjectManagementPageContent />
+    </Suspense>
+  );
+}
+
+/* ── Main Component ── */
+function ProjectManagementContent() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [projectViewMode, setProjectViewMode] = useState<'grid' | 'list'>('grid');
