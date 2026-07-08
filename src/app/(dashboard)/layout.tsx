@@ -6,7 +6,6 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
-import ModuleStrip from '@/components/ModuleStrip';
 import { navSections } from '@/components/Sidebar';
 import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
@@ -17,13 +16,13 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { canRoleAccessModule } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
 import {
-  FiHome, FiUsers, FiBriefcase, FiClock, FiMenu,
-  FiCpu, FiGrid, FiBell, FiUser, FiDollarSign,
+  FiUsers, FiBriefcase, FiClock, FiMenu,
+  FiCpu, FiGrid, FiBell, FiUser,
   FiCalendar, FiMoreHorizontal,
 } from 'react-icons/fi';
 
 // Routes where no module is auto-selected
-const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management'];
+const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management', '/modules'];
 
 // Mobile bottom navigation items
 const mobileNavItems = [
@@ -51,10 +50,8 @@ export default function DashboardLayout({
   const [showMobileProfile, setShowMobileProfile] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // ─── Module selection state ───
-  // Explicit selection by user clicking a module icon on the right strip
+  // Module selection state
   const [explicitModuleKey, setExplicitModuleKey] = useState<string | null>(null);
-
   const userRole = user?.role || 'admin';
 
   // Filter sections based on user role
@@ -84,18 +81,12 @@ export default function DashboardLayout({
     return null;
   }, [pathname, filteredSections]);
 
-  // Reset explicit selection whenever the pathname changes
+  // Reset explicit selection on navigation
   useEffect(() => {
     setExplicitModuleKey(null);
   }, [pathname]);
 
-  // The currently displayed module: explicit selection wins, else auto-detected
   const currentModuleKey = explicitModuleKey ?? autoDetectedModuleKey;
-
-  const handleModuleSelect = useCallback((key: string) => {
-    // Toggle: if already selected, deselect
-    setExplicitModuleKey(prev => prev === key ? null : key);
-  }, []);
 
   const handleSidebarModuleSelect = useCallback((key: string | null) => {
     setExplicitModuleKey(key);
@@ -106,9 +97,7 @@ export default function DashboardLayout({
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      if (mobile) {
-        setSidebarCollapsed(true);
-      }
+      if (mobile) setSidebarCollapsed(true);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -117,13 +106,8 @@ export default function DashboardLayout({
 
   // Auth check
   useEffect(() => {
-    if (!token && !isLoading) {
-      router.push('/login');
-      return;
-    }
-    if (token && !isAuthenticated && isLoading) {
-      fetchUser();
-    }
+    if (!token && !isLoading) { router.push('/login'); return; }
+    if (token && !isAuthenticated && isLoading) fetchUser();
   }, [token, isAuthenticated, isLoading, router, fetchUser]);
 
   // Auto-fix tenant branding on first load
@@ -137,41 +121,27 @@ export default function DashboardLayout({
   // Fetch notifications
   useEffect(() => {
     if (isAuthenticated) {
-      const initialTimeout = setTimeout(() => {
-        fetchNotifications();
-      }, 3000);
+      const initialTimeout = setTimeout(() => fetchNotifications(), 3000);
       const interval = setInterval(fetchNotifications, 30000);
-      return () => {
-        clearTimeout(initialTimeout);
-        clearInterval(interval);
-      };
+      return () => { clearTimeout(initialTimeout); clearInterval(interval); };
     }
   }, [isAuthenticated, fetchNotifications]);
 
-  // Session timeout
   useSessionTimeout();
 
-  // Listen for session-warning event
   useEffect(() => {
     const handleWarning = () => {
-      toast('Your session will expire in 5 minutes due to inactivity.', {
-        icon: '⏳',
-        duration: 10000,
-      });
+      toast('Your session will expire in 5 minutes due to inactivity.', { icon: '⏳', duration: 10000 });
     };
     window.addEventListener('session-warning', handleWarning);
     return () => window.removeEventListener('session-warning', handleWarning);
   }, []);
 
   const handleSidebarToggle = useCallback(() => {
-    if (isMobile) {
-      setMobileSidebarOpen((prev) => !prev);
-    } else {
-      setSidebarCollapsed((prev) => !prev);
-    }
+    if (isMobile) setMobileSidebarOpen((prev) => !prev);
+    else setSidebarCollapsed((prev) => !prev);
   }, [isMobile]);
 
-  // Show loading while checking auth
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-thb-background">
@@ -188,12 +158,9 @@ export default function DashboardLayout({
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
-  const getInitials = (name: string) =>
-    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const getInitials = (name: string) => name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   // ========= MOBILE LAYOUT =========
   if (isMobile) {
@@ -201,157 +168,66 @@ export default function DashboardLayout({
       <div className="min-h-screen bg-thb-background flex flex-col">
         <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
         <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#fff',
-              color: '#0F172A',
-              borderRadius: '12px',
-              border: '1px solid #E2E8F0',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-              padding: '10px 14px',
-              fontSize: '13px',
-              maxWidth: '90vw',
-            },
-          }}
-        />
+        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '10px 14px', fontSize: '13px', maxWidth: '90vw' } }} />
         <NotificationPopup />
-
-        {/* Mobile Top Bar */}
         <header className="h-14 bg-white border-b border-slate-200 flex items-center px-3 gap-2 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
-              <svg viewBox="0 0 35 11" className="w-4 h-3" fill="none">
-                <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-                <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-                <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
-              </svg>
+              <svg viewBox="0 0 35 11" className="w-4 h-3" fill="none"><rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/><rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/><rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/></svg>
             </div>
-            <span className="text-sm font-extrabold text-slate-800 truncate">
-              3Boxes <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span>
-            </span>
+            <span className="text-sm font-extrabold text-slate-800 truncate">3Boxes <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span></span>
           </div>
-          <button
-            onClick={() => { setShowMobileNotif(false); setShowMobileProfile(false); setShowMobileMenu(!showMobileMenu); }}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            <FiMenu className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => { setShowMobileMenu(false); setShowMobileProfile(false); setShowMobileNotif(!showMobileNotif); }}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative"
-          >
-            <FiBell className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }}
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
-          >
-            {user?.name ? getInitials(user.name) : '??'}
-          </button>
+          <button onClick={() => { setShowMobileNotif(false); setShowMobileProfile(false); setShowMobileMenu(!showMobileMenu); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"><FiMenu className="w-5 h-5" /></button>
+          <button onClick={() => { setShowMobileMenu(false); setShowMobileProfile(false); setShowMobileNotif(!showMobileNotif); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative"><FiBell className="w-5 h-5" /></button>
+          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">{user?.name ? getInitials(user.name) : '??'}</button>
         </header>
-
-        {/* Mobile Slide-down Menu */}
         {showMobileMenu && (
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileMenu(false)}>
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 left-0 right-0 bg-white border-b border-slate-200 shadow-xl max-h-[70vh] overflow-y-auto animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
-              <Sidebar
-                collapsed={false}
-                onToggle={() => setShowMobileMenu(false)}
-                isMobileMenu
-                currentModuleKey={currentModuleKey}
-                onModuleSelect={handleSidebarModuleSelect}
-              />
+              <Sidebar collapsed={false} onToggle={() => setShowMobileMenu(false)} isMobileMenu currentModuleKey={currentModuleKey} onModuleSelect={handleSidebarModuleSelect} />
               <div className="p-3 border-t border-slate-100">
-                <button
-                  onClick={async () => { await logout(); window.location.href = '/login'; }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors text-sm font-medium"
-                >
-                  Sign Out
-                </button>
+                <button onClick={async () => { await logout(); window.location.href = '/login'; }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors text-sm font-medium">Sign Out</button>
               </div>
             </div>
           </div>
         )}
-
-        {/* Mobile Notifications Panel */}
         {showMobileNotif && (
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileNotif(false)}>
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 left-0 right-0 bg-white border-b border-slate-200 shadow-xl max-h-[70vh] overflow-y-auto animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-semibold text-slate-800">Notifications</h3>
-              </div>
-              <div className="p-6 text-center">
-                <FiBell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">No new notifications</p>
-              </div>
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between"><h3 className="font-semibold text-slate-800">Notifications</h3></div>
+              <div className="p-6 text-center"><FiBell className="w-8 h-8 text-slate-300 mx-auto mb-2" /><p className="text-sm text-slate-400">No new notifications</p></div>
             </div>
           </div>
         )}
-
-        {/* Mobile Profile Panel */}
         {showMobileProfile && (
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileProfile(false)}>
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-b-xl animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 border-b border-slate-100 text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">
-                  {user?.name ? getInitials(user.name) : '??'}
-                </div>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
                 <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
                 <p className="text-[11px] text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>
               <div className="py-1">
-                <button onClick={() => { setShowMobileProfile(false); router.push('/my-profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                  <FiUser className="w-4 h-4" /> My Profile
-                </button>
-                <button onClick={() => { setShowMobileProfile(false); router.push('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                  <FiMoreHorizontal className="w-4 h-4" /> Settings
-                </button>
+                <button onClick={() => { setShowMobileProfile(false); router.push('/my-profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"><FiUser className="w-4 h-4" /> My Profile</button>
                 <div className="border-t border-slate-100 my-1" />
-                <button onClick={async () => { await logout(); window.location.href = '/login'; }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                  Sign Out
-                </button>
+                <button onClick={async () => { await logout(); window.location.href = '/login'; }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">Sign Out</button>
               </div>
             </div>
           </div>
         )}
-
-        {/* Mobile Main Content */}
-        <main className="flex-1 overflow-y-auto p-3 pb-20">
-          {children}
-        </main>
-
-        {/* Mobile Bottom Navigation */}
+        <main className="flex-1 overflow-y-auto p-3 pb-20">{children}</main>
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 safe-area-bottom">
           <div className="flex items-center justify-around h-14">
             {mobileNavItems.map((item) => {
               const isActive = item.href === '#more' ? false : pathname === item.href || pathname?.startsWith(item.href + '/');
               const Icon = item.icon;
               return (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    if (item.href === '#more') {
-                      setShowMobileMenu(true);
-                    } else {
-                      router.push(item.href);
-                    }
-                  }}
-                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-                    isActive
-                      ? 'text-blue-500'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
+                <button key={item.label} onClick={() => { if (item.href === '#more') setShowMobileMenu(true); else router.push(item.href); }} className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-blue-500' : 'text-slate-400 hover:text-slate-600'}`}>
                   <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
-                  <span className={`text-[9px] font-semibold tracking-wide ${isActive ? 'text-blue-500' : ''}`}>
-                    {item.label}
-                  </span>
+                  <span className={`text-[9px] font-semibold tracking-wide ${isActive ? 'text-blue-500' : ''}`}>{item.label}</span>
                 </button>
               );
             })}
@@ -362,34 +238,14 @@ export default function DashboardLayout({
   }
 
   // ========= DESKTOP LAYOUT =========
-  // Left sidebar: 260px expanded / 68px collapsed
-  // Right module strip: 72px always
-  // Main content fills the gap between
-  const leftSidebarWidth = sidebarCollapsed ? 68 : 260;
-  const rightStripWidth = 72;
-
   return (
     <div className="min-h-screen bg-thb-background">
       <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
       <SafeRender>{showOnboarding && <OnboardingWalkthrough />}</SafeRender>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#fff',
-            color: '#0F172A',
-            borderRadius: '12px',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            padding: '12px 16px',
-            fontSize: '14px',
-          },
-        }}
-      />
+      <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#fff', color: '#0F172A', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px' } }} />
       <NotificationPopup />
 
-      {/* LEFT SIDEBAR — Home, Dashboard + Sub-menu of selected module */}
+      {/* LEFT SIDEBAR */}
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={handleSidebarToggle}
@@ -397,24 +253,10 @@ export default function DashboardLayout({
         onModuleSelect={handleSidebarModuleSelect}
       />
 
-      {/* RIGHT MODULE STRIP — Module icons organized by section */}
-      <ModuleStrip
-        currentModuleKey={currentModuleKey}
-        onModuleSelect={handleModuleSelect}
-      />
-
-      {/* MAIN CONTENT — between left sidebar and right strip */}
-      <div
-        className="transition-all duration-300"
-        style={{
-          marginLeft: `${leftSidebarWidth}px`,
-          marginRight: `${rightStripWidth}px`,
-        }}
-      >
+      {/* MAIN CONTENT */}
+      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-[68px]' : 'ml-[260px]'}`}>
         <Header onSidebarToggle={handleSidebarToggle} />
-        <main className="p-6">
-          {children}
-        </main>
+        <main className="p-6">{children}</main>
       </div>
     </div>
   );

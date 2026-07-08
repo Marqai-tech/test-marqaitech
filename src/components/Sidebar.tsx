@@ -84,14 +84,15 @@ interface NavSection {
   items: NavItem[];
 }
 
-// Pinned items always visible at the top of the sidebar (Home + Dashboard)
+// Pinned items always visible at the top of the sidebar (Home + Dashboard + Modules)
 const PINNED_ITEMS: NavItem[] = [
   { label: 'Home', href: '/home', icon: <FiHome className="w-5 h-5" /> },
   { label: 'Dashboard', href: '/dashboard', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'dashboard' },
+  { label: 'Modules', href: '/modules', icon: <FiGrid className="w-5 h-5" /> },
 ];
 
 // Routes where the module picker is shown — no module auto-selected
-const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management'];
+const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management', '/modules'];
 
 const navSections: NavSection[] = [
   {
