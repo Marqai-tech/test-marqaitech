@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
-import { navSections } from '@/components/Sidebar';
+import { navSections, PICKER_ROUTES } from '@/lib/navData';
 import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
 import WelcomeGreeting from '@/components/WelcomeGreeting';
@@ -21,8 +21,7 @@ import {
   FiCalendar, FiMoreHorizontal,
 } from 'react-icons/fi';
 
-// Routes where no module is auto-selected
-const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management', '/modules'];
+// PICKER_ROUTES now imported from navData
 
 // Mobile bottom navigation items
 const mobileNavItems = [
