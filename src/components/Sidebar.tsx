@@ -65,7 +65,6 @@ import {
   FiMonitor,
   FiHeadphones,
 } from 'react-icons/fi';
-import { HiShieldCheck } from 'react-icons/hi';
 import { useAuthStore } from '@/store/authStore';
 import { canRoleAccessModule } from '@/lib/roleAccess';
 
@@ -74,7 +73,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   roles?: string[];
-  moduleKey?: string; // NEW: maps to roleAccess MODULE_ACCESS keys
+  moduleKey?: string;
   isNew?: boolean;
 }
 
@@ -91,76 +90,47 @@ const PINNED_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'dashboard' },
 ];
 
-// Routes where the module picker (icon grid) is shown — no module auto-selected
+// Routes where the module picker is shown — no module auto-selected
 const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management'];
 
 const navSections: NavSection[] = [
   {
-    // SRS §3 — Super Admin (Platform Owner). Visible only to super_admin.
-    // All links here map to SRS REQ-SA-* requirements.
     key: 'super-admin',
     sectionIcon: FiShield,
     label: 'Super Admin (Platform)',
     items: [
-      // SmartHR-style Dashboard (default view)
       { label: 'Dashboard', href: '/super-admin', icon: <FiGrid className="w-5 h-5" />, roles: ['super_admin'] },
-      // Companies (tenant management)
       { label: 'Companies', href: '/super-admin', icon: <FiBriefcase className="w-5 h-5" />, roles: ['super_admin'] },
-      // Subscriptions
       { label: 'Subscriptions', href: '/super-admin/subscriptions', icon: <FiCreditCard className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // Packages / Plans
       { label: 'Packages', href: '/super-admin/packages', icon: <FiPackage className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // Domain management
       { label: 'Domain', href: '/super-admin/domain', icon: <FiGlobe className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // Purchase transactions
       { label: 'Purchase Transaction', href: '/super-admin/purchase-transactions', icon: <FiDollarSign className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // Tenant usage metrics
       { label: 'Tenant Usage Metrics', href: '/super-admin/tenant-usage', icon: <FiBarChart2 className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // Tenant support tickets
       { label: 'Tenant Support Tickets', href: '/super-admin/tenant-tickets', icon: <FiHelpCircle className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // General tickets
       { label: 'Tickets', href: '/super-admin/tickets', icon: <FiHelpCircle className="w-5 h-5" />, roles: ['super_admin'] },
-      // REQ-SA-05: Feature flags per parent company
       { label: 'Feature Flags', href: '/super-admin/feature-flags', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-6.1: Storage quotas per tenant
       { label: 'Storage Quotas', href: '/super-admin/storage-quotas', icon: <FiHardDrive className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-SOC-03/04: SSO provider config (per tenant)
       { label: 'SSO Providers', href: '/super-admin/sso-providers', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-6.1: Collaboration feature toggles per tenant
       { label: 'Collaboration Features', href: '/super-admin/collab-features', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // REQ-SEC-06 / REQ-SA-10: Audit logs
       { label: 'Audit Logs', href: '/super-admin/audit-logs', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // Trial Registration Management
       { label: 'Trial Requests', href: '/super-admin/trial-requests', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
-      // SRS §6 RBAC matrix
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['super_admin'] },
-      // REQ-SA-11/12: AI platform management
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['super_admin'], isNew: true },
     ],
   },
   {
-    // SRS §4 — Tenant Admin (Parent Company Owner). Visible only to tenant_admin.
-    // All links here map to SRS REQ-TA-* requirements.
     key: 'tenant-admin',
     sectionIcon: FiServer,
     label: 'Tenant Admin (Group)',
     items: [
       { label: 'Admin Dashboard', href: '/dashboards/admin', icon: <FiGrid className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // REQ-TA-04/05: Group dashboard + AI Group Health Score
       { label: 'Tenant Admin Console', href: '/tenant-admin', icon: <FiServer className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // REQ-TA-01/02/03: Sub-company management
       { label: 'Sub-Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // Group companies are READ-ONLY for tenant_admin (only super_admin can create/edit them).
       { label: 'Group Companies (read-only)', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // SRS §6 RBAC matrix (group-level)
       { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // REQ-EMP-02: Profile Configuration (custom fields)
       { label: 'Profile Configuration', href: '/tenant-admin/profile-config', icon: <FiSettings className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // REQ-6.2: Storage Analytics
       { label: 'Storage Analytics', href: '/tenant-admin/storage-analytics', icon: <FiBarChart2 className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // REQ-6.2: Communication Governance
       { label: 'Communication Governance', href: '/tenant-admin/comm-governance', icon: <FiMessageCircle className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
-      // REQ-TA-04/05: Group-level AI insights
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiZap className="w-5 h-5" />, roles: ['tenant_admin'], isNew: true },
     ],
   },
@@ -243,21 +213,17 @@ const navSections: NavSection[] = [
     sectionIcon: FiDollarSign,
     label: 'Compensation',
     items: [
-      // Landing / overview
       { label: 'Payroll Dashboard', href: '/dashboards/payroll', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll', href: '/payroll', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll' },
-      // ─── Compensation Setup ───
       { label: 'CTC Templates', href: '/payroll/ctc-templates', icon: <FiLayers className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Component Master', href: '/payroll/components', icon: <FiDatabase className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Salary Settings', href: '/payroll/salary-settings', icon: <FiEdit3 className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll Definitions', href: '/payroll/definitions', icon: <FiClipboard className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
-      // ─── Tax & Statutory ───
       { label: 'Income Tax', href: '/payroll/income-tax', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Tax Slabs', href: '/payroll/tax-slabs', icon: <FiBarChart2 className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Statutory Components', href: '/payroll/statutory', icon: <FiShield className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Gratuity', href: '/payroll/gratuity', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
-      // ─── Payroll Processing ───
       { label: 'Payroll Inputs', href: '/payroll/inputs', icon: <FiEdit3 className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Pre-Payroll Validation', href: '/payroll/validations', icon: <FiCheckSquare className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll Processing', href: '/payroll/processing', icon: <FiPlayCircle className="w-5 h-5" />, moduleKey: 'payroll' },
@@ -265,20 +231,16 @@ const navSections: NavSection[] = [
       { label: 'Loans', href: '/payroll/loans', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'F&F Settlement', href: '/payroll/fnf', icon: <FiTruck className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll Holds', href: '/payroll/holds', icon: <FiLock className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
-      // ─── Multi-Country ───
       { label: 'Currency & FX', href: '/payroll/currency', icon: <FiDollarSign className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Dimensions', href: '/payroll/dimensions', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Cross-Border Secondment', href: '/payroll/secondment', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Group Dashboard', href: '/payroll/group-dashboard', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
-      // ─── Compliance & Filing ───
       { label: 'Compliance Calendar', href: '/payroll/compliance', icon: <FiCalendar className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'GL Mapping', href: '/payroll/gl-mapping', icon: <FiBook className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Bank File Generation', href: '/payroll/bank-files', icon: <FiFile className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll Reports', href: '/payroll/reports', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
-      // ─── Employee Payments ───
       { label: 'Payment Methods', href: '/payroll/payment-methods', icon: <FiCreditCard className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payslips', href: '/payroll/payslips', icon: <FiFileText className="w-5 h-5" />, moduleKey: 'payroll' },
-      // ─── Governance & AI ───
       { label: 'Payroll Approvals', href: '/payroll/approvals', icon: <FiUserCheck className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
       { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-5 h-5" />, moduleKey: 'payroll', isNew: true },
     ],
@@ -429,29 +391,32 @@ const navSections: NavSection[] = [
   },
 ];
 
+// Export for ModuleStrip to use
+export { navSections };
+
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   isMobileMenu?: boolean;
+  currentModuleKey: string | null;
+  onModuleSelect: (key: string | null) => void;
 }
 
-export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, currentModuleKey, onModuleSelect }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const userRole = user?.role || 'admin';
 
-  // Filter sections based on user role — uses both explicit roles and canRoleAccessModule
+  // Filter sections based on user role
   const filteredSections = useMemo(() => {
     return navSections
       .map((section) => ({
         ...section,
         items: section.items.filter(
           (item) => {
-            // If moduleKey is provided, use centralized role access check
             if (item.moduleKey) {
               return canRoleAccessModule(userRole, item.moduleKey);
             }
-            // Fallback to explicit roles array
             return !item.roles || item.roles.includes(userRole);
           }
         ),
@@ -459,7 +424,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
       .filter((section) => section.items.length > 0);
   }, [userRole]);
 
-  // Filter pinned items based on role too
+  // Filter pinned items based on role
   const visiblePinnedItems = useMemo(() => {
     return PINNED_ITEMS.filter((item) => {
       if (item.moduleKey) return canRoleAccessModule(userRole, item.moduleKey);
@@ -467,40 +432,12 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
     });
   }, [userRole]);
 
-  // ─── Auto-detect current module from pathname ───
-  // On picker routes (/, /home, /dashboard) → null (show picker)
-  // On any other route → find the section containing the active item
-  const autoDetectedModuleKey = useMemo(() => {
-    if (!pathname) return null;
-    if (PICKER_ROUTES.includes(pathname)) return null;
-    for (const section of filteredSections) {
-      for (const item of section.items) {
-        if (pathname === item.href || pathname.startsWith(item.href + '/')) {
-          return section.key;
-        }
-      }
-    }
-    return null;
-  }, [pathname, filteredSections]);
-
-  // Track user's explicit selection (overrides auto-detection).
-  // When user clicks a module icon → set to that key (sidebar shows submenu, no navigation).
-  // When user clicks "Back to Modules" → set to null (sidebar shows picker, no navigation).
-  // When user navigates → reset to null so auto-detection takes over.
-  const [explicitSelection, setExplicitSelection] = useState<string | null>(null);
-
-  // Reset explicit selection whenever the pathname changes (user navigated)
-  useEffect(() => {
-    setExplicitSelection(null);
-  }, [pathname]);
-
-  // The currently displayed module: explicit selection wins, else auto-detected
-  const currentModuleKey = explicitSelection ?? autoDetectedModuleKey;
+  // Find the current section
   const currentSection = currentModuleKey
     ? filteredSections.find((s) => s.key === currentModuleKey)
     : null;
 
-  // Auto-detect the active item within the current section (for highlighting)
+  // Auto-detect active item
   const isItemActive = (href: string) => {
     return pathname === href || pathname?.startsWith(href + '/');
   };
@@ -522,14 +459,14 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
   return (
     <aside
       className={`${isMobileMenu ? 'w-full' : 'fixed left-0 top-0 h-full'} bg-thb-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
-        isMobileMenu ? '' : collapsed ? 'w-[68px]' : 'w-[320px]'
+        isMobileMenu ? '' : collapsed ? 'w-[68px]' : 'w-[260px]'
       }`}
     >
-      {/* Brand Header - hidden in mobile menu mode */}
+      {/* Brand Header */}
       {!isMobileMenu && (
-        <div className={`flex items-center h-16 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
-          <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
-            <svg viewBox="0 0 35 11" className="w-5 h-3" fill="none">
+        <div className={`flex items-center h-14 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
+          <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+            <svg viewBox="0 0 35 11" className="w-4 h-3" fill="none">
               <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
               <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
               <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -537,10 +474,10 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
-                3Boxes <span className="text-[11px] font-semibold text-blue-300 tracking-wider">HRMS</span>
+              <h1 className="text-base font-bold text-white tracking-tight whitespace-nowrap">
+                3Boxes <span className="text-[10px] font-semibold text-blue-300 tracking-wider">HRMS</span>
               </h1>
-              <p className="text-[10px] text-thb-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
+              <p className="text-[9px] text-thb-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
             </div>
           )}
         </div>
@@ -548,7 +485,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 sidebar-scroll">
-        {/* Pinned items: Home + Dashboard (always visible at top) */}
+        {/* Pinned items: Home + Dashboard (always visible) */}
         <ul className="space-y-0.5 mb-2">
           {visiblePinnedItems.map((item) => {
             const isActive = isItemActive(item.href);
@@ -557,8 +494,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
                 <Link
                   href={item.href}
                   onClick={() => {
-                    // Clicking a pinned item clears any explicit selection
-                    setExplicitSelection(null);
+                    onModuleSelect(null);
                     if (isMobileMenu) onToggle();
                   }}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative ${
@@ -583,108 +519,95 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
 
         <div className="mx-3 my-2 border-t border-white/[0.06]" />
 
-        {/* Two-column layout: Left = submenu, Right = module icons */}
-        <div className={`flex ${collapsed ? 'flex-col' : 'flex-row'} gap-0 min-h-0`}>
-          {/* Left column: Selected Module Submenu */}
-          {!collapsed && (
-            <div className="flex-1 min-w-0 border-r border-white/[0.06] pr-1">
-              {currentSection ? (
-                <>
-                  {/* Section header */}
-                  <div className="px-3 py-2 mb-1">
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const SectionIcon = currentSection.sectionIcon;
-                        return <SectionIcon className="w-4 h-4 text-blue-400" />;
-                      })()}
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/80">
-                        {currentSection.label}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Section items */}
-                  <ul className="space-y-0.5">
-                    {currentSection.items.map((item) => {
-                      const isActive = isItemActive(item.href);
-                      return (
-                        <li key={item.href}>
-                          <Link
-                            href={item.href}
-                            onClick={() => { if (isMobileMenu) onToggle(); }}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
-                              isActive
-                                ? 'bg-blue-500/15 text-blue-400'
-                                : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
-                            }`}
-                            title={item.label}
-                          >
-                            {isActive && (
-                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-500 rounded-r-full" />
-                            )}
-                            <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
-                              {item.icon}
-                            </span>
-                            <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>
-                            {item.isNew && (
-                              <span className="flex-shrink-0 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                                NEW
-                              </span>
-                            )}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              ) : (
-                <div className="px-3 py-6 text-center">
-                  <FiGrid className="w-6 h-6 text-thb-sidebar-text/30 mx-auto mb-2" />
-                  <p className="text-[10px] text-thb-sidebar-text/40">Select a module</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Right column: Module Icons (vertical strip) */}
-          <div className={`${collapsed ? 'w-full' : 'w-[88px] flex-shrink-0'} py-1`}>
-            {!collapsed && (
-              <div className="px-2 py-1.5 mb-1 text-center">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-thb-sidebar-text/50">
-                  Modules
+        {/* Selected Module Submenu */}
+        {!collapsed && currentSection ? (
+          <div className="min-w-0">
+            {/* Section header with back button */}
+            <div className="px-3 py-2 mb-1">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const SectionIcon = currentSection.sectionIcon;
+                  return <SectionIcon className="w-4 h-4 text-blue-400" />;
+                })()}
+                <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/80 flex-1">
+                  {currentSection.label}
                 </span>
+                <button
+                  onClick={() => onModuleSelect(null)}
+                  className="p-1 rounded text-thb-sidebar-text/50 hover:text-slate-200 hover:bg-thb-sidebar-hover transition-colors"
+                  title="Back to module list"
+                >
+                  <FiChevronLeft className="w-3.5 h-3.5" />
+                </button>
               </div>
-            )}
-            <div className={`flex flex-col gap-0.5 ${collapsed ? 'items-center' : 'items-center'} px-1`}>
-              {filteredSections.map((section) => {
-                const SectionIcon = section.sectionIcon;
-                const isActive = currentModuleKey === section.key;
+            </div>
+            {/* Section items */}
+            <ul className="space-y-0.5">
+              {currentSection.items.map((item) => {
+                const isActive = isItemActive(item.href);
                 return (
-                  <button
-                    key={section.key}
-                    onClick={() => setExplicitSelection(isActive ? null : section.key)}
-                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-all duration-200 group w-full ${
-                      isActive
-                        ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20'
-                        : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
-                    }`}
-                    title={section.label}
-                  >
-                    <SectionIcon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : 'group-hover:text-slate-200'} transition-colors`} />
-                    {!collapsed && (
-                      <span className="text-[8px] font-medium text-center leading-tight line-clamp-2 w-full">
-                        {section.label.length > 12 ? section.label.substring(0, 10) + '…' : section.label}
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => { if (isMobileMenu) onToggle(); }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
+                        isActive
+                          ? 'bg-blue-500/15 text-blue-400'
+                          : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
+                      }`}
+                      title={item.label}
+                    >
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-500 rounded-r-full" />
+                      )}
+                      <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                        {item.icon}
                       </span>
-                    )}
-                  </button>
+                      <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>
+                      {item.isNew && (
+                        <span className="flex-shrink-0 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                          NEW
+                        </span>
+                      )}
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
-        </div>
+        ) : !collapsed ? (
+          /* No module selected — show instruction */
+          <div className="px-3 py-8 text-center">
+            <div className="w-12 h-12 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-3">
+              <FiGrid className="w-5 h-5 text-thb-sidebar-text/30" />
+            </div>
+            <p className="text-[11px] text-thb-sidebar-text/50 font-medium mb-1">Select a Module</p>
+            <p className="text-[9px] text-thb-sidebar-text/30 leading-relaxed">
+              Click any module icon on the right to see its sub-sections here
+            </p>
+          </div>
+        ) : null}
+
+        {/* When collapsed, show just the active section icon */}
+        {collapsed && currentSection && (
+          <div className="flex flex-col items-center py-2">
+            {(() => {
+              const SectionIcon = currentSection.sectionIcon;
+              return (
+                <button
+                  onClick={() => onModuleSelect(null)}
+                  className="p-2 rounded-lg bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20 hover:bg-blue-500/25 transition-colors"
+                  title={currentSection.label}
+                >
+                  <SectionIcon className="w-5 h-5" />
+                </button>
+              );
+            })()}
+          </div>
+        )}
       </nav>
 
-
-      {/* Bottom Section: User Info + Collapse Toggle - hidden in mobile menu mode */}
+      {/* Bottom Section: User Info + Collapse Toggle */}
       {!isMobileMenu && (
       <div className="border-t border-white/[0.06]">
         {/* User Info */}
@@ -694,17 +617,17 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
             <img
               src={user.avatar}
               alt={user.name}
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-white/10 flex-shrink-0"
+              className="w-8 h-8 rounded-full object-cover ring-2 ring-white/10 flex-shrink-0"
             />
           ) : (
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white/10">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ring-2 ring-white/10">
               {user?.name ? getInitials(user.name) : '??'}
             </div>
           )}
           {!collapsed && user && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user.name}</p>
-              <p className="text-xs text-thb-sidebar-text truncate capitalize">{user.role?.replace('_', ' ')}</p>
+              <p className="text-xs font-medium text-white truncate">{user.name}</p>
+              <p className="text-[10px] text-thb-sidebar-text truncate capitalize">{user.role?.replace('_', ' ')}</p>
             </div>
           )}
           {!collapsed && (
@@ -733,11 +656,11 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false }: S
 
         {/* Proud Product Branding */}
         {!collapsed && (
-          <div className="px-4 pb-3 pt-1 text-center">
+          <div className="px-3 pb-2 pt-1 text-center">
             <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={user?.tenant?.logo || '/marq-ai-logo.png'} alt="Marq AI" className="w-4 h-4 rounded object-contain" />
-              <span className="text-[9px] text-thb-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
+              <img src={user?.tenant?.logo || '/marq-ai-logo.png'} alt="Marq AI" className="w-3.5 h-3.5 rounded object-contain" />
+              <span className="text-[8px] text-thb-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
             </div>
           </div>
         )}

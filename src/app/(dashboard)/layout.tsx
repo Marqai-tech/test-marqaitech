@@ -1,23 +1,29 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
+import ModuleStrip from '@/components/ModuleStrip';
+import { navSections } from '@/components/Sidebar';
 import Header from '@/components/Header';
 import NotificationPopup from '@/components/NotificationPopup';
 import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { canRoleAccessModule } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
 import {
   FiHome, FiUsers, FiBriefcase, FiClock, FiMenu,
   FiCpu, FiGrid, FiBell, FiUser, FiDollarSign,
   FiCalendar, FiMoreHorizontal,
 } from 'react-icons/fi';
+
+// Routes where no module is auto-selected
+const PICKER_ROUTES = ['/', '/home', '/dashboard', '/dashboards', '/accounts', '/crm', '/it-admin', '/project-management'];
 
 // Mobile bottom navigation items
 const mobileNavItems = [
@@ -45,6 +51,56 @@ export default function DashboardLayout({
   const [showMobileProfile, setShowMobileProfile] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // ─── Module selection state ───
+  // Explicit selection by user clicking a module icon on the right strip
+  const [explicitModuleKey, setExplicitModuleKey] = useState<string | null>(null);
+
+  const userRole = user?.role || 'admin';
+
+  // Filter sections based on user role
+  const filteredSections = useMemo(() => {
+    return navSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => {
+          if (item.moduleKey) return canRoleAccessModule(userRole, item.moduleKey);
+          return !item.roles || item.roles.includes(userRole);
+        }),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [userRole]);
+
+  // Auto-detect current module from pathname
+  const autoDetectedModuleKey = useMemo(() => {
+    if (!pathname) return null;
+    if (PICKER_ROUTES.includes(pathname)) return null;
+    for (const section of filteredSections) {
+      for (const item of section.items) {
+        if (pathname === item.href || pathname.startsWith(item.href + '/')) {
+          return section.key;
+        }
+      }
+    }
+    return null;
+  }, [pathname, filteredSections]);
+
+  // Reset explicit selection whenever the pathname changes
+  useEffect(() => {
+    setExplicitModuleKey(null);
+  }, [pathname]);
+
+  // The currently displayed module: explicit selection wins, else auto-detected
+  const currentModuleKey = explicitModuleKey ?? autoDetectedModuleKey;
+
+  const handleModuleSelect = useCallback((key: string) => {
+    // Toggle: if already selected, deselect
+    setExplicitModuleKey(prev => prev === key ? null : key);
+  }, []);
+
+  const handleSidebarModuleSelect = useCallback((key: string | null) => {
+    setExplicitModuleKey(key);
+  }, []);
+
   // Check mobile viewport
   useEffect(() => {
     const checkMobile = () => {
@@ -70,21 +126,15 @@ export default function DashboardLayout({
     }
   }, [token, isAuthenticated, isLoading, router, fetchUser]);
 
-  // Auto-fix tenant branding on first load (ensure EH2R is never shown)
+  // Auto-fix tenant branding on first load
   useEffect(() => {
     if (isAuthenticated) {
-      fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {
-        // Silently fail — this is a non-critical background fix
-      });
-      // Also push schema changes (adds new columns like Company.maxEmployees)
-      fetch('/api/db-push', { method: 'POST' }).catch(() => {
-        // Silently fail — schema push is best-effort
-      });
+      fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {});
+      fetch('/api/db-push', { method: 'POST' }).catch(() => {});
     }
   }, [isAuthenticated]);
 
-  // Fetch notifications when authenticated — debounced by 3s after auth to avoid
-  // race conditions with the login API's own notification cleanup.
+  // Fetch notifications
   useEffect(() => {
     if (isAuthenticated) {
       const initialTimeout = setTimeout(() => {
@@ -98,10 +148,10 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, fetchNotifications]);
 
-  // Session timeout: redirect to lock screen after 30 min of inactivity.
+  // Session timeout
   useSessionTimeout();
 
-  // Listen for session-warning event and show a toast
+  // Listen for session-warning event
   useEffect(() => {
     const handleWarning = () => {
       toast('Your session will expire in 5 minutes due to inactivity.', {
@@ -208,7 +258,13 @@ export default function DashboardLayout({
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileMenu(false)}>
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 left-0 right-0 bg-white border-b border-slate-200 shadow-xl max-h-[70vh] overflow-y-auto animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
-              <Sidebar collapsed={false} onToggle={() => setShowMobileMenu(false)} isMobileMenu />
+              <Sidebar
+                collapsed={false}
+                onToggle={() => setShowMobileMenu(false)}
+                isMobileMenu
+                currentModuleKey={currentModuleKey}
+                onModuleSelect={handleSidebarModuleSelect}
+              />
               <div className="p-3 border-t border-slate-100">
                 <button
                   onClick={async () => { await logout(); window.location.href = '/login'; }}
@@ -306,6 +362,12 @@ export default function DashboardLayout({
   }
 
   // ========= DESKTOP LAYOUT =========
+  // Left sidebar: 260px expanded / 68px collapsed
+  // Right module strip: 72px always
+  // Main content fills the gap between
+  const leftSidebarWidth = sidebarCollapsed ? 68 : 260;
+  const rightStripWidth = 72;
+
   return (
     <div className="min-h-screen bg-thb-background">
       <SafeRender><WelcomeGreeting onComplete={() => setShowOnboarding(true)} /></SafeRender>
@@ -327,38 +389,30 @@ export default function DashboardLayout({
       />
       <NotificationPopup />
 
-      {/* Mobile Sidebar Overlay */}
-      {isMobile && mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 animate-fade-in"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
+      {/* LEFT SIDEBAR — Home, Dashboard + Sub-menu of selected module */}
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={handleSidebarToggle}
+        currentModuleKey={currentModuleKey}
+        onModuleSelect={handleSidebarModuleSelect}
+      />
 
-      {/* Sidebar */}
-      <div
-        className={`${
-          isMobile
-            ? `fixed z-40 transition-transform duration-300 ${
-                mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-              }`
-            : ''
-        }`}
-      >
-        <Sidebar
-          collapsed={isMobile ? false : sidebarCollapsed}
-          onToggle={handleSidebarToggle}
-        />
-      </div>
+      {/* RIGHT MODULE STRIP — Module icons organized by section */}
+      <ModuleStrip
+        currentModuleKey={currentModuleKey}
+        onModuleSelect={handleModuleSelect}
+      />
 
-      {/* Main Content */}
+      {/* MAIN CONTENT — between left sidebar and right strip */}
       <div
-        className={`transition-all duration-300 ${
-          isMobile ? '' : sidebarCollapsed ? 'ml-[68px]' : 'ml-[320px]'
-        }`}
+        className="transition-all duration-300"
+        style={{
+          marginLeft: `${leftSidebarWidth}px`,
+          marginRight: `${rightStripWidth}px`,
+        }}
       >
         <Header onSidebarToggle={handleSidebarToggle} />
-        <main className={`${isMobile ? 'p-3' : 'p-6'}`}>
+        <main className="p-6">
           {children}
         </main>
       </div>
