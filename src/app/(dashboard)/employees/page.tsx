@@ -556,6 +556,13 @@ export default function EmployeesPage() {
     fetchAndOpenEdit();
   }, [editIdFromUrl]);
 
+  /* Handle showAddForm from URL (navigated from /employees/add redirect) */
+  useEffect(() => {
+    if (searchParams.get('showAddForm') === 'true') {
+      setShowForm(true);
+    }
+  }, [searchParams]);
+
   /* Read employee code settings from localStorage */
   const getEmployeeCodeSettings = useCallback(() => {
     try {

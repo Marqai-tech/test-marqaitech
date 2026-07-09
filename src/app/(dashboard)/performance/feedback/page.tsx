@@ -1,20 +1,21 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { FiMessageCircle } from 'react-icons/fi';
 
 export default function FeedbackPage() {
+  const router = useRouter();
+  
+  useEffect(() => {
+    router.replace('/performance');
+  }, [router]);
+  
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center py-20">
-      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center shadow-xl mb-6 ring-4 ring-amber-500/10">
-        <FiMessageCircle className="w-9 h-9 text-white" />
-      </div>
-      <h2 className="text-2xl font-bold text-thb-text-primary mb-2">360 Feedback</h2>
-      <p className="text-sm text-thb-text-secondary text-center max-w-lg leading-relaxed">
-        Manage 360-degree feedback. Collect feedback from peers, managers, and direct reports for comprehensive evaluations. This feature is coming soon.
-      </p>
-      <div className="mt-6 flex items-center gap-2 text-xs text-amber-500 bg-amber-50 px-3 py-1.5 rounded-full">
-        <FiMessageCircle className="w-3 h-3" />
-        <span className="font-medium">Coming Soon</span>
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4" />
+        <p className="text-sm text-thb-text-secondary">Redirecting...</p>
       </div>
     </div>
   );
