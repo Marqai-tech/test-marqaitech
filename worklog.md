@@ -2426,3 +2426,30 @@ Stage Summary:
 - Accounts & Finance module added to navigation
 - Org Chart and Referrals now accessible from sidebar
 - Vercel deployment: READY
+---
+Task ID: fix-coming-soon-pages
+Agent: Main Agent
+Task: Fix Add Employee Coming Soon page, replace all placeholder pages with redirects, zero 404s
+
+Work Log:
+- Fixed /employees/add: redirect to /employees?showAddForm=true (actual form exists on employees page)
+- Added showAddForm URL param handler in employees/page.tsx to auto-open add form
+- Replaced 15 "Coming Soon" placeholder pages with redirects to parent module dashboards:
+  - employees/resignation, termination, transfer, rejoin, probation → /employees
+  - leave/apply → /leave
+  - attendance/wfh → /attendance
+  - helpdesk/tickets → /helpdesk
+  - assets/list → /assets
+  - onboarding/tasks → /onboarding
+  - preboarding/tasks → /preboarding
+  - clients/list → /clients
+  - performance/reviews, feedback → /performance
+  - travel/requests → /travel
+- Final audit: 126 nav links, 0 missing pages (404), 35 redirect pages (all working)
+- Build succeeded, pushed to Git, deployed to Vercel (READY)
+
+Stage Summary:
+- Zero 404 errors across all 126 navigation links
+- Add Employee now opens the actual employee form instead of "Coming Soon"
+- All placeholder pages now redirect to functional parent dashboards
+- No duplicate content pages remain
