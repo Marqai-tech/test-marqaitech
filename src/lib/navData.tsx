@@ -74,6 +74,7 @@ const C: Record<string, string> = {
   knowledge:    'from-blue-500 to-cyan-600',
   governance:   'from-gray-500 to-slate-600',
   superadmin:   'from-red-500 to-rose-600',
+  accounts:     'from-emerald-500 to-green-600',
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -127,7 +128,7 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Tenant Dashboard', href: '/dashboards/admin', icon: <FiGrid className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
+      { label: 'Tenant Dashboard', href: '/company', icon: <FiGrid className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Tenant Console', href: '/tenant-admin', icon: <FiServer className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Sub-Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Group Companies', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
@@ -175,6 +176,7 @@ export const navSections: NavSection[] = [
       { label: 'Employee Dashboard', href: '/dashboards/employee', icon: <FiGrid className="w-4 h-4" />, isNew: true },
       { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees' },
+      { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Termination', href: '/employees/termination', icon: <FiAlertCircle className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
@@ -218,7 +220,7 @@ export const navSections: NavSection[] = [
       { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Attendance Dashboard', href: '/dashboards/attendance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+      { label: 'Attendance Dashboard', href: '/attendance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
       { label: 'Apply Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Apply WFH', href: '/attendance/wfh', icon: <FiHome className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
       { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
@@ -271,6 +273,7 @@ export const navSections: NavSection[] = [
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
+      { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Offers', href: '/offers', icon: <FiStar className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Candidate Flow', href: '/analytics/candidate-flow', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
     ],
@@ -396,6 +399,27 @@ export const navSections: NavSection[] = [
       { label: 'Asset Dashboard', href: '/assets', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'assets', isNew: true },
       { label: 'Assets', href: '/assets/list', icon: <FiPackage className="w-4 h-4" />, moduleKey: 'assets' },
       { label: 'IT Admin Console', href: '/it-admin', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+    ],
+  },
+
+  // ─── 14a. ACCOUNTS & FINANCE MODULE ───
+  {
+    key: 'accounts',
+    label: 'Accounts & Finance',
+    sectionIcon: FiCreditCard,
+    sectionColor: C.accounts,
+    description: 'Accounting, invoicing & financial operations',
+    dashboardTabs: [
+      { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+      { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+    ],
+    items: [
+      { label: 'Accounts Dashboard', href: '/accounts', icon: <FiGrid className="w-4 h-4" />, isNew: true },
+      { label: 'Chart of Accounts', href: '/accounts/chart-of-accounts', icon: <FiLayers className="w-4 h-4" />, isNew: true },
+      { label: 'Journal Entries', href: '/accounts/journal-entries', icon: <FiEdit3 className="w-4 h-4" />, isNew: true },
+      { label: 'Invoices', href: '/accounts/invoices', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+      { label: 'Bills', href: '/accounts/bills', icon: <FiDollarSign className="w-4 h-4" />, isNew: true },
+      { label: 'Bank Reconciliation', href: '/accounts/bank-reconciliation', icon: <FiCreditCard className="w-4 h-4" />, isNew: true },
     ],
   },
 
@@ -593,7 +617,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     groupLabel: 'Operations',
     groupDescription: 'Projects, travel, expenses & assets',
     groupIcon: FiFolder,
-    sections: navSections.filter(s => ['project', 'travel-expense', 'assets'].includes(s.key)),
+    sections: navSections.filter(s => ['project', 'travel-expense', 'assets', 'accounts'].includes(s.key)),
   },
   {
     groupLabel: 'Business',

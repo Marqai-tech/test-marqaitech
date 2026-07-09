@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import {
   FiDollarSign, FiTrendingUp, FiTrendingDown, FiFileText, FiAlertCircle,
   FiPlus, FiDownload, FiRefreshCw, FiSearch, FiFilter, FiChevronRight,
   FiBookOpen, FiCreditCard, FiBarChart2, FiCheck, FiX, FiCalendar,
-  FiArrowUp, FiArrowDown, FiEye, FiEdit2, FiTrash2,
+  FiArrowUp, FiArrowDown, FiEye, FiEdit2, FiTrash2, FiGrid,
 } from 'react-icons/fi';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import toast from 'react-hot-toast';
+import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import { useAuthStore } from '@/store/authStore';
 
 function getAuthHeaders() {
@@ -108,6 +109,26 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'financial-statements', label: 'Financial Statements', icon: <FiTrendingUp className="w-4 h-4" /> },
 ];
 
+/* ── ModuleDashboardShell Tabs ── */
+const accountsShellTabs: DashboardTabConfig[] = [
+  { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
+  { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+];
+
+function AccountsReportsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg mb-4">
+        <FiFileText className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Accounts Reports</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md">
+        Financial statements, trial balance, and custom accounting reports. Coming soon.
+      </p>
+    </div>
+  );
+}
+
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
     posted: 'thb-badge thb-badge-success',
@@ -131,6 +152,30 @@ function getTypeColor(type: string) {
 }
 
 export default function AccountsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" /></div>}>
+      <AccountsPageContent />
+    </Suspense>
+  );
+}
+
+function AccountsPageContent() {
+  return (
+    <ModuleDashboardShell
+      moduleKey="accounts"
+      moduleLabel="Accounts & Finance"
+      moduleIcon={<FiCreditCard className="w-5 h-5 text-white" />}
+      gradientColor="from-emerald-500 to-green-600"
+      tabs={accountsShellTabs}
+      overviewContent={<AccountsContent />}
+      children={{
+        reports: <AccountsReportsPlaceholder />,
+      }}
+    />
+  );
+}
+
+function AccountsContent() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [searchTerm, setSearchTerm] = useState('');
@@ -155,28 +200,6 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-6 text-white">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Accounts & Finance</h1>
-              <p className="text-blue-100 mt-1">Manage chart of accounts, journal entries, and financial reporting</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowAddJournalModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
-                <FiPlus className="w-4 h-4" /> New Journal Entry
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
-                <FiDownload className="w-4 h-4" /> Export
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
@@ -217,11 +240,12 @@ export default function AccountsPage() {
         ))}
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-sm border border-slate-200 overflow-x-auto">
+      {/* Internal Tab Navigation */}
+      <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.key ? 'bg-blue-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50'}`}>
-            {tab.icon} {tab.label}
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === tab.key ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary hover:bg-white/50'}`}>
+            <span className={activeTab === tab.key ? 'text-emerald-500' : 'text-thb-text-secondary'}>{tab.icon}</span>
+            {tab.label}
           </button>
         ))}
       </div>
