@@ -2402,3 +2402,27 @@ Stage Summary:
 - Clicking a module on the Modules page navigates to its dashboard and sidebar auto-shows sub-items
 - Modules page uses compact grid with 5-6 columns, shows module descriptions, tab previews, and feature counts
 - Vercel deployment: READY at nexus-hrms-p9b71fq5b-maheshkpreddy-6511s-projects.vercel.app
+---
+Task ID: fix-404s-and-duplicates
+Agent: Main Agent
+Task: Fix all 404 errors, remove duplicate pages, link all module pages properly
+
+Work Log:
+- Audited all 119 nav links vs 210 existing page files
+- Found 2 missing pages: /payroll/masters, /payroll/transactions → created redirect pages
+- Found 9 duplicate /dashboards/* pages → converted to redirects to canonical modules
+- Found 2 orphan pages (documentation-hub, separation) → converted to redirects
+- Removed duplicate candidate-portal pages from (dashboard) group (was causing build errors)
+- Added Accounts & Finance module with 6 nav items
+- Added Org Chart and Referrals to nav
+- Fixed Attendance Dashboard href from /dashboards/attendance to /attendance
+- Fixed Tenant Dashboard href from /dashboards/admin to /company
+- Wrapped /accounts page with ModuleDashboardShell
+- Build succeeded, pushed to Git, deployed to Vercel
+
+Stage Summary:
+- Zero 404 errors across all navigation links
+- All duplicate pages consolidated (redirects to canonical pages)
+- Accounts & Finance module added to navigation
+- Org Chart and Referrals now accessible from sidebar
+- Vercel deployment: READY
