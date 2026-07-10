@@ -711,7 +711,7 @@ export default function OrgChartPage() {
 
           {/* ── Two Column Layout: Chart + Sidebar ───────────────────────── */}
           <TwoColumnLayout
-            main={
+            left={
               <div>
                 <SectionHeader
                   title="Organization Tree"
@@ -771,7 +771,7 @@ export default function OrgChartPage() {
                 )}
               </div>
             }
-            sidebar={
+            right={
               <div className="space-y-4">
                 {/* Department Breakdown Widget */}
                 <SidebarWidget

@@ -201,6 +201,78 @@
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
 
+/* 3Boxes HRMS Form & Button Utilities
+   Note: Class names starting with a digit must be escaped in CSS using \33 
+   e.g. .3boxes-input → .\33 boxes-input
+*/
+.\33 boxes-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--thb-border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--thb-text-primary);
+  background: white;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.\33 boxes-input::placeholder { color: var(--thb-text-muted); }
+.\33 boxes-input:focus {
+  border-color: var(--thb-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.\33 boxes-input:read-only {
+  background: #F8FAFC;
+  cursor: default;
+}
+
+.\33 boxes-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: white;
+  background: var(--thb-primary);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.\33 boxes-btn-primary:hover {
+  background: var(--thb-primary-dark);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+.\33 boxes-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.\33 boxes-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--thb-text-secondary);
+  background: white;
+  border: 1px solid var(--thb-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.\33 boxes-btn-secondary:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
 /* Public-facing form input (used by /careers and other public pages) */
 .form-input {
   width: 100%;

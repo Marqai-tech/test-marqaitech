@@ -224,7 +224,7 @@ export default function TerminationPage() {
           <FiArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiAlertCircle className="w-6 h-6 text-red-500" />
             Employee Termination
           </h1>
@@ -233,14 +233,14 @@ export default function TerminationPage() {
       </div>
 
       {/* Select Employee */}
-      <div className="thb-card p-6">
-        <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+      <div className="thb-card p-6 rounded-xl">
+        <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
           <FiUser className="w-5 h-5 text-cyan-500" />
           Select Employee
         </h2>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Employee *</label>
-          <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="3boxes-input w-full max-w-md">
+          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+          <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 max-w-md">
             <option value="">Select Employee</option>
             <option value="emp-001">EMP-001 — Amit Sharma</option>
             <option value="emp-002">EMP-002 — Priya Patel</option>
@@ -263,57 +263,57 @@ export default function TerminationPage() {
       </div>
 
       {/* Termination Details */}
-      <div className="thb-card p-6">
-        <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+      <div className="thb-card p-6 rounded-xl">
+        <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
           <FiFileText className="w-5 h-5 text-red-500" />
           Termination Details
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Termination Type *</label>
-            <select value={form.terminationType} onChange={e => updateField('terminationType', e.target.value)} className="3boxes-input w-full">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Termination Type *</label>
+            <select value={form.terminationType} onChange={e => updateField('terminationType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
               {TERMINATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Termination Date *</label>
-            <input type="date" value={form.terminationDate} onChange={e => updateField('terminationDate', e.target.value)} className="3boxes-input w-full" />
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Termination Date *</label>
+            <input type="date" value={form.terminationDate} onChange={e => updateField('terminationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Last Working Date *</label>
-            <input type="date" value={form.lastWorkingDate} onChange={e => updateField('lastWorkingDate', e.target.value)} className="3boxes-input w-full" />
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Working Date *</label>
+            <input type="date" value={form.lastWorkingDate} onChange={e => updateField('lastWorkingDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Notice Period Served</label>
-            <select value={form.noticePeriodServed} onChange={e => updateField('noticePeriodServed', e.target.value)} className="3boxes-input w-full">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Notice Period Served</label>
+            <select value={form.noticePeriodServed} onChange={e => updateField('noticePeriodServed', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
               <option value="yes">Yes</option>
               <option value="no">No — Immediate</option>
               <option value="partial">Partial</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Reason Category *</label>
-            <select value={form.reasonCategory} onChange={e => updateField('reasonCategory', e.target.value)} className="3boxes-input w-full">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason Category *</label>
+            <select value={form.reasonCategory} onChange={e => updateField('reasonCategory', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
               {REASON_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
         </div>
         <div className="mt-4">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Detailed Reason * <span className="font-normal text-slate-400">(min 20 chars)</span></label>
-          <textarea value={form.detailedReason} onChange={e => updateField('detailedReason', e.target.value)} className="3boxes-input w-full" rows={3} placeholder="Provide detailed reason for termination..." />
+          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Detailed Reason * <span className="font-normal text-slate-400">(min 20 chars)</span></label>
+          <textarea value={form.detailedReason} onChange={e => updateField('detailedReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Provide detailed reason for termination..." />
           <p className="text-[10px] text-slate-400 mt-0.5">{form.detailedReason.length}/20 min characters</p>
         </div>
       </div>
 
       {/* Exit Clearance */}
-      <div className="thb-card p-6">
-        <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+      <div className="thb-card p-6 rounded-xl">
+        <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
           <FiPackage className="w-5 h-5 text-amber-500" />
           Exit Clearance
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-2">Assets to Return</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-2">Assets to Return</label>
             <div className="space-y-2">
               {ASSET_ITEMS.map(asset => (
                 <label key={asset.key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -346,10 +346,10 @@ export default function TerminationPage() {
 
       {/* Actions */}
       <div className="flex justify-end gap-3">
-        <button onClick={() => router.push('/employees')} className="3boxes-btn-secondary flex items-center gap-2">
+        <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
           <FiArrowLeft className="w-4 h-4" /> Cancel
         </button>
-        <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2 bg-red-600 hover:bg-red-700">
+        <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium text-sm shadow-sm transition-all">
           {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiAlertCircle className="w-4 h-4" />}
           {submitting ? 'Processing...' : 'Submit Termination'}
         </button>
