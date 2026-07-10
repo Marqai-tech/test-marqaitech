@@ -586,14 +586,13 @@ export default function OrgChartPage() {
             title="Organization Chart"
             subtitle="Visual hierarchy of your organization structure"
             icon={<FiUsers className="w-6 h-6 text-white" />}
-            gradient="from-violet-700 via-purple-700 to-indigo-700"
+            gradient={{ from: '#7C3AED', to: '#4338CA' }}
             actions={
               <PrimaryButton
                 onClick={fetchEmployees}
                 disabled={loading}
                 loading={loading}
-                size="sm"
-                variant="solid"
+                variant="primary"
                 icon={<FiRefreshCw className="w-3.5 h-3.5" />}
               >
                 Refresh
@@ -718,7 +717,7 @@ export default function OrgChartPage() {
                   subtitle={deptFilter ? `Filtered by ${deptFilter}` : 'Complete reporting hierarchy'}
                   icon={<FiGitBranch className="w-4 h-4" />}
                   action={
-                    <Badge variant="violet">
+                    <Badge variant="info">
                       {filteredTree.reduce((sum, root) => {
                         const count = (ns: OrgNode[]): number => ns.reduce((s, n) => s + 1 + count(n.children), 0);
                         return sum + count([root]);
@@ -729,7 +728,7 @@ export default function OrgChartPage() {
 
                 {loading ? (
                   <Card className="flex items-center justify-center py-16">
-                    <LoadingSpinner message="Loading organization chart…" />
+                    <LoadingSpinner />
                   </Card>
                 ) : filteredTree.length === 0 ? (
                   <EmptyState
@@ -740,7 +739,8 @@ export default function OrgChartPage() {
                         ? `No employees match the "${deptFilter}" department filter. Try selecting a different department.`
                         : 'There are no employees to display in the organization chart. Add employees first to see the reporting hierarchy here.'
                     }
-                    cta={!deptFilter ? { label: 'Add Employees', href: '/employees' } : undefined}
+                    actionLabel={!deptFilter ? 'Add Employees' : undefined}
+                    onAction={!deptFilter ? () => router.push('/employees') : undefined}
                   />
                 ) : (
                   <Card className="p-4 sm:p-6 overflow-x-auto">
@@ -777,8 +777,6 @@ export default function OrgChartPage() {
                 <SidebarWidget
                   title="Department Breakdown"
                   icon={<FiBriefcase className="w-3.5 h-3.5 text-violet-600" />}
-                  accent="violet"
-                  count={departments.length}
                 >
                   <div className="space-y-2 max-h-72 overflow-y-auto">
                     {deptCounts
@@ -824,7 +822,6 @@ export default function OrgChartPage() {
                   <SidebarWidget
                     title="Employee Details"
                     icon={<FiUsers className="w-3.5 h-3.5 text-blue-600" />}
-                    accent="blue"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
@@ -862,7 +859,7 @@ export default function OrgChartPage() {
                         <Badge variant={selectedEmployee.status === 'active' ? 'success' : 'default'}>
                           {selectedEmployee.status || 'Unknown'}
                         </Badge>
-                        <Badge variant="violet">
+                        <Badge variant="info">
                           {selectedEmployee.designation?.title || 'Employee'}
                         </Badge>
                       </div>
@@ -884,7 +881,7 @@ export default function OrgChartPage() {
                                   onClick={() => handleSelect(r.id)}
                                   className="w-full flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
                                 >
-                                  <GradientAvatar name={rFullName} size="xs" className={`bg-gradient-to-br ${rDeptColor}`} />
+                                  <GradientAvatar name={rFullName} size="sm" className={`bg-gradient-to-br ${rDeptColor}`} />
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[11px] font-semibold text-slate-800 truncate">{rFullName}</p>
                                     <p className="text-[10px] text-slate-400 truncate">{r.designation?.title || 'Employee'}</p>
@@ -904,8 +901,6 @@ export default function OrgChartPage() {
                   <SidebarWidget
                     title="Department Legend"
                     icon={<FiBookmark className="w-3.5 h-3.5 text-emerald-600" />}
-                    accent="emerald"
-                    count={departments.length}
                   >
                     <div className="flex flex-wrap gap-1.5">
                       {departments.map((dept) => (
