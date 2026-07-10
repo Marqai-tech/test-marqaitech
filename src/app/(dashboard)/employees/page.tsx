@@ -918,8 +918,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           available for employees to view and update their own profile.
         </p>
       </ModuleIntro>
+      )}
 
-      {/* Module Tips */}
+      {/* Module Tips & Workflow (dashboard only) */}
+      {!formOnly && (
       <ModuleTips
         moduleKey="employees"
         title="Employee Tips"
@@ -935,6 +937,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         accentColor="blue"
         userRole={user?.role}
       />
+      )}
 
       {/* Main Tabs: List / Bulk Import */}
       <div className="flex items-center gap-1 mb-4">
