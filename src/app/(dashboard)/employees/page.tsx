@@ -252,7 +252,7 @@ const initialForm = {
 };
 
 /* ── Component ── */
-function EmployeesPageContent() {
+export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editIdFromUrl = searchParams.get('editId');
@@ -272,7 +272,7 @@ function EmployeesPageContent() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(formOnly);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -588,6 +588,18 @@ function EmployeesPageContent() {
     return `${settings.prefix}${ts}`;
   }, [getEmployeeCodeSettings]);
 
+  /* Auto-initialize form when in formOnly (Add Employee) mode */
+  useEffect(() => {
+    if (formOnly && !editingId) {
+      const settings = getEmployeeCodeSettings();
+      setForm(prev => ({
+        ...prev,
+        employeeId: prev.employeeId || (settings.autoGeneration ? generateNextEmployeeCode() : ''),
+        companyId: prev.companyId || scopeCompanyId || '',
+      }));
+    }
+  }, [formOnly, scopeCompanyId, getEmployeeCodeSettings, generateNextEmployeeCode, editingId]);
+
   /* Form handlers */
   const handleOpenAddForm = () => {
     setEditingId(null);
@@ -664,6 +676,10 @@ function EmployeesPageContent() {
   };
 
   const handleCancelForm = () => {
+    if (formOnly) {
+      router.push('/employees');
+      return;
+    }
     setShowForm(false);
     setEditingId(null);
     setForm(initialForm);
@@ -768,26 +784,46 @@ function EmployeesPageContent() {
   /* ── Render ── */
   return (
     <div className="space-y-6">
+      {/* When formOnly mode (Add Employee page), show ONLY the form */}
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
-              <FiUsers className="w-5 h-5 text-white" />
-            </div>
-            Employees
-          </h1>
-          <p className="text-thb-text-secondary mt-1 ml-[46px]">Manage your organization&apos;s workforce</p>
+      {!formOnly ? (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                <FiUsers className="w-5 h-5 text-white" />
+              </div>
+              Employees
+            </h1>
+            <p className="text-thb-text-secondary mt-1 ml-[46px]">Manage your organization&apos;s workforce</p>
+          </div>
+          {isAdmin && (
+            <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium text-sm shadow-sm shadow-emerald-600/25 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/20">
+              <FiPlus className="w-4 h-4" />
+              Add Employee
+            </button>
+          )}
         </div>
-        {isAdmin && (
-          <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium text-sm shadow-sm shadow-emerald-600/25 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/20">
-            <FiPlus className="w-4 h-4" />
-            Add Employee
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                <FiUserPlus className="w-5 h-5 text-white" />
+              </div>
+              Add Employee
+            </h1>
+            <p className="text-thb-text-secondary mt-1 ml-[46px]">Fill in the details below to create a new employee record</p>
+          </div>
+          <button onClick={handleCancelForm} className="inline-flex items-center gap-2 px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
+            <FiX className="w-4 h-4" />
+            Back to Employees
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── Stats Row ── */}
+      {/* ── Stats Row (dashboard only) ── */}
+      {!formOnly && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Employees */}
         <div className="thb-card p-5 relative overflow-hidden group">
@@ -849,8 +885,10 @@ function EmployeesPageContent() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Module Intro */}
+      {/* Module Intro (dashboard only) */}
+      {!formOnly && (
       <ModuleIntro
         title="Employee Management"
         subtitle="Centralized directory, lifecycle, documents, and AI insights"
