@@ -173,7 +173,7 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Employee Dashboard', href: '/dashboards/employee', icon: <FiGrid className="w-4 h-4" />, isNew: true },
+      { label: 'Employee Dashboard', href: '/employees', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees' },
       { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', isNew: true },

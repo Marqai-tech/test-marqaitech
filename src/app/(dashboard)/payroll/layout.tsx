@@ -1,288 +1,177 @@
 'use client';
 
 /**
- * Payroll Layout — wraps every /payroll/* page with a sticky, categorized
- * sub-navigation bar so users can jump between payroll sub-modules without
- * going back to the landing page.
+ * Payroll Layout — wraps every /payroll/* page with a simple breadcrumb bar.
  *
- * Pattern: similar to how /employees/[id] uses tab navigation, but applied
- * to the entire payroll module via Next.js nested layout.
+ * Navigation is driven by the 3 sidebar sub-section items:
+ *   • Payroll Masters
+ *   • Payroll Transactions
+ *   • Payroll Reports
  *
- * The sub-nav groups 27 payroll sub-modules into 6 categories with
- * dropdown menus to keep the bar compact.
+ * The top bar shows:  Payroll > Section > Page  as a breadcrumb trail,
+ * with the section links (Masters / Transactions / Reports) always visible.
+ * No dropdown menus — all sub-page navigation happens via the sidebar.
  */
 
-import { useState, useRef, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  FiDollarSign,
-  FiChevronDown,
-  FiChevronRight,
-  FiLayers,
-  FiPercent,
-  FiDatabase,
-  FiEdit3,
-  FiShield,
-  FiBarChart2,
-  FiFileText,
-  FiPlayCircle,
-  FiCheckSquare,
-  FiClock,
-  FiActivity,
-  FiLock,
-  FiTruck,
-  FiGrid,
-  FiCalendar,
-  FiBook,
-  FiGlobe,
-  FiCreditCard,
-  FiFile,
-  FiUserCheck,
-  FiCpu,
-  FiClipboard,
-} from 'react-icons/fi';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { FiDollarSign, FiChevronRight, FiDatabase, FiEdit3, FiFileText } from 'react-icons/fi';
 
-interface SubItem {
+/* ── Route-to-section mapping ───────────────────────────────────────── */
+
+interface PageInfo {
+  section: 'masters' | 'transactions' | 'reports';
   label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  isNew?: boolean;
 }
 
-interface SubCategory {
-  key: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  items: SubItem[];
-}
+const routeMap: Record<string, PageInfo> = {
+  // Masters
+  '/payroll/ctc-templates':   { section: 'masters',      label: 'CTC Templates' },
+  '/payroll/ctc-calculator':  { section: 'masters',      label: 'CTC Calculator' },
+  '/payroll/components':      { section: 'masters',      label: 'Component Master' },
+  '/payroll/salary-settings': { section: 'masters',      label: 'Salary Settings' },
+  '/payroll/definitions':     { section: 'masters',      label: 'Payroll Definitions' },
+  '/payroll/income-tax':      { section: 'masters',      label: 'Income Tax' },
+  '/payroll/tax-slabs':       { section: 'masters',      label: 'Tax Slabs' },
+  '/payroll/statutory':       { section: 'masters',      label: 'Statutory Components' },
+  '/payroll/gratuity':        { section: 'masters',      label: 'Gratuity' },
+  '/payroll/currency':        { section: 'masters',      label: 'Currency & FX' },
+  '/payroll/dimensions':      { section: 'masters',      label: 'Dimensions' },
+  '/payroll/payment-methods': { section: 'masters',      label: 'Payment Methods' },
 
-const categories: SubCategory[] = [
-  {
-    key: 'compensation',
-    label: 'Compensation Setup',
-    icon: FiLayers,
-    items: [
-      { label: 'CTC Templates', href: '/payroll/ctc-templates', icon: FiLayers },
-      { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: FiPercent },
-      { label: 'Component Master', href: '/payroll/components', icon: FiDatabase },
-      { label: 'Salary Settings', href: '/payroll/salary-settings', icon: FiEdit3 },
-      { label: 'Payroll Definitions', href: '/payroll/definitions', icon: FiClipboard },
-    ],
-  },
-  {
-    key: 'tax',
-    label: 'Tax & Statutory',
-    icon: FiShield,
-    items: [
-      { label: 'Income Tax', href: '/payroll/income-tax', icon: FiFileText },
-      { label: 'Tax Slabs', href: '/payroll/tax-slabs', icon: FiBarChart2 },
-      { label: 'Statutory Components', href: '/payroll/statutory', icon: FiShield },
-      { label: 'Gratuity', href: '/payroll/gratuity', icon: FiTruck },
-    ],
-  },
-  {
-    key: 'processing',
-    label: 'Payroll Processing',
-    icon: FiPlayCircle,
-    items: [
-      { label: 'Payroll Inputs', href: '/payroll/inputs', icon: FiEdit3 },
-      { label: 'Pre-Payroll Validation', href: '/payroll/validations', icon: FiCheckSquare },
-      { label: 'Payroll Processing', href: '/payroll/processing', icon: FiPlayCircle },
-      { label: 'Overtime', href: '/payroll/overtime', icon: FiActivity },
-      { label: 'Loans', href: '/payroll/loans', icon: FiDollarSign },
-      { label: 'F&F Settlement', href: '/payroll/fnf', icon: FiTruck },
-      { label: 'Payroll Holds', href: '/payroll/holds', icon: FiLock },
-    ],
-  },
-  {
-    key: 'global',
-    label: 'Multi-Country',
-    icon: FiGlobe,
-    items: [
-      { label: 'Currency & FX', href: '/payroll/currency', icon: FiDollarSign },
-      { label: 'Dimensions', href: '/payroll/dimensions', icon: FiGrid },
-      { label: 'Cross-Border Secondment', href: '/payroll/secondment', icon: FiGlobe, isNew: true },
-      { label: 'Group Dashboard', href: '/payroll/group-dashboard', icon: FiGlobe, isNew: true },
-    ],
-  },
-  {
-    key: 'compliance',
-    label: 'Compliance & Filing',
-    icon: FiCalendar,
-    items: [
-      { label: 'Compliance Calendar', href: '/payroll/compliance', icon: FiCalendar },
-      { label: 'GL Mapping', href: '/payroll/gl-mapping', icon: FiBook },
-      { label: 'Bank File Generation', href: '/payroll/bank-files', icon: FiFile },
-      { label: 'Reports & Dashboard', href: '/payroll/reports', icon: FiFileText },
-    ],
-  },
-  {
-    key: 'payments',
-    label: 'Employee Payments',
-    icon: FiCreditCard,
-    items: [
-      { label: 'Payment Methods', href: '/payroll/payment-methods', icon: FiCreditCard },
-      { label: 'Payslips', href: '/payroll/payslips', icon: FiFileText },
-    ],
-  },
-  {
-    key: 'governance',
-    label: 'Governance & AI',
-    icon: FiCpu,
-    items: [
-      { label: 'Payroll Approvals', href: '/payroll/approvals', icon: FiUserCheck, isNew: true },
-      { label: 'AI Insights', href: '/payroll/ai-insights', icon: FiCpu, isNew: true },
-    ],
-  },
-];
+  // Transactions
+  '/payroll/inputs':          { section: 'transactions',  label: 'Payroll Inputs' },
+  '/payroll/validations':     { section: 'transactions',  label: 'Pre-Payroll Validation' },
+  '/payroll/processing':      { section: 'transactions',  label: 'Payroll Processing' },
+  '/payroll/overtime':        { section: 'transactions',  label: 'Overtime' },
+  '/payroll/loans':           { section: 'transactions',  label: 'Loans' },
+  '/payroll/fnf':             { section: 'transactions',  label: 'F&F Settlement' },
+  '/payroll/holds':           { section: 'transactions',  label: 'Payroll Holds' },
+  '/payroll/bank-files':      { section: 'transactions',  label: 'Bank File Generation' },
+  '/payroll/payslips':        { section: 'transactions',  label: 'Payslips' },
+  '/payroll/secondment':      { section: 'transactions',  label: 'Cross-Border Secondment' },
+  '/payroll/approvals':       { section: 'transactions',  label: 'Payroll Approvals' },
+  '/payroll/ai-insights':     { section: 'transactions',  label: 'AI Insights' },
+  '/payroll/group-dashboard': { section: 'transactions',  label: 'Group Dashboard' },
 
-function PayrollSubMenu() {
+  // Reports
+  '/payroll/reports':         { section: 'reports',       label: 'Reports & Dashboard' },
+};
+
+const sectionMeta: Record<string, { href: string; label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  masters:      { href: '/payroll/masters',      label: 'Masters',      icon: FiDatabase },
+  transactions: { href: '/payroll/transactions',  label: 'Transactions', icon: FiEdit3 },
+  reports:      { href: '/payroll/reports',       label: 'Reports',      icon: FiFileText },
+};
+
+/* ── Component ──────────────────────────────────────────────────────── */
+
+function PayrollBreadcrumb() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [openCat, setOpenCat] = useState<string | null>(null);
-  const navRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setOpenCat(null);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  const isLanding = pathname === '/payroll';
 
-  // Find current category + label for the breadcrumb-style header
-  const currentCategory = categories.find((cat) =>
-    cat.items.some((item) => pathname === item.href || pathname?.startsWith(item.href + '/'))
-  );
-  const currentItem = currentCategory?.items.find(
-    (item) => pathname === item.href || pathname?.startsWith(item.href + '/')
-  );
-
-  // Check for section pages (Masters / Transactions / Reports)
-  const sectionPages: Record<string, { label: string; parent: string }> = {
-    '/payroll/masters': { label: 'Payroll Masters', parent: 'Masters' },
-    '/payroll/transactions': { label: 'Payroll Transactions', parent: 'Transactions' },
-    '/payroll/reports': { label: 'Payroll Reports', parent: 'Reports' },
+  // Detect section landing pages
+  const sectionLanding: Record<string, { section: 'masters' | 'transactions' | 'reports'; label: string }> = {
+    '/payroll/masters':      { section: 'masters',      label: 'Payroll Masters' },
+    '/payroll/transactions':  { section: 'transactions', label: 'Payroll Transactions' },
+    '/payroll/reports':       { section: 'reports',      label: 'Payroll Reports' },
   };
-  const currentSection = sectionPages[pathname || ''];
 
-  const isLandingPage = pathname === '/payroll';
+  // Resolve current page info
+  const landingInfo = sectionLanding[pathname || ''];
+  const pageInfo = routeMap[pathname || ''];
+
+  const currentSection = landingInfo?.section ?? pageInfo?.section;
+  const currentPageLabel = landingInfo?.label ?? pageInfo?.label;
+
+  // Determine which section quick-link is active
+  const activeSection = currentSection ?? (pathname?.startsWith('/payroll/reports') ? 'reports' : pathname?.startsWith('/payroll/transactions') ? 'transactions' : 'masters');
 
   return (
     <div className="thb-card overflow-hidden">
-      {/* Top bar: Payroll title + breadcrumb */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border-b border-thb-border">
+        {/* Breadcrumb trail */}
         <div className="flex items-center gap-2 text-sm">
-          <Link href="/payroll" className="flex items-center gap-1.5 font-semibold text-thb-text-primary hover:text-emerald-600 transition-colors">
+          <Link
+            href="/payroll"
+            className="flex items-center gap-1.5 font-semibold text-thb-text-primary hover:text-emerald-600 transition-colors"
+          >
             <FiDollarSign className="w-4 h-4 text-emerald-500" />
             Payroll
           </Link>
+
+          {/* Section level */}
           {currentSection && (
             <>
               <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
-              <span className="font-medium text-emerald-700">{currentSection.label}</span>
+              <Link
+                href={sectionMeta[currentSection].href}
+                className="text-thb-text-secondary hover:text-emerald-600 transition-colors"
+              >
+                {sectionMeta[currentSection].label}
+              </Link>
             </>
           )}
-          {currentItem && !currentSection && (
+
+          {/* Page level */}
+          {currentPageLabel && !landingInfo && (
             <>
               <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
-              <span className="text-thb-text-secondary">{currentCategory?.label}</span>
-              <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
-              <span className="font-medium text-emerald-700">{currentItem.label}</span>
+              <span className="font-medium text-emerald-700">{currentPageLabel}</span>
             </>
           )}
-          {isLandingPage && (
+
+          {/* Section landing page — just show section name as final crumb */}
+          {landingInfo && (
+            <>
+              <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
+              <span className="font-medium text-emerald-700">{landingInfo.label}</span>
+            </>
+          )}
+
+          {isLanding && (
             <span className="ml-2 text-xs text-thb-text-muted">Overview</span>
           )}
         </div>
-        <Link
-          href="/payroll"
-          className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${
-            isLandingPage
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
-          }`}
-        >
-          Module Home
-        </Link>
-      </div>
 
-      {/* Section quick-links + Category dropdown bar */}
-      <div ref={navRef} className="relative flex items-center gap-1 px-2 py-1.5 overflow-x-auto bg-white">
-        {/* Section quick-links */}
-        <Link href="/payroll/masters" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${pathname === '/payroll/masters' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'}`}>
-          <FiDatabase className="w-3.5 h-3.5" /> Masters
-        </Link>
-        <Link href="/payroll/transactions" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${pathname === '/payroll/transactions' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'}`}>
-          <FiEdit3 className="w-3.5 h-3.5" /> Transactions
-        </Link>
-        <Link href="/payroll/reports" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${pathname === '/payroll/reports' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'}`}>
-          <FiFileText className="w-3.5 h-3.5" /> Reports
-        </Link>
-        <div className="w-px h-5 bg-slate-200 mx-1" />
-        {/* Category dropdowns */}
-        {categories.map((cat) => {
-          const IconComp = cat.icon;
-          const isCurrentCat = currentCategory?.key === cat.key;
-          const isOpen = openCat === cat.key;
-          return (
-            <div key={cat.key} className="relative flex-shrink-0">
-              <button
-                onClick={() => setOpenCat(isOpen ? null : cat.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-                  isCurrentCat
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : isOpen
-                    ? 'bg-slate-100 text-thb-text-primary'
-                    : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
+        {/* Section quick-links (always visible) */}
+        <div className="flex items-center gap-1">
+          {(['masters', 'transactions', 'reports'] as const).map((key) => {
+            const meta = sectionMeta[key];
+            const Icon = meta.icon;
+            const isActive = activeSection === key && !isLanding;
+            return (
+              <Link
+                key={key}
+                href={meta.href}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  isActive
+                    ? key === 'masters'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      : key === 'transactions'
+                      ? 'bg-teal-100 text-teal-700 border border-teal-200'
+                      : 'bg-amber-100 text-amber-700 border border-amber-200'
+                    : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
                 }`}
               >
-                <IconComp className="w-3.5 h-3.5" />
-                {cat.label}
-                <FiChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isOpen && (
-                <div className="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-thb-border py-1 z-50">
-                  {cat.items.map((item) => {
-                    const ItemIcon = item.icon;
-                    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-                    return (
-                      <button
-                        key={item.href}
-                        onClick={() => {
-                          router.push(item.href);
-                          setOpenCat(null);
-                        }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-slate-50 transition-colors ${
-                          isActive ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-thb-text-secondary'
-                        }`}
-                      >
-                        <ItemIcon className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-600' : 'text-thb-text-muted'}`} />
-                        <span className="flex-1 text-left">{item.label}</span>
-                        {item.isNew && (
-                          <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-violet-100 text-violet-700">New</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                <Icon className="w-3.5 h-3.5" />
+                {meta.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+/* ── Layout ─────────────────────────────────────────────────────────── */
+
 export default function PayrollLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-4">
-      <PayrollSubMenu />
+      <PayrollBreadcrumb />
       {children}
     </div>
   );
