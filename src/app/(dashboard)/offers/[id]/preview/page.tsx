@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
@@ -35,7 +35,7 @@ interface Offer {
   esignEnvelopeId: string | null;
 }
 
-export default function OfferPreviewPage() {
+function OfferPreviewContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const envelopeId = searchParams.get('envelopeId');
@@ -59,7 +59,6 @@ export default function OfferPreviewPage() {
       const data = await res.json();
       const o = data.offer || data;
       setOffer(o);
-      // If we have a generated URL, decode it for the iframe srcDoc
       if (o?.generatedPdfUrl) {
         const url = o.generatedPdfUrl;
         if (url.startsWith('data:text/html')) {
@@ -195,7 +194,6 @@ export default function OfferPreviewPage() {
         </div>
       </div>
 
-      {/* Status bar */}
       <div className="thb-card p-3 flex flex-wrap items-center gap-3 text-xs">
         <span className="text-thb-text-secondary">Status:</span>
         <span className={`px-2 py-0.5 rounded-full font-medium ${offer.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : offer.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
@@ -214,26 +212,15 @@ export default function OfferPreviewPage() {
           <span className="text-thb-text-muted">Provider: {offer.esignProvider}</span>
         )}
         {offer.signedPdfUrl && (
-          <a
-            href={offer.signedPdfUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="ml-auto inline-flex items-center gap-1 text-blue-600 hover:underline"
-          >
+          <a href={offer.signedPdfUrl} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-blue-600 hover:underline">
             <FiExternalLink className="w-3 h-3" /> View Signed Copy
           </a>
         )}
       </div>
 
-      {/* Preview iframe */}
       <div className="thb-card overflow-hidden">
         {previewHtml ? (
-          <iframe
-            title="Offer Letter Preview"
-            srcDoc={previewHtml}
-            className="w-full h-[800px] bg-white"
-            sandbox="allow-same-origin allow-popups"
-          />
+          <iframe title="Offer Letter Preview" srcDoc={previewHtml} className="w-full h-[800px] bg-white" sandbox="allow-same-origin allow-popups" />
         ) : (
           <div className="p-12 text-center">
             <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
@@ -243,5 +230,13 @@ export default function OfferPreviewPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OfferPreviewPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" /></div>}>
+      <OfferPreviewContent />
+    </Suspense>
   );
 }

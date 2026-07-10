@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiUsers,
@@ -252,7 +252,7 @@ const initialForm = {
 };
 
 /* ── Component ── */
-export default function EmployeesPage() {
+function EmployeesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editIdFromUrl = searchParams.get('editId');
@@ -2190,5 +2190,20 @@ export default function EmployeesPage() {
       )}
       </>)}
     </div>
+  );
+}
+
+export default function EmployeesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4" />
+          <p className="text-sm text-thb-text-secondary">Loading Employees...</p>
+        </div>
+      </div>
+    }>
+      <EmployeesPageContent />
+    </Suspense>
   );
 }

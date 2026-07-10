@@ -235,7 +235,7 @@ export const navSections: NavSection[] = [
   },
 
   // ─── 6. PAYROLL MODULE ───
-  // Reports / Settings → dashboardTabs
+  // Masters / Transactions / Reports as separate sidebar sub-sections
   {
     key: 'payroll',
     label: 'Payroll',
@@ -248,9 +248,10 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Payroll Dashboard', href: '/dashboards/payroll', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
-      { label: 'Payroll Masters', href: '/payroll/masters', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
-      { label: 'Payroll Transactions', href: '/payroll/transactions', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Dashboard', href: '/payroll', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Masters', href: '/payroll/masters', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payroll Transactions', href: '/payroll/transactions', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payroll Reports', href: '/payroll/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll' },
       { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
     ],
   },

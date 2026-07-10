@@ -472,6 +472,7 @@ model Employee {
   overtimeRequests          OvertimeRequest[]
   compOffLeaves             CompOffLeave[]
   wfhSnapshots              WfhAttendanceSnapshot[]
+  wfhRequests               WfhRequest[]
   rosterAssignments         EmployeeRosterAssignment[]
   leaveEncashmentRequests   LeaveEncashmentRequest[]
   optionalHolidayElections  OptionalHolidayElection[]
@@ -5041,6 +5042,59 @@ model WfhAttendanceSnapshot {
 
   @@index([employeeId])
   @@index([date])
+}
+
+// ── WFH Request (REQ-ATT-06) — Work From Home application & approval ──
+model WfhRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Request details
+  requestType     String   // "full_day" | "half_day" | "temporary" | "permanent" | "hybrid"
+  startDate       DateTime
+  endDate         DateTime?
+  reason          String
+  reasonCategory  String   // "personal" | "medical" | "travel" | "infrastructure" | "weather" | "other"
+  supportingDoc   String?  // file URL
+
+  // Work arrangement
+  expectedWorkingHours  Float  @default(8)
+  availableForMeetings  Boolean @default(true)
+  remoteLocation        String?
+  emergencyContact      String?
+  alternateEmail        String?
+
+  // Calculated
+  totalDays        Float?
+
+  // Manager approval
+  managerStatus       String  @default("pending") // pending, approved, rejected
+  managerApprovedBy   String?
+  managerApprovedAt   DateTime?
+  managerComments     String?
+
+  // HR approval (required for requests > 3 days)
+  requiresHrApproval  Boolean @default(false)
+  hrStatus            String  @default("pending") // pending, approved, rejected, not_required
+  hrApprovedBy        String?
+  hrApprovedAt        DateTime?
+  hrComments          String?
+
+  // Comments for approver
+  approverComments    String?
+
+  // Final status
+  status      String   @default("pending") // pending, approved, rejected, cancelled
+  cancelledAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([requestType])
 }
 
 // ── Rotational Roster (REQ-CFG-02) — auto-rotating shifts ──

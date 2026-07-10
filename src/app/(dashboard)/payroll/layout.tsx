@@ -162,6 +162,14 @@ function PayrollSubMenu() {
     (item) => pathname === item.href || pathname?.startsWith(item.href + '/')
   );
 
+  // Check for section pages (Masters / Transactions / Reports)
+  const sectionPages: Record<string, { label: string; parent: string }> = {
+    '/payroll/masters': { label: 'Payroll Masters', parent: 'Masters' },
+    '/payroll/transactions': { label: 'Payroll Transactions', parent: 'Transactions' },
+    '/payroll/reports': { label: 'Payroll Reports', parent: 'Reports' },
+  };
+  const currentSection = sectionPages[pathname || ''];
+
   const isLandingPage = pathname === '/payroll';
 
   return (
@@ -173,7 +181,13 @@ function PayrollSubMenu() {
             <FiDollarSign className="w-4 h-4 text-emerald-500" />
             Payroll
           </Link>
-          {currentItem && (
+          {currentSection && (
+            <>
+              <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
+              <span className="font-medium text-emerald-700">{currentSection.label}</span>
+            </>
+          )}
+          {currentItem && !currentSection && (
             <>
               <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
               <span className="text-thb-text-secondary">{currentCategory?.label}</span>
@@ -197,8 +211,20 @@ function PayrollSubMenu() {
         </Link>
       </div>
 
-      {/* Category dropdown bar */}
+      {/* Section quick-links + Category dropdown bar */}
       <div ref={navRef} className="relative flex items-center gap-1 px-2 py-1.5 overflow-x-auto bg-white">
+        {/* Section quick-links */}
+        <Link href="/payroll/masters" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${pathname === '/payroll/masters' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'}`}>
+          <FiDatabase className="w-3.5 h-3.5" /> Masters
+        </Link>
+        <Link href="/payroll/transactions" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${pathname === '/payroll/transactions' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'}`}>
+          <FiEdit3 className="w-3.5 h-3.5" /> Transactions
+        </Link>
+        <Link href="/payroll/reports" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${pathname === '/payroll/reports' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'}`}>
+          <FiFileText className="w-3.5 h-3.5" /> Reports
+        </Link>
+        <div className="w-px h-5 bg-slate-200 mx-1" />
+        {/* Category dropdowns */}
         {categories.map((cat) => {
           const IconComp = cat.icon;
           const isCurrentCat = currentCategory?.key === cat.key;
