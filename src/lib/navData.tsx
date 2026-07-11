@@ -25,6 +25,7 @@ export interface NavItem {
   moduleKey?: string;
   isNew?: boolean;
   badge?: string;
+  isDivider?: boolean;  // if true, renders as a sub-section header, not a link
 }
 
 export interface DashboardTab {
@@ -160,7 +161,7 @@ export const navSections: NavSection[] = [
   },
 
   // ─── 3. EMPLOYEE MODULE ───
-  // Reports / Settings → dashboardTabs
+  // Dashboard / Lifecycle / Transactions → sidebar sub-sections
   {
     key: 'employee',
     label: 'Employee',
@@ -169,19 +170,26 @@ export const navSections: NavSection[] = [
     description: 'Employee lifecycle management',
     dashboardTabs: [
       { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
-      { label: 'Reports', key: 'reports', icon: <FiBarChart2 className="w-4 h-4" />, isNew: true },
+      { label: 'Analytics', key: 'analytics', icon: <FiBarChart2 className="w-4 h-4" />, isNew: true },
+      { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Employee Dashboard', href: '/employees', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      { label: 'Employee Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees' },
-      { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+
+      // ── Lifecycle ──
+      { label: 'Lifecycle', href: '#lifecycle-divider', icon: <FiRefreshCw className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
+      { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      { label: 'Probation', href: '/employees/probation', icon: <FiClock className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Termination', href: '/employees/termination', icon: <FiAlertCircle className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
       { label: 'Rejoin Employee', href: '/employees/rejoin', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Probation', href: '/employees/probation', icon: <FiClock className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+
+      // ── Structure ──
+      { label: 'Structure', href: '#structure-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
+      { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
     ],
   },
 
@@ -235,7 +243,7 @@ export const navSections: NavSection[] = [
   },
 
   // ─── 6. PAYROLL MODULE ───
-  // Masters / Transactions / Reports as separate sidebar sub-sections
+  // Group Dashboard / Masters / Transactions / Reports as sidebar sub-sections with dividers
   {
     key: 'payroll',
     label: 'Payroll',
@@ -248,11 +256,41 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
+      { label: 'Group Dashboard', href: '/payroll/group-dashboard', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
       { label: 'Payroll Dashboard', href: '/payroll', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
-      { label: 'Payroll Masters', href: '/payroll/masters', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Payroll Transactions', href: '/payroll/transactions', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Payroll Reports', href: '/payroll/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll' },
+
+      // ── Payroll Masters ──
+      { label: 'Payroll Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'payroll', isDivider: true },
+      { label: 'CTC Templates', href: '/payroll/ctc-templates', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Component Master', href: '/payroll/components', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payroll Definitions', href: '/payroll/definitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Salary Settings', href: '/payroll/salary-settings', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Income Tax - Tax Slabs', href: '/payroll/tax-slabs', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Statutory Components', href: '/payroll/statutory', icon: <FiShield className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Gratuity', href: '/payroll/gratuity', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Currency & FX', href: '/payroll/currency', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Dimensions', href: '/payroll/dimensions', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payment Methods', href: '/payroll/payment-methods', icon: <FiCreditCard className="w-4 h-4" />, moduleKey: 'payroll' },
+
+      // ── Payroll Transactions ──
+      { label: 'Payroll Transactions', href: '#transactions-divider', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'payroll', isDivider: true },
+      { label: 'Payroll Inputs', href: '/payroll/inputs', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Pre-Payroll Validation', href: '/payroll/validations', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payroll Processing', href: '/payroll/processing', icon: <FiPlayCircle className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Overtime', href: '/payroll/overtime', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Loans', href: '/payroll/loans', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'F&F Settlement', href: '/payroll/fnf', icon: <FiTruck className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payroll Holds', href: '/payroll/holds', icon: <FiLock className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Bank File Generation', href: '/payroll/bank-files', icon: <FiFile className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Payslips', href: '/payroll/payslips', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll' },
+      { label: 'Cross-Border Secondment', href: '/payroll/secondment', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
+      { label: 'Payroll Approvals', href: '/payroll/approvals', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
       { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
+
+      // ── Reports ──
+      { label: 'Payroll Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'payroll', isDivider: true },
+      { label: 'Reports & Dashboard', href: '/payroll/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll' },
     ],
   },
 

@@ -54,9 +54,21 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
     ? filteredSections.find((s) => s.key === currentModuleKey)
     : null;
 
-  // Auto-detect active item
+  // Auto-detect active item (exact match preferred over prefix match)
   const isItemActive = (href: string) => {
+    if (href.startsWith('#')) return false; // dividers are never active
     return pathname === href || pathname?.startsWith(href + '/');
+  };
+
+  // Check if an item is the BEST match (exact match wins over prefix match)
+  const isBestMatch = (href: string, items: import('@/lib/navData').NavItem[]) => {
+    if (href.startsWith('#')) return false;
+    // Exact match always wins
+    if (pathname === href) return true;
+    // For prefix matches, only active if no other item is an exact match
+    if (!pathname?.startsWith(href + '/')) return false;
+    const hasExactMatch = items.some(item => !item.isDivider && !item.href.startsWith('#') && pathname === item.href);
+    return !hasExactMatch;
   };
 
   const handleLogout = async () => {
@@ -160,8 +172,23 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
             </div>
             {/* Section items */}
             <ul className="space-y-0.5">
-              {currentSection.items.map((item) => {
-                const isActive = isItemActive(item.href);
+              {currentSection.items.map((item, idx) => {
+                // Divider items render as sub-section headers
+                if (item.isDivider) {
+                  return (
+                    <li key={`divider-${idx}`} className="mt-3 mb-1 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-thb-sidebar-text/40">{item.icon}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-thb-sidebar-text/50">
+                          {item.label}
+                        </span>
+                      </div>
+                      <div className="mt-1 border-t border-white/[0.06]" />
+                    </li>
+                  );
+                }
+
+                const isActive = isBestMatch(item.href, currentSection.items);
                 return (
                   <li key={item.href}>
                     <Link

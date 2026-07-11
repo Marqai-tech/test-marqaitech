@@ -1,36 +1,40 @@
 'use client';
 
 /**
- * Payroll Layout — wraps every /payroll/* page with a simple breadcrumb bar.
+ * Payroll Layout — wraps every /payroll/* page with a breadcrumb bar.
  *
- * Navigation is driven by the 3 sidebar sub-section items:
- *   • Payroll Masters
- *   • Payroll Transactions
+ * Navigation is now driven by sidebar sub-sections with dividers:
+ *   • Group Dashboard + Payroll Dashboard  (top-level)
+ *   • Payroll Masters    (CTC Templates, Component Master, etc.)
+ *   • Payroll Transactions (Inputs, Processing, Loans, etc.)
  *   • Payroll Reports
  *
  * The top bar shows:  Payroll > Section > Page  as a breadcrumb trail,
- * with the section links (Masters / Transactions / Reports) always visible.
- * No dropdown menus — all sub-page navigation happens via the sidebar.
+ * with the section links always visible for quick navigation.
  */
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiDollarSign, FiChevronRight, FiDatabase, FiEdit3, FiFileText } from 'react-icons/fi';
+import { FiDollarSign, FiChevronRight, FiDatabase, FiEdit3, FiFileText, FiGlobe, FiGrid } from 'react-icons/fi';
 
 /* ── Route-to-section mapping ───────────────────────────────────────── */
 
 interface PageInfo {
-  section: 'masters' | 'transactions' | 'reports';
+  section: 'dashboard' | 'masters' | 'transactions' | 'reports';
   label: string;
 }
 
 const routeMap: Record<string, PageInfo> = {
+  // Dashboard
+  '/payroll':               { section: 'dashboard',    label: 'Payroll Dashboard' },
+  '/payroll/group-dashboard': { section: 'dashboard',  label: 'Group Dashboard' },
+
   // Masters
   '/payroll/ctc-templates':   { section: 'masters',      label: 'CTC Templates' },
-  '/payroll/ctc-calculator':  { section: 'masters',      label: 'CTC Calculator' },
   '/payroll/components':      { section: 'masters',      label: 'Component Master' },
-  '/payroll/salary-settings': { section: 'masters',      label: 'Salary Settings' },
   '/payroll/definitions':     { section: 'masters',      label: 'Payroll Definitions' },
+  '/payroll/ctc-calculator':  { section: 'masters',      label: 'CTC Calculator' },
+  '/payroll/salary-settings': { section: 'masters',      label: 'Salary Settings' },
   '/payroll/income-tax':      { section: 'masters',      label: 'Income Tax' },
   '/payroll/tax-slabs':       { section: 'masters',      label: 'Tax Slabs' },
   '/payroll/statutory':       { section: 'masters',      label: 'Statutory Components' },
@@ -52,16 +56,16 @@ const routeMap: Record<string, PageInfo> = {
   '/payroll/secondment':      { section: 'transactions',  label: 'Cross-Border Secondment' },
   '/payroll/approvals':       { section: 'transactions',  label: 'Payroll Approvals' },
   '/payroll/ai-insights':     { section: 'transactions',  label: 'AI Insights' },
-  '/payroll/group-dashboard': { section: 'transactions',  label: 'Group Dashboard' },
 
   // Reports
   '/payroll/reports':         { section: 'reports',       label: 'Reports & Dashboard' },
 };
 
 const sectionMeta: Record<string, { href: string; label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  masters:      { href: '/payroll/masters',      label: 'Masters',      icon: FiDatabase },
-  transactions: { href: '/payroll/transactions',  label: 'Transactions', icon: FiEdit3 },
-  reports:      { href: '/payroll/reports',       label: 'Reports',      icon: FiFileText },
+  dashboard:    { href: '/payroll',              label: 'Dashboard',    icon: FiGrid },
+  masters:      { href: '/payroll/ctc-templates', label: 'Masters',     icon: FiDatabase },
+  transactions: { href: '/payroll/inputs',       label: 'Transactions', icon: FiEdit3 },
+  reports:      { href: '/payroll/reports',       label: 'Reports',     icon: FiFileText },
 };
 
 /* ── Component ──────────────────────────────────────────────────────── */
@@ -69,24 +73,28 @@ const sectionMeta: Record<string, { href: string; label: string; icon: React.Com
 function PayrollBreadcrumb() {
   const pathname = usePathname();
 
-  const isLanding = pathname === '/payroll';
-
-  // Detect section landing pages
-  const sectionLanding: Record<string, { section: 'masters' | 'transactions' | 'reports'; label: string }> = {
-    '/payroll/masters':      { section: 'masters',      label: 'Payroll Masters' },
-    '/payroll/transactions':  { section: 'transactions', label: 'Payroll Transactions' },
-    '/payroll/reports':       { section: 'reports',      label: 'Payroll Reports' },
-  };
-
   // Resolve current page info
-  const landingInfo = sectionLanding[pathname || ''];
   const pageInfo = routeMap[pathname || ''];
 
-  const currentSection = landingInfo?.section ?? pageInfo?.section;
-  const currentPageLabel = landingInfo?.label ?? pageInfo?.label;
+  // Determine active section from path or page info
+  const currentSection = pageInfo?.section ??
+    (pathname?.startsWith('/payroll/reports') ? 'reports' :
+     pathname?.startsWith('/payroll/inputs') || pathname?.startsWith('/payroll/validations') ||
+     pathname?.startsWith('/payroll/processing') || pathname?.startsWith('/payroll/overtime') ||
+     pathname?.startsWith('/payroll/loans') || pathname?.startsWith('/payroll/fnf') ||
+     pathname?.startsWith('/payroll/holds') || pathname?.startsWith('/payroll/bank-files') ||
+     pathname?.startsWith('/payroll/payslips') || pathname?.startsWith('/payroll/secondment') ||
+     pathname?.startsWith('/payroll/approvals') || pathname?.startsWith('/payroll/ai-insights')
+     ? 'transactions' :
+     pathname?.startsWith('/payroll/ctc') || pathname?.startsWith('/payroll/components') ||
+     pathname?.startsWith('/payroll/definitions') || pathname?.startsWith('/payroll/salary') ||
+     pathname?.startsWith('/payroll/income-tax') || pathname?.startsWith('/payroll/tax-slabs') ||
+     pathname?.startsWith('/payroll/statutory') || pathname?.startsWith('/payroll/gratuity') ||
+     pathname?.startsWith('/payroll/currency') || pathname?.startsWith('/payroll/dimensions') ||
+     pathname?.startsWith('/payroll/payment')
+     ? 'masters' : 'dashboard');
 
-  // Determine which section quick-link is active
-  const activeSection = currentSection ?? (pathname?.startsWith('/payroll/reports') ? 'reports' : pathname?.startsWith('/payroll/transactions') ? 'transactions' : 'masters');
+  const isLanding = pathname === '/payroll';
 
   return (
     <div className="thb-card overflow-hidden">
@@ -102,34 +110,27 @@ function PayrollBreadcrumb() {
           </Link>
 
           {/* Section level */}
-          {currentSection && (
+          {pageInfo && pageInfo.section !== 'dashboard' && (
             <>
               <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
               <Link
-                href={sectionMeta[currentSection].href}
+                href={sectionMeta[pageInfo.section].href}
                 className="text-thb-text-secondary hover:text-emerald-600 transition-colors"
               >
-                {sectionMeta[currentSection].label}
+                {sectionMeta[pageInfo.section].label}
               </Link>
             </>
           )}
 
-          {/* Page level */}
-          {currentPageLabel && !landingInfo && (
+          {/* Page level — for sub-pages */}
+          {pageInfo && pageInfo.section !== 'dashboard' && !isLanding && (
             <>
               <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
-              <span className="font-medium text-emerald-700">{currentPageLabel}</span>
+              <span className="font-medium text-emerald-700">{pageInfo.label}</span>
             </>
           )}
 
-          {/* Section landing page — just show section name as final crumb */}
-          {landingInfo && (
-            <>
-              <FiChevronRight className="w-3 h-3 text-thb-text-muted" />
-              <span className="font-medium text-emerald-700">{landingInfo.label}</span>
-            </>
-          )}
-
+          {/* Dashboard landing */}
           {isLanding && (
             <span className="ml-2 text-xs text-thb-text-muted">Overview</span>
           )}
@@ -137,21 +138,23 @@ function PayrollBreadcrumb() {
 
         {/* Section quick-links (always visible) */}
         <div className="flex items-center gap-1">
-          {(['masters', 'transactions', 'reports'] as const).map((key) => {
+          {(['dashboard', 'masters', 'transactions', 'reports'] as const).map((key) => {
             const meta = sectionMeta[key];
             const Icon = meta.icon;
-            const isActive = activeSection === key && !isLanding;
+            const isActive = currentSection === key;
+            const colorMap = {
+              dashboard: 'bg-blue-100 text-blue-700 border border-blue-200',
+              masters: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+              transactions: 'bg-teal-100 text-teal-700 border border-teal-200',
+              reports: 'bg-amber-100 text-amber-700 border border-amber-200',
+            };
             return (
               <Link
                 key={key}
                 href={meta.href}
                 className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                   isActive
-                    ? key === 'masters'
-                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                      : key === 'transactions'
-                      ? 'bg-teal-100 text-teal-700 border border-teal-200'
-                      : 'bg-amber-100 text-amber-700 border border-amber-200'
+                    ? colorMap[key]
                     : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
                 }`}
               >
