@@ -55,9 +55,11 @@ interface SubModuleTile {
   iconColor: string;
   ringColor: string;
   isNew?: boolean;
+  category?: 'masters' | 'transactions' | 'reports';
 }
 
 const subModules: SubModuleTile[] = [
+  // ─── Payroll Masters ───
   {
     title: 'CTC Templates',
     icon: FiLayers,
@@ -66,6 +68,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-blue-500/10',
     iconColor: 'text-blue-500',
     ringColor: 'ring-blue-500/20',
+    category: 'masters',
   },
   {
     title: 'CTC Calculator',
@@ -75,6 +78,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-500',
     ringColor: 'ring-emerald-500/20',
+    category: 'masters',
   },
   {
     title: 'Income Tax',
@@ -84,6 +88,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-amber-500/10',
     iconColor: 'text-amber-500',
     ringColor: 'ring-amber-500/20',
+    category: 'masters',
   },
   {
     title: 'Gratuity',
@@ -93,6 +98,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-teal-500/10',
     iconColor: 'text-teal-500',
     ringColor: 'ring-teal-500/20',
+    category: 'masters',
   },
   {
     title: 'Component Master',
@@ -102,6 +108,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-purple-500/10',
     iconColor: 'text-purple-500',
     ringColor: 'ring-purple-500/20',
+    category: 'masters',
   },
   {
     title: 'Statutory Components',
@@ -111,6 +118,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-500',
     ringColor: 'ring-emerald-500/20',
+    category: 'masters',
   },
   {
     title: 'Tax Slabs',
@@ -120,24 +128,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-amber-500/10',
     iconColor: 'text-amber-500',
     ringColor: 'ring-amber-500/20',
-  },
-  {
-    title: 'Payroll Inputs',
-    icon: FiEdit3,
-    route: '/payroll/inputs',
-    description: 'Manage attendance, leave, OT, and variable pay inputs',
-    gradientBg: 'bg-rose-500/10',
-    iconColor: 'text-rose-500',
-    ringColor: 'ring-rose-500/20',
-  },
-  {
-    title: 'Payroll Processing',
-    icon: FiPlayCircle,
-    route: '/payroll/processing',
-    description: 'Run payroll cycles, review, and approve',
-    gradientBg: 'bg-cyan-500/10',
-    iconColor: 'text-cyan-500',
-    ringColor: 'ring-cyan-500/20',
+    category: 'masters',
   },
   {
     title: 'Currency & FX',
@@ -147,6 +138,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-teal-500/10',
     iconColor: 'text-teal-500',
     ringColor: 'ring-teal-500/20',
+    category: 'masters',
   },
   {
     title: 'Dimensions',
@@ -156,33 +148,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-orange-500/10',
     iconColor: 'text-orange-500',
     ringColor: 'ring-orange-500/20',
-  },
-  {
-    title: 'Compliance',
-    icon: FiCalendar,
-    route: '/payroll/compliance',
-    description: 'Statutory filing calendar and obligation tracking',
-    gradientBg: 'bg-violet-500/10',
-    iconColor: 'text-violet-500',
-    ringColor: 'ring-violet-500/20',
-  },
-  {
-    title: 'GL Mapping',
-    icon: FiBook,
-    route: '/payroll/gl-mapping',
-    description: 'Map payroll components to general ledger accounts',
-    gradientBg: 'bg-indigo-500/10',
-    iconColor: 'text-indigo-500',
-    ringColor: 'ring-indigo-500/20',
-  },
-  {
-    title: 'Reports & Dashboard',
-    icon: FiFileText,
-    route: '/payroll/reports',
-    description: 'Salary register, statutory reports, and payroll analytics',
-    gradientBg: 'bg-slate-500/10',
-    iconColor: 'text-slate-500',
-    ringColor: 'ring-slate-500/20',
+    category: 'masters',
   },
   {
     title: 'Payroll Definitions',
@@ -192,6 +158,7 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-sky-500/10',
     iconColor: 'text-sky-500',
     ringColor: 'ring-sky-500/20',
+    category: 'masters',
   },
   {
     title: 'Salary Settings',
@@ -201,60 +168,18 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-rose-500/10',
     iconColor: 'text-rose-500',
     ringColor: 'ring-rose-500/20',
+    category: 'masters',
   },
+  // ─── Payroll Transactions ───
   {
-    title: 'Payment Methods',
-    icon: FiCreditCard,
-    route: '/payroll/payment-methods',
-    description: 'Employee bank details, split payments, and payment setup',
-    gradientBg: 'bg-lime-500/10',
-    iconColor: 'text-lime-500',
-    ringColor: 'ring-lime-500/20',
-  },
-  {
-    title: 'Payslips',
-    icon: FiFileText,
-    route: '/payroll/payslips',
-    description: 'Generate, view, and print employee payslips',
-    gradientBg: 'bg-pink-500/10',
-    iconColor: 'text-pink-500',
-    ringColor: 'ring-pink-500/20',
-  },
-  {
-    title: 'Loans',
-    icon: FiDollarSign,
-    route: '/payroll/loans',
-    description: 'Manage employee loans, EMI tracking, and recovery',
-    gradientBg: 'bg-yellow-500/10',
-    iconColor: 'text-yellow-500',
-    ringColor: 'ring-yellow-500/20',
-  },
-  {
-    title: 'Overtime',
-    icon: FiActivity,
-    route: '/payroll/overtime',
-    description: 'Track overtime hours, approvals, and payments',
-    gradientBg: 'bg-fuchsia-500/10',
-    iconColor: 'text-fuchsia-500',
-    ringColor: 'ring-fuchsia-500/20',
-  },
-  {
-    title: 'F&F Settlement',
-    icon: FiTruck,
-    route: '/payroll/fnf',
-    description: 'Full and Final settlement for exiting employees',
-    gradientBg: 'bg-red-500/10',
-    iconColor: 'text-red-500',
-    ringColor: 'ring-red-500/20',
-  },
-  {
-    title: 'Payroll Holds',
-    icon: FiLock,
-    route: '/payroll/holds',
-    description: 'Hold or suspend employee payroll processing',
-    gradientBg: 'bg-gray-500/10',
-    iconColor: 'text-gray-500',
-    ringColor: 'ring-gray-500/20',
+    title: 'Payroll Inputs',
+    icon: FiEdit3,
+    route: '/payroll/inputs',
+    description: 'Manage attendance, leave, OT, and variable pay inputs',
+    gradientBg: 'bg-rose-500/10',
+    iconColor: 'text-rose-500',
+    ringColor: 'ring-rose-500/20',
+    category: 'transactions',
   },
   {
     title: 'Pre-Payroll Validation',
@@ -264,26 +189,17 @@ const subModules: SubModuleTile[] = [
     gradientBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-500',
     ringColor: 'ring-emerald-500/20',
+    category: 'transactions',
   },
   {
-    title: 'Bank File Generation',
-    icon: FiFile,
-    route: '/payroll/bank-files',
-    description: 'Generate NACH/NEFT/RTGS bank payment files',
-    gradientBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-500',
-    ringColor: 'ring-blue-500/20',
-  },
-  // ─── Global Payroll Addendum (REQ-7.2, REQ-AI-PAY-01/02/03, REQ-SEC-PAY-02/03/04, REQ-PAY-19/25) ───
-  {
-    title: 'AI Insights',
-    icon: FiCpu,
-    route: '/payroll/ai-insights',
-    description: 'Anomaly detection, compliance alerts, ghost employee detection',
-    gradientBg: 'bg-violet-500/10',
-    iconColor: 'text-violet-500',
-    ringColor: 'ring-violet-500/20',
-    isNew: true,
+    title: 'Payroll Processing',
+    icon: FiPlayCircle,
+    route: '/payroll/processing',
+    description: 'Run payroll cycles, review, and approve',
+    gradientBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-500',
+    ringColor: 'ring-cyan-500/20',
+    category: 'transactions',
   },
   {
     title: 'Payroll Approvals',
@@ -294,16 +210,77 @@ const subModules: SubModuleTile[] = [
     iconColor: 'text-emerald-500',
     ringColor: 'ring-emerald-500/20',
     isNew: true,
+    category: 'transactions',
   },
   {
-    title: 'Group Dashboard',
-    icon: FiGlobe,
-    route: '/payroll/group-dashboard',
-    description: 'Consolidated group payroll + statutory filing oversight (Red/Amber/Green)',
-    gradientBg: 'bg-cyan-500/10',
-    iconColor: 'text-cyan-500',
-    ringColor: 'ring-cyan-500/20',
-    isNew: true,
+    title: 'Payment Methods',
+    icon: FiCreditCard,
+    route: '/payroll/payment-methods',
+    description: 'Employee bank details, split payments, and payment setup',
+    gradientBg: 'bg-lime-500/10',
+    iconColor: 'text-lime-500',
+    ringColor: 'ring-lime-500/20',
+    category: 'transactions',
+  },
+  {
+    title: 'Payslips',
+    icon: FiFileText,
+    route: '/payroll/payslips',
+    description: 'Generate, view, and print employee payslips',
+    gradientBg: 'bg-pink-500/10',
+    iconColor: 'text-pink-500',
+    ringColor: 'ring-pink-500/20',
+    category: 'transactions',
+  },
+  {
+    title: 'Bank File Generation',
+    icon: FiFile,
+    route: '/payroll/bank-files',
+    description: 'Generate NACH/NEFT/RTGS bank payment files',
+    gradientBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-500',
+    ringColor: 'ring-blue-500/20',
+    category: 'transactions',
+  },
+  {
+    title: 'Loans',
+    icon: FiDollarSign,
+    route: '/payroll/loans',
+    description: 'Manage employee loans, EMI tracking, and recovery',
+    gradientBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-500',
+    ringColor: 'ring-yellow-500/20',
+    category: 'transactions',
+  },
+  {
+    title: 'Overtime',
+    icon: FiActivity,
+    route: '/payroll/overtime',
+    description: 'Track overtime hours, approvals, and payments',
+    gradientBg: 'bg-fuchsia-500/10',
+    iconColor: 'text-fuchsia-500',
+    ringColor: 'ring-fuchsia-500/20',
+    category: 'transactions',
+  },
+  {
+    title: 'F&F Settlement',
+    icon: FiTruck,
+    route: '/payroll/fnf',
+    description: 'Full and Final settlement for exiting employees',
+    gradientBg: 'bg-red-500/10',
+    iconColor: 'text-red-500',
+    ringColor: 'ring-red-500/20',
+    category: 'transactions',
+  },
+  {
+    title: 'Payroll Holds',
+    icon: FiLock,
+    route: '/payroll/holds',
+    description: 'Hold or suspend employee payroll processing',
+    gradientBg: 'bg-gray-500/10',
+    iconColor: 'text-gray-500',
+    ringColor: 'ring-gray-500/20',
+    category: 'transactions',
   },
   {
     title: 'Cross-Border Secondment',
@@ -314,8 +291,68 @@ const subModules: SubModuleTile[] = [
     iconColor: 'text-teal-500',
     ringColor: 'ring-teal-500/20',
     isNew: true,
+    category: 'transactions',
+  },
+  // ─── Payroll Reports ───
+  {
+    title: 'Reports & Dashboard',
+    icon: FiFileText,
+    route: '/payroll/reports',
+    description: 'Salary register, statutory reports, and payroll analytics',
+    gradientBg: 'bg-slate-500/10',
+    iconColor: 'text-slate-500',
+    ringColor: 'ring-slate-500/20',
+    category: 'reports',
+  },
+  {
+    title: 'Compliance',
+    icon: FiCalendar,
+    route: '/payroll/compliance',
+    description: 'Statutory filing calendar and obligation tracking',
+    gradientBg: 'bg-violet-500/10',
+    iconColor: 'text-violet-500',
+    ringColor: 'ring-violet-500/20',
+    category: 'reports',
+  },
+  {
+    title: 'GL Mapping',
+    icon: FiBook,
+    route: '/payroll/gl-mapping',
+    description: 'Map payroll components to general ledger accounts',
+    gradientBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-500',
+    ringColor: 'ring-indigo-500/20',
+    category: 'reports',
+  },
+  {
+    title: 'AI Insights',
+    icon: FiCpu,
+    route: '/payroll/ai-insights',
+    description: 'Anomaly detection, compliance alerts, ghost employee detection',
+    gradientBg: 'bg-violet-500/10',
+    iconColor: 'text-violet-500',
+    ringColor: 'ring-violet-500/20',
+    isNew: true,
+    category: 'reports',
+  },
+  {
+    title: 'Group Dashboard',
+    icon: FiGlobe,
+    route: '/payroll/group-dashboard',
+    description: 'Consolidated group payroll + statutory filing oversight (Red/Amber/Green)',
+    gradientBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-500',
+    ringColor: 'ring-cyan-500/20',
+    isNew: true,
+    category: 'reports',
   },
 ];
+
+const categoryConfig: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; description: string; gradientFrom: string; gradientTo: string }> = {
+  masters: { label: 'Payroll Masters', icon: FiDatabase, description: 'Setup & configure payroll structure, components, and statutory definitions', gradientFrom: 'from-blue-600', gradientTo: 'to-indigo-600' },
+  transactions: { label: 'Payroll Transactions', icon: FiPlayCircle, description: 'Run payroll cycles, process payments, and manage employee deductions', gradientFrom: 'from-emerald-600', gradientTo: 'to-teal-600' },
+  reports: { label: 'Payroll Reports', icon: FiBarChart2, description: 'Analytics, compliance reporting, and payroll insights', gradientFrom: 'from-amber-600', gradientTo: 'to-orange-600' },
+};
 
 /* ── Payroll Workflow Steps ── */
 interface WorkflowStep {
@@ -850,43 +887,59 @@ export default function PayrollManagementPage() {
         )}
       </div>
 
-      {/* Sub-module Tiles */}
-      <div>
-        <h2 className="text-sm font-semibold text-thb-text-secondary uppercase tracking-wider mb-4">
-          Payroll Modules
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {subModules.map((tile) => {
-            const IconComp = tile.icon;
-            return (
-              <button
-                key={tile.route}
-                onClick={() => handleNavigate(tile.route)}
-                className="thb-card thb-card-hover p-5 text-left group transition-all duration-200 hover:shadow-md"
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-xl ${tile.gradientBg} flex items-center justify-center ${tile.iconColor} ring-1 ${tile.ringColor} flex-shrink-0 transition-transform duration-200 group-hover:scale-110`}
-                  >
-                    <IconComp className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
-                        {tile.title}
-                        {tile.isNew && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-violet-100 text-violet-700 uppercase tracking-wide">New</span>}
-                      </h3>
-                      <FiArrowRight className="w-4 h-4 text-thb-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />
-                    </div>
-                    <p className="text-xs text-thb-text-muted mt-1 leading-relaxed">
-                      {tile.description}
-                    </p>
-                  </div>
+      {/* Sub-module Tiles — Grouped by Category */}
+      <div className="space-y-8">
+        {(['masters', 'transactions', 'reports'] as const).map((catKey) => {
+          const cat = categoryConfig[catKey];
+          const catTiles = subModules.filter(s => s.category === catKey);
+          const CatIcon = cat.icon;
+          return (
+            <div key={catKey}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${cat.gradientFrom} ${cat.gradientTo} flex items-center justify-center shadow-sm`}>
+                  <CatIcon className="w-4.5 h-4.5 text-white" />
                 </div>
-              </button>
-            );
-          })}
-        </div>
+                <div>
+                  <h2 className="text-base font-bold text-thb-text-primary">{cat.label}</h2>
+                  <p className="text-xs text-thb-text-muted">{cat.description}</p>
+                </div>
+                <span className="ml-auto text-[10px] font-semibold text-thb-text-muted bg-slate-100 px-2 py-0.5 rounded-full">{catTiles.length} modules</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {catTiles.map((tile) => {
+                  const IconComp = tile.icon;
+                  return (
+                    <button
+                      key={tile.route}
+                      onClick={() => handleNavigate(tile.route)}
+                      className="thb-card thb-card-hover p-5 text-left group transition-all duration-200 hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-xl ${tile.gradientBg} flex items-center justify-center ${tile.iconColor} ring-1 ${tile.ringColor} flex-shrink-0 transition-transform duration-200 group-hover:scale-110`}
+                        >
+                          <IconComp className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+                              {tile.title}
+                              {tile.isNew && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-violet-100 text-violet-700 uppercase tracking-wide">New</span>}
+                            </h3>
+                            <FiArrowRight className="w-4 h-4 text-thb-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />
+                          </div>
+                          <p className="text-xs text-thb-text-muted mt-1 leading-relaxed">
+                            {tile.description}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

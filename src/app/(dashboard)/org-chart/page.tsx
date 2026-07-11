@@ -18,6 +18,7 @@ import {
   FiBookmark,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -419,6 +420,28 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
  * ────────────────────────────────────────────────────────────────────────── */
 
 export default function OrgChartPage() {
+  return (
+    <ErrorBoundary fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center mx-auto mb-5 shadow-lg">
+            <FiAlertCircle className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-thb-text-primary mb-2">Org Chart Error</h2>
+          <p className="text-sm text-thb-text-secondary mb-6">Something went wrong loading the organization chart. This could be a temporary issue.</p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={() => window.location.reload()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm">Reload Page</button>
+            <button onClick={() => window.history.back()} className="px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-xl hover:bg-slate-50 font-medium text-sm">Go Back</button>
+          </div>
+        </div>
+      </div>
+    }>
+      <OrgChartContent />
+    </ErrorBoundary>
+  );
+}
+
+function OrgChartContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
