@@ -2509,3 +2509,24 @@ Stage Summary:
 - Org Chart page fixed - all incompatible component props corrected
 - Deployment URL: nexus-hrms-q240dtnxm-maheshkpreddy-6511s-projects.vercel.app
 - Deployment state: READY
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Add Employee page to show only the form without dashboard
+
+Work Log:
+- Read /employees/add/page.tsx (was a client-side redirect to /employees?showAddForm=true)
+- Read /employees/page.tsx to understand EmployeesPageContent component structure
+- Identified that EmployeesPageContent already has formOnly prop but it didn't properly hide dashboard elements
+- Updated /employees/add/page.tsx to directly render EmployeesPageContent with formOnly={true}
+- Wrapped Main Tabs (List/Bulk Import) with {!formOnly && ...} condition
+- Wrapped BulkImportTab with {!formOnly && ...} condition
+- Changed list condition from {activeMainTab === 'list' && ...} to {(formOnly || activeMainTab === 'list') && ...}
+- Wrapped Filter Bar, View Mode Toggle, Employee Table, Grid, Pagination with {!formOnly && (<>...</>)}
+- Fixed ModuleTips/Workflow JSX fragment wrapper (was missing <> wrapper for multiple siblings)
+- Build succeeded, pushed to Git (ca0535c), deployed to Vercel (dpl_8rmH6hJXtECdRu1PnNn6HuMUWHhc - READY)
+
+Stage Summary:
+- /employees/add now shows ONLY the Add Employee form with tabs (Personal, Address, Employment, Bank & Finance, Statutory, Emergency, Health, Overseas, Experience, Policies)
+- Dashboard stats, employee list, filter bar, bulk import, and view toggle are all hidden in formOnly mode
+- Deployed and live on Vercel
