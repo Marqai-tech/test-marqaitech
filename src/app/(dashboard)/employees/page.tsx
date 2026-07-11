@@ -922,6 +922,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
       {/* Module Tips & Workflow (dashboard only) */}
       {!formOnly && (
+      <>
       <ModuleTips
         moduleKey="employees"
         title="Employee Tips"
@@ -937,9 +938,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         accentColor="blue"
         userRole={user?.role}
       />
+      </>
       )}
 
-      {/* Main Tabs: List / Bulk Import */}
+      {/* Main Tabs: List / Bulk Import (dashboard only) */}
+      {!formOnly && (
       <div className="flex items-center gap-1 mb-4">
         <button
           onClick={() => setActiveMainTab('list')}
@@ -964,10 +967,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           Bulk Import
         </button>
       </div>
+      )}
 
-      {activeMainTab === 'import' && <BulkImportTab />}
+      {!formOnly && activeMainTab === 'import' && <BulkImportTab />}
 
-      {activeMainTab === 'list' && (<>
+      {(formOnly || activeMainTab === 'list') && (<>
       {/* ── Add/Edit Employee Form ── */}
       {showForm && (
         <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 transition-all duration-300 ease-in-out">
@@ -1726,6 +1730,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         </div>
       )}
 
+      {!formOnly && (
+      <>
       {/* ── Filter Bar ── */}
       <div className="thb-card p-4">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
@@ -2229,6 +2235,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           </div>
         </div>
       )}
+      </>)}
       </>)}
     </div>
   );
