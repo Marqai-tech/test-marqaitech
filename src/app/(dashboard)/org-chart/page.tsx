@@ -11,41 +11,22 @@ import {
   FiChevronDown,
   FiChevronRight,
   FiAlertCircle,
-  FiX,
   FiLayers,
   FiGitBranch,
   FiUserCheck,
   FiBookmark,
+  FiPlus,
+  FiGrid,
+  FiList,
+  FiUserPlus,
+  FiUserX,
+  FiClock,
+  FiFileExport,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { ErrorBoundary } from '@/components/error-boundary';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
-import {
-  ModuleHero,
-  StatsStrip,
-  CounterStat,
-  SectionHeader,
-  SearchBar,
-  GradientAvatar,
-  Card,
-  TwoColumnLayout,
-  PageContainer,
-  LoadingSpinner,
-  SidebarWidget,
-  StatusBadge,
-  Badge,
-  PrimaryButton,
-  EmptyState,
-  getDeptColor,
-  getAuthHeaders,
-  fmtNumber,
-  avatarColor,
-  firstInitial,
-  AVATAR_COLORS,
-  DEPARTMENT_COLORS,
-} from '@/components/nexus-ui';
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -57,14 +38,15 @@ interface Employee {
   email: string;
   phone?: string | null;
   avatar?: string | null;
-  departmentId: string;
-  designationId: string;
+  departmentId?: string | null;
+  designationId?: string | null;
   branchId?: string | null;
   status?: string;
   department?: { id: string; name: string } | null;
   designation?: { id: string; title: string } | null;
   branch?: { id: string; name: string } | null;
   user?: { id: string; email: string; role: string; avatar?: string | null } | null;
+  dateOfJoining?: string | null;
 }
 
 interface OrgNode {
@@ -73,14 +55,12 @@ interface OrgNode {
   children: OrgNode[];
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Hierarchy derivation — Employee schema has no `managerId`, so we
- * synthesize a reporting tree from `user.role` + `designation.title`:
- *   Level 0 — Top exec(s): super_admin / tenant_admin / CEO designation
- *   Level 1 — Department heads: Manager / Director / Head / VP / Chief
- *   Level 2 — Everyone else, grouped under their department head
- * If no top exec is found, the most-senior person becomes the root.
- * ────────────────────────────────────────────────────────────────────────── */
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 const SENIOR_TITLE_RE = /\b(ceo|cto|coo|cfo|founder|co-founder|managing director|md)\b/i;
 const MANAGER_TITLE_RE = /\b(manager|director|head|vp|vice president|chief|lead|principal|sr\.? senior)\b/i;
@@ -104,16 +84,10 @@ function seniorityScore(emp: Employee): number {
 
 function buildOrgTree(employees: Employee[]): OrgNode[] {
   if (employees.length === 0) return [];
-
-  // Sort copies so we don't mutate the source array
   const sorted = [...employees].sort((a, b) => seniorityScore(b) - seniorityScore(a));
-
-  // Pick top-level executives (score >= 90 or first if none)
   const topExecs = sorted.filter((e) => seniorityScore(e) >= 90);
   const roots: Employee[] = topExecs.length > 0 ? topExecs : [sorted[0]];
   const rootIds = new Set(roots.map((r) => r.id));
-
-  // Everyone else, grouped by department
   const remaining = sorted.filter((e) => !rootIds.has(e.id));
   const byDepartment = new Map<string, Employee[]>();
   for (const emp of remaining) {
@@ -121,41 +95,27 @@ function buildOrgTree(employees: Employee[]): OrgNode[] {
     if (!byDepartment.has(deptId)) byDepartment.set(deptId, []);
     byDepartment.get(deptId)!.push(emp);
   }
-  // For each department, pick a head (highest seniority).
-  // The head becomes a child of a root (distributed round-robin if multiple roots).
   const deptHeads: { head: Employee; members: Employee[] }[] = [];
   for (const [, members] of byDepartment) {
     const sortedMembers = [...members].sort((a, b) => seniorityScore(b) - seniorityScore(a));
     const headCandidate = sortedMembers[0];
     if (headCandidate) {
-      deptHeads.push({
-        head: headCandidate,
-        members: sortedMembers.slice(1),
-      });
+      deptHeads.push({ head: headCandidate, members: sortedMembers.slice(1) });
     }
   }
-
-  // Build tree
   const buildNode = (emp: Employee, children: OrgNode[] = []): OrgNode => ({
     id: emp.id,
     employee: emp,
     children,
   });
-
-  // Distribute dept heads among roots (round-robin if multiple roots)
   const rootNodes: OrgNode[] = roots.map((r) => buildNode(r));
   deptHeads.forEach((dh, idx) => {
     const parentNode = rootNodes[idx % rootNodes.length];
     const memberNodes = dh.members.map((m) => buildNode(m));
     parentNode.children.push(buildNode(dh.head, memberNodes));
   });
-
   return rootNodes;
 }
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Helpers
- * ────────────────────────────────────────────────────────────────────────── */
 
 function highlightMatch(text: string, search: string): React.ReactNode {
   if (!search) return text;
@@ -170,79 +130,74 @@ function highlightMatch(text: string, search: string): React.ReactNode {
   );
 }
 
-/** Count total reporting lines (parent→child edges) in the tree */
 function countReportingLines(nodes: OrgNode[]): number {
   let count = 0;
   const walk = (ns: OrgNode[]) => {
-    for (const n of ns) {
-      count += n.children.length;
-      walk(n.children);
-    }
+    for (const n of ns) { count += n.children.length; walk(n.children); }
   };
   walk(nodes);
   return count;
 }
 
-/** Count max depth of the tree */
 function countLevels(nodes: OrgNode[]): number {
   if (nodes.length === 0) return 0;
   let maxDepth = 0;
   const walk = (ns: OrgNode[], depth: number) => {
     if (depth > maxDepth) maxDepth = depth;
-    for (const n of ns) {
-      walk(n.children, depth + 1);
-    }
+    for (const n of ns) { walk(n.children, depth + 1); }
   };
   walk(nodes, 1);
   return maxDepth;
 }
 
-/** Count direct reports for root-level nodes */
 function countDirectReports(nodes: OrgNode[]): number {
   let count = 0;
-  for (const n of nodes) {
-    count += n.children.length;
-  }
+  for (const n of nodes) { count += n.children.length; }
   return count;
 }
 
-/** Find vacant positions (departments with only 1 person, i.e. a head but no members) */
-function countVacantPositions(nodes: OrgNode[]): number {
-  let count = 0;
-  const walk = (ns: OrgNode[]) => {
-    for (const n of ns) {
-      // A node with no children at level 2+ could represent a vacant slot
-      // but for simplicity, count department heads with zero members
-      if (n.children.length === 0 && seniorityScore(n.employee) >= 50 && seniorityScore(n.employee) < 90) {
-        // Department head with no direct reports — could indicate vacancy
-      }
-      walk(n.children);
-    }
-  };
-  walk(nodes);
-  // Count unique departments minus departments with actual employees
-  return count;
+const DEPT_GRADIENTS = [
+  'from-blue-500 to-indigo-500',
+  'from-emerald-500 to-teal-500',
+  'from-violet-500 to-purple-500',
+  'from-orange-500 to-amber-500',
+  'from-pink-500 to-rose-500',
+  'from-cyan-500 to-blue-500',
+  'from-red-500 to-pink-500',
+  'from-lime-500 to-green-500',
+  'from-fuchsia-500 to-purple-500',
+  'from-yellow-500 to-orange-500',
+];
+
+function getDeptColor(deptName: string): string {
+  let hash = 0;
+  for (let i = 0; i < deptName.length; i++) hash = deptName.charCodeAt(i) + ((hash << 5) - hash);
+  return DEPT_GRADIENTS[Math.abs(hash) % DEPT_GRADIENTS.length];
+}
+
+function getAvatarGradient(name: string): string {
+  const colors = [
+    'from-blue-500 to-cyan-500',
+    'from-violet-500 to-purple-500',
+    'from-emerald-500 to-teal-500',
+    'from-orange-500 to-amber-500',
+    'from-pink-500 to-rose-500',
+    'from-indigo-500 to-blue-500',
+    'from-teal-500 to-green-500',
+    'from-red-500 to-pink-500',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 /* ── Module Tips ────────────────────────────────────────────────────────── */
 
 const orgChartTips = [
-  {
-    title: 'Navigate the Hierarchy',
-    description: 'Click the chevron arrows on any node to expand or collapse its direct reports. Use "Expand All" to see the full tree.',
-  },
-  {
-    title: 'Search Employees',
-    description: 'Use the search bar to find employees by name or email. Matching nodes will be highlighted in the chart.',
-  },
-  {
-    title: 'Department Color Coding',
-    description: 'Each department is assigned a unique gradient color. Check the sidebar legend to identify departments at a glance.',
-  },
-  {
-    title: 'Derived Hierarchy',
-    description: 'The org chart is automatically built from employee roles and designation titles — no manual setup required.',
-  },
+  { title: 'Navigate the Hierarchy', description: 'Click the chevron arrows on any node to expand or collapse its direct reports. Use "Expand All" to see the full tree.' },
+  { title: 'Search Employees', description: 'Use the search bar to find employees by name or email. Matching nodes will be highlighted in the chart.' },
+  { title: 'Department Color Coding', description: 'Each department is assigned a unique gradient color. Check the sidebar legend to identify departments at a glance.' },
+  { title: 'Derived Hierarchy', description: 'The org chart is automatically built from employee roles and designation titles — no manual setup required.' },
 ];
 
 const orgChartWorkflowSteps = [
@@ -280,36 +235,26 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
 
   return (
     <div className="flex flex-col items-center">
-      {/* Vertical connector above (skip for root) */}
-      {depth > 0 && (
-        <div className="w-px h-6 bg-slate-200" aria-hidden="true" />
-      )}
-
-      {/* Node card */}
+      {depth > 0 && <div className="w-px h-6 bg-slate-200" aria-hidden="true" />}
       <button
         type="button"
         onClick={() => onSelect(node.id)}
         className={`text-left w-60 bg-white rounded-xl border p-3 shadow-sm hover:shadow-md transition-all duration-200 ${
-          matchesSearch
-            ? 'border-amber-400 ring-2 ring-amber-200'
-            : isSelected
-            ? 'border-violet-400 ring-2 ring-violet-200'
-            : 'border-slate-200'
+          matchesSearch ? 'border-amber-400 ring-2 ring-amber-200' :
+          isSelected ? 'border-violet-400 ring-2 ring-violet-200' :
+          'border-slate-200'
         }`}
       >
         <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <GradientAvatar name={fullName} size="md" className={`bg-gradient-to-br ${deptColor}`} />
-
-          {/* Name + title */}
+          <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${getAvatarGradient(fullName)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
+            {fullName.charAt(0).toUpperCase()}
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-900 truncate">
               {highlightMatch(fullName, search)}
             </p>
             <p className="text-[11px] text-slate-500 truncate">{title}</p>
           </div>
-
-          {/* Collapse toggle */}
           {hasChildren && (
             <span
               role="button"
@@ -318,93 +263,56 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onToggle(node.id); } }}
               className="flex-shrink-0 -mr-1 p-1 rounded-md text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
               aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-              title={isCollapsed ? `Expand (${node.children.length} report${node.children.length === 1 ? '' : 's'})` : 'Collapse'}
             >
-              {isCollapsed ? (
-                <FiChevronRight className="w-3.5 h-3.5" />
-              ) : (
-                <FiChevronDown className="w-3.5 h-3.5" />
-              )}
+              {isCollapsed ? <FiChevronRight className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
             </span>
           )}
         </div>
-
-        {/* Department badge */}
         <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-          <span
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold text-white bg-gradient-to-r ${deptColor}`}
-          >
+          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold text-white bg-gradient-to-r ${deptColor}`}>
             <FiBriefcase className="w-2.5 h-2.5" />
             {deptName}
           </span>
           {emp.status && (
-            <StatusBadge status={emp.status} />
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
+              emp.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
+              emp.status === 'on_leave' ? 'bg-amber-50 text-amber-700' :
+              'bg-slate-100 text-slate-600'
+            }`}>
+              {emp.status === 'active' ? 'Active' : emp.status === 'on_leave' ? 'On Leave' : emp.status}
+            </span>
           )}
         </div>
         <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 min-w-0">
           <FiMail className="w-2.5 h-2.5 flex-shrink-0" />
           <span className="truncate">{emp.email}</span>
         </div>
-
-        {/* Collapsed indicator — show count of hidden reports */}
         {hasChildren && isCollapsed && (
           <div className="mt-2 text-[10px] text-center text-violet-600 font-medium bg-violet-50 rounded-md py-1">
             {node.children.length} hidden report{node.children.length === 1 ? '' : 's'}
           </div>
         )}
       </button>
-
-      {/* Children */}
       {hasChildren && !isCollapsed && (
         <div className="flex flex-col items-center">
-          {/* Vertical line below parent card */}
           <div className="w-px h-6 bg-slate-200" aria-hidden="true" />
-
-          {/* Children row — horizontal on >= sm, vertical on mobile */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-center gap-0 sm:gap-2">
             {node.children.map((child, idx) => {
               const isFirst = idx === 0;
               const isLast = idx === node.children.length - 1;
               const isOnly = node.children.length === 1;
               return (
-                <div
-                  key={child.id}
-                  className="relative flex flex-col items-center px-0 sm:px-2 pt-0 sm:pt-6"
-                >
-                  {/* Desktop: top connector — horizontal line spanning between siblings */}
-                  {/* On mobile (flex-col), only show vertical line going up */}
+                <div key={child.id} className="relative flex flex-col items-center px-0 sm:px-2 pt-0 sm:pt-6">
                   {!isOnly && (
                     <div
                       className="hidden sm:block absolute top-0 bg-slate-200"
-                      style={{
-                        left: isFirst ? '50%' : 0,
-                        right: isLast ? '50%' : 0,
-                        height: '1px',
-                        width: 'auto',
-                      }}
+                      style={{ left: isFirst ? '50%' : 0, right: isLast ? '50%' : 0, height: '1px', width: 'auto' }}
                       aria-hidden="true"
                     />
                   )}
-                  {/* Vertical line going up to the horizontal line (desktop) */}
-                  <div
-                    className="hidden sm:block w-px h-6 bg-slate-200"
-                    aria-hidden="true"
-                  />
-                  {/* Mobile: vertical line */}
-                  <div
-                    className="sm:hidden w-px h-6 bg-slate-200"
-                    aria-hidden="true"
-                  />
-
-                  <TreeNode
-                    node={child}
-                    depth={depth + 1}
-                    collapsed={collapsed}
-                    onToggle={onToggle}
-                    search={search}
-                    selectedId={selectedId}
-                    onSelect={onSelect}
-                  />
+                  <div className="hidden sm:block w-px h-6 bg-slate-200" aria-hidden="true" />
+                  <div className="sm:hidden w-px h-6 bg-slate-200" aria-hidden="true" />
+                  <TreeNode node={child} depth={depth + 1} collapsed={collapsed} onToggle={onToggle} search={search} selectedId={selectedId} onSelect={onSelect} />
                 </div>
               );
             })}
@@ -420,32 +328,11 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
  * ────────────────────────────────────────────────────────────────────────── */
 
 export default function OrgChartPage() {
-  return (
-    <ErrorBoundary fallback={
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center mx-auto mb-5 shadow-lg">
-            <FiAlertCircle className="w-8 h-8 text-white" />
-          </div>
-          <h2 className="text-xl font-bold text-thb-text-primary mb-2">Org Chart Error</h2>
-          <p className="text-sm text-thb-text-secondary mb-6">Something went wrong loading the organization chart. This could be a temporary issue.</p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={() => window.location.reload()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm">Reload Page</button>
-            <button onClick={() => window.history.back()} className="px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-xl hover:bg-slate-50 font-medium text-sm">Go Back</button>
-          </div>
-        </div>
-      </div>
-    }>
-      <OrgChartContent />
-    </ErrorBoundary>
-  );
-}
-
-function OrgChartContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -453,6 +340,7 @@ function OrgChartContent() {
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/employees?limit=1000', { headers: getAuthHeaders() });
       const data = await res.json();
@@ -461,6 +349,7 @@ function OrgChartContent() {
       setEmployees(list);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load organization chart';
+      setError(msg);
       toast.error(msg);
       setEmployees([]);
     } finally {
@@ -468,21 +357,15 @@ function OrgChartContent() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
-    if (!token && !user) {
-      router.push('/login');
-    }
+    if (!token && !user) { router.push('/login'); }
   }, [router, user]);
 
   const tree = useMemo(() => buildOrgTree(employees), [employees]);
 
-  // Filtered tree based on department filter
   const filteredTree = useMemo(() => {
     if (!deptFilter) return tree;
     const filter = (nodes: OrgNode[]): OrgNode[] => {
@@ -499,9 +382,8 @@ function OrgChartContent() {
     return filter(tree);
   }, [tree, deptFilter]);
 
-  // Unique departments for the legend and sidebar
   const departments = useMemo(() => {
-    const seen = new Map<string, string>(); // deptId → name
+    const seen = new Map<string, string>();
     for (const e of employees) {
       if (e.department?.id && e.department?.name) {
         seen.set(e.department.id, e.department.name);
@@ -510,27 +392,19 @@ function OrgChartContent() {
     return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
   }, [employees]);
 
-  // Department employee counts for sidebar widgets
   const deptCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const e of employees) {
       const deptId = e.department?.id || 'no-dept';
-      const deptName = e.department?.name || 'Unassigned';
-      const key = deptId;
-      counts.set(key, (counts.get(key) || 0) + 1);
-      // Store the name alongside
+      counts.set(deptId, (counts.get(deptId) || 0) + 1);
     }
-    return departments.map((d) => ({
-      ...d,
-      count: counts.get(d.id) || 0,
-    }));
+    return departments.map((d) => ({ ...d, count: counts.get(d.id) || 0 }));
   }, [employees, departments]);
 
   const handleToggle = useCallback((id: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }, []);
@@ -539,39 +413,27 @@ function OrgChartContent() {
     setSelectedId((prev) => (prev === id ? null : id));
   }, []);
 
-  // Expand all / collapse all helpers
   const expandAll = useCallback(() => setCollapsed(new Set()), []);
   const collapseAll = useCallback(() => {
     const all = new Set<string>();
-    // Collapse every node that has children
     const walk = (nodes: OrgNode[]) => {
-      for (const n of nodes) {
-        if (n.children.length > 0) {
-          all.add(n.id);
-          walk(n.children);
-        }
-      }
+      for (const n of nodes) { if (n.children.length > 0) { all.add(n.id); walk(n.children); } }
     };
     walk(tree);
     setCollapsed(all);
   }, [tree]);
 
-  // Stats
   const stats = useMemo(() => {
     const total = employees.length;
     const deptCount = departments.length;
     const levels = countLevels(tree);
     const reportingLines = countReportingLines(tree);
     const directReports = countDirectReports(tree);
-    // Vacant: departments with less than 2 people could indicate vacancy
     const vacantDepts = deptCounts.filter((d) => d.count <= 1).length;
-    const managerCount = employees.filter(
-      (e) => seniorityScore(e) >= 50 && seniorityScore(e) < 90,
-    ).length;
+    const managerCount = employees.filter((e) => seniorityScore(e) >= 50 && seniorityScore(e) < 90).length;
     return { total, deptCount, levels, reportingLines, directReports, vacantDepts, managerCount, rootCount: tree.length };
   }, [employees, departments, tree, deptCounts]);
 
-  // Selected employee detail
   const selectedEmployee = useMemo(() => {
     if (!selectedId) return null;
     const findEmp = (nodes: OrgNode[]): Employee | null => {
@@ -585,7 +447,6 @@ function OrgChartContent() {
     return findEmp(tree);
   }, [selectedId, tree]);
 
-  // Selected employee's direct reports
   const selectedReports = useMemo(() => {
     if (!selectedId) return [];
     const findNode = (nodes: OrgNode[]): OrgNode | null => {
@@ -603,371 +464,381 @@ function OrgChartContent() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <PageContainer>
-          {/* ── Module Hero ──────────────────────────────────────────────── */}
-          <ModuleHero
-            title="Organization Chart"
-            subtitle="Visual hierarchy of your organization structure"
-            icon={<FiUsers className="w-6 h-6 text-white" />}
-            gradient={{ from: '#7C3AED', to: '#4338CA' }}
-            actions={
-              <PrimaryButton
-                onClick={fetchEmployees}
-                disabled={loading}
-                loading={loading}
-                variant="primary"
-                icon={<FiRefreshCw className="w-3.5 h-3.5" />}
+        {/* ── Breadcrumb ── */}
+        <div className="d-md-flex d-block align-items-center justify-content-between mb-4">
+          <div className="mb-3 sm:mb-0">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Org Chart</h2>
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
+              <button onClick={() => router.push('/')} className="hover:text-blue-600 transition-colors">Home</button>
+              <span>/</span>
+              <span className="text-slate-400">Employees</span>
+              <span>/</span>
+              <span className="text-slate-700 font-medium">Org Chart</span>
+            </nav>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={fetchEmployees}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => router.push('/employees/add')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-colors"
+            >
+              <FiPlus className="w-3.5 h-3.5" />
+              Add Employee
+            </button>
+          </div>
+        </div>
+
+        {/* ── Stats Row ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white">
+              <FiUsers className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Total Employees</p>
+              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+              <FiBriefcase className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Departments</p>
+              <p className="text-2xl font-bold text-slate-900">{stats.deptCount}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-violet-500 flex items-center justify-center text-white">
+              <FiLayers className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Levels</p>
+              <p className="text-2xl font-bold text-slate-900">{stats.levels}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center text-white">
+              <FiGitBranch className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Reporting Lines</p>
+              <p className="text-2xl font-bold text-slate-900">{stats.reportingLines}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Search + Toolbar ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or email..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setDeptFilter(null)}
+                className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
+                  !deptFilter ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                }`}
               >
-                Refresh
-              </PrimaryButton>
-            }
-          />
-
-          {/* ── Stats Strip ──────────────────────────────────────────────── */}
-          <StatsStrip>
-            <CounterStat
-              label="Total Employees"
-              value={fmtNumber(stats.total)}
-              icon={<FiUsers className="w-4 h-4 text-white" />}
-              color="bg-gradient-to-br from-blue-500 to-indigo-500"
-            />
-            <CounterStat
-              label="Departments"
-              value={stats.deptCount}
-              icon={<FiBriefcase className="w-4 h-4 text-white" />}
-              color="bg-gradient-to-br from-emerald-500 to-teal-500"
-            />
-            <CounterStat
-              label="Levels"
-              value={stats.levels}
-              icon={<FiLayers className="w-4 h-4 text-white" />}
-              color="bg-gradient-to-br from-violet-500 to-purple-500"
-            />
-            <CounterStat
-              label="Reporting Lines"
-              value={stats.reportingLines}
-              icon={<FiGitBranch className="w-4 h-4 text-white" />}
-              color="bg-gradient-to-br from-amber-500 to-orange-500"
-            />
-            <CounterStat
-              label="Direct Reports"
-              value={stats.directReports}
-              icon={<FiUserCheck className="w-4 h-4 text-white" />}
-              color="bg-gradient-to-br from-rose-500 to-pink-500"
-            />
-            <CounterStat
-              label="Vacant Positions"
-              value={stats.vacantDepts}
-              icon={<FiBookmark className="w-4 h-4 text-white" />}
-              color="bg-gradient-to-br from-slate-400 to-slate-500"
-            />
-          </StatsStrip>
-
-          {/* ── Search + Toolbar ─────────────────────────────────────────── */}
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex-1">
-                <SearchBar
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Search by name or email…"
-                  icon={<FiSearch className="w-4 h-4" />}
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Department filter tabs */}
+                All
+              </button>
+              {departments.slice(0, 5).map((dept) => (
                 <button
+                  key={dept.id}
                   type="button"
-                  onClick={() => setDeptFilter(null)}
-                  className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
-                    !deptFilter
-                      ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md'
-                      : 'text-slate-600 hover:bg-slate-100'
+                  onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
+                    deptFilter === dept.name ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  All
+                  <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${getDeptColor(dept.name)}`} />
+                  {dept.name}
                 </button>
-                {departments.slice(0, 5).map((dept) => (
-                  <button
-                    key={dept.id}
-                    type="button"
-                    onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
-                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
-                      deptFilter === dept.name
-                        ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${getDeptColor(dept.name)}`} />
-                    {dept.name}
-                  </button>
-                ))}
-                {departments.length > 5 && (
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      className="text-xs font-semibold px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                    >
-                      +{departments.length - 5} more
-                    </button>
-                  </div>
-                )}
-                <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
-                <button
-                  type="button"
-                  onClick={expandAll}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-                >
-                  Expand all
+              ))}
+              {departments.length > 5 && (
+                <button type="button" className="text-xs font-semibold px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                  +{departments.length - 5} more
                 </button>
-                <button
-                  type="button"
-                  onClick={collapseAll}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-                >
-                  Collapse all
-                </button>
-              </div>
+              )}
+              <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
+              <button type="button" onClick={expandAll} className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors">
+                Expand all
+              </button>
+              <button type="button" onClick={collapseAll} className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors">
+                Collapse all
+              </button>
             </div>
-          </Card>
+          </div>
+        </div>
 
-          {/* ── Two Column Layout: Chart + Sidebar ───────────────────────── */}
-          <TwoColumnLayout
-            left={
-              <div>
-                <SectionHeader
-                  title="Organization Tree"
-                  subtitle={deptFilter ? `Filtered by ${deptFilter}` : 'Complete reporting hierarchy'}
-                  icon={<FiGitBranch className="w-4 h-4" />}
-                  action={
-                    <Badge variant="info">
-                      {filteredTree.reduce((sum, root) => {
-                        const count = (ns: OrgNode[]): number => ns.reduce((s, n) => s + 1 + count(n.children), 0);
-                        return sum + count([root]);
-                      }, 0)} employees
-                    </Badge>
-                  }
-                />
+        {/* ── Error State ── */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <FiAlertCircle className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Org Chart Error</h2>
+            <p className="text-sm text-slate-600 mb-4">{error}</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={fetchEmployees} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm">Try Again</button>
+              <button onClick={() => router.push('/employees')} className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium text-sm">Go to Employees</button>
+            </div>
+          </div>
+        )}
 
-                {loading ? (
-                  <Card className="flex items-center justify-center py-16">
-                    <LoadingSpinner />
-                  </Card>
-                ) : filteredTree.length === 0 ? (
-                  <EmptyState
-                    icon={<FiUsers className="w-8 h-8" />}
-                    title="No employees found"
-                    description={
-                      deptFilter
-                        ? `No employees match the "${deptFilter}" department filter. Try selecting a different department.`
-                        : 'There are no employees to display in the organization chart. Add employees first to see the reporting hierarchy here.'
-                    }
-                    actionLabel={!deptFilter ? 'Add Employees' : undefined}
-                    onAction={!deptFilter ? () => router.push('/employees') : undefined}
-                  />
-                ) : (
-                  <Card className="p-4 sm:p-6 overflow-x-auto">
-                    <div className="min-w-max flex flex-col items-center gap-0 pb-4">
-                      {filteredTree.map((root, idx) => (
-                        <div key={root.id} className={idx > 0 ? 'mt-12' : ''}>
-                          <TreeNode
-                            node={root}
-                            depth={0}
-                            collapsed={collapsed}
-                            onToggle={handleToggle}
-                            search={search}
-                            selectedId={selectedId}
-                            onSelect={handleSelect}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
+        {/* ── Two Column Layout ── */}
+        {!error && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Chart */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <FiGitBranch className="w-4 h-4 text-violet-500" />
+                    Organization Tree
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {deptFilter ? `Filtered by ${deptFilter}` : 'Complete reporting hierarchy'}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                  {filteredTree.reduce((sum, root) => {
+                    const count = (ns: OrgNode[]): number => ns.reduce((s, n) => s + 1 + count(n.children), 0);
+                    return sum + count([root]);
+                  }, 0)} employees
+                </span>
+              </div>
 
-                {/* Hint */}
-                {!loading && filteredTree.length > 0 && (
+              {loading ? (
+                <div className="bg-white rounded-xl border border-slate-200 flex items-center justify-center py-16">
+                  <div className="flex flex-col items-center gap-3">
+                    <FiRefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                    <p className="text-sm text-slate-500">Loading org chart...</p>
+                  </div>
+                </div>
+              ) : filteredTree.length === 0 ? (
+                <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16">
+                  <FiUsers className="w-12 h-12 text-slate-300 mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-700 mb-1">No employees found</h3>
+                  <p className="text-sm text-slate-500 text-center max-w-sm mb-4">
+                    {deptFilter
+                      ? `No employees match the "${deptFilter}" department filter. Try selecting a different department.`
+                      : 'There are no employees to display in the organization chart. Add employees first to see the reporting hierarchy.'}
+                  </p>
+                  {!deptFilter && (
+                    <button onClick={() => router.push('/employees/add')} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                      <FiPlus className="w-4 h-4" /> Add Employees
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 overflow-x-auto">
+                  <div className="min-w-max flex flex-col items-center gap-0 pb-4">
+                    {filteredTree.map((root, idx) => (
+                      <div key={root.id} className={idx > 0 ? 'mt-12' : ''}>
+                        <TreeNode
+                          node={root}
+                          depth={0}
+                          collapsed={collapsed}
+                          onToggle={handleToggle}
+                          search={search}
+                          selectedId={selectedId}
+                          onSelect={handleSelect}
+                        />
+                      </div>
+                    ))}
+                  </div>
                   <div className="mt-3 flex items-center justify-center gap-1 text-[11px] text-slate-400">
                     <FiAlertCircle className="w-3 h-3" />
                     <span>Hierarchy is derived from role and designation. Click the chevron on any node to collapse or expand its reports.</span>
                   </div>
-                )}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Sidebar */}
+            <div className="space-y-4">
+              {/* Department Breakdown */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                  <FiBriefcase className="w-3.5 h-3.5 text-violet-600" />
+                  Department Breakdown
+                </h4>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {deptCounts.sort((a, b) => b.count - a.count).map((dept) => {
+                    const percentage = stats.total > 0 ? Math.round((dept.count / stats.total) * 100) : 0;
+                    const color = getDeptColor(dept.name);
+                    return (
+                      <button
+                        key={dept.id}
+                        type="button"
+                        onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
+                        className={`w-full flex items-center gap-2.5 p-2 rounded-lg transition-colors text-left ${
+                          deptFilter === dept.name ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                          {dept.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{dept.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }} />
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-500 flex-shrink-0">{dept.count}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {deptCounts.length === 0 && <p className="text-xs text-slate-400 text-center py-3">No departments found</p>}
+                </div>
               </div>
-            }
-            right={
-              <div className="space-y-4">
-                {/* Department Breakdown Widget */}
-                <SidebarWidget
-                  title="Department Breakdown"
-                  icon={<FiBriefcase className="w-3.5 h-3.5 text-violet-600" />}
-                >
-                  <div className="space-y-2 max-h-72 overflow-y-auto">
-                    {deptCounts
-                      .sort((a, b) => b.count - a.count)
-                      .map((dept) => {
-                        const percentage = stats.total > 0 ? Math.round((dept.count / stats.total) * 100) : 0;
-                        const color = getDeptColor(dept.name);
-                        return (
-                          <button
-                            key={dept.id}
-                            type="button"
-                            onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
-                            className={`w-full flex items-center gap-2.5 p-2 rounded-lg transition-colors text-left ${
-                              deptFilter === dept.name ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
-                              {firstInitial(dept.name)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-slate-800 truncate">{dept.name}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-500`}
-                                    style={{ width: `${percentage}%` }}
-                                  />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-500 flex-shrink-0">{dept.count}</span>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    {deptCounts.length === 0 && (
-                      <p className="text-xs text-slate-400 text-center py-3">No departments found</p>
-                    )}
-                  </div>
-                </SidebarWidget>
 
-                {/* Selected Employee Detail Widget */}
-                {selectedEmployee && (
-                  <SidebarWidget
-                    title="Employee Details"
-                    icon={<FiUsers className="w-3.5 h-3.5 text-blue-600" />}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <GradientAvatar name={`${selectedEmployee.firstName} ${selectedEmployee.lastName}`} size="lg" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-900 truncate">
-                            {selectedEmployee.firstName} {selectedEmployee.lastName}
-                          </p>
-                          <p className="text-xs text-slate-500 truncate">
-                            {selectedEmployee.designation?.title || 'Employee'}
-                          </p>
-                        </div>
+              {/* Selected Employee Detail */}
+              {selectedEmployee && (
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                    <FiUsers className="w-3.5 h-3.5 text-blue-600" />
+                    Employee Details
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(`${selectedEmployee.firstName} ${selectedEmployee.lastName}`)} flex items-center justify-center text-white text-lg font-bold`}>
+                        {selectedEmployee.firstName.charAt(0)}
                       </div>
-
-                      <div className="space-y-2 pt-1">
-                        <div className="flex items-center gap-2 text-xs">
-                          <FiMail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                          <span className="text-slate-600 truncate">{selectedEmployee.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <FiBriefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                          <span className="text-slate-600">
-                            {selectedEmployee.department?.name || 'Unassigned'}
-                          </span>
-                        </div>
-                        {selectedEmployee.branch?.name && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <FiLayers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                            <span className="text-slate-600">{selectedEmployee.branch.name}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap pt-1">
-                        <Badge variant={selectedEmployee.status === 'active' ? 'success' : 'default'}>
-                          {selectedEmployee.status || 'Unknown'}
-                        </Badge>
-                        <Badge variant="info">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900 truncate">
+                          {selectedEmployee.firstName} {selectedEmployee.lastName}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
                           {selectedEmployee.designation?.title || 'Employee'}
-                        </Badge>
+                        </p>
                       </div>
-
-                      {/* Direct reports list */}
-                      {selectedReports.length > 0 && (
-                        <div className="pt-2 border-t border-slate-100">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
-                            Direct Reports ({selectedReports.length})
-                          </p>
-                          <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                            {selectedReports.map((r) => {
-                              const rFullName = `${r.firstName} ${r.lastName}`.trim();
-                              const rDeptColor = getDeptColor(r.department?.name);
-                              return (
-                                <button
-                                  key={r.id}
-                                  type="button"
-                                  onClick={() => handleSelect(r.id)}
-                                  className="w-full flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
-                                >
-                                  <GradientAvatar name={rFullName} size="sm" className={`bg-gradient-to-br ${rDeptColor}`} />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[11px] font-semibold text-slate-800 truncate">{rFullName}</p>
-                                    <p className="text-[10px] text-slate-400 truncate">{r.designation?.title || 'Employee'}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
+                    </div>
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        <FiMail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="text-slate-600 truncate">{selectedEmployee.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <FiBriefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="text-slate-600">{selectedEmployee.department?.name || 'Unassigned'}</span>
+                      </div>
+                      {selectedEmployee.branch?.name && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <FiLayers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="text-slate-600">{selectedEmployee.branch.name}</span>
                         </div>
                       )}
                     </div>
-                  </SidebarWidget>
-                )}
-
-                {/* Quick Legend Widget */}
-                {!loading && departments.length > 0 && (
-                  <SidebarWidget
-                    title="Department Legend"
-                    icon={<FiBookmark className="w-3.5 h-3.5 text-emerald-600" />}
-                  >
-                    <div className="flex flex-wrap gap-1.5">
-                      {departments.map((dept) => (
-                        <button
-                          key={dept.id}
-                          type="button"
-                          onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                            deptFilter === dept.name
-                              ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200'
-                              : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <span
-                            className={`w-2.5 h-2.5 rounded-full bg-gradient-to-br ${getDeptColor(dept.name)}`}
-                          />
-                          {dept.name}
-                        </button>
-                      ))}
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                        selectedEmployee.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {selectedEmployee.status || 'Unknown'}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700">
+                        {selectedEmployee.designation?.title || 'Employee'}
+                      </span>
                     </div>
-                  </SidebarWidget>
-                )}
+                    {selectedReports.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+                          Direct Reports ({selectedReports.length})
+                        </p>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                          {selectedReports.map((r) => {
+                            const rFullName = `${r.firstName} ${r.lastName}`.trim();
+                            const rDeptColor = getDeptColor(r.department?.name || '');
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => handleSelect(r.id)}
+                                className="w-full flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
+                              >
+                                <div className={`w-7 h-7 rounded-md bg-gradient-to-br ${rDeptColor} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
+                                  {rFullName.charAt(0)}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-semibold text-slate-800 truncate">{rFullName}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{r.designation?.title || 'Employee'}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                {/* Module Tips */}
-                <ModuleTips
-                  moduleKey="org-chart"
-                  title="Org Chart Tips"
-                  tips={orgChartTips}
-                  userRole={user?.role}
-                />
+              {/* Department Legend */}
+              {!loading && departments.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                    <FiBookmark className="w-3.5 h-3.5 text-emerald-600" />
+                    Department Legend
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {departments.map((dept) => (
+                      <button
+                        key={dept.id}
+                        type="button"
+                        onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          deptFilter === dept.name
+                            ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200'
+                            : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-br ${getDeptColor(dept.name)}`} />
+                        {dept.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                {/* Module Workflow */}
-                <ModuleWorkflow
-                  moduleKey="org-chart"
-                  title="How to Use Org Chart"
-                  subtitle="Set up and navigate your organization structure"
-                  steps={orgChartWorkflowSteps}
-                  accentColor="violet"
-                  userRole={user?.role}
-                />
-              </div>
-            }
-          />
-        </PageContainer>
+              {/* Module Tips */}
+              <ModuleTips
+                moduleKey="org-chart"
+                title="Org Chart Tips"
+                tips={orgChartTips}
+                userRole={user?.role}
+              />
+
+              {/* Module Workflow */}
+              <ModuleWorkflow
+                moduleKey="org-chart"
+                title="How to Use Org Chart"
+                subtitle="Set up and navigate your organization structure"
+                steps={orgChartWorkflowSteps}
+                accentColor="violet"
+                userRole={user?.role}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

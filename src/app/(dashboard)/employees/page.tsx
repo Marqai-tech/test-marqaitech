@@ -12,7 +12,7 @@ import {
   FiX,
   FiChevronLeft,
   FiChevronRight,
-  FiFilter,
+
   FiShield,
   FiActivity,
   FiGrid,
@@ -24,15 +24,14 @@ import {
   FiUserCheck,
   FiUserX,
   FiUserPlus,
-  FiUpload,
+
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
-import ModuleIntro from '@/components/ModuleIntro';
-import BulkImportTab from '@/components/BulkImportTab';
+
 
 /* ── Employee Tips ── */
 const employeeTips = [
@@ -270,7 +269,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [filterDept, setFilterDept] = useState('');
   const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+
 
   const [showForm, setShowForm] = useState(formOnly);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -785,24 +784,42 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   return (
     <div className="space-y-6">
       {/* When formOnly mode (Add Employee page), show ONLY the form */}
-      {/* Header */}
+      {/* Breadcrumb - SmartHR style */}
       {!formOnly ? (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
-                <FiUsers className="w-5 h-5 text-white" />
-              </div>
-              Employees
-            </h1>
-            <p className="text-thb-text-secondary mt-1 ml-[46px]">Manage your organization&apos;s workforce</p>
+        <div className="d-md-flex d-block align-items-center justify-content-between mb-4">
+          <div className="mb-3 sm:mb-0">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Employees List</h2>
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
+              <button onClick={() => router.push('/')} className="hover:text-blue-600 transition-colors">Home</button>
+              <span>/</span>
+              <span className="text-slate-700 font-medium">Employees</span>
+            </nav>
           </div>
-          {isAdmin && (
-            <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium text-sm shadow-sm shadow-emerald-600/25 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/20">
-              <FiPlus className="w-4 h-4" />
-              Add Employee
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Toggle */}
+            <div className="flex items-center border border-slate-200 rounded-lg p-0.5 mr-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`btn btn-icon btn-sm me-1 p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                title="List View"
+              >
+                <FiList className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`btn btn-icon btn-sm p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                title="Grid View"
+              >
+                <FiGrid className="w-4 h-4" />
+              </button>
+            </div>
+            {isAdmin && (
+              <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors">
+                <FiPlus className="w-4 h-4" />
+                Add Employee
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -822,154 +839,217 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         </div>
       )}
 
-      {/* ── Stats Row (dashboard only) ── */}
+      {/* ── Stats Row (SmartHR-style) ── */}
       {!formOnly && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Employees */}
-        <div className="thb-card p-5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/10 to-transparent rounded-bl-[3rem] group-hover:from-blue-500/15 transition-colors" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Total Employees</p>
-              <p className="text-3xl font-bold text-thb-text-primary mt-2">{stats.total}</p>
-              <p className="text-xs text-thb-text-muted mt-1">Across all departments</p>
+        {/* Total Employee */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+          <div className="flex items-center overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white flex-shrink-0">
+              <FiUsers className="w-5 h-5" />
             </div>
-            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <FiUsers className="w-5 h-5 text-blue-600" />
+            <div className="ml-3 overflow-hidden">
+              <p className="text-xs font-medium text-slate-500 truncate">Total Employee</p>
+              <h4 className="text-2xl font-bold text-slate-900">{stats.total}</h4>
             </div>
           </div>
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700">
+            <FiUserPlus className="w-3 h-3" /> +{stats.newJoiners > 0 ? stats.newJoiners : 0}
+          </span>
         </div>
 
         {/* Active */}
-        <div className="thb-card p-5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-bl-[3rem] group-hover:from-emerald-500/15 transition-colors" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Active</p>
-              <p className="text-3xl font-bold text-emerald-600 mt-2">{stats.active}</p>
-              <p className="text-xs text-thb-text-muted mt-1">Currently working</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+          <div className="flex items-center overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0">
+              <FiUserCheck className="w-5 h-5" />
             </div>
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <FiUserCheck className="w-5 h-5 text-emerald-600" />
+            <div className="ml-3 overflow-hidden">
+              <p className="text-xs font-medium text-slate-500 truncate">Active</p>
+              <h4 className="text-2xl font-bold text-emerald-600">{stats.active}</h4>
             </div>
           </div>
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700">
+            {stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}%
+          </span>
         </div>
 
         {/* Inactive */}
-        <div className="thb-card p-5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-red-500/10 to-transparent rounded-bl-[3rem] group-hover:from-red-500/15 transition-colors" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Inactive</p>
-              <p className="text-3xl font-bold text-red-500 mt-2">{stats.inactive}</p>
-              <p className="text-xs text-thb-text-muted mt-1">On leave / exited</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+          <div className="flex items-center overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white flex-shrink-0">
+              <FiUserX className="w-5 h-5" />
             </div>
-            <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <FiUserX className="w-5 h-5 text-red-500" />
+            <div className="ml-3 overflow-hidden">
+              <p className="text-xs font-medium text-slate-500 truncate">Inactive</p>
+              <h4 className="text-2xl font-bold text-red-500">{stats.inactive}</h4>
             </div>
           </div>
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+            {stats.total > 0 ? Math.round((stats.inactive / stats.total) * 100) : 0}%
+          </span>
         </div>
 
         {/* New Joiners */}
-        <div className="thb-card p-5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-violet-500/10 to-transparent rounded-bl-[3rem] group-hover:from-violet-500/15 transition-colors" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">New Joiners</p>
-              <p className="text-3xl font-bold text-violet-600 mt-2">{stats.newJoiners}</p>
-              <p className="text-xs text-thb-text-muted mt-1">Joined this month</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+          <div className="flex items-center overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+              <FiUserPlus className="w-5 h-5" />
             </div>
-            <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <FiUserPlus className="w-5 h-5 text-violet-600" />
+            <div className="ml-3 overflow-hidden">
+              <p className="text-xs font-medium text-slate-500 truncate">New Joiners</p>
+              <h4 className="text-2xl font-bold text-blue-600">{stats.newJoiners}</h4>
             </div>
           </div>
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-50 text-violet-700">
+            This month
+          </span>
         </div>
       </div>
       )}
 
-      {/* Module Intro (dashboard only) */}
+      {/* Module Tips & Workflow (dashboard only - collapsible) */}
       {!formOnly && (
-      <ModuleIntro
-        title="Employee Management"
-        subtitle="Centralized directory, lifecycle, documents, and AI insights"
-        srsRef="REQ-EMP-01..15"
-        icon={<FiUsers className="w-4 h-4" />}
-        accent="blue"
-        quickStats={
-          <>
-            <span><b className="text-slate-700">{employees.length}</b> total</span>
-            <span><b className="text-emerald-600">{employees.filter(e => e.status === 'active').length}</b> active</span>
-          </>
-        }
-      >
-        <p>
-          The Employees module is the system of record for your entire workforce — from pre-hire to alumni.
-          It captures the full employee lifecycle: onboarding, transfers, promotions, separations, and
-          ongoing profile changes (skills, dependents, qualifications, experience).
-        </p>
-        <p>
-          Each employee record holds personal details, employment terms, compensation components, documents,
-          and links to related modules — payroll runs, performance reviews, attendance, leave, training, and
-          asset assignments. Role-based access ensures that PII is masked for non-HR users per REQ-SEC-EMP-01.
-        </p>
-        <p>
-          Use the search bar to find employees by name, employee ID, email, department, designation, or status.
-          Admins can add new employees, edit profiles, and trigger onboarding workflows. Self-service is
-          available for employees to view and update their own profile.
-        </p>
-      </ModuleIntro>
+      <details className="group">
+        <summary className="cursor-pointer flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+          <FiChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
+          Tips & Workflow Guide
+        </summary>
+        <div className="mt-3 space-y-4">
+          <ModuleTips
+            moduleKey="employees"
+            title="Employee Tips"
+            tips={employeeTips}
+            userRole={user?.role}
+          />
+          <ModuleWorkflow
+            moduleKey="employees"
+            title="How to Manage Employees"
+            subtitle="Follow this workflow to set up and manage your workforce"
+            steps={employeeWorkflowSteps}
+            accentColor="blue"
+            userRole={user?.role}
+          />
+        </div>
+      </details>
       )}
 
-      {/* Module Tips & Workflow (dashboard only) */}
+      {/* Main Tabs: List / Bulk Import + Action bar (SmartHR style - dashboard only) */}
       {!formOnly && (
-      <>
-      <ModuleTips
-        moduleKey="employees"
-        title="Employee Tips"
-        tips={employeeTips}
-        userRole={user?.role}
-      />
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {/* Filter Bar */}
+        <div className="p-4 border-b border-slate-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* View Toggle */}
+              <div className="flex items-center border border-slate-200 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                  title="List View"
+                >
+                  <FiList className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                  title="Grid View"
+                >
+                  <FiGrid className="w-4 h-4" />
+                </button>
+              </div>
 
-      <ModuleWorkflow
-        moduleKey="employees"
-        title="How to Manage Employees"
-        subtitle="Follow this workflow to set up and manage your workforce"
-        steps={employeeWorkflowSteps}
-        accentColor="blue"
-        userRole={user?.role}
-      />
-      </>
-      )}
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search employees..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+              </div>
 
-      {/* Main Tabs: List / Bulk Import (dashboard only) */}
-      {!formOnly && (
-      <div className="flex items-center gap-1 mb-4">
-        <button
-          onClick={() => setActiveMainTab('list')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            activeMainTab === 'list'
-              ? 'bg-blue-500 text-white shadow-sm'
-              : 'bg-white text-thb-text-secondary border border-thb-border hover:bg-slate-50'
-          }`}
-        >
-          <FiUsers className="w-4 h-4 inline mr-1.5" />
-          Employee List
-        </button>
-        <button
-          onClick={() => setActiveMainTab('import')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            activeMainTab === 'import'
-              ? 'bg-blue-500 text-white shadow-sm'
-              : 'bg-white text-thb-text-secondary border border-thb-border hover:bg-slate-50'
-          }`}
-        >
-          <FiUpload className="w-4 h-4 inline mr-1.5" />
-          Bulk Import
-        </button>
+              {/* Department Filter */}
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              >
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+
+              {/* Designation Filter */}
+              <select
+                value={filterDesignation}
+                onChange={(e) => setFilterDesignation(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 hidden sm:block"
+              >
+                <option value="">Designation</option>
+                {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+              </select>
+
+              {/* Status Filter */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              >
+                <option value="">Select Status</option>
+                <option value="active">Active</option>
+                <option value="on_leave">On Leave</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Export */}
+              <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                <FiFileExport className="w-3.5 h-3.5" /> Export
+              </button>
+              {/* Add Employee */}
+              {isAdmin && (
+                <button onClick={handleOpenAddForm} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-colors">
+                  <FiPlus className="w-3.5 h-3.5" /> Add Employee
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Active filter chips */}
+          {(search || filterDept || filterDesignation || filterStatus) && (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {search && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                  Search: &ldquo;{search}&rdquo;
+                  <button onClick={() => setSearch('')} className="hover:text-blue-900"><FiX className="w-3 h-3" /></button>
+                </span>
+              )}
+              {filterDept && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-medium">
+                  Dept: {departments.find(d => d.id === filterDept)?.name}
+                  <button onClick={() => setFilterDept('')} className="hover:text-violet-900"><FiX className="w-3 h-3" /></button>
+                </span>
+              )}
+              {filterDesignation && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
+                  Role: {designations.find(d => d.id === filterDesignation)?.title}
+                  <button onClick={() => setFilterDesignation('')} className="hover:text-amber-900"><FiX className="w-3 h-3" /></button>
+                </span>
+              )}
+              {filterStatus && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                  Status: {filterStatus.replace('_', ' ')}
+                  <button onClick={() => setFilterStatus('')} className="hover:text-emerald-900"><FiX className="w-3 h-3" /></button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       )}
-
-      {!formOnly && activeMainTab === 'import' && <BulkImportTab />}
 
       {(formOnly || activeMainTab === 'list') && (<>
       {/* ── Add/Edit Employee Form ── */}
@@ -1732,134 +1812,22 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
       {!formOnly && (
       <>
-      {/* ── Filter Bar ── */}
-      <div className="thb-card p-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, email, or employee ID..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-            />
-          </div>
-
-          {/* Department Filter */}
-          <select
-            value={filterDept}
-            onChange={e => setFilterDept(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
-          >
-            <option value="">All Departments</option>
-            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-
-          {/* Designation Filter */}
-          <select
-            value={filterDesignation}
-            onChange={e => setFilterDesignation(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
-          >
-            <option value="">All Designations</option>
-            {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-          </select>
-
-          {/* More Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors whitespace-nowrap ${showFilters ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'}`}
-          >
-            <FiFilter className="w-4 h-4" />
-            More
-          </button>
-        </div>
-
-        {/* Extended Filters */}
-        {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-3 border-t border-thb-border">
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="on_leave">On Leave</option>
-              <option value="terminated">Terminated</option>
-              <option value="resigned">Resigned</option>
-            </select>
-            <button onClick={() => { setFilterDept(''); setFilterDesignation(''); setFilterStatus(''); setSearch(''); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm text-thb-text-secondary hover:bg-slate-50 transition-colors">
-              Clear All Filters
-            </button>
-          </div>
-        )}
-
-        {/* Active filter indicators */}
-        {(filterDept || filterDesignation || filterStatus || search) && (
-          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-thb-border">
-            <span className="text-xs text-thb-text-muted">Active filters:</span>
-            {search && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-                Search: &ldquo;{search}&rdquo;
-                <button onClick={() => setSearch('')} className="hover:text-blue-900"><FiX className="w-3 h-3" /></button>
-              </span>
-            )}
-            {filterDept && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-medium">
-                Dept: {departments.find(d => d.id === filterDept)?.name}
-                <button onClick={() => setFilterDept('')} className="hover:text-violet-900"><FiX className="w-3 h-3" /></button>
-              </span>
-            )}
-            {filterDesignation && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-                Role: {designations.find(d => d.id === filterDesignation)?.title}
-                <button onClick={() => setFilterDesignation('')} className="hover:text-amber-900"><FiX className="w-3 h-3" /></button>
-              </span>
-            )}
-            {filterStatus && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
-                Status: {filterStatus.replace('_', ' ')}
-                <button onClick={() => setFilterStatus('')} className="hover:text-emerald-900"><FiX className="w-3 h-3" /></button>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── View Mode Toggle & Bulk Actions ── */}
+      {/* ── Bulk Actions & Count ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {selectedIds.size > 0 && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
               <span className="text-sm font-medium text-blue-700">{selectedIds.size} selected</span>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-blue-500 hover:text-blue-700"
-              >
+              <button onClick={() => setSelectedIds(new Set())} className="text-blue-500 hover:text-blue-700">
                 <FiX className="w-4 h-4" />
               </button>
             </div>
           )}
           {pagination.total > 0 && (
-            <span className="text-sm text-thb-text-muted">
+            <span className="text-sm text-slate-500">
               Showing {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} employees
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
-            title="List View"
-          >
-            <FiList className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
-            title="Grid View"
-          >
-            <FiGrid className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
