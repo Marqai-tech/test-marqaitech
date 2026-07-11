@@ -24,7 +24,7 @@ import {
   FiUserCheck,
   FiUserX,
   FiUserPlus,
-
+  FiDownload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -1007,7 +1007,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             <div className="flex items-center gap-2">
               {/* Export */}
               <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-                <FiFileExport className="w-3.5 h-3.5" /> Export
+                <FiDownload className="w-3.5 h-3.5" /> Export
               </button>
               {/* Add Employee */}
               {isAdmin && (
