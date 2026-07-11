@@ -14,7 +14,7 @@ import {
   FiMonitor, FiShoppingCart, FiBarChart2, FiAlertCircle,
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
-  FiMoreHorizontal, FiArrowRight,
+  FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -211,6 +211,20 @@ export const navSections: NavSection[] = [
       { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave' },
       { label: 'Restricted Holiday', href: '/leave/optional-holidays', icon: <FiStar className="w-4 h-4" />, moduleKey: 'leave' },
+
+      // ── Leave Balance ──
+      { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
+      { label: 'My Leave Balance', href: '/leave/balance', icon: <FiPieChart className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
+      { label: 'Leave Policy Config', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Holiday Calendar', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
+      { label: 'Leave Reports', href: '/leave/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
     ],
   },
 
@@ -229,16 +243,31 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Attendance Dashboard', href: '/attendance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+
+      // ── Requests ──
+      { label: 'Requests', href: '#requests-divider', icon: <FiClock className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
       { label: 'Apply Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Apply WFH', href: '/attendance/wfh', icon: <FiHome className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
       { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Gatepass', href: '/attendance/gatepass', icon: <FiShield className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Overtime Requests', href: '/attendance/overtime', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Comp-Off Balance', href: '/attendance/comp-off', icon: <FiGift className="w-4 h-4" />, moduleKey: 'attendance' },
+
+      // ── Configuration ──
+      { label: 'Configuration', href: '#config-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
       { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Biometric Devices', href: '/attendance/biometric', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Muster Roll', href: '/attendance/muster-roll', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
+      { label: 'Attendance Policies', href: '/attendance/policy-config', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
       { label: 'Burnout Analytics', href: '/attendance/burnout', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Audit Trail', href: '/attendance/audit-log', icon: <FiLock className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Attendance Reports', href: '/attendance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
     ],
   },
 
@@ -309,12 +338,26 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Recruitment Dashboard', href: '/dashboards/recruitment', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+
+      // ── Pipeline ──
+      { label: 'Pipeline', href: '#pipeline-divider', icon: <FiBriefcase className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       { label: 'Requisitions', href: '/requisitions', icon: <FiClipboard className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Job Portal', href: '/job-portal', icon: <FiSearch className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'AI Interview', href: '/ai-interview', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'recruitment' },
       { label: 'Referrals', href: '/referrals', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Offers', href: '/offers', icon: <FiStar className="w-4 h-4" />, moduleKey: 'recruitment' },
+
+      // ── Analytics ──
+      { label: 'Analytics', href: '#analytics-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       { label: 'Candidate Flow', href: '/analytics/candidate-flow', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Recruitment Settings', href: '/recruitment/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Recruitment Reports', href: '/recruitment/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
     ],
   },
 
@@ -333,8 +376,19 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Onboarding Dashboard', href: '/onboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Tasks ──
+      { label: 'Tasks', href: '#tasks-divider', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
       { label: 'Onboarding Tasks', href: '/onboarding/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
       { label: 'Onboarding Templates', href: '/onboarding/templates', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'Onboarding Settings', href: '/onboarding/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'Onboarding Reports', href: '/onboarding/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
     ],
   },
 
@@ -353,6 +407,14 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Preboarding Dashboard', href: '/preboarding', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
       { label: 'Preboarding Tasks', href: '/preboarding/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'Preboarding Settings', href: '/preboarding/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'onboarding', isDivider: true },
+      { label: 'Preboarding Reports', href: '/preboarding/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'onboarding', isNew: true },
     ],
   },
 
@@ -371,12 +433,26 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Appraisal Dashboard', href: '/performance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
+
+      // ── Performance ──
+      { label: 'Performance', href: '#performance-divider', icon: <FiTrendingUp className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
       { label: 'Performance Reviews', href: '/performance/reviews', icon: <FiTrendingUp className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
-      { label: 'OKR Cascade', href: '/okrs', icon: <FiTarget className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
       { label: '360 Feedback', href: '/performance/feedback', icon: <FiMessageCircle className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
+      { label: 'OKR Cascade', href: '/okrs', icon: <FiTarget className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
+
+      // ── Growth ──
+      { label: 'Growth', href: '#growth-divider', icon: <FiAward className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
       { label: 'Training', href: '/training', icon: <FiBookOpen className="w-4 h-4" />, moduleKey: 'training' },
       { label: 'Engagement', href: '/engagement', icon: <FiHeart className="w-4 h-4" />, moduleKey: 'engagement', isNew: true },
       { label: 'Succession Planning', href: '/succession', icon: <FiTarget className="w-4 h-4" />, roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
+      { label: 'Performance Settings', href: '/performance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
+      { label: 'Performance Reports', href: '/performance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
     ],
   },
 
@@ -395,9 +471,20 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'PM Dashboard', href: '/project-management', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
+
+      // ── Management ──
+      { label: 'Management', href: '#mgmt-divider', icon: <FiFolder className="w-3.5 h-3.5" />, moduleKey: 'projects', isDivider: true },
       { label: 'Projects', href: '/projects', icon: <FiFolder className="w-4 h-4" />, moduleKey: 'projects' },
       { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-4 h-4" />, isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'projects', isDivider: true },
+      { label: 'Project Settings', href: '/project-management/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'projects', isDivider: true },
+      { label: 'Project Reports', href: '/project-management/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
     ],
   },
 
@@ -416,8 +503,22 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Travel & Expense Dashboard', href: '/travel', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'travel', isNew: true },
+
+      // ── Travel ──
+      { label: 'Travel', href: '#travel-divider', icon: <FiMap className="w-3.5 h-3.5" />, moduleKey: 'travel', isDivider: true },
       { label: 'Travel Requests', href: '/travel/requests', icon: <FiMap className="w-4 h-4" />, moduleKey: 'travel', isNew: true },
+
+      // ── Expense ──
+      { label: 'Expense', href: '#expense-divider', icon: <FiCreditCard className="w-3.5 h-3.5" />, moduleKey: 'expenses', isDivider: true },
       { label: 'Expense Claims', href: '/expenses', icon: <FiCreditCard className="w-4 h-4" />, moduleKey: 'expenses' },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'travel', isDivider: true },
+      { label: 'Travel & Expense Settings', href: '/travel/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'travel', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'travel', isDivider: true },
+      { label: 'Travel & Expense Reports', href: '/travel/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'travel', isNew: true },
     ],
   },
 
@@ -436,8 +537,27 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Asset Dashboard', href: '/assets', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'assets', isNew: true },
+
+      // ── Assets ──
+      { label: 'Assets', href: '#assets-divider', icon: <FiPackage className="w-3.5 h-3.5" />, moduleKey: 'assets', isDivider: true },
       { label: 'Assets', href: '/assets/list', icon: <FiPackage className="w-4 h-4" />, moduleKey: 'assets' },
+
+      // ── IT Admin ──
+      { label: 'IT Admin', href: '#itadmin-divider', icon: <FiMonitor className="w-3.5 h-3.5" />, moduleKey: 'it_admin_module', isDivider: true },
       { label: 'IT Admin Console', href: '/it-admin', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+      { label: 'Devices', href: '/it-admin/devices', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+      { label: 'Network', href: '/it-admin/network', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+      { label: 'Security', href: '/it-admin/security', icon: <FiShield className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+      { label: 'Software', href: '/it-admin/software', icon: <FiPackage className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+      { label: 'IT Tickets', href: '/it-admin/tickets', icon: <FiHelpCircle className="w-4 h-4" />, moduleKey: 'it_admin_module', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'assets', isDivider: true },
+      { label: 'Asset Settings', href: '/assets/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'assets', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'assets', isDivider: true },
+      { label: 'Asset Reports', href: '/assets/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'assets', isNew: true },
     ],
   },
 
@@ -454,11 +574,28 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Accounts Dashboard', href: '/accounts', icon: <FiGrid className="w-4 h-4" />, isNew: true },
+
+      // ── Accounting ──
+      { label: 'Accounting', href: '#accounting-divider', icon: <FiLayers className="w-3.5 h-3.5" />, isDivider: true },
       { label: 'Chart of Accounts', href: '/accounts/chart-of-accounts', icon: <FiLayers className="w-4 h-4" />, isNew: true },
       { label: 'Journal Entries', href: '/accounts/journal-entries', icon: <FiEdit3 className="w-4 h-4" />, isNew: true },
+
+      // ── Payables & Receivables ──
+      { label: 'Payables & Receivables', href: '#payables-divider', icon: <FiDollarSign className="w-3.5 h-3.5" />, isDivider: true },
       { label: 'Invoices', href: '/accounts/invoices', icon: <FiFileText className="w-4 h-4" />, isNew: true },
       { label: 'Bills', href: '/accounts/bills', icon: <FiDollarSign className="w-4 h-4" />, isNew: true },
+
+      // ── Banking ──
+      { label: 'Banking', href: '#banking-divider', icon: <FiCreditCard className="w-3.5 h-3.5" />, isDivider: true },
       { label: 'Bank Reconciliation', href: '/accounts/bank-reconciliation', icon: <FiCreditCard className="w-4 h-4" />, isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, isDivider: true },
+      { label: 'Accounts Settings', href: '/accounts/settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, isDivider: true },
+      { label: 'Financial Reports', href: '/accounts/reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
   },
 
@@ -477,9 +614,21 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'CRM Dashboard', href: '/crm', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
+
+      // ── Pipeline ──
+      { label: 'Pipeline', href: '#pipeline-divider', icon: <FiTarget className="w-3.5 h-3.5" />, moduleKey: 'crm', isDivider: true },
+      { label: 'Leads', href: '/crm/leads', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
       { label: 'Contacts', href: '/crm/contacts', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
       { label: 'Deals', href: '/crm/deals', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
-      { label: 'Leads', href: '/crm/leads', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
+      { label: 'Activities', href: '/crm/activities', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'crm', isDivider: true },
+      { label: 'CRM Settings', href: '/crm/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'crm', isDivider: true },
+      { label: 'CRM Reports', href: '/crm/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'crm', isNew: true },
     ],
   },
 
@@ -497,13 +646,27 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'External Dashboard', href: '/clients', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'company', isNew: true },
+
+      // ── Clients ──
+      { label: 'Clients', href: '#clients-divider', icon: <FiGlobe className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
       { label: 'Clients', href: '/clients/list', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'company' },
       { label: 'SOWs', href: '/clients/sow', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Client Insights', href: '/clients/insights', icon: <FiTrendingUp className="w-4 h-4" />, moduleKey: 'company', isNew: true },
+
+      // ── Vendors ──
+      { label: 'Vendors', href: '#vendors-divider', icon: <FiTruck className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
       { label: 'Vendors', href: '/vendors', icon: <FiTruck className="w-4 h-4" />, moduleKey: 'company' },
       { label: 'Vendor Compliance', href: '/vendors/compliance', icon: <FiShield className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Purchase Orders', href: '/purchase-orders', icon: <FiCreditCard className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Vendor Invoices', href: '/vendor-invoices', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'company', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
+      { label: 'External Settings', href: '/clients/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'company', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
+      { label: 'External Reports', href: '/clients/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'company', isNew: true },
     ],
   },
 
@@ -547,6 +710,14 @@ export const navSections: NavSection[] = [
       { label: 'Helpdesk', href: '/helpdesk/tickets', icon: <FiHelpCircle className="w-4 h-4" />, moduleKey: 'helpdesk' },
       { label: 'Grievances', href: '/grievances', icon: <FiAlertCircle className="w-4 h-4" />, moduleKey: 'grievances' },
       { label: 'AI Assistant', href: '/ai-assistant', icon: <FiCpu className="w-4 h-4" /> },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'helpdesk', isDivider: true },
+      { label: 'Support Settings', href: '/helpdesk/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'helpdesk', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'helpdesk', isDivider: true },
+      { label: 'Support Reports', href: '/helpdesk/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'helpdesk', isNew: true },
     ],
   },
 
@@ -562,15 +733,29 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Collaboration Hub', href: '/collaboration', icon: <FiGrid className="w-4 h-4" />, isNew: true },
+
+      // ── Communication ──
+      { label: 'Communication', href: '#comm-divider', icon: <FiMessageCircle className="w-3.5 h-3.5" />, isDivider: true },
       { label: 'Chat', href: '/collaboration/chat', icon: <FiMessageCircle className="w-4 h-4" />, isNew: true },
       { label: 'Calls', href: '/collaboration/calls', icon: <FiVideo className="w-4 h-4" />, isNew: true },
       { label: 'Calendar', href: '/calendar', icon: <FiCalendar className="w-4 h-4" />, isNew: true },
       { label: 'Email', href: '/email', icon: <FiMail className="w-4 h-4" />, isNew: true },
+
+      // ── Productivity ──
+      { label: 'Productivity', href: '#productivity-divider', icon: <FiCheckSquare className="w-3.5 h-3.5" />, isDivider: true },
       { label: 'To Do', href: '/todo', icon: <FiCheckSquare className="w-4 h-4" />, isNew: true },
       { label: 'Notes', href: '/notes', icon: <FiEdit3 className="w-4 h-4" />, isNew: true },
       { label: 'Social Feed', href: '/social-feed', icon: <FiUsers className="w-4 h-4" />, isNew: true },
       { label: 'File Manager', href: '/file-manager', icon: <FiFolder className="w-4 h-4" />, isNew: true },
       { label: 'Kanban Board', href: '/kanban', icon: <FiLayers className="w-4 h-4" />, isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, isDivider: true },
+      { label: 'Collaboration Settings', href: '/collaboration/settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, isDivider: true },
+      { label: 'Collaboration Reports', href: '/collaboration/reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
   },
 
@@ -586,6 +771,14 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Documentation Hub', href: '/docs', icon: <FiBookOpen className="w-4 h-4" />, moduleKey: 'docs', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'docs', isDivider: true },
+      { label: 'Knowledge Settings', href: '/docs/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'docs', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'docs', isDivider: true },
+      { label: 'Knowledge Reports', href: '/docs/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'docs', isNew: true },
     ],
   },
 
@@ -601,11 +794,25 @@ export const navSections: NavSection[] = [
       { label: 'AI Insights', key: 'ai-insights', icon: <FiCpu className="w-4 h-4" />, isNew: true },
     ],
     items: [
+      { label: 'Governance Dashboard', href: '/governance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'governance', isNew: true },
+
+      // ── Workflows ──
+      { label: 'Workflows', href: '#workflows-divider', icon: <FiGitBranch className="w-3.5 h-3.5" />, moduleKey: 'settings', isDivider: true },
       { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'settings' },
-      { label: 'Reports & Analytics', href: '/reports', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'reports' },
       { label: 'Scheduled Reports', href: '/reports/schedules', icon: <FiClock className="w-4 h-4" />, isNew: true },
-      { label: 'Settings & Configuration', href: '/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'settings' },
       { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-4 h-4" /> },
+
+      // ── Analytics ──
+      { label: 'Analytics', href: '#analytics-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'reports', isDivider: true },
+      { label: 'Reports & Analytics', href: '/reports', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'reports' },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'settings', isDivider: true },
+      { label: 'Settings & Configuration', href: '/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'settings' },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'governance', isDivider: true },
+      { label: 'Governance Reports', href: '/governance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'governance', isNew: true },
     ],
   },
 ];

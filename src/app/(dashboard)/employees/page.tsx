@@ -795,30 +795,30 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <span className="text-slate-700 font-medium">Employees</span>
             </nav>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* View Toggle */}
-            <div className="flex items-center border border-slate-200 rounded-lg p-0.5 mr-2">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`btn btn-icon btn-sm me-1 p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                title="List View"
-              >
-                <FiList className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`btn btn-icon btn-sm p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                title="Grid View"
-              >
-                <FiGrid className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="flex items-center gap-3 flex-wrap">
             {isAdmin && (
               <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors">
                 <FiPlus className="w-4 h-4" />
                 Add Employee
               </button>
             )}
+            {/* View Toggle */}
+            <div className="flex items-center border border-slate-200 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                title="List View"
+              >
+                <FiList className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                title="Grid View"
+              >
+                <FiGrid className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -1009,12 +1009,6 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <FiDownload className="w-3.5 h-3.5" /> Export
               </button>
-              {/* Add Employee */}
-              {isAdmin && (
-                <button onClick={handleOpenAddForm} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-colors">
-                  <FiPlus className="w-3.5 h-3.5" /> Add Employee
-                </button>
-              )}
             </div>
           </div>
 
