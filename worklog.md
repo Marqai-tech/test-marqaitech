@@ -2562,3 +2562,24 @@ Each route follows the same pattern as the existing `/api/employees/route.ts`:
 - All 5 new routes appear in the build output as dynamic routes (ƒ)
 - No TypeScript or compilation errors
 
+---
+Task ID: 2-b
+Agent: Main Agent
+Task: Fix Org Chart errors, create missing employee API routes, restructure Payroll module
+
+Work Log:
+- Added ErrorBoundary wrapper to Org Chart page with custom fallback UI
+- Confirmed WFH form already exists at /attendance/wfh/page.tsx (full featured with request types, approval chain, preview)
+- Created 5 missing employee API routes: probation, transfer, termination, resignation, rejoin (via subagent)
+- Restructured Payroll module from flat tile grid into 3 categorized sections:
+  - Payroll Masters (11 modules): CTC Templates, CTC Calculator, Income Tax, Gratuity, Component Master, Statutory Components, Tax Slabs, Currency & FX, Dimensions, Payroll Definitions, Salary Settings
+  - Payroll Transactions (12 modules): Payroll Inputs, Pre-Payroll Validation, Payroll Processing, Payroll Approvals, Payment Methods, Payslips, Bank File Generation, Loans, Overtime, F&F Settlement, Payroll Holds, Cross-Border Secondment
+  - Payroll Reports (5 modules): Reports & Dashboard, Compliance, GL Mapping, AI Insights, Group Dashboard
+- Each category has gradient header with icon, description, and module count badge
+- Committed (55e9c11), pushed to GitHub, deployed to Vercel (dpl_5ouj693rDwPZT4QUwmCN5cSCdyRj - READY)
+
+Stage Summary:
+- Org Chart now has ErrorBoundary for graceful error handling instead of crashing
+- Employee sub-pages now have API routes (won't get 404 errors)
+- Payroll module reorganized into Masters/Transactions/Reports sections
+- All changes deployed to Vercel production
