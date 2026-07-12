@@ -275,6 +275,13 @@ export default function EmployeeSettingsPage() {
       if (res.ok) {
         const data = await res.json()
         setEmployees(data.employees || [])
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.error('[Employee Settings] Fetch credentials failed:', res.status, errorData)
+        // If unauthorized, the token might be expired — don't silently fail
+        if (res.status === 401) {
+          toast.error('Session expired. Please log in again.')
+        }
       }
     } catch (err) {
       console.error('Fetch error:', err)

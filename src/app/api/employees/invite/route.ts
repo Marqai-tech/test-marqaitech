@@ -155,11 +155,33 @@ export async function POST(request: Request) {
     });
     if (!admin) return NextResponse.json({ error: 'Admin not found' }, { status: 404, headers: corsHeaders() });
 
-    // Build where clause — use Department → Company → CompanyGroup path for tenant scoping
+    // Build where clause — resolve company IDs first for reliable tenant scoping
     const where: Record<string, unknown> = {};
     if (mode === 'selected') where.id = { in: employeeIds };
     if (admin.role !== 'super_admin' && admin.tenantId) {
-      where.department = { company: { companyGroup: { tenantId: admin.tenantId } } };
+      const tenantCompanyIds = await prisma.company.findMany({
+        where: { companyGroup: { tenantId: admin.tenantId } },
+        select: { id: true },
+      });
+      const companyIds = tenantCompanyIds.map(c => c.id);
+      if (mode === 'selected') {
+        // Combine: specific employee IDs AND tenant scope
+        where.AND = [
+          { id: { in: employeeIds } },
+          {
+            OR: [
+              { companyId: { in: companyIds } },
+              { department: { companyId: { in: companyIds } } },
+            ],
+          },
+        ];
+        delete where.id;
+      } else {
+        where.OR = [
+          { companyId: { in: companyIds } },
+          { department: { companyId: { in: companyIds } } },
+        ];
+      }
     }
 
     const employees = await prisma.employee.findMany({

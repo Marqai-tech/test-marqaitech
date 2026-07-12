@@ -60,22 +60,54 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
     // Build where clause
-    const where: Record<string, unknown> = {};
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { employeeId: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-    if (departmentId) where.departmentId = departmentId;
+    const conditions: Record<string, unknown>[] = [];
 
-    // Scope by tenant — use Department → Company → CompanyGroup path
-    // (Employee.company relation is not defined in schema, so we go through department)
-    if (user.role !== 'super_admin' && user.tenantId) {
-      where.department = { company: { companyGroup: { tenantId: user.tenantId } } };
+    // Search filter
+    if (search) {
+      conditions.push({
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { employeeId: { contains: search, mode: 'insensitive' } },
+        ],
+      });
     }
+
+    // Department filter
+    if (departmentId) {
+      conditions.push({ departmentId });
+    }
+
+    // Scope by tenant — resolve company IDs for the tenant first, then filter.
+    // This avoids the fragile deep relation chain (department.company.companyGroup.tenantId)
+    // and works consistently with the main /api/employees endpoint.
+    // Employee has both a direct companyId and departmentId → department.companyId path.
+    if (user.role !== 'super_admin' && user.tenantId) {
+      const tenantCompanyIds = await prisma.company.findMany({
+        where: { companyGroup: { tenantId: user.tenantId } },
+        select: { id: true },
+      });
+      const companyIds = tenantCompanyIds.map(c => c.id);
+      if (companyIds.length > 0) {
+        conditions.push({
+          OR: [
+            { companyId: { in: companyIds } },
+            { department: { companyId: { in: companyIds } } },
+          ],
+        });
+      } else {
+        // No companies for this tenant — return empty immediately
+        return NextResponse.json({ employees: [], total: 0, page, limit }, { headers: corsHeaders() });
+      }
+    }
+
+    // Combine all conditions with AND
+    const where: Record<string, unknown> = conditions.length > 1
+      ? { AND: conditions }
+      : conditions.length === 1
+        ? conditions[0]
+        : {};
 
     const [employees, total] = await Promise.all([
       prisma.employee.findMany({
@@ -161,9 +193,31 @@ export async function POST(request: Request) {
     if (mode !== 'all') {
       where.id = { in: employeeIds };
     }
-    // Scope by tenant — use Department → Company → CompanyGroup path
+    // Scope by tenant — resolve company IDs first for reliable filtering
     if (admin.role !== 'super_admin' && effectiveTenantId) {
-      where.department = { company: { companyGroup: { tenantId: effectiveTenantId } } };
+      const tenantCompanyIds = await prisma.company.findMany({
+        where: { companyGroup: { tenantId: effectiveTenantId } },
+        select: { id: true },
+      });
+      const companyIds = tenantCompanyIds.map(c => c.id);
+      if (mode !== 'all') {
+        // Combine: specific employee IDs AND tenant scope
+        where.AND = [
+          { id: { in: employeeIds } },
+          {
+            OR: [
+              { companyId: { in: companyIds } },
+              { department: { companyId: { in: companyIds } } },
+            ],
+          },
+        ];
+        delete where.id;
+      } else {
+        where.OR = [
+          { companyId: { in: companyIds } },
+          { department: { companyId: { in: companyIds } } },
+        ];
+      }
     }
 
     const employees = await prisma.employee.findMany({
