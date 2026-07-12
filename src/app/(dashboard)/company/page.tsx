@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import CompanyManagement from '@/components/hrms/company-management';
-import { FiBriefcase, FiGrid, FiDatabase, FiSettings, FiFileText } from 'react-icons/fi';
+import { FiBriefcase, FiGrid, FiDatabase, FiSettings, FiFileText, FiBarChart2 } from 'react-icons/fi';
 
 const companyTabs: DashboardTabConfig[] = [
   { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
@@ -90,28 +90,34 @@ function CompanyOverview() {
 
 function CompanySettingsPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg mb-4">
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center shadow-lg mb-4">
         <FiSettings className="w-7 h-7 text-white" />
       </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Company Settings</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md">
-        Configure company-wide settings, preferences, and integrations. This section is coming soon.
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Settings & Configuration</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        Configure company-wide settings, preferences, and integrations
       </p>
+      <a href="/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiSettings className="w-4 h-4" /> Go to Settings
+      </a>
     </div>
   );
 }
 
 function CompanyReportsPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shadow-lg mb-4">
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Company Reports</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md">
-        View reports on company structure, headcount distribution, and compliance status. This section is coming soon.
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        View reports on company structure, headcount distribution, and compliance status
       </p>
+      <a href="/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiBarChart2 className="w-4 h-4" /> Go to Reports
+      </a>
     </div>
   );
 }

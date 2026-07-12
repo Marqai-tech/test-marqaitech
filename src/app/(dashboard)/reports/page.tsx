@@ -75,8 +75,8 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
       { id: 'directory', name: 'Employee Directory', description: 'Complete employee directory with contact details', module: 'Employee', icon: FiEye, apiEndpoint: '/api/reports', apiType: 'employee_report' },
       { id: 'new_joiners', name: 'New Joiners Report', description: 'Employees who joined in the selected period', module: 'Employee', icon: FiUserCheck, apiEndpoint: '/api/reports', apiType: 'employee_report' },
       { id: 'attrition', name: 'Attrition Report', description: 'Employee exits and attrition rate analysis', module: 'Employee', icon: FiUserX, apiEndpoint: '/api/reports', apiType: 'employee_report' },
-      { id: 'birthday_anniversary', name: 'Birthday & Anniversary List', description: 'Upcoming birthdays and work anniversaries', module: 'Employee', icon: FiGift, comingSoon: true },
-      { id: 'probation_ending', name: 'Probation Ending Report', description: 'Employees with probation ending soon', module: 'Employee', icon: FiClock, comingSoon: true },
+      { id: 'birthday_anniversary', name: 'Birthday & Anniversary List', description: 'Upcoming birthdays and work anniversaries', module: 'Employee', icon: FiGift, comingSoon: false },
+      { id: 'probation_ending', name: 'Probation Ending Report', description: 'Employees with probation ending soon', module: 'Employee', icon: FiClock, comingSoon: false },
     ],
   },
   {
@@ -87,7 +87,7 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
       { id: 'leave_balance', name: 'Leave Balance Summary', description: 'Leave balances across all employees', module: 'Leave', icon: FiPieChart, apiEndpoint: '/api/reports', apiType: 'leave_report' },
       { id: 'leave_utilization', name: 'Leave Utilization Report', description: 'How employees are utilizing their leave', module: 'Leave', icon: FiBarChart2, apiEndpoint: '/api/reports', apiType: 'leave_report' },
       { id: 'leave_trend', name: 'Leave Trend Analysis', description: 'Month-over-month leave usage trends', module: 'Leave', icon: FiTrendingUp, apiEndpoint: '/api/reports', apiType: 'leave_report' },
-      { id: 'compoff_expiry', name: 'Comp-off Expiry Report', description: 'Comp-off leaves expiring soon', module: 'Leave', icon: FiClockIcon, comingSoon: true },
+      { id: 'compoff_expiry', name: 'Comp-off Expiry Report', description: 'Comp-off leaves expiring soon', module: 'Leave', icon: FiClockIcon, comingSoon: false },
     ],
   },
   {
@@ -99,7 +99,7 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
       { id: 'late_arrival', name: 'Late Arrival Report', description: 'Employees with frequent late arrivals', module: 'Attendance', icon: FiClock, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
       { id: 'overtime', name: 'Overtime Report', description: 'Overtime hours by employee and department', module: 'Attendance', icon: FiMoon, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
       { id: 'absenteeism', name: 'Absenteeism Report', description: 'Absenteeism rates and patterns', module: 'Attendance', icon: FiUserX, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
-      { id: 'shift_compliance', name: 'Shift Compliance Report', description: 'Shift adherence and violations', module: 'Attendance', icon: FiLayers, comingSoon: true },
+      { id: 'shift_compliance', name: 'Shift Compliance Report', description: 'Shift adherence and violations', module: 'Attendance', icon: FiLayers, comingSoon: false },
     ],
   },
   {
@@ -110,9 +110,9 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
       { id: 'salary_register', name: 'Salary Register', description: 'Complete salary breakdown for a pay period', module: 'Payroll', icon: FiDatabase, apiEndpoint: '/api/payroll/reports/salary-register' },
       { id: 'payroll_summary', name: 'Payroll Summary', description: 'Consolidated payroll summary by month', module: 'Payroll', icon: FiBarChart2, apiEndpoint: '/api/reports', apiType: 'payroll_report' },
       { id: 'mom_comparison', name: 'Month-over-Month Comparison', description: 'Compare payroll costs across months', module: 'Payroll', icon: FiRepeat, apiEndpoint: '/api/reports', apiType: 'payroll_report' },
-      { id: 'ctc_analysis', name: 'Cost-to-Company Analysis', description: 'Full CTC breakdown including employer contributions', module: 'Payroll', icon: FiDollarSign, comingSoon: true },
-      { id: 'arrear', name: 'Arrear Report', description: 'Pending and processed arrear payments', module: 'Payroll', icon: FiZap, comingSoon: true },
-      { id: 'reimbursement', name: 'Reimbursement Report', description: 'Reimbursement claims and approvals', module: 'Payroll', icon: FiRefreshCw, comingSoon: true },
+      { id: 'ctc_analysis', name: 'Cost-to-Company Analysis', description: 'Full CTC breakdown including employer contributions', module: 'Payroll', icon: FiDollarSign, comingSoon: false },
+      { id: 'arrear', name: 'Arrear Report', description: 'Pending and processed arrear payments', module: 'Payroll', icon: FiZap, comingSoon: false },
+      { id: 'reimbursement', name: 'Reimbursement Report', description: 'Reimbursement claims and approvals', module: 'Payroll', icon: FiRefreshCw, comingSoon: false },
     ],
   },
   {
@@ -123,7 +123,7 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
       { id: 'hiring_funnel', name: 'Hiring Funnel', description: 'Application to hire conversion funnel', module: 'Recruitment', icon: FiLayers, apiEndpoint: '/api/reports', apiType: 'recruitment_report' },
       { id: 'source_effectiveness', name: 'Source Effectiveness', description: 'Which recruitment sources yield best candidates', module: 'Recruitment', icon: FiTarget, apiEndpoint: '/api/reports', apiType: 'recruitment_report' },
       { id: 'time_to_fill', name: 'Time-to-Fill Report', description: 'Average days to fill open positions', module: 'Recruitment', icon: FiClock, apiEndpoint: '/api/reports', apiType: 'recruitment_report' },
-      { id: 'offer_acceptance', name: 'Offer Acceptance Rate', description: 'Track offer acceptance and rejection rates', module: 'Recruitment', icon: FiCheckCircle, comingSoon: true },
+      { id: 'offer_acceptance', name: 'Offer Acceptance Rate', description: 'Track offer acceptance and rejection rates', module: 'Recruitment', icon: FiCheckCircle, comingSoon: false },
     ],
   },
   {
@@ -131,9 +131,9 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleIcon: FiTarget,
     moduleColor: 'rose',
     reports: [
-      { id: 'review_completion', name: 'Review Completion Status', description: 'Performance review completion rates by department', module: 'Performance', icon: FiCheckCircle, comingSoon: true },
-      { id: 'rating_distribution', name: 'Rating Distribution', description: 'Distribution of performance ratings across org', module: 'Performance', icon: FiPieChart, comingSoon: true },
-      { id: 'goal_achievement', name: 'Goal Achievement Report', description: 'Goal completion rates and progress tracking', module: 'Performance', icon: FiTarget, comingSoon: true },
+      { id: 'review_completion', name: 'Review Completion Status', description: 'Performance review completion rates by department', module: 'Performance', icon: FiCheckCircle, comingSoon: false },
+      { id: 'rating_distribution', name: 'Rating Distribution', description: 'Distribution of performance ratings across org', module: 'Performance', icon: FiPieChart, comingSoon: false },
+      { id: 'goal_achievement', name: 'Goal Achievement Report', description: 'Goal completion rates and progress tracking', module: 'Performance', icon: FiTarget, comingSoon: false },
     ],
   },
   {
@@ -142,8 +142,8 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleColor: 'teal',
     reports: [
       { id: 'training_completion', name: 'Training Completion Report', description: 'Track training course completion rates across employees and departments', module: 'Training', icon: FiCheckCircle, apiEndpoint: '/api/reports', apiType: 'training_report' },
-      { id: 'assessment_scores', name: 'Assessment Scores Report', description: 'Employee assessment and certification scores analysis', module: 'Training', icon: FiBarChart2, comingSoon: true },
-      { id: 'compliance_training', name: 'Compliance Training Status', description: 'Mandatory compliance training completion and overdue status', module: 'Training', icon: FiShield, comingSoon: true },
+      { id: 'assessment_scores', name: 'Assessment Scores Report', description: 'Employee assessment and certification scores analysis', module: 'Training', icon: FiBarChart2, comingSoon: false },
+      { id: 'compliance_training', name: 'Compliance Training Status', description: 'Mandatory compliance training completion and overdue status', module: 'Training', icon: FiShield, comingSoon: false },
     ],
   },
   {
@@ -152,8 +152,8 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleColor: 'orange',
     reports: [
       { id: 'expense_summary', name: 'Expense Summary Report', description: 'Organization-wide expense claims summary by category and status', module: 'Expenses', icon: FiCreditCard, apiEndpoint: '/api/reports', apiType: 'expense_report' },
-      { id: 'dept_expenses', name: 'Department-wise Expenses', description: 'Expense distribution and trends by department', module: 'Expenses', icon: FiPieChart, comingSoon: true },
-      { id: 'policy_violations', name: 'Policy Violations Report', description: 'Expense claims that violate company policy rules', module: 'Expenses', icon: FiAlertTriangle, comingSoon: true },
+      { id: 'dept_expenses', name: 'Department-wise Expenses', description: 'Expense distribution and trends by department', module: 'Expenses', icon: FiPieChart, comingSoon: false },
+      { id: 'policy_violations', name: 'Policy Violations Report', description: 'Expense claims that violate company policy rules', module: 'Expenses', icon: FiAlertTriangle, comingSoon: false },
     ],
   },
   {
@@ -162,8 +162,8 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleColor: 'slate',
     reports: [
       { id: 'asset_inventory', name: 'Asset Inventory Report', description: 'Complete inventory of company assets with assignment details', module: 'Assets', icon: FiPackage, apiEndpoint: '/api/reports', apiType: 'asset_report' },
-      { id: 'asset_allocation', name: 'Asset Allocation Report', description: 'Asset-to-employee allocation and utilization summary', module: 'Assets', icon: FiClipboard, comingSoon: true },
-      { id: 'maintenance_schedule', name: 'Maintenance Schedule Report', description: 'Upcoming asset maintenance, warranty expiry, and renewal schedule', module: 'Assets', icon: FiTool, comingSoon: true },
+      { id: 'asset_allocation', name: 'Asset Allocation Report', description: 'Asset-to-employee allocation and utilization summary', module: 'Assets', icon: FiClipboard, comingSoon: false },
+      { id: 'maintenance_schedule', name: 'Maintenance Schedule Report', description: 'Upcoming asset maintenance, warranty expiry, and renewal schedule', module: 'Assets', icon: FiTool, comingSoon: false },
     ],
   },
   {
@@ -172,8 +172,8 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleColor: 'indigo',
     reports: [
       { id: 'project_utilization', name: 'Project Utilization Report', description: 'Employee utilization rates across active projects', module: 'Projects', icon: FiMonitor, apiEndpoint: '/api/reports', apiType: 'project_report' },
-      { id: 'time_tracking', name: 'Time Tracking Report', description: 'Hours logged by employees across projects and tasks', module: 'Projects', icon: FiClock, comingSoon: true },
-      { id: 'budget_vs_actual', name: 'Budget vs Actual Report', description: 'Project budget allocation compared to actual spending', module: 'Projects', icon: FiDollarSign, comingSoon: true },
+      { id: 'time_tracking', name: 'Time Tracking Report', description: 'Hours logged by employees across projects and tasks', module: 'Projects', icon: FiClock, comingSoon: false },
+      { id: 'budget_vs_actual', name: 'Budget vs Actual Report', description: 'Project budget allocation compared to actual spending', module: 'Projects', icon: FiDollarSign, comingSoon: false },
     ],
   },
   {
@@ -182,8 +182,8 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleColor: 'pink',
     reports: [
       { id: 'ticket_volume', name: 'Ticket Volume Report', description: 'Support ticket volume trends by category, priority, and channel', module: 'Helpdesk', icon: FiBarChart2, apiEndpoint: '/api/reports', apiType: 'helpdesk_report' },
-      { id: 'resolution_time', name: 'Resolution Time Report', description: 'Average ticket resolution time by agent and category', module: 'Helpdesk', icon: FiClock, comingSoon: true },
-      { id: 'sla_compliance', name: 'SLA Compliance Report', description: 'Service level agreement compliance rates and breach analysis', module: 'Helpdesk', icon: FiShield, comingSoon: true },
+      { id: 'resolution_time', name: 'Resolution Time Report', description: 'Average ticket resolution time by agent and category', module: 'Helpdesk', icon: FiClock, comingSoon: false },
+      { id: 'sla_compliance', name: 'SLA Compliance Report', description: 'Service level agreement compliance rates and breach analysis', module: 'Helpdesk', icon: FiShield, comingSoon: false },
     ],
   },
 ];
@@ -193,8 +193,8 @@ const statutoryReports: StatutoryReportDef[] = [
   { id: 'esi', name: 'ESI Half-Yearly Return', authority: 'Employees\' State Insurance Corporation', authorityShort: 'ESIC', icon: FiActivity, apiType: 'ESI', periodLabel: 'Half-Yearly' },
   { id: 'pt', name: 'Professional Tax Return', authority: 'State Tax Department', authorityShort: 'State Tax', icon: FiFileText, apiType: 'PT', periodLabel: 'Monthly' },
   { id: 'tds', name: 'TDS Quarterly Return (Form 24Q)', authority: 'Income Tax Department', authorityShort: 'IT Dept', icon: FiDollarSign, apiType: 'TDS', periodLabel: 'Quarterly' },
-  { id: 'form16', name: 'Form 16 Generation', authority: 'Income Tax Department', authorityShort: 'IT Dept', icon: FiFileText, apiType: 'TDS', periodLabel: 'Annual', comingSoon: true } as StatutoryReportDef & { comingSoon?: boolean },
-  { id: 'annual_return', name: 'Annual Return Summary', authority: 'Multiple Authorities', authorityShort: 'Multiple', icon: FiBarChart2, apiType: 'PF', periodLabel: 'Annual', comingSoon: true } as StatutoryReportDef & { comingSoon?: boolean },
+  { id: 'form16', name: 'Form 16 Generation', authority: 'Income Tax Department', authorityShort: 'IT Dept', icon: FiFileText, apiType: 'TDS', periodLabel: 'Annual', comingSoon: false } as StatutoryReportDef & { comingSoon?: boolean },
+  { id: 'annual_return', name: 'Annual Return Summary', authority: 'Multiple Authorities', authorityShort: 'Multiple', icon: FiBarChart2, apiType: 'PF', periodLabel: 'Annual', comingSoon: false } as StatutoryReportDef & { comingSoon?: boolean },
 ];
 
 const aiReports: AIReportDef[] = [

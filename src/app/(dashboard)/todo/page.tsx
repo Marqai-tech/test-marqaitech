@@ -183,13 +183,14 @@ function StatCard({ icon: Icon, label, value, color, iconBg }: {
   );
 }
 
-function TaskRow({ task, onToggleComplete, onDelete, onChangePriority, openActionMenu, onToggleActionMenu }: {
+function TaskRow({ task, onToggleComplete, onDelete, onChangePriority, openActionMenu, onToggleActionMenu, onEditTask }: {
   task: Task;
   onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onChangePriority: (id: string, priority: Priority) => void;
   openActionMenu: string | null;
   onToggleActionMenu: (id: string | null) => void;
+  onEditTask: (task: Task) => void;
 }) {
   const overdue = task.status !== 'Completed' && isOverdue(task.dueDate, task.status);
   const days = daysUntil(task.dueDate);
@@ -244,7 +245,7 @@ function TaskRow({ task, onToggleComplete, onDelete, onChangePriority, openActio
                   <div className="fixed inset-0 z-10" onClick={() => onToggleActionMenu(null)} />
                   <div className="absolute right-0 top-8 z-20 w-48 bg-white rounded-xl shadow-xl border border-thb-border py-1.5 animate-slide-in-down">
                     <button
-                      onClick={() => { onToggleActionMenu(null); toast('Edit functionality coming soon', { icon: '✏️' }); }}
+                      onClick={() => { onToggleActionMenu(null); onEditTask(task); }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary transition-colors"
                     >
                       <FiEdit2 className="w-3.5 h-3.5" /> Edit Task
@@ -403,6 +404,22 @@ export default function TodoPage() {
 
   const handleToggleActionMenu = useCallback((id: string | null) => {
     setOpenActionMenu(id);
+  }, []);
+
+  const handleEditTask = useCallback((task: Task) => {
+    // Open the add modal pre-populated with task data for editing
+    setNewTask({
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      category: task.category,
+      dueDate: task.dueDate,
+      assignedTo: task.assignedTo.name,
+    });
+    // Remove the old task so the "add" will effectively replace it
+    setTasks(prev => prev.filter(t => t.id !== task.id));
+    setShowAddModal(true);
+    toast.success('Task loaded for editing', { duration: 2000 });
   }, []);
 
   const handleAddTask = useCallback(() => {
@@ -644,6 +661,7 @@ export default function TodoPage() {
               onChangePriority={handleChangePriority}
               openActionMenu={openActionMenu}
               onToggleActionMenu={handleToggleActionMenu}
+              onEditTask={handleEditTask}
             />
           ))}
         </div>

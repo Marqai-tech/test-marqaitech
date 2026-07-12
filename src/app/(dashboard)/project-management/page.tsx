@@ -174,28 +174,34 @@ const projectTabs: DashboardTabConfig[] = [
 
 function ProjectReportsPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center shadow-lg mb-4">
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Project Reports</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md">
-        Project progress reports, resource utilization, and timeline analytics. Coming soon.
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        Project progress reports, resource utilization, and timeline analytics
       </p>
+      <a href="/project-management/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiBarChart2 className="w-4 h-4" /> Go to Reports
+      </a>
     </div>
   );
 }
 
 function ProjectSettingsPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center shadow-lg mb-4">
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center shadow-lg mb-4">
         <FiSettings className="w-7 h-7 text-white" />
       </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Project Settings</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md">
-        Configure project templates, default views, and notification preferences. Coming soon.
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Settings & Configuration</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        Configure project templates, default views, and notification preferences
       </p>
+      <a href="/project-management/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiSettings className="w-4 h-4" /> Go to Settings
+      </a>
     </div>
   );
 }

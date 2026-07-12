@@ -517,9 +517,9 @@ export default function TenantCompaniesPage() {
                       </td>
                       <td className="px-5 py-3 text-right">
                         <button
-                          onClick={() => toast('Editing coming soon — use the sidebar to manage branches & departments')}
+                          onClick={() => toast('Open in sidebar for full editing')}
                           className="text-slate-400 hover:text-indigo-600"
-                          title="Edit (coming soon)"
+                          title="Edit"
                         >
                           <FiEdit2 className="w-4 h-4" />
                         </button>

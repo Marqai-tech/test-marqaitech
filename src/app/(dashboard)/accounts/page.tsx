@@ -5,7 +5,7 @@ import {
   FiDollarSign, FiTrendingUp, FiTrendingDown, FiFileText, FiAlertCircle,
   FiPlus, FiDownload, FiRefreshCw, FiSearch, FiFilter, FiChevronRight,
   FiBookOpen, FiCreditCard, FiBarChart2, FiCheck, FiX, FiCalendar,
-  FiArrowUp, FiArrowDown, FiEye, FiEdit2, FiTrash2, FiGrid,
+  FiArrowUp, FiArrowDown, FiEye, FiEdit2, FiTrash2, FiGrid, FiSettings,
 } from 'react-icons/fi';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -113,18 +113,39 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 const accountsShellTabs: DashboardTabConfig[] = [
   { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
   { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+  { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
 ];
 
 function AccountsReportsPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg mb-4">
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Accounts Reports</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md">
-        Financial statements, trial balance, and custom accounting reports. Coming soon.
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        Financial statements, trial balance, and custom accounting reports
       </p>
+      <a href="/accounts/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiBarChart2 className="w-4 h-4" /> Go to Reports
+      </a>
+    </div>
+  );
+}
+
+function AccountsSettingsPlaceholder() {
+  return (
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center shadow-lg mb-4">
+        <FiSettings className="w-7 h-7 text-white" />
+      </div>
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Settings & Configuration</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        Configure fiscal year, currency, tax settings, and automation preferences
+      </p>
+      <a href="/accounts/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiSettings className="w-4 h-4" /> Go to Settings
+      </a>
     </div>
   );
 }
@@ -170,6 +191,7 @@ function AccountsPageContent() {
       overviewContent={<AccountsContent />}
       children={{
         reports: <AccountsReportsPlaceholder />,
+        settings: <AccountsSettingsPlaceholder />,
       }}
     />
   );
@@ -225,7 +247,7 @@ function AccountsContent() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'New Journal Entry', icon: <FiPlus className="w-5 h-5" />, onClick: () => setShowAddJournalModal(true), gradient: 'from-blue-500 to-indigo-600' },
-          { label: 'Record Payment', icon: <FiCreditCard className="w-5 h-5" />, onClick: () => toast.success('Payment recording coming soon'), gradient: 'from-emerald-500 to-teal-600' },
+          { label: 'Record Payment', icon: <FiCreditCard className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/bills', gradient: 'from-emerald-500 to-teal-600' },
           { label: 'Bank Reconciliation', icon: <FiRefreshCw className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/bank-reconciliation', gradient: 'from-amber-500 to-orange-600' },
           { label: 'Generate Report', icon: <FiBarChart2 className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/reports', gradient: 'from-purple-500 to-pink-600' },
         ].map((action) => (

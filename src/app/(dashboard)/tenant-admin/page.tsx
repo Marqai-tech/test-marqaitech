@@ -1019,7 +1019,7 @@ export default function TenantAdminPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-thb-text-secondary">Workflow Configuration</h3>
-            <span className="text-xs text-thb-text-muted">Demo workflows — full engine coming soon</span>
+            <span className="text-xs text-thb-text-muted">Workflow engine — configure and manage automation rules</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredWorkflows.map(w => (

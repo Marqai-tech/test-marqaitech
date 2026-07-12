@@ -62,18 +62,30 @@ export default function ModuleDashboardShell({
     if (children[activeTab]) {
       return children[activeTab];
     }
-    // Placeholder for tabs without content
+    // Placeholder for tabs without content — provide navigation to dedicated pages
+    const tabLabel = tabs.find(t => t.key === activeTab)?.label || activeTab;
+    const tabKey = activeTab;
+    // Build a link to the dedicated page if it's a reports or settings tab
+    let navLink = '';
+    if (tabKey === 'reports') navLink = `/${moduleKey === 'company' ? 'reports' : moduleKey === 'employee' ? 'employees/dashboard' : moduleKey}/reports`;
+    else if (tabKey === 'settings') navLink = `/${moduleKey === 'company' ? 'settings' : moduleKey === 'employee' ? 'settings' : moduleKey === 'payroll' ? 'payroll/salary-settings' : moduleKey}/settings`;
+
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradientColor} flex items-center justify-center shadow-lg mb-4`}>
           {tabs.find(t => t.key === activeTab)?.icon || moduleIcon}
         </div>
         <h3 className="text-lg font-bold text-thb-text-primary mb-1">
-          {tabs.find(t => t.key === activeTab)?.label || activeTab}
+          {tabLabel}
         </h3>
-        <p className="text-sm text-thb-text-secondary text-center max-w-md">
-          This section is coming soon. {moduleLabel} {tabs.find(t => t.key === activeTab)?.label} will be available in a future update.
+        <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+          {moduleLabel} {tabLabel} — view and manage {tabKey === 'reports' ? 'analytics and reports' : tabKey === 'settings' ? 'configuration and preferences' : 'details'}.
         </p>
+        {navLink && (
+          <a href={navLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+            Go to {tabLabel}
+          </a>
+        )}
       </div>
     );
   };

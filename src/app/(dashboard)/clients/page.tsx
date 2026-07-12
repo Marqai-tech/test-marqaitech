@@ -5,7 +5,7 @@ import {
   FiPlus, FiX, FiSearch, FiGlobe, FiMail,
   FiMapPin, FiBriefcase, FiEye, FiEdit2, FiTrash2,
   FiPhone, FiDollarSign, FiCalendar,
-  FiGrid, FiFileText,
+  FiGrid, FiFileText, FiBarChart2,
 } from 'react-icons/fi';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
@@ -48,14 +48,17 @@ const externalTabs: DashboardTabConfig[] = [
 
 function ExternalReportsPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg mb-4">
+    <div className="flex flex-col items-center py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
-      <h3 className="text-lg font-bold text-thb-text-primary mb-1">External Relations Reports</h3>
-      <p className="text-sm text-thb-text-secondary text-center max-w-md">
-        Client engagement reports, billing summaries, and relationship analytics. Coming soon.
+      <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
+      <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
+        Client engagement reports, billing summaries, and relationship analytics
       </p>
+      <a href="/clients/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+        <FiBarChart2 className="w-4 h-4" /> Go to Reports
+      </a>
     </div>
   );
 }
