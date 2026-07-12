@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
+import { useCompanyContextStore } from '@/store/companyContextStore'
 
 /* ── Types ── */
 interface EmployeeCredential {
@@ -206,6 +207,8 @@ const defaultCustomFields: CustomField[] = [
 
 export default function EmployeeSettingsPage() {
   const { user } = useAuthStore()
+  const { effectiveCompanyId } = useCompanyContextStore()
+  const scopeCompanyId = effectiveCompanyId()
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin'
 
   /* State */
@@ -271,6 +274,7 @@ export default function EmployeeSettingsPage() {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
       if (filterDept) params.set('departmentId', filterDept)
+      if (scopeCompanyId) params.set('companyId', scopeCompanyId)
       const res = await fetch(`/api/employees/credentials?${params.toString()}`, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
@@ -288,7 +292,7 @@ export default function EmployeeSettingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, filterDept])
+  }, [search, filterDept, scopeCompanyId])
 
   const fetchDepartments = useCallback(async () => {
     try {
