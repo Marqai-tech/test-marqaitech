@@ -71,6 +71,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   clients: ['super_admin', 'tenant_admin', 'admin'],
   vendors: ['super_admin', 'tenant_admin', 'admin'],
   ai_admin: ['super_admin'],
+  governance: ['super_admin', 'tenant_admin', 'admin'],
 };
 
 /**
