@@ -142,7 +142,7 @@ export const navSections: NavSection[] = [
   },
 
   // ─── 2. COMPANY MODULE ───
-  // Masters / Settings / Reports → dashboardTabs (inside Company Dashboard)
+  // Masters / Settings / Reports → separate sidebar sub-pages
   {
     key: 'company',
     label: 'Company',
@@ -157,6 +157,25 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Company Dashboard', href: '/company', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'company' },
+
+      // ── Company Masters ──
+      { label: 'Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
+      { label: 'Companies', href: '/company/companies', icon: <FiHome className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Branches', href: '/company/branches', icon: <FiMapPin className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Departments', href: '/company/departments', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Designations', href: '/company/designations', icon: <FiAward className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Grades', href: '/company/grades', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Shifts', href: '/company/shifts', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Holidays', href: '/company/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'company' },
+      { label: 'Policies', href: '/company/policies', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'company' },
+
+      // ── Company Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
+      { label: 'Company Settings', href: '/company/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'company', isNew: true },
+
+      // ── Company Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
+      { label: 'Company Reports', href: '/company/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'company', isNew: true },
     ],
   },
 
