@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FiHome, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiLayers, FiInfo, FiAlertTriangle, FiCheckCircle, FiSettings } from 'react-icons/fi'
+import { FiHome, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiLayers, FiInfo, FiAlertTriangle, FiCheckCircle, FiSettings, FiBriefcase } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtSalary, fmtDate, fmtDay, fmtTime, gradeCode, gradeName, getStatusBadge } from '@/components/company/useCompanyData'
 import { CompanyRecord } from '@/components/company/useCompanyData'
