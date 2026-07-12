@@ -208,6 +208,10 @@ export const navSections: NavSection[] = [
       // ── Structure ──
       { label: 'Structure', href: '#structure-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
       { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+
+      // ── Settings ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
+      { label: 'Employee Settings', href: '/employees/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
     ],
   },
 
