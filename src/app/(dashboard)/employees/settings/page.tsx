@@ -7,7 +7,7 @@ import {
   FiUserCheck, FiUserX, FiPlus, FiTrash2, FiShield, FiToggleLeft,
   FiToggleRight, FiDownload, FiX, FiChevronDown, FiFilter,
   FiClock, FiUser, FiSave, FiEdit2, FiList, FiCalendar,
-  FiDollarSign, FiGlobe, FiDatabase, FiFileText
+  FiDollarSign, FiGlobe, FiDatabase, FiFileText, FiBriefcase
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'

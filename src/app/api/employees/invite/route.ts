@@ -155,11 +155,11 @@ export async function POST(request: Request) {
     });
     if (!admin) return NextResponse.json({ error: 'Admin not found' }, { status: 404, headers: corsHeaders() });
 
-    // Build where clause
+    // Build where clause — use Department → Company → CompanyGroup path for tenant scoping
     const where: Record<string, unknown> = {};
     if (mode === 'selected') where.id = { in: employeeIds };
-    if (admin.role !== 'super_admin') {
-      where.company = { companyGroup: { tenantId: admin.tenantId } };
+    if (admin.role !== 'super_admin' && admin.tenantId) {
+      where.department = { company: { companyGroup: { tenantId: admin.tenantId } } };
     }
 
     const employees = await prisma.employee.findMany({

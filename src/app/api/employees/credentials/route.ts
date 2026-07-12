@@ -71,9 +71,10 @@ export async function GET(request: Request) {
     }
     if (departmentId) where.departmentId = departmentId;
 
-    // Scope by tenant
-    if (user.role !== 'super_admin') {
-      where.company = { companyGroup: { tenantId: user.tenantId } };
+    // Scope by tenant — use Department → Company → CompanyGroup path
+    // (Employee.company relation is not defined in schema, so we go through department)
+    if (user.role !== 'super_admin' && user.tenantId) {
+      where.department = { company: { companyGroup: { tenantId: user.tenantId } } };
     }
 
     const [employees, total] = await Promise.all([
@@ -160,8 +161,9 @@ export async function POST(request: Request) {
     if (mode !== 'all') {
       where.id = { in: employeeIds };
     }
-    if (admin.role !== 'super_admin') {
-      where.company = { companyGroup: { tenantId: effectiveTenantId } };
+    // Scope by tenant — use Department → Company → CompanyGroup path
+    if (admin.role !== 'super_admin' && effectiveTenantId) {
+      where.department = { company: { companyGroup: { tenantId: effectiveTenantId } } };
     }
 
     const employees = await prisma.employee.findMany({
@@ -170,7 +172,7 @@ export async function POST(request: Request) {
     });
 
     if (employees.length === 0) {
-      return NextResponse.json({ error: 'No employees found' }, { status: 404, headers: corsHeaders() });
+      return NextResponse.json({ error: 'No employees found for your tenant. Ensure employees have departments assigned.' }, { status: 404, headers: corsHeaders() });
     }
 
     const results: Array<{
