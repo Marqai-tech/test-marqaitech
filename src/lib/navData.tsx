@@ -212,6 +212,10 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
       { label: 'Employee Settings', href: '/employees/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+
+      // ── Reports ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
+      { label: 'Employee Reports', href: '/employees/reports', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
     ],
   },
 
