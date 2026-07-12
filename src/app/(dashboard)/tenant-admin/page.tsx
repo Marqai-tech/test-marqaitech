@@ -158,13 +158,14 @@ export default function TenantAdminPage() {
 
   /* Fetch tenant info (the tenant_admin's own tenant) */
   const fetchTenantInfo = useCallback(async () => {
-    if (!user?.tenantId) {
+    const tid = user?.tenantId || user?.tenant?.id;
+    if (!tid) {
       setLoading(false);
       return;
     }
     try {
       setLoading(true);
-      const res = await fetch(`/api/tenants/${user.tenantId}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/tenants/${tid}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const t = data.tenant || data;
@@ -240,10 +241,10 @@ export default function TenantAdminPage() {
     );
   }
 
-  // Also handle the case where the user IS a tenant_admin but their JWT
-  // doesn't have a tenantId (e.g. legacy data, or a misconfigured account).
-  // Show a clear "your account is not linked to a tenant" message.
-  if (user && user.role === 'tenant_admin' && !user.tenantId) {
+  // Also handle the case where the user IS a tenant_admin but their account
+  // doesn't have a tenantId or tenant object (e.g. legacy data, misconfigured account,
+  // or /api/auth/me not returning tenantId). Show a clear message.
+  if (user && user.role === 'tenant_admin' && !user.tenantId && !user.tenant?.id) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">

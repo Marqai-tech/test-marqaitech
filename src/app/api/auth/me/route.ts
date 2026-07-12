@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         status: true,
         lastLogin: true,
         createdAt: true,
+        tenantId: true,
         tenant: {
           select: {
             id: true,
@@ -139,6 +140,7 @@ export async function GET(request: Request) {
         role: user.role,
         avatar: user.avatar,
         status: user.status,
+        tenantId: user.tenantId,
         tenant: {
           id: user.tenant.id,
           name: user.tenant.name,
