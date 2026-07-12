@@ -129,8 +129,7 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Tenant Dashboard', href: '/company', icon: <FiGrid className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
-      { label: 'Tenant Console', href: '/tenant-admin', icon: <FiServer className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
+      { label: 'Tenant Dashboard', href: '/tenant-admin', icon: <FiGrid className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Sub-Companies', href: '/tenant-admin/companies', icon: <FiBriefcase className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Group Companies', href: '/tenant-admin/group-companies', icon: <FiLayers className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
       { label: 'Company RBAC', href: '/tenant-admin/rbac', icon: <FiLock className="w-4 h-4" />, roles: ['tenant_admin'], isNew: true },
