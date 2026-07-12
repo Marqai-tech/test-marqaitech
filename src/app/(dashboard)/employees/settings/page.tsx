@@ -980,7 +980,7 @@ export default function EmployeeSettingsPage() {
             <div className="thb-card overflow-hidden">
               <div className="px-5 py-4 border-b border-thb-border">
                 <h3 className="font-semibold text-thb-text-primary">Invite Results</h3>
-                <p className="text-xs text-thb-text-muted mt-0.5">{inviteResults.filter(r => r.success).length} of {inviteResults.length} invitations processed</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">{inviteResults.filter(r => r.success).length} of {inviteResults.length} invitations processed · {inviteResults.filter(r => (r as Record<string, unknown>).emailSent).length} emails sent</p>
               </div>
               <div className="divide-y divide-thb-border">
                 {inviteResults.map((r, idx) => (
@@ -988,7 +988,14 @@ export default function EmployeeSettingsPage() {
                     {r.success ? <FiCheck className="w-4 h-4 text-emerald-500" /> : <FiX className="w-4 h-4 text-red-500" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-thb-text-primary font-medium">{r.name} <span className="font-normal text-thb-text-muted">({r.employeeId})</span></p>
-                      <p className="text-xs text-thb-text-muted">{r.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-thb-text-muted">{r.email}</p>
+                        {(r as Record<string, unknown>).emailSent ? (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-emerald-600"><FiMail className="w-3 h-3" /> Email sent</span>
+                        ) : r.success ? (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-amber-600"><FiAlertTriangle className="w-3 h-3" /> Email not sent (configure RESEND_API_KEY)</span>
+                        ) : null}
+                      </div>
                     </div>
                     {r.success && r.password && (
                       <div className="flex items-center gap-1.5">

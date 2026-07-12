@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { getDataScope } from '@/lib/roleAccess';
+import { sendEmail } from '@/lib/email';
 
 function corsHeaders() {
   return {
@@ -12,7 +14,6 @@ function corsHeaders() {
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
-
 }
 
 /** Generate a strong random password */
@@ -155,34 +156,27 @@ export async function POST(request: Request) {
     });
     if (!admin) return NextResponse.json({ error: 'Admin not found' }, { status: 404, headers: corsHeaders() });
 
-    // Build where clause — same tenant scoping pattern as /api/employees
+    // Build where clause — SAME approach as /api/employees (using getDataScope)
+    const scope = getDataScope(admin.role);
     const where: Record<string, unknown> = {};
-    if (mode === 'selected') where.id = { in: employeeIds };
-    if (admin.role !== 'super_admin' && admin.tenantId) {
-      const tenantCompanyIds = await prisma.company.findMany({
-        where: { companyGroup: { tenantId: admin.tenantId } },
-        select: { id: true },
+
+    if (mode === 'selected') {
+      where.id = { in: employeeIds };
+    }
+
+    // Data scope filtering — same as /api/employees and /api/employees/credentials GET
+    if (scope === 'self' && admin.id) {
+      where.userId = admin.id;
+    } else if (scope === 'team' && admin.id) {
+      const ownEmp = await prisma.employee.findFirst({
+        where: { userId: admin.id, status: 'active' },
+        select: { departmentId: true },
       });
-      const companyIds = tenantCompanyIds.map(c => c.id);
-      if (companyIds.length > 0) {
-        const tenantFilter = {
-          OR: [
-            { companyId: { in: companyIds } },
-            { department: { companyId: { in: companyIds } } },
-          ],
-        };
-        if (mode === 'selected') {
-          // Combine: specific employee IDs AND tenant scope
-          where.AND = [
-            { id: { in: employeeIds } },
-            tenantFilter,
-          ];
-          delete where.id;
-        } else {
-          Object.assign(where, tenantFilter);
-        }
+      if (ownEmp) {
+        where.departmentId = ownEmp.departmentId;
       }
     }
+    // scope === 'all' → no additional filtering (tenant_admin, admin, super_admin can see all)
 
     const employees = await prisma.employee.findMany({
       where,
@@ -203,6 +197,7 @@ export async function POST(request: Request) {
       email: string;
       password: string;
       success: boolean;
+      emailSent: boolean;
       error?: string;
     }> = [];
 
@@ -244,7 +239,7 @@ export async function POST(request: Request) {
                   email: emp.email,
                   password: hashedPwd,
                   name: `${emp.firstName} ${emp.lastName}`,
-                  role: 'admin',
+                  role: 'employee',
                   tenantId: admin.tenantId,
                   status: 'active',
                 },
@@ -258,10 +253,7 @@ export async function POST(request: Request) {
           }
         }
 
-        // In production, this would send an actual email via SendGrid/AWS SES/etc.
-        // For now, we store the invite details and return them so the UI can display them.
-        // The email template HTML is generated for preview purposes.
-
+        // Build and send the invite email
         const emailHtml = buildInviteEmailHtml({
           employeeName: `${emp.firstName} ${emp.lastName}`,
           email: emp.email,
@@ -272,8 +264,13 @@ export async function POST(request: Request) {
           adminName: admin.name,
         });
 
-        // Log the invite (in production, you'd send via email service)
-        console.log(`[INVITE] Sending invite to ${emp.email} for tenant ${admin.tenant?.name}`);
+        const emailResult = await sendEmail({
+          to: emp.email,
+          subject: `You're invited to join ${admin.tenant?.name || '3Boxes HRMS'} HRMS`,
+          html: emailHtml,
+        });
+
+        console.log(`[INVITE] Invite ${emailResult.success ? 'sent' : 'failed'} for ${emp.email} (tenant: ${admin.tenant?.name})`);
 
         results.push({
           employeeId: emp.employeeId,
@@ -281,6 +278,8 @@ export async function POST(request: Request) {
           email: emp.email,
           password: pwd,
           success: true,
+          emailSent: emailResult.success,
+          error: emailResult.error,
         });
       } catch (err) {
         results.push({
@@ -289,17 +288,19 @@ export async function POST(request: Request) {
           email: emp.email,
           password: '',
           success: false,
+          emailSent: false,
           error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     }
 
     const successCount = results.filter(r => r.success).length;
+    const emailSentCount = results.filter(r => r.emailSent).length;
 
     return NextResponse.json({
-      message: `Invites processed: ${successCount}/${results.length} successful`,
+      message: `Invites processed: ${successCount}/${results.length} successful, ${emailSentCount} emails sent`,
       results,
-      summary: { total: results.length, succeeded: successCount, failed: results.length - successCount },
+      summary: { total: results.length, succeeded: successCount, emailsSent: emailSentCount, failed: results.length - successCount },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[Invite POST] Error:', error);
