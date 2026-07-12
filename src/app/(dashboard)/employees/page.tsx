@@ -786,8 +786,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       {/* When formOnly mode (Add Employee page), show ONLY the form */}
       {/* Breadcrumb - SmartHR style */}
       {!formOnly ? (
-        <div className="d-md-flex d-block align-items-center justify-content-between mb-4">
-          <div className="mb-3 sm:mb-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+          <div>
             <h2 className="text-xl font-bold text-slate-900 mb-1">Employees List</h2>
             <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <button onClick={() => router.push('/')} className="hover:text-blue-600 transition-colors">Home</button>
@@ -796,12 +796,6 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             </nav>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            {isAdmin && (
-              <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors">
-                <FiPlus className="w-4 h-4" />
-                Add Employee
-              </button>
-            )}
             {/* View Toggle */}
             <div className="flex items-center border border-slate-200 rounded-lg p-0.5">
               <button
@@ -819,6 +813,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 <FiGrid className="w-4 h-4" />
               </button>
             </div>
+            {isAdmin && (
+              <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors">
+                <FiPlus className="w-4 h-4" />
+                Add Employee
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -941,24 +941,6 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         <div className="p-4 border-b border-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
-              {/* View Toggle */}
-              <div className="flex items-center border border-slate-200 rounded-lg p-0.5">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                  title="List View"
-                >
-                  <FiList className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                  title="Grid View"
-                >
-                  <FiGrid className="w-4 h-4" />
-                </button>
-              </div>
-
               {/* Search */}
               <div className="relative flex-1 min-w-[200px]">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
