@@ -36,7 +36,7 @@ interface Department {
   name: string
 }
 
-type TabKey = 'credentials' | 'invite' | 'bulk' | 'employee-config' | 'custom-fields'
+type TabKey = 'credentials' | 'invite' | 'bulk' | 'map-company' | 'employee-config' | 'custom-fields'
 
 /* ── Setting Types ── */
 type SettingType = 'toggle' | 'select' | 'number' | 'text'
@@ -207,7 +207,7 @@ const defaultCustomFields: CustomField[] = [
 
 export default function EmployeeSettingsPage() {
   const { user } = useAuthStore()
-  const { effectiveCompanyId } = useCompanyContextStore()
+  const { effectiveCompanyId, availableCompanies } = useCompanyContextStore()
   const scopeCompanyId = effectiveCompanyId()
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin'
 
@@ -215,6 +215,8 @@ export default function EmployeeSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('credentials')
   const [employees, setEmployees] = useState<EmployeeCredential[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
+  const [designations, setDesignations] = useState<Array<{ id: string; title: string }>>([])
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterDept, setFilterDept] = useState('')
@@ -240,6 +242,26 @@ export default function EmployeeSettingsPage() {
   const [inviteResults, setInviteResults] = useState<Array<{
     employeeId: string; name: string; email: string; password: string; success: boolean; error?: string
   }> | null>(null)
+
+  // Map Company
+  const [mapCompanySearch, setMapCompanySearch] = useState('')
+  const [selectedMapEmployee, setSelectedMapEmployee] = useState<EmployeeCredential | null>(null)
+  const [companyMappings, setCompanyMappings] = useState<Array<{
+    id: string; employeeId: string; companyId: string; employeeCode: string; isPrimary: boolean;
+    departmentId?: string | null; designationId?: string | null; branchId?: string | null;
+    company?: { id: string; name: string; code: string | null };
+    department?: { id: string; name: string } | null;
+    designation?: { id: string; title: string } | null;
+    branch?: { id: string; name: string } | null;
+  }>>([])
+  const [showAddMapping, setShowAddMapping] = useState(false)
+  const [newMappingCompanyId, setNewMappingCompanyId] = useState('')
+  const [newMappingEmpCode, setNewMappingEmpCode] = useState('')
+  const [newMappingDeptId, setNewMappingDeptId] = useState('')
+  const [newMappingDesigId, setNewMappingDesigId] = useState('')
+  const [newMappingBranchId, setNewMappingBranchId] = useState('')
+  const [newMappingIsPrimary, setNewMappingIsPrimary] = useState(false)
+  const [mapCompanyProcessing, setMapCompanyProcessing] = useState(false)
 
   // Detail modal
   const [detailEmployee, setDetailEmployee] = useState<EmployeeCredential | null>(null)
@@ -304,8 +326,30 @@ export default function EmployeeSettingsPage() {
     } catch { /* ignore */ }
   }, [])
 
+  const fetchDesignations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/company/designations', { headers: getAuthHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        setDesignations((data.designations || data || []).map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const fetchBranches = useCallback(async () => {
+    try {
+      const res = await fetch('/api/company/branches', { headers: getAuthHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        setBranches((data.branches || data || []).map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
   useEffect(() => { fetchDepartments() }, [fetchDepartments])
+  useEffect(() => { fetchDesignations() }, [fetchDesignations])
+  useEffect(() => { fetchBranches() }, [fetchBranches])
 
   /* Selection */
   const toggleSelect = (id: string) => {
@@ -420,6 +464,103 @@ export default function EmployeeSettingsPage() {
     } finally {
       setInviteProcessing(false)
     }
+  }
+
+  /* Map Company handlers */
+  const fetchCompanyMappings = async (empId: string) => {
+    try {
+      const res = await fetch(`/api/employees/company-mappings?employeeId=${empId}`, { headers: getAuthHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        setCompanyMappings(data.mappings || [])
+      }
+    } catch { /* ignore */ }
+  }
+
+  const addCompanyMapping = async () => {
+    if (!selectedMapEmployee || !newMappingCompanyId || !newMappingEmpCode) {
+      toast.error('Employee, company, and employee code are required')
+      return
+    }
+    setMapCompanyProcessing(true)
+    try {
+      const res = await fetch('/api/employees/company-mappings', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          employeeId: selectedMapEmployee.id,
+          companyId: newMappingCompanyId,
+          employeeCode: newMappingEmpCode,
+          departmentId: newMappingDeptId || undefined,
+          designationId: newMappingDesigId || undefined,
+          branchId: newMappingBranchId || undefined,
+          isPrimary: newMappingIsPrimary,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success('Company mapping added successfully')
+        setShowAddMapping(false)
+        setNewMappingCompanyId('')
+        setNewMappingEmpCode('')
+        setNewMappingDeptId('')
+        setNewMappingDesigId('')
+        setNewMappingBranchId('')
+        setNewMappingIsPrimary(false)
+        fetchCompanyMappings(selectedMapEmployee.id)
+        fetchEmployees()
+      } else {
+        toast.error(data.error || 'Failed to add mapping')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed')
+    } finally {
+      setMapCompanyProcessing(false)
+    }
+  }
+
+  const removeMapping = async (mappingId: string) => {
+    try {
+      const res = await fetch(`/api/employees/company-mappings?id=${mappingId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success('Mapping removed')
+        if (selectedMapEmployee) fetchCompanyMappings(selectedMapEmployee.id)
+      } else {
+        toast.error(data.error || 'Failed to remove mapping')
+      }
+    } catch (err) {
+      toast.error('Failed to remove mapping')
+    }
+  }
+
+  const setPrimaryMapping = async (mappingId: string) => {
+    // Optimistically update, then call API to set primary
+    try {
+      // First unset all existing primary for this employee
+      await prismaFetch('/api/employees/company-mappings', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          employeeId: selectedMapEmployee?.id,
+          companyId: companyMappings.find(m => m.id === mappingId)?.companyId,
+          employeeCode: companyMappings.find(m => m.id === mappingId)?.employeeCode || '',
+          isPrimary: true,
+        }),
+      })
+      // Refresh
+      if (selectedMapEmployee) fetchCompanyMappings(selectedMapEmployee.id)
+      toast.success('Primary company updated')
+    } catch {
+      toast.error('Failed to set primary')
+    }
+  }
+
+  const prismaFetch = async (url: string, options: RequestInit) => {
+    return fetch(url, options)
   }
 
   /* Single employee actions */
@@ -713,6 +854,7 @@ export default function EmployeeSettingsPage() {
             { key: 'credentials' as TabKey, label: 'Login Credentials', icon: FiKey },
             { key: 'invite' as TabKey, label: 'Invite', icon: FiSend },
             { key: 'bulk' as TabKey, label: 'Bulk Ops', icon: FiRefreshCw },
+            { key: 'map-company' as TabKey, label: 'Map Company', icon: FiBriefcase },
             { key: 'employee-config' as TabKey, label: 'Configuration', icon: FiSettings },
             { key: 'custom-fields' as TabKey, label: 'Custom Fields', icon: FiList },
           ]).map(tab => (
@@ -1143,6 +1285,186 @@ export default function EmployeeSettingsPage() {
                     {r.error && <span className="text-xs text-red-500">{r.error}</span>}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ MAP COMPANY TAB ═══ */}
+      {activeTab === 'map-company' && (
+        <div className="space-y-6">
+          {/* Info Banner */}
+          <div className="thb-card border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50/60 to-violet-50/40">
+            <div className="p-4 flex items-start gap-3">
+              <FiBriefcase className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-slate-900 mb-1">Map Employee to Multiple Companies</p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Map an employee to multiple companies with different employee IDs per company. When an employee is mapped,
+                  they can switch between companies using the company dropdown in the header. Each mapping can have its own
+                  department, designation, and branch within that company.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Select Employee */}
+          <div className="thb-card p-5 space-y-4">
+            <h3 className="font-semibold text-thb-text-primary">Select Employee</h3>
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+              <input
+                type="text"
+                placeholder="Search employee by name or ID..."
+                value={mapCompanySearch}
+                onChange={e => setMapCompanySearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+              />
+            </div>
+            {mapCompanySearch && (
+              <div className="max-h-48 overflow-y-auto border border-thb-border rounded-lg divide-y divide-thb-border">
+                {employees
+                  .filter(e => `${e.firstName} ${e.lastName} ${e.employeeId}`.toLowerCase().includes(mapCompanySearch.toLowerCase()))
+                  .slice(0, 10)
+                  .map(emp => (
+                    <button
+                      key={emp.id}
+                      onClick={() => {
+                        setSelectedMapEmployee(emp)
+                        setMapCompanySearch(`${emp.firstName} ${emp.lastName} (${emp.employeeId})`)
+                        fetchCompanyMappings(emp.id)
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${selectedMapEmployee?.id === emp.id ? 'bg-indigo-50' : ''}`}
+                    >
+                      <FiUser className="w-4 h-4 text-thb-text-muted" />
+                      <div>
+                        <p className="text-sm font-medium text-thb-text-primary">{emp.firstName} {emp.lastName}</p>
+                        <p className="text-xs text-thb-text-muted">{emp.employeeId} — {emp.email}</p>
+                      </div>
+                    </button>
+                  ))
+                }
+              </div>
+            )}
+          </div>
+
+          {/* Current Mappings */}
+          {selectedMapEmployee && (
+            <div className="thb-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-thb-text-primary">Company Mappings for {selectedMapEmployee.firstName} {selectedMapEmployee.lastName}</h3>
+                  <p className="text-xs text-thb-text-muted mt-0.5">Employee can switch between mapped companies from the header dropdown</p>
+                </div>
+                <button
+                  onClick={() => setShowAddMapping(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  <FiPlus className="w-3.5 h-3.5" /> Add Company Mapping
+                </button>
+              </div>
+              {companyMappings.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <FiBriefcase className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
+                  <p className="text-sm text-thb-text-muted">No company mappings yet</p>
+                  <p className="text-xs text-thb-text-muted mt-1">Click "Add Company Mapping" to map this employee to a company</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-thb-border">
+                  {companyMappings.map(mapping => (
+                    <div key={mapping.id} className="flex items-center gap-4 px-5 py-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-thb-text-primary">{mapping.company?.name || 'Unknown'}</p>
+                          {mapping.isPrimary && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xs text-thb-text-muted">ID: {mapping.employeeCode}</span>
+                          {mapping.department && <span className="text-xs text-thb-text-muted">Dept: {mapping.department.name}</span>}
+                          {mapping.designation && <span className="text-xs text-thb-text-muted">Role: {mapping.designation.title}</span>}
+                          {mapping.branch && <span className="text-xs text-thb-text-muted">Branch: {mapping.branch.name}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!mapping.isPrimary && (
+                          <button
+                            onClick={() => setPrimaryMapping(mapping.id)}
+                            className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+                          >
+                            Set Primary
+                          </button>
+                        )}
+                        {!mapping.isPrimary && (
+                          <button
+                            onClick={() => removeMapping(mapping.id)}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Add Mapping Modal */}
+          {showAddMapping && selectedMapEmployee && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowAddMapping(false)}>
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-thb-text-primary">Add Company Mapping</h3>
+                  <button onClick={() => setShowAddMapping(false)} className="p-1 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"><FiX className="w-5 h-5" /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label>
+                    <select value={newMappingCompanyId} onChange={e => setNewMappingCompanyId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                      <option value="">Select Company</option>
+                      {availableCompanies.filter(c => !companyMappings.some(m => m.companyId === c.id)).map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee ID for this Company *</label>
+                    <input type="text" value={newMappingEmpCode} onChange={e => setNewMappingEmpCode(e.target.value)} placeholder="e.g. EMP-002" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
+                    <select value={newMappingDeptId} onChange={e => setNewMappingDeptId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
+                      <option value="">Select Department</option>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
+                    <select value={newMappingDesigId} onChange={e => setNewMappingDesigId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
+                      <option value="">Select Designation</option>
+                      {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
+                    <select value={newMappingBranchId} onChange={e => setNewMappingBranchId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
+                      <option value="">Select Branch</option>
+                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={newMappingIsPrimary} onChange={e => setNewMappingIsPrimary(e.target.checked)} className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500" />
+                    <span className="text-sm text-thb-text-secondary">Set as primary company</span>
+                  </label>
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => setShowAddMapping(false)} className="flex-1 px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
+                    <button onClick={addCompanyMapping} disabled={mapCompanyProcessing} className="flex-1 px-4 py-2.5 rounded-lg bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
+                      {mapCompanyProcessing ? 'Adding...' : 'Add Mapping'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -174,6 +174,7 @@ const initialForm = {
   departmentId: '',
   designationId: '',
   branchId: '',
+  role: '',
   dateOfJoining: '',
   bankName: '',
   bankAccountNo: '',
@@ -1231,6 +1232,18 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <option value="">Select Branch</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
+                        Role *
+                        <span className="ml-1 text-[10px] font-normal text-thb-text-muted">(Determines module access & permissions)</span>
+                      </label>
+                      <select value={form.role} onChange={e => updateForm('role', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <option value="">Select Role</option>
+                        <option value="admin">Admin (Full Access)</option>
+                        <option value="employee">Employee (Self-Service)</option>
+                      </select>
+                      <p className="text-[10px] text-thb-text-muted mt-1">This role determines which menus and modules the employee can access after login</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Joining *</label>
