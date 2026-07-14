@@ -103,3 +103,29 @@ Stage Summary:
 - All code changes committed locally
 - Build compiles successfully
 - GitHub push requires new/valid PAT token from user
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Session continuation - email fix, company scoping, cleanup, security hardening, deploy
+
+Work Log:
+- Added /api/email/test endpoint (GET=diagnose config, POST=send test email)
+- Fixed branches API: added getCompanyFilter for GET, auth+tenant checks for POST/PUT/DELETE
+- Fixed dashboard API: replaced manual getDataScope+companyId with resolveCompanyScope
+- Fixed payroll API: added company-scoped employee filtering via resolveCompanyScope
+- Fixed payroll/components API: added getCompanyFilter for GET, auth+companyId for POST
+- Fixed companies API PUT/DELETE: added requireAuth, role check, tenant ownership verification
+- Fixed invite route: now preserves employee's assigned role when creating user accounts (was hardcoded 'employee')
+- Created /api/cleanup endpoint for removing sample data from 3boxeshrms.com and marqaitechgroup.3boxeshrms.com tenants
+- Build verified successfully (next build passes)
+- Git push with new PAT (ghp_Jf5Gd...) succeeded - pushed to main
+- Vercel auto-deploy triggered from GitHub push
+
+Stage Summary:
+- Email diagnostic endpoint available at GET/POST /api/email/test
+- Company-scoped data visibility enforced in branches, dashboard, payroll, companies APIs
+- Security: companies PUT/DELETE now require auth + tenant ownership
+- Invite route now respects employee's assigned role
+- Sample data cleanup available at POST /api/cleanup with {confirm: true}
+- All changes deployed to Vercel via git push
