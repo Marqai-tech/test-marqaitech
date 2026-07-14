@@ -387,9 +387,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT /api/companies — Update a company
+// PUT /api/companies — Update a company (admin only)
 export async function PUT(req: NextRequest) {
   try {
+    // ─── Auth check ───
+    const decoded = await requireAuth(req);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+    const role = (decoded.role as string) || 'employee';
+    const callerTenantId = decoded.tenantId as string;
+
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -397,9 +409,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Company ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await db.company.findUnique({ where: { id } });
+    const existing = await db.company.findUnique({
+      where: { id },
+      include: { companyGroup: { select: { id: true, name: true, tenantId: true } } },
+    });
     if (!existing) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Verify ownership for non-super_admin
+    if (role !== 'super_admin' && existing.companyGroup?.tenantId !== callerTenantId) {
+      return NextResponse.json({ error: 'Company does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
     }
 
     const company = await db.company.update({
@@ -418,14 +438,39 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE /api/companies — Delete a company
+// DELETE /api/companies — Delete a company (super_admin or tenant_admin only)
 export async function DELETE(req: NextRequest) {
   try {
+    // ─── Auth check ───
+    const decoded = await requireAuth(req);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+    const role = (decoded.role as string) || 'employee';
+    const callerTenantId = decoded.tenantId as string;
+
+    if (!['super_admin', 'tenant_admin'].includes(role)) {
+      return NextResponse.json({ error: 'Only admins can delete companies' }, { status: 403, headers: corsHeaders() });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Company ID is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const existing = await db.company.findUnique({
+      where: { id },
+      include: { companyGroup: { select: { id: true, name: true, tenantId: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Verify ownership for non-super_admin
+    if (role !== 'super_admin' && existing.companyGroup?.tenantId !== callerTenantId) {
+      return NextResponse.json({ error: 'Company does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
     }
 
     await db.company.delete({ where: { id } });

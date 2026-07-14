@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 import { NextRequest } from 'next/server';
 
 const corsHeaders = {
@@ -14,9 +15,17 @@ export async function OPTIONS() {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getTokenFromHeaders(request);
-    const decoded = await verifyToken(token);
-    if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    const authInfo = await getAuthInfo(request);
+    if (!authInfo) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+
+    // ─── Company-scoped data visibility ───
+    // PayrollComponent may or may not have a companyId field.
+    // If it does, use getCompanyFilter. If not, return all (these are typically
+    // global definitions that apply across companies within a tenant).
+    const companyFilter = await getCompanyFilter(request);
+    if (companyFilter === null) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    }
 
     const { searchParams } = new URL(request.url);
     const countryCode = searchParams.get('countryCode');
@@ -25,6 +34,15 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('isActive');
 
     const where: Record<string, unknown> = {};
+    // Apply company filter if the PayrollComponent model has a companyId field
+    // and a specific company is in scope. For global definitions (no companyId),
+    // this won't filter anything.
+    if (Object.keys(companyFilter).length > 0) {
+      where.OR = [
+        companyFilter,  // Components scoped to a specific company
+        { companyId: null },  // Global components shared across companies
+      ];
+    }
     if (countryCode) where.countryCode = countryCode;
     if (componentType) where.componentType = componentType;
     if (componentCategory) where.componentCategory = componentCategory;
@@ -44,11 +62,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = getTokenFromHeaders(request);
-    const decoded = await verifyToken(token);
-    if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    const authInfo = await getAuthInfo(request);
+    if (!authInfo) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+
+    // Only admins can create payroll components
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(authInfo.role)) {
+      return Response.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders });
+    }
 
     const body = await request.json();
+
+    // Ensure companyId is set for the component — use the admin's effective company
+    // if not explicitly provided
+    if (!body.companyId && authInfo.role !== 'super_admin') {
+      // Try to resolve from the admin's employee record
+      const adminEmployee = await prisma.employee.findFirst({
+        where: { userId: authInfo.userId, status: 'active' },
+        select: { companyId: true },
+      });
+      if (adminEmployee?.companyId) {
+        body.companyId = adminEmployee.companyId;
+      }
+    }
+
     const data = await prisma.payrollComponent.create({ data: body });
 
     return Response.json({ data, message: 'Payroll component created successfully' }, { headers: corsHeaders });

@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 
     const employees = await prisma.employee.findMany({
       where,
-      select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, userId: true, phone: true },
+      select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, userId: true, phone: true, user: { select: { id: true, role: true } } },
     });
 
     if (employees.length === 0) {
@@ -240,12 +240,15 @@ export async function POST(request: Request) {
               });
               userAccount = existingUser;
             } else {
+              // Use the employee's assigned role (from their User account) if available,
+              // otherwise default to 'employee'
+              const employeeRole = emp.user?.role || 'employee';
               const newUser = await prisma.user.create({
                 data: {
                   email: emp.email,
                   password: hashedPwd,
                   name: `${emp.firstName} ${emp.lastName}`,
-                  role: 'employee',
+                  role: employeeRole,
                   tenantId: admin.tenantId,
                   status: 'active',
                 },

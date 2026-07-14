@@ -1,68 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getDataScope } from '@/lib/roleAccess';
-
-// Demo data fallback when database is unavailable
-function getDemoDashboardData(role: string) {
-  const scope = getDataScope(role);
-  const isSelfOnly = scope === 'self';
-  const isTeam = scope === 'team';
-
-  return {
-    stats: {
-      totalEmployees: isSelfOnly ? 1 : isTeam ? 5 : 10,
-      newHires: isSelfOnly ? 0 : 2,
-      openPositions: isSelfOnly ? 0 : isTeam ? 1 : 3,
-      attendanceRate: 94,
-      pendingApprovals: isSelfOnly ? 0 : 5,
-      unreadNotifications: 3,
-      dataScope: scope,
-    },
-    recentActivities: [
-      { id: '1', action: 'LOGIN', entity: 'User', details: 'Rajesh Kumar logged in', createdAt: new Date().toISOString(), user: { name: 'Rajesh Kumar', email: 'rajesh.kumar@3boxestech.com', avatar: null } },
-      { id: '2', action: 'CREATE', entity: 'Leave', details: 'Ananya Gupta requested casual leave', createdAt: new Date(Date.now() - 3600000).toISOString(), user: { name: 'Priya Sharma', email: 'priya.sharma@3boxestech.com', avatar: null } },
-      { id: '3', action: 'APPROVE', entity: 'ExpenseClaim', details: 'Expense claim approved for ₹8,500', createdAt: new Date(Date.now() - 7200000).toISOString(), user: { name: 'Meera Joshi', email: 'meera.joshi@3boxestech.com', avatar: null } },
-    ],
-    recentNotifications: [],
-    departmentStats: isSelfOnly ? [] : [
-      { departmentId: 'dept-1', departmentName: 'Engineering', count: 3 },
-      { departmentId: 'dept-2', departmentName: 'Human Resources', count: 1 },
-      { departmentId: 'dept-3', departmentName: 'Design', count: 1 },
-    ],
-  };
-}
+import { resolveCompanyScope } from '@/lib/companyScope';
 
 export async function GET(req: NextRequest) {
   try {
-    // Get user role from token for role-based filtering
-    const token = getTokenFromHeaders(req);
-    let userRole = 'employee';
-    let userId: string | null = null;
-
-    if (token) {
-      const decoded = await verifyToken(token);
-      if (decoded) {
-        userRole = (decoded.role as string) || 'employee';
-        userId = (decoded.userId as string) || null;
-      }
+    // ─── Company-scoped dashboard data ───
+    // Use resolveCompanyScope to enforce that non-admins only see their own company's data.
+    // Admins with a specific company selected see that company's data.
+    // Admins with no company selected see all data.
+    const scope = await resolveCompanyScope(req);
+    if (!scope) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const scope = getDataScope(userRole);
-    const isSelfOnly = scope === 'self';
+    const { role, scope: dataScope, companyId, ownCompanyId, userId } = scope;
+    const isSelfOnly = dataScope === 'self';
+
+    // The effective company filter — if an admin selected a specific company in the
+    // CompanySwitcher, use that; otherwise fall back to the user's own company for
+    // non-admins. For admins with no company selected, we show all data.
+    const effectiveCompanyId = companyId || ownCompanyId;
+    const companyFilter = effectiveCompanyId ? { companyId: effectiveCompanyId } : {};
 
     const { db } = await import('@/lib/db');
-    const url = new URL(req.url);
-    const companyId = url.searchParams.get('companyId');
-
-    const companyFilter = companyId ? { companyId } : {};
 
     // For self-only access (employee), find the user's own employee record
     let employeeFilter: Record<string, unknown> = { ...companyFilter, status: 'active' };
 
     if (isSelfOnly && userId) {
       // Employee can only see their own data
-      employeeFilter = { ...companyFilter, userId, status: 'active' };
-    } else if (scope === 'team' && userId) {
+      employeeFilter = { userId, status: 'active' };
+    } else if (dataScope === 'team' && userId) {
       // Manager: find employees in the same department
       const ownEmp = await db.employee.findFirst({
         where: { userId, status: 'active' },
@@ -73,7 +40,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Total employees (scoped by role)
+    // Total employees (scoped by role + company)
     const totalEmployees = await db.employee.count({
       where: employeeFilter,
     });
@@ -88,7 +55,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Open positions
+    // Open positions (company-scoped)
     const openPositions = isSelfOnly ? 0 : await db.job.count({
       where: {
         ...companyFilter,
@@ -109,7 +76,7 @@ export async function GET(req: NextRequest) {
     const expectedAttendance = totalEmployees || 1;
     const attendanceRate = Math.round((totalAttendanceToday / expectedAttendance) * 100);
 
-    // Pending approvals (leaves, expenses, travel)
+    // Pending approvals (leaves, expenses, travel) — company-scoped
     const pendingLeaves = await db.leave.count({
       where: {
         status: 'pending',
@@ -130,7 +97,7 @@ export async function GET(req: NextRequest) {
     });
     const pendingApprovals = pendingLeaves + pendingExpenses + pendingTravel;
 
-    // Recent activities from audit logs
+    // Recent activities from audit logs — scoped by tenant for admins
     const recentActivities = await db.auditLog.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
@@ -142,6 +109,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Notifications count
+    const url = new URL(req.url);
     const reqUserId = url.searchParams.get('userId') || userId;
     let unreadNotifications = 0;
     let recentNotifications: unknown[] = [];
@@ -156,16 +124,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Department distribution
+    // Department distribution — company-scoped
     const departmentDistribution = await db.employee.groupBy({
       by: ['departmentId'],
       where: employeeFilter,
       _count: { id: true },
     });
 
-    // Get department names
+    // Get department names — company-scoped
     const departments = await db.department.findMany({
-      where: companyId ? { companyId } : {},
+      where: companyFilter,
       select: { id: true, name: true },
     });
     const deptMap = new Map(departments.map((d) => [d.id, d.name]));
@@ -184,15 +152,28 @@ export async function GET(req: NextRequest) {
         attendanceRate,
         pendingApprovals,
         unreadNotifications,
-        dataScope: scope,
+        dataScope,
       },
       recentActivities,
       recentNotifications,
       departmentStats,
     });
   } catch (error) {
-    console.error('Dashboard error - returning demo data:', error);
-    // Return demo data instead of 500 error
-    return NextResponse.json(getDemoDashboardData('employee'));
+    console.error('Dashboard error:', error);
+    // Return minimal data instead of demo fallback — demo data is misleading
+    return NextResponse.json({
+      stats: {
+        totalEmployees: 0,
+        newHires: 0,
+        openPositions: 0,
+        attendanceRate: 0,
+        pendingApprovals: 0,
+        unreadNotifications: 0,
+        dataScope: 'self',
+      },
+      recentActivities: [],
+      recentNotifications: [],
+      departmentStats: [],
+    });
   }
 }

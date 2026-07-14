@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveCompanyScope, getEmployeeCompanyFilter } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -40,11 +41,27 @@ export async function GET(request: Request) {
     const year = searchParams.get('year');
     const status = searchParams.get('status');
 
+    // ─── Company-scoped data visibility ───
+    // Non-admin employees should only see their own payroll records.
+    // Admins should see payroll records for employees in their selected company.
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
     if (month) where.month = parseInt(month);
     if (year) where.year = parseInt(year);
     if (status) where.status = status;
+
+    // Apply company scope filter via employee relation
+    if (scope.scope === 'self' && scope.userId) {
+      where.employee = { userId: scope.userId, status: 'active' };
+    } else if (scope.companyId) {
+      where.employee = { companyId: scope.companyId, status: 'active' };
+    }
+    // scope === 'all' with no companyId → admin sees all (no filter)
 
     const [payrolls, total] = await Promise.all([
       prisma.payroll.findMany({
@@ -57,6 +74,7 @@ export async function GET(request: Request) {
               lastName: true,
               employeeId: true,
               salary: true,
+              companyId: true,
             },
           },
         },
