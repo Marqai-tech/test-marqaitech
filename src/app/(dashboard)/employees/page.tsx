@@ -25,6 +25,7 @@ import {
   FiUserX,
   FiUserPlus,
   FiDownload,
+  FiSettings,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -829,6 +830,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 Add Employee
               </button>
             )}
+            <button onClick={() => router.push('/employees/settings')} className="inline-flex items-center gap-2 px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-lg hover:bg-slate-50 font-medium text-sm transition-colors">
+              <FiSettings className="w-4 h-4" />
+              Settings
+            </button>
           </div>
         </div>
       ) : (

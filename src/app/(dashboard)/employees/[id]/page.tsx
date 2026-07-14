@@ -27,6 +27,10 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiCreditCard,
+  FiRefreshCw,
+  FiPlus,
+  FiTrash2,
+  FiToggleLeft,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -196,7 +200,7 @@ interface EmployeeData {
   assetAssignments?: Array<{ id: string; status: string; assignedDate: string; asset: { id: string; name: string; assetTag: string; category: string } }>;
 }
 
-const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies'] as const;
+const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
 type TabName = typeof tabs[number];
 
 // ─── Info Field Component ───
@@ -257,7 +261,9 @@ export default function EmployeeDetailPage() {
 
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabName>('Overview');
+  const [companyMappings, setCompanyMappings] = useState<Array<{ id: string; companyId: string; employeeCode: string; isPrimary: boolean; department?: { name: string } | null; designation?: { title: string } | null; branch?: { name: string } | null; company?: { name: string; code?: string } | null }>>([]);
 
   const [attendance, setAttendance] = useState<Array<{ id: string; date: string; checkIn?: string | null; checkOut?: string | null; workHours?: number | null; overtime?: number | null; status: string }>>([]);
   const [payrolls, setPayrolls] = useState<Array<{ id: string; month: number; year: number; grossSalary: number; totalDeductions: number; netSalary: number; status: string; paidDate?: string | null }>>([]);
@@ -267,19 +273,20 @@ export default function EmployeeDetailPage() {
   const fetchEmployee = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/employees/${id}`, { headers: getAuthHeaders() });
+      setLoadError(null);
+      const res = await fetch(`/api/employees/${encodeURIComponent(id)}`, { headers: getAuthHeaders() });
       if (res.status === 503) {
-        // DB unavailable — don't treat as "not found"
-        console.error('Database unavailable when fetching employee');
+        setLoadError('Database temporarily unavailable. Please try again.');
         setEmployee(null);
         return;
       }
       if (res.status === 404) {
+        setLoadError('Employee not found in database.');
         setEmployee(null);
         return;
       }
       if (!res.ok) {
-        console.error('Failed to fetch employee:', res.status);
+        setLoadError(`Failed to load employee (HTTP ${res.status})`);
         setEmployee(null);
         return;
       }
@@ -287,11 +294,23 @@ export default function EmployeeDetailPage() {
       setEmployee(data.employee);
     } catch (err) {
       console.error('Failed to load employee details:', err);
+      setLoadError('Network error. Please check your connection and try again.');
       setEmployee(null);
     } finally {
       setLoading(false);
     }
   }, [id]);
+
+  const fetchCompanyMappings = useCallback(async () => {
+    if (!employee) return;
+    try {
+      const res = await fetch(`/api/employees/company-mappings?employeeId=${employee.id}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setCompanyMappings(data.mappings || []);
+      }
+    } catch { /* silently */ }
+  }, [employee]);
 
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
@@ -327,6 +346,10 @@ export default function EmployeeDetailPage() {
     if (employee) queueMicrotask(() => fetchRelatedData());
   }, [employee, fetchRelatedData]);
 
+  useEffect(() => {
+    if (employee && activeTab === 'Company Mapping') queueMicrotask(() => fetchCompanyMappings());
+  }, [employee, activeTab, fetchCompanyMappings]);
+
   // ─── Loading State ───
   if (loading) {
     return (
@@ -355,23 +378,38 @@ export default function EmployeeDetailPage() {
     );
   }
 
-  // ─── Not Found State ───
+  // ─── Not Found / Error State ───
   if (!employee) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-5">
             <FiUser className="w-10 h-10 text-slate-300" />
           </div>
           <p className="text-lg font-semibold text-thb-text-primary mb-1">Employee Not Found</p>
-          <p className="text-sm text-thb-text-secondary mb-6">The employee you&apos;re looking for doesn&apos;t exist or has been removed.</p>
-          <button
-            onClick={() => router.push('/employees')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <FiArrowLeft className="w-4 h-4" />
-            Back to Employees
-          </button>
+          <p className="text-sm text-thb-text-secondary mb-2">The employee you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+          {loadError && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              {loadError}
+            </p>
+          )}
+          <p className="text-xs text-thb-text-muted mb-5">Employee ID: {id}</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => fetchEmployee()}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm"
+            >
+              <FiRefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+            <button
+              onClick={() => router.push('/employees')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <FiArrowLeft className="w-4 h-4" />
+              Back to Employees
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1000,6 +1038,85 @@ export default function EmployeeDetailPage() {
 
           {/* ── Policies Tab ── */}
           {activeTab === 'Policies' && <EmployeePoliciesTab employeeId={employee.id} />}
+
+          {/* ── Company Mapping Tab ── */}
+          {activeTab === 'Company Mapping' && (
+            <div className="space-y-5">
+              {/* Info Banner */}
+              <div className="thb-card border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50/60 to-violet-50/40">
+                <div className="p-4 flex items-start gap-3">
+                  <FiBriefcase className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-slate-900 mb-1">Company Mappings</p>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      This employee can be mapped to multiple companies with different employee IDs per company.
+                      When mapped, they can switch between companies using the header dropdown.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Current Company */}
+              <SectionCard title="Primary Company" icon={<FiBriefcase className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+                    <FiBriefcase className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-thb-text-primary">{employee.department?.name || 'No Department'}</p>
+                    <p className="text-xs text-thb-text-muted">Employee ID: {employee.employeeId}</p>
+                    <p className="text-xs text-thb-text-muted">{employee.designation?.title || 'No Designation'}</p>
+                  </div>
+                  <span className="ml-auto inline-flex items-center px-2 py-1 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                </div>
+              </SectionCard>
+
+              {/* Company Mappings */}
+              <SectionCard title="Additional Company Mappings" icon={<FiGlobe className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
+                {companyMappings.length === 0 ? (
+                  <div className="text-center py-6">
+                    <FiGlobe className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
+                    <p className="text-sm text-thb-text-muted">No additional company mappings</p>
+                    <p className="text-xs text-thb-text-muted mt-1">
+                      Go to <button onClick={() => router.push('/employees/settings')} className="text-blue-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-thb-border">
+                    {companyMappings.map(mapping => (
+                      <div key={mapping.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-thb-text-primary">{mapping.company?.name || 'Unknown Company'}</p>
+                            {mapping.isPrimary && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-thb-text-muted">ID: {mapping.employeeCode}</span>
+                            {mapping.department && <span className="text-xs text-thb-text-muted">Dept: {mapping.department.name}</span>}
+                            {mapping.designation && <span className="text-xs text-thb-text-muted">Role: {mapping.designation.title}</span>}
+                            {mapping.branch && <span className="text-xs text-thb-text-muted">Branch: {mapping.branch.name}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SectionCard>
+
+              {/* Quick link to settings */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => router.push('/employees/settings')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  <FiBriefcase className="w-4 h-4" />
+                  Manage Company Mappings
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

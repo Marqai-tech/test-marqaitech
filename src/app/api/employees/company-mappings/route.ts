@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     if (isPrimary) {
       await prisma.employee.update({
         where: { id: employeeId },
-        data: { companyId, employeeId: employeeCode },
+        data: { companyId },
       });
     }
 

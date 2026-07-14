@@ -14,60 +14,85 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// Shared include config for employee queries
+const employeeInclude = {
+  department: true,
+  designation: true,
+  branch: true,
+  user: {
+    select: { id: true, email: true, role: true, avatar: true },
+  },
+  leaveBalances: {
+    include: { leaveType: true },
+  },
+  dependents: true,
+  qualifications: true,
+  experiences: true,
+  skills: true,
+  documents: true,
+  assetAssignments: {
+    include: { asset: true },
+  },
+};
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId);
 
-    // Query database for real employee
+    console.log(`[Employee GET] Looking up employee with id/employeeId: ${id}`);
+
     try {
-      const employee = await prisma.employee.findUnique({
+      // Strategy 1: Try findUnique by database id (CUID)
+      let employee = await prisma.employee.findUnique({
         where: { id },
-        include: {
-          department: true,
-          designation: true,
-          branch: true,
-          user: {
-            select: { id: true, email: true, role: true, avatar: true },
-          },
-          leaveBalances: {
-            include: { leaveType: true },
-          },
-          dependents: true,
-          qualifications: true,
-          experiences: true,
-          skills: true,
-          documents: true,
-          assetAssignments: {
-            include: { asset: true },
-          },
-        },
+        include: employeeInclude,
       });
 
+      // Strategy 2: If not found, try findUnique by employeeId (e.g. "EMP001")
+      if (!employee) {
+        console.log(`[Employee GET] Not found by id, trying employeeId: ${id}`);
+        employee = await prisma.employee.findUnique({
+          where: { employeeId: id },
+          include: employeeInclude,
+        });
+      }
+
+      // Strategy 3: If still not found, try a broader search by email or name
+      if (!employee) {
+        console.log(`[Employee GET] Not found by employeeId either, trying email search: ${id}`);
+        employee = await prisma.employee.findFirst({
+          where: { email: { equals: id, mode: 'insensitive' } },
+          include: employeeInclude,
+        });
+      }
+
       if (employee) {
+        console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
         return NextResponse.json(
           { employee },
           { headers: corsHeaders() }
         );
       }
+
+      // All strategies exhausted — employee genuinely not found
+      console.log(`[Employee GET] Employee not found after all lookup strategies for: ${id}`);
+      return NextResponse.json(
+        { error: 'Employee not found', code: 'NOT_FOUND', searchedId: id },
+        { status: 404, headers: corsHeaders() }
+      );
     } catch (dbError) {
-      console.error('DB employee query failed:', dbError);
-      // Return service unavailable instead of falling through to demo data
+      console.error('[Employee GET] DB query failed:', dbError);
       return NextResponse.json(
         { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE' },
         { status: 503, headers: corsHeaders() }
       );
     }
-
-    // Employee genuinely not found in DB
-    return NextResponse.json(
-      { error: 'Employee not found', code: 'NOT_FOUND' },
-      { status: 404, headers: corsHeaders() }
-    );
   } catch (error) {
-    console.error('Get employee error:', error);
+    console.error('[Employee GET] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500, headers: corsHeaders() }
@@ -80,13 +105,16 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId);
     const body = await request.json();
 
     try {
-      const existingEmployee = await prisma.employee.findUnique({
-        where: { id },
-      });
+      // Try to find employee by id first, then by employeeId
+      let existingEmployee = await prisma.employee.findUnique({ where: { id } });
+      if (!existingEmployee) {
+        existingEmployee = await prisma.employee.findUnique({ where: { employeeId: id } });
+      }
 
       if (!existingEmployee) {
         return NextResponse.json(
@@ -94,6 +122,8 @@ export async function PUT(
           { status: 404, headers: corsHeaders() }
         );
       }
+
+      const actualId = existingEmployee.id; // Use the real DB id for updates
 
       const {
         firstName, lastName, email, phone, departmentId, designationId,
@@ -137,7 +167,7 @@ export async function PUT(
       if (status !== undefined) updateData.status = status;
 
       const employee = await prisma.employee.update({
-        where: { id },
+        where: { id: actualId },
         data: updateData,
         include: {
           department: true,
@@ -150,9 +180,10 @@ export async function PUT(
       // ─── Update User role if provided ───
       // The role field lives on the User model, not Employee.
       // When editing an employee's role, we need to update the linked User account.
-      if (role && employee.userId) {
+      if (role !== undefined && employee.userId) {
         try {
           const effectiveRole = role || 'employee';
+          console.log(`[Employee PUT] Updating role for user ${employee.userId} to: ${effectiveRole}`);
           await prisma.user.update({
             where: { id: employee.userId },
             data: { role: effectiveRole },
@@ -168,24 +199,22 @@ export async function PUT(
             },
           });
           if (roleRecord) {
-            // Upsert the role assignment
-            const existingAssignment = await prisma.userRoleAssignment.findFirst({
-              where: { userId: employee.userId, roleId: roleRecord.id },
+            // Delete existing role assignments for this user and create new one
+            await prisma.userRoleAssignment.deleteMany({
+              where: { userId: employee.userId },
             });
-            if (!existingAssignment) {
-              await prisma.userRoleAssignment.create({
-                data: {
-                  userId: employee.userId,
-                  roleId: roleRecord.id,
-                  companyId: employee.companyId || null,
-                },
-              });
-            }
+            await prisma.userRoleAssignment.create({
+              data: {
+                userId: employee.userId,
+                roleId: roleRecord.id,
+                companyId: employee.companyId || null,
+              },
+            });
           }
 
           // Re-fetch employee with updated user role for the response
           const updatedEmployee = await prisma.employee.findUnique({
-            where: { id },
+            where: { id: actualId },
             include: {
               department: true,
               designation: true,
@@ -194,10 +223,28 @@ export async function PUT(
             },
           });
           if (updatedEmployee) {
+            // Try audit log (non-critical)
+            try {
+              const token = getTokenFromHeaders(request);
+              if (token) {
+                const decoded = await verifyToken(token);
+                if (decoded) {
+                  await prisma.auditLog.create({
+                    data: {
+                      userId: decoded.userId as string,
+                      action: 'UPDATE_EMPLOYEE',
+                      module: 'employees',
+                      details: `Updated employee ${employee.employeeId} (role: ${effectiveRole})`,
+                    },
+                  });
+                }
+              }
+            } catch { /* non-critical */ }
+
             return NextResponse.json({ employee: updatedEmployee }, { headers: corsHeaders() });
           }
         } catch (roleUpdateErr) {
-          console.error('Failed to update user role (non-critical):', roleUpdateErr);
+          console.error('[Employee PUT] Failed to update user role (non-critical):', roleUpdateErr);
           // Don't fail the whole request — the employee was already updated successfully
         }
       }
@@ -225,14 +272,14 @@ export async function PUT(
         { headers: corsHeaders() }
       );
     } catch (dbError) {
-      console.error('DB employee update failed:', dbError);
+      console.error('[Employee PUT] DB update failed:', dbError);
       return NextResponse.json(
         { error: 'Failed to update employee' },
         { status: 500, headers: corsHeaders() }
       );
     }
   } catch (error) {
-    console.error('Update employee error:', error);
+    console.error('[Employee PUT] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500, headers: corsHeaders() }
@@ -245,12 +292,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId);
 
     try {
-      const existingEmployee = await prisma.employee.findUnique({
-        where: { id },
-      });
+      // Try to find employee by id first, then by employeeId
+      let existingEmployee = await prisma.employee.findUnique({ where: { id } });
+      if (!existingEmployee) {
+        existingEmployee = await prisma.employee.findUnique({ where: { employeeId: id } });
+      }
 
       if (!existingEmployee) {
         return NextResponse.json(
@@ -259,9 +309,11 @@ export async function DELETE(
         );
       }
 
+      const actualId = existingEmployee.id;
+
       // Soft delete - set status to terminated
       const employee = await prisma.employee.update({
-        where: { id },
+        where: { id: actualId },
         data: { status: 'terminated' },
       });
 
@@ -288,14 +340,14 @@ export async function DELETE(
         { headers: corsHeaders() }
       );
     } catch (dbError) {
-      console.error('DB employee delete failed:', dbError);
+      console.error('[Employee DELETE] DB delete failed:', dbError);
       return NextResponse.json(
         { error: 'Failed to delete employee' },
         { status: 500, headers: corsHeaders() }
       );
     }
   } catch (error) {
-    console.error('Delete employee error:', error);
+    console.error('[Employee DELETE] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500, headers: corsHeaders() }
