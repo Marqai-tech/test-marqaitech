@@ -199,6 +199,12 @@ export async function POST(request: Request) {
       success: boolean;
       emailSent: boolean;
       error?: string;
+      /** If true, the email was sent using the Resend sandbox sender (onboarding@resend.dev)
+       *  because the admin's configured FROM domain was not verified. The email was likely
+       *  ONLY delivered to the Resend account holder — not to the intended employee. */
+      usedFallbackFrom?: boolean;
+      /** Human-readable warning explaining the sandbox limitation, for display in the UI. */
+      emailWarning?: string;
     }> = [];
 
     for (const emp of employees) {
@@ -270,9 +276,12 @@ export async function POST(request: Request) {
           html: emailHtml,
         });
 
-        console.log(`[INVITE] Invite ${emailResult.success ? 'sent' : 'failed'} for ${emp.email} (tenant: ${admin.tenant?.name})`);
+        console.log(
+          `[INVITE] Invite ${emailResult.success ? 'sent' : 'failed'} for ${emp.email} (tenant: ${admin.tenant?.name})` +
+          `${emailResult.usedFallbackFrom ? ' [FALLBACK FROM — sandbox sender used]' : ''}`,
+        );
 
-        results.push({
+        const resultEntry: (typeof results)[number] = {
           employeeId: emp.employeeId,
           name: `${emp.firstName} ${emp.lastName}`,
           email: emp.email,
@@ -280,7 +289,17 @@ export async function POST(request: Request) {
           success: true,
           emailSent: emailResult.success,
           error: emailResult.error,
-        });
+        };
+
+        // If the email was sent using the Resend sandbox fallback, flag it
+        // so the UI can warn the admin that the employee likely didn't receive it.
+        if (emailResult.usedFallbackFrom) {
+          resultEntry.usedFallbackFrom = true;
+          resultEntry.emailWarning = emailResult.sandboxWarning
+            || 'Email was sent via Resend sandbox and was likely only delivered to the Resend account holder — not to this employee. Verify your sending domain at https://resend.com/domains and set RESEND_FROM_EMAIL.';
+        }
+
+        results.push(resultEntry);
       } catch (err) {
         results.push({
           employeeId: emp.employeeId,
@@ -296,12 +315,36 @@ export async function POST(request: Request) {
 
     const successCount = results.filter(r => r.success).length;
     const emailSentCount = results.filter(r => r.emailSent).length;
+    const fallbackCount = results.filter(r => r.usedFallbackFrom).length;
 
-    return NextResponse.json({
+    // Build a response that includes an admin-level warning if any emails used the sandbox fallback
+    const response: Record<string, unknown> = {
       message: `Invites processed: ${successCount}/${results.length} successful, ${emailSentCount} emails sent`,
       results,
-      summary: { total: results.length, succeeded: successCount, emailsSent: emailSentCount, failed: results.length - successCount },
-    }, { headers: corsHeaders() });
+      summary: {
+        total: results.length,
+        succeeded: successCount,
+        emailsSent: emailSentCount,
+        failed: results.length - successCount,
+        /** Number of emails that went through the sandbox fallback — these were
+         *  likely NOT delivered to the intended employees. */
+        fallbackSent: fallbackCount,
+      },
+    };
+
+    // If ANY email used the sandbox fallback, add a top-level admin warning
+    // so the UI can display a prominent notice to the administrator.
+    if (fallbackCount > 0) {
+      response.adminWarning =
+        `${fallbackCount} invite email(s) were sent via the Resend sandbox sender (onboarding@resend.dev) ` +
+        `because your configured FROM domain is not verified. Sandbox emails can ONLY be delivered to the ` +
+        `email address registered with your Resend account — the intended employees did NOT receive them. ` +
+        `To fix this: (1) Verify your sending domain at https://resend.com/domains, ` +
+        `(2) Set the RESEND_FROM_EMAIL environment variable to an address on your verified domain, ` +
+        `(3) Redeploy your application.`;
+    }
+
+    return NextResponse.json(response, { headers: corsHeaders() });
   } catch (error) {
     console.error('[Invite POST] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

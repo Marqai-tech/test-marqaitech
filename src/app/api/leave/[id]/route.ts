@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 
 function corsHeaders() {
@@ -20,18 +20,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
       return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders() }
       );
     }
@@ -51,7 +43,7 @@ export async function PATCH(
       where: { id },
       include: {
         employee: {
-          select: { firstName: true, lastName: true, userId: true },
+          select: { firstName: true, lastName: true, userId: true, companyId: true },
         },
         leaveType: true,
       },
@@ -64,6 +56,37 @@ export async function PATCH(
       );
     }
 
+    // ─── Company-scoped data visibility for approval/rejection ───
+    if (scope.scope === 'self') {
+      // Employees can only cancel their own leave requests
+      if (status !== 'cancelled') {
+        return NextResponse.json(
+          { error: 'Only admins can approve or reject leave requests' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+      // For cancellation, verify it's their own request
+      const employee = await prisma.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true },
+      });
+      if (!employee || employee.id !== existingLeave.employeeId) {
+        return NextResponse.json(
+          { error: 'You can only cancel your own leave requests' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    } else if (scope.companyId) {
+      // Admin with specific company — leave request's employee must belong to that company
+      if (existingLeave.employee.companyId !== scope.companyId) {
+        return NextResponse.json(
+          { error: 'Leave request does not belong to the selected company' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    }
+    // scope === 'all' && no companyId → admin can approve/reject any leave request
+
     if (existingLeave.status !== 'pending') {
       return NextResponse.json(
         { error: 'Only pending leave requests can be approved/rejected' },
@@ -75,7 +98,7 @@ export async function PATCH(
       where: { id },
       data: {
         status,
-        approvedBy: decoded.userId as string,
+        approvedBy: scope.userId,
         approvedAt: new Date(),
         comments,
       },
@@ -111,7 +134,7 @@ export async function PATCH(
     // Notify the employee about the leave decision
     if (leaveRequest.employee.userId) {
       await createNotification({
-        tenantId: decoded.tenantId as string,
+        tenantId: scope.tenantId,
         userId: leaveRequest.employee.userId,
         title: `Leave Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
         message: `Your ${leaveRequest.leaveType.name} leave request from ${existingLeave.startDate.toLocaleDateString()} to ${existingLeave.endDate.toLocaleDateString()} has been ${status}.`,
@@ -123,7 +146,7 @@ export async function PATCH(
 
     await prisma.auditLog.create({
       data: {
-        userId: decoded.userId as string,
+        userId: scope.userId,
         action: `${status.toUpperCase()}_LEAVE_REQUEST`,
         module: 'leave',
         details: `${status} leave request ${id} for employee ${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}`,

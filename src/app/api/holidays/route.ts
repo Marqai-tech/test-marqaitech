@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -15,13 +16,18 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter === null) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const url = new URL(req.url);
     const type = url.searchParams.get('type');
     const year = url.searchParams.get('year');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { ...companyFilter };
     if (type) where.type = type;
     if (year) {
       const startOfYear = new Date(parseInt(year), 0, 1);
@@ -44,34 +50,38 @@ export async function GET(req: NextRequest) {
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Holidays GET error:', error);
-    // Demo data fallback
-    const demoHolidays = [
-      { id: 'hol-1', name: 'Republic Day', date: new Date('2026-01-26'), type: 'public', country: 'India', description: 'National holiday', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-2', name: 'Holi', date: new Date('2026-03-10'), type: 'festival', country: 'India', description: 'Festival of colors', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-3', name: 'Eid ul-Fitr', date: new Date('2026-04-02'), type: 'festival', country: 'India', description: 'Islamic festival', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-4', name: 'Maharashtra Day', date: new Date('2026-05-01'), type: 'state', country: 'India', description: 'State holiday', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-5', name: 'Independence Day', date: new Date('2026-08-15'), type: 'public', country: 'India', description: 'National holiday', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-6', name: 'Ganesh Chaturthi', date: new Date('2026-08-27'), type: 'festival', country: 'India', description: 'Hindu festival', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-7', name: 'Gandhi Jayanti', date: new Date('2026-10-02'), type: 'public', country: 'India', description: 'National holiday', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-8', name: 'Dussehra', date: new Date('2026-10-20'), type: 'festival', country: 'India', description: 'Hindu festival', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-9', name: 'Diwali', date: new Date('2026-11-10'), type: 'festival', country: 'India', description: 'Festival of lights', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'hol-10', name: 'Christmas', date: new Date('2026-12-25'), type: 'public', country: 'India', description: 'Christian holiday', createdAt: new Date(), updatedAt: new Date() },
-    ];
-
     return NextResponse.json({
-      data: demoHolidays,
-      pagination: { page: 1, limit: 100, total: demoHolidays.length, totalPages: 1 },
+      data: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
     }, { headers: corsHeaders() });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const body = await req.json();
-    const { name, date, type, country, description } = body;
+    const { name, date, type, country, description, companyId } = body;
 
     if (!name || !date) {
       return NextResponse.json({ error: 'Name and date are required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Resolve companyId: from body, or from user's scope
+    let resolvedCompanyId = companyId;
+    if (!resolvedCompanyId) {
+      const companyFilter = await getCompanyFilter(req);
+      if (companyFilter && 'companyId' in companyFilter) {
+        resolvedCompanyId = companyFilter.companyId as string;
+      }
+    }
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json({ error: 'companyId is required' }, { status: 400, headers: corsHeaders() });
     }
 
     const holiday = await db.holiday.create({
@@ -81,6 +91,7 @@ export async function POST(req: NextRequest) {
         type: type || 'public',
         country: country || 'India',
         description,
+        companyId: resolvedCompanyId,
       },
     });
 
@@ -93,6 +104,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -109,6 +125,12 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Holiday not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // Non-admin users can only update holidays in their own company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter && existing.companyId !== companyFilter.companyId) {
+      return NextResponse.json({ error: 'Forbidden: cannot modify holiday outside your company' }, { status: 403, headers: corsHeaders() });
+    }
+
     const holiday = await db.holiday.update({
       where: { id },
       data: updateData,
@@ -123,11 +145,27 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Holiday ID is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const existing = await db.holiday.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Holiday not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Non-admin users can only delete holidays in their own company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter && existing.companyId !== companyFilter.companyId) {
+      return NextResponse.json({ error: 'Forbidden: cannot delete holiday outside your company' }, { status: 403, headers: corsHeaders() });
     }
 
     await db.holiday.delete({ where: { id } });

@@ -1240,10 +1240,43 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </label>
                       <select value={form.role} onChange={e => updateForm('role', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select Role</option>
-                        <option value="admin">Admin (Full Access)</option>
+                        <option value="tenant_admin">Tenant Admin (Full Tenant Access)</option>
+                        <option value="admin">Admin (Company Full Access)</option>
                         <option value="employee">Employee (Self-Service)</option>
                       </select>
                       <p className="text-[10px] text-thb-text-muted mt-1">This role determines which menus and modules the employee can access after login</p>
+                      {/* Dynamic role info box */}
+                      {form.role && (
+                        <div className={`mt-2 p-2.5 rounded-lg border text-xs leading-relaxed ${
+                          form.role === 'tenant_admin'
+                            ? 'bg-amber-50 border-amber-200 text-amber-800'
+                            : form.role === 'admin'
+                            ? 'bg-blue-50 border-blue-200 text-blue-800'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        }`}>
+                          <div className="flex items-start gap-1.5">
+                            <FiShield className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
+                              form.role === 'tenant_admin'
+                                ? 'text-amber-500'
+                                : form.role === 'admin'
+                                ? 'text-blue-500'
+                                : 'text-emerald-500'
+                            }`} />
+                            <div>
+                              <span className="font-semibold">
+                                {form.role === 'tenant_admin' && 'Tenant Admin Access'}
+                                {form.role === 'admin' && 'Admin Access'}
+                                {form.role === 'employee' && 'Employee Access'}
+                              </span>
+                              <p className="mt-0.5 opacity-90">
+                                {form.role === 'tenant_admin' && 'This employee will have full access to all modules across all companies in the tenant.'}
+                                {form.role === 'admin' && 'This employee will have access to: Employee Management, Leave, Attendance, Payroll, Recruitment, Company Masters, Reports, Settings, and all HR modules.'}
+                                {form.role === 'employee' && 'This employee will have access to: Self-Service Dashboard, My Profile, Leave Application, Attendance Punch-in/out, Documents, and Helpdesk.'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Joining *</label>

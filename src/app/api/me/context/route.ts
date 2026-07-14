@@ -149,6 +149,13 @@ export async function GET(request: Request) {
       _count?: { branches: number; employees?: number };
     }[] = [];
 
+    // For non-admin users, look up their EmployeeCompanyMapping records so they
+    // can switch between companies they are mapped to.
+    let mappedCompanies: {
+      id: string; name: string; code: string | null;
+      companyGroupId: string; employeeCode: string;
+    }[] = [];
+
     if (role === 'super_admin') {
       // Super admin: list ALL tenants (not just 'active' ones) so the super
       // admin can see and manage suspended/pending tenants too.
@@ -228,7 +235,72 @@ export async function GET(request: Request) {
         }
       }
     }
-    // For all other roles, availableCompanies stays empty (no switching allowed)
+    // For all other roles, look up EmployeeCompanyMapping records so employees
+    // who are mapped to multiple companies can switch between them.
+    if (!['super_admin', 'tenant_admin'].includes(role) && employee?.id) {
+      const mappings = await safe(
+        'employeeCompanyMapping.findMany',
+        () => prisma.employeeCompanyMapping.findMany({
+          where: { employeeId: employee!.id, status: 'active' },
+          select: {
+            employeeCode: true,
+            isPrimary: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                companyGroupId: true,
+              },
+            },
+          },
+          orderBy: { isPrimary: 'desc' },
+        }),
+        [],
+      );
+      if (mappings.length > 0) {
+        mappedCompanies = mappings.map((m) => ({
+          id: m.company.id,
+          name: m.company.name,
+          code: m.company.code,
+          companyGroupId: m.company.companyGroupId,
+          employeeCode: m.employeeCode,
+        }));
+        // Also populate availableCompanies so the frontend dropdown can render
+        // them consistently. We don't have group info here, so we do a separate
+        // fetch for the company details with group relation.
+        const mappedCompanyIds = mappedCompanies.map((mc) => mc.id);
+        availableCompanies = await safe(
+          'company.findMany(employeeMappings)',
+          () => prisma.company.findMany({
+            where: { id: { in: mappedCompanyIds } },
+            select: {
+              id: true, name: true, code: true, companyGroupId: true,
+              companyGroup: { select: { id: true, name: true } },
+              _count: { select: { branches: true, departments: true } },
+            },
+            orderBy: { name: 'asc' },
+          }),
+          [],
+        );
+        // Also fetch the company groups for those mapped companies
+        const mappedGroupIds = [...new Set(availableCompanies.map((c) => c.companyGroupId).filter(Boolean))];
+        if (mappedGroupIds.length > 0) {
+          availableCompanyGroups = await safe(
+            'companyGroup.findMany(employeeMappings)',
+            () => prisma.companyGroup.findMany({
+              where: { id: { in: mappedGroupIds as string[] } },
+              select: {
+                id: true, name: true, tenantId: true,
+                employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
+              },
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          );
+        }
+      }
+    }
 
     // Resolve caller's tenant info (for header display + quota info)
     const callerTenant = callerTenantId
@@ -285,6 +357,7 @@ export async function GET(request: Request) {
       availableTenants,
       availableCompanyGroups,
       availableCompanies,
+      mappedCompanies,
     }, { headers: corsHeaders() });
   } catch (error) {
     // Log the FULL error so we can debug from Vercel logs.

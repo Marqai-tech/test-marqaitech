@@ -1,7 +1,24 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
+
+function generateRandomPassword(length = 12): string {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const special = '!@#$%&*';
+  const all = upper + lower + digits + special;
+  let pwd = '';
+  pwd += upper[Math.floor(Math.random() * upper.length)];
+  pwd += lower[Math.floor(Math.random() * lower.length)];
+  pwd += digits[Math.floor(Math.random() * digits.length)];
+  pwd += special[Math.floor(Math.random() * special.length)];
+  for (let i = pwd.length; i < length; i++) {
+    pwd += all[Math.floor(Math.random() * all.length)];
+  }
+  return pwd.split('').sort(() => Math.random() - 0.5).join('');
+}
 
 function corsHeaders() {
   return {
@@ -229,6 +246,7 @@ export async function POST(request: Request) {
       salary,
       salaryCurrency,
       userId,
+      role,
     } = body;
 
     if (!employeeId || !firstName || !lastName || !email || !departmentId || !designationId) {
@@ -411,6 +429,124 @@ export async function POST(request: Request) {
             },
           });
         } catch { /* non-critical */ }
+      }
+
+      // ─── Role-based User account creation ───
+      // After the employee is created, also create (or update) a User account
+      // with the specified role so that role-based module access is applied.
+      // Wrapped in try/catch so a failure here does NOT fail the whole request.
+      try {
+        const effectiveRole = role || 'employee';
+
+        // Resolve tenantId from the authenticated admin user
+        let adminTenantId: string | undefined;
+        if (isAuthed && decodedUserId) {
+          const adminUser = await prisma.user.findUnique({
+            where: { id: decodedUserId },
+            select: { tenantId: true },
+          });
+          adminTenantId = adminUser?.tenantId;
+        }
+
+        if (adminTenantId) {
+          // Check if a User with this email already exists
+          const existingUser = await prisma.user.findUnique({
+            where: { email },
+          });
+
+          let userIdForEmployee: string;
+
+          if (existingUser) {
+            // Update existing user's role
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { role: effectiveRole },
+            });
+            userIdForEmployee = existingUser.id;
+          } else {
+            // Create a new User account
+            const randomPassword = generateRandomPassword();
+            const hashedPwd = await hashPassword(randomPassword);
+
+            const newUser = await prisma.user.create({
+              data: {
+                email,
+                name: `${firstName} ${lastName}`,
+                role: effectiveRole,
+                tenantId: adminTenantId,
+                password: hashedPwd,
+                status: 'active',
+              },
+            });
+            userIdForEmployee = newUser.id;
+          }
+
+          // Link the User to the Employee by setting userId
+          await prisma.employee.update({
+            where: { id: employee.id },
+            data: { userId: userIdForEmployee },
+          });
+
+          // Create EmployeeCompanyMapping for the primary company (if companyId is provided)
+          const effectiveCompanyId = companyId || null;
+          if (effectiveCompanyId) {
+            try {
+              await prisma.employeeCompanyMapping.create({
+                data: {
+                  employeeId: employee.id,
+                  companyId: effectiveCompanyId,
+                  employeeCode: employeeId,
+                  departmentId: departmentId || null,
+                  designationId: designationId || null,
+                  branchId: branchId || null,
+                  isPrimary: true,
+                  status: 'active',
+                  dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : new Date(),
+                },
+              });
+            } catch (mappingErr) {
+              console.error('Failed to create EmployeeCompanyMapping (non-critical):', mappingErr);
+            }
+          }
+
+          // Create UserRoleAssignment linking the user to the appropriate Role
+          try {
+            const roleRecord = await prisma.role.findFirst({
+              where: {
+                OR: [
+                  { key: effectiveRole },
+                  { name: { equals: effectiveRole, mode: 'insensitive' } },
+                ],
+              },
+            });
+
+            if (roleRecord) {
+              // Check if this assignment already exists to avoid unique constraint violation
+              const existingAssignment = await prisma.userRoleAssignment.findFirst({
+                where: {
+                  userId: userIdForEmployee,
+                  roleId: roleRecord.id,
+                  companyId: effectiveCompanyId || null,
+                },
+              });
+
+              if (!existingAssignment) {
+                await prisma.userRoleAssignment.create({
+                  data: {
+                    userId: userIdForEmployee,
+                    roleId: roleRecord.id,
+                    companyId: effectiveCompanyId || null,
+                    assignedBy: decodedUserId || null,
+                  },
+                });
+              }
+            }
+          } catch (roleAssignErr) {
+            console.error('Failed to create UserRoleAssignment (non-critical):', roleAssignErr);
+          }
+        }
+      } catch (userCreationErr) {
+        console.error('Failed to create/update User account for employee (non-critical):', userCreationErr);
       }
 
       return NextResponse.json(

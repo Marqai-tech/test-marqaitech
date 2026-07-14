@@ -231,6 +231,10 @@ model Company {
   okrs            OKR[]
   // Candidate Portal addendum: talent pool back-relation
   talentPoolCandidates CandidateTalentPool[]
+  leaveTypes       LeaveType[]
+  holidays         Holiday[]
+  policies         Policy[]
+  shifts           Shift[]
 
   // ─── Global Payroll Addendum back-references ───
   payrollRuns           PayrollRun[]
@@ -247,6 +251,7 @@ model Company {
   walletBudgetAllocations WalletBudgetAllocation[] @relation("WalletBudgetCompany")
   reportSchedules         ReportSchedule[]       @relation("ReportScheduleCompany")
   employeeMappings        EmployeeCompanyMapping[]
+  attendancePolicyConfigs AttendancePolicyConfig[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -735,6 +740,9 @@ model LeaveType {
   maxCarryForward Int @default(0)
   status      String @default("active")
 
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   // REQ-LVE-02: force attachment upload (e.g. medical cert for sick leave > N days)
   attachmentMandatory   Boolean @default(false)
   attachmentMandatoryAfterDays Int @default(0)
@@ -751,6 +759,8 @@ model LeaveType {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 model LeaveBalance {
@@ -1322,8 +1332,13 @@ model Policy {
   effectiveDate DateTime?
   expiryDate  DateTime?
 
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 // ============ HOLIDAYS ============
@@ -1339,10 +1354,15 @@ model Holiday {
   isOptional  Boolean @default(false)
   optionalQuota Int @default(0)
 
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   elections   OptionalHolidayElection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 // ============ ANNOUNCEMENTS ============
@@ -1372,8 +1392,13 @@ model Shift {
   graceTime Int @default(15)
   status    String @default("active")
 
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 // ============ REIMBURSEMENT ============
@@ -5146,6 +5171,8 @@ model EmployeeRosterAssignment {
 model AttendancePolicyConfig {
   id              String   @id @default(cuid())
   name            String
+  companyId       String?  // Company scope for multi-tenant data visibility
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   // REQ-CFG-03: rounding rules
   roundEnabled    Boolean  @default(false)
   roundMinutes    Int      @default(15)  // round to nearest 15 minutes
@@ -5173,6 +5200,8 @@ model AttendancePolicyConfig {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 // ── Leave Encashment Request (REQ-LVE-07) ──

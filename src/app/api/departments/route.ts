@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -15,13 +16,21 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter === null) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const url = new URL(req.url);
-    const companyId = url.searchParams.get('companyId');
+    const queryCompanyId = url.searchParams.get('companyId');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
 
-    const where: Record<string, unknown> = { status: 'active' };
-    if (companyId) where.companyId = companyId;
+    const where: Record<string, unknown> = { status: 'active', ...companyFilter };
+    // If admin explicitly passes companyId query param, override the auto-scoped filter
+    if (queryCompanyId && Object.keys(companyFilter).length === 0) {
+      where.companyId = queryCompanyId;
+    }
 
     const departments = await db.department.findMany({
       where,
@@ -52,18 +61,36 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { name, code, companyId, branchId, headId, parentDepartmentId, status } = body;
 
-    if (!name || !companyId) {
-      return NextResponse.json({ error: 'Name and companyId are required' }, { status: 400, headers: corsHeaders() });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // If companyId not provided in body, resolve from user's scope
+    let resolvedCompanyId = companyId;
+    if (!resolvedCompanyId) {
+      const companyFilter = await getCompanyFilter(req);
+      if (companyFilter && 'companyId' in companyFilter) {
+        resolvedCompanyId = companyFilter.companyId as string;
+      }
+    }
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json({ error: 'companyId is required' }, { status: 400, headers: corsHeaders() });
     }
 
     const department = await db.department.create({
       data: {
         name,
         code: code || name.substring(0, 3).toUpperCase(),
-        companyId,
+        companyId: resolvedCompanyId,
         branchId: branchId || null,
         headId: headId || null,
         parentDepartmentId: parentDepartmentId || null,
@@ -84,6 +111,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -94,6 +126,12 @@ export async function PUT(req: NextRequest) {
     const existing = await db.department.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Department not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Non-admin users can only update departments in their own company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter && existing.companyId !== companyFilter.companyId) {
+      return NextResponse.json({ error: 'Forbidden: cannot modify department outside your company' }, { status: 403, headers: corsHeaders() });
     }
 
     const department = await db.department.update({
@@ -114,11 +152,27 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Department ID is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const existing = await db.department.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Non-admin users can only delete departments in their own company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter && existing.companyId !== companyFilter.companyId) {
+      return NextResponse.json({ error: 'Forbidden: cannot delete department outside your company' }, { status: 403, headers: corsHeaders() });
     }
 
     await db.department.delete({ where: { id } });

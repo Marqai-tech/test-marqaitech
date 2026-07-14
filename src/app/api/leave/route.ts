@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 import { buildContext, evaluateLeaveAutoApproval } from '@/lib/auto-approval-engine';
 
@@ -18,18 +18,10 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
       return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders() }
       );
     }
@@ -41,6 +33,30 @@ export async function GET(request: Request) {
     const employeeId = searchParams.get('employeeId');
 
     const where: Record<string, unknown> = {};
+
+    // ─── Company-scoped data visibility ───
+    if (scope.scope === 'self') {
+      // Employees can only see their own leave requests
+      const employee = await prisma.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true },
+      });
+      if (employee) {
+        where.employeeId = employee.id;
+      } else {
+        // No employee record — return empty
+        return NextResponse.json(
+          { leaveRequests: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+          { headers: corsHeaders() }
+        );
+      }
+    } else if (scope.companyId) {
+      // Admin with a specific company selected via CompanySwitcher
+      where.employee = { companyId: scope.companyId };
+    }
+    // scope === 'all' && no companyId → admin sees all companies
+
+    // Apply additional filters on top of company scope
     if (status) where.status = status;
     if (employeeId) where.employeeId = employeeId;
 
@@ -89,18 +105,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
       return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders() }
       );
     }
@@ -114,6 +122,39 @@ export async function POST(request: Request) {
         { status: 400, headers: corsHeaders() }
       );
     }
+
+    // ─── Company-scoped data visibility for POST ───
+    // Verify the target employee belongs to the same company as the user
+    const targetEmployee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, companyId: true, userId: true },
+    });
+
+    if (!targetEmployee) {
+      return NextResponse.json(
+        { error: 'Employee not found' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    if (scope.scope === 'self') {
+      // Employees can only create leave requests for themselves
+      if (targetEmployee.userId !== scope.userId) {
+        return NextResponse.json(
+          { error: 'You can only create leave requests for yourself' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    } else if (scope.companyId) {
+      // Admin with specific company — employee must belong to that company
+      if (targetEmployee.companyId !== scope.companyId) {
+        return NextResponse.json(
+          { error: 'Employee does not belong to the selected company' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    }
+    // scope === 'all' && no companyId → admin can access any employee
 
     // REQ-LVE-04: AI Collaborative Leave Check — compute warning before persisting
     let aiCollaborativeWarning: string | null = null;
@@ -175,10 +216,6 @@ export async function POST(request: Request) {
     });
 
     // ─── REQ-AI-ATT-04: AI Auto-Approval for Leave ────────────────────────
-    // After the leave is persisted in 'pending' status, the auto-approval
-    // engine evaluates the request against the AttendancePolicyConfig rules.
-    // If auto-approved, we update the status to 'approved' with approvedBy
-    // = 'ai_auto' and write an audit log entry.
     let autoApprovalApplied = false;
     let autoApprovalReason: string | null = null;
     try {
@@ -209,7 +246,7 @@ export async function POST(request: Request) {
         // Audit log for the auto-approval
         await prisma.auditLog.create({
           data: {
-            userId: decoded.userId as string,
+            userId: scope.userId,
             action: 'AI_AUTO_APPROVE_LEAVE',
             module: 'leave',
             details: `Leave request ${leaveRequest.id} auto-approved for employee ${employeeId}. Reason: ${decision.reason}. Confidence: ${decision.confidence}. Rules: ${decision.rulesEvaluated.join(', ')}`,
@@ -221,8 +258,6 @@ export async function POST(request: Request) {
     }
 
     // ─── REQ-ENG-04: Intelligent approval router ─────────────────────────
-    // If the primary manager is on approved leave, auto-route to the configured
-    // backup approver (ApprovalRoutingRule.alternateManagerId).
     let approvalRouting: { fallbackApplied: boolean; approverId: string | null; reason: string } | null = null;
     if (!autoApprovalApplied) {
       try {
@@ -230,7 +265,7 @@ export async function POST(request: Request) {
         const router = await resolveAndAuditApprover(
           employeeId,
           'leave',
-          (decoded.userId as string) || 'system',
+          scope.userId || 'system',
           null,
           new Date(startDate),
         );
@@ -242,8 +277,8 @@ export async function POST(request: Request) {
         if (router.fallbackApplied && router.approverId) {
           // Notify the backup approver
           await createNotification({
-            tenantId: decoded.tenantId as string,
-            userId: router.approverId,  // resolveAndAuditApprover returns employeeId; user lookup may be needed
+            tenantId: scope.tenantId,
+            userId: router.approverId,
             title: 'Leave Request — Auto-Routed to You (Backup Approver)',
             message: `Primary manager is on leave. ${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}'s ${leaveRequest.leaveType.name} leave request (${startDate} to ${endDate}) has been auto-routed to you for approval.`,
             type: 'workflow',
@@ -259,14 +294,14 @@ export async function POST(request: Request) {
     // Notify HR admins about the leave request
     const hrAdmins = await prisma.user.findMany({
       where: {
-        tenantId: decoded.tenantId as string,
+        tenantId: scope.tenantId,
         role: { in: ['super_admin', 'tenant_admin', 'admin'] },
       },
     });
 
     for (const admin of hrAdmins) {
       await createNotification({
-        tenantId: decoded.tenantId as string,
+        tenantId: scope.tenantId,
         userId: admin.id,
         title: 'New Leave Request',
         message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has submitted a ${leaveRequest.leaveType.name} leave request from ${startDate} to ${endDate}.`,
@@ -278,7 +313,7 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: {
-        userId: decoded.userId as string,
+        userId: scope.userId,
         action: 'CREATE_LEAVE_REQUEST',
         module: 'leave',
         details: `Created leave request for employee ${employeeId}`,

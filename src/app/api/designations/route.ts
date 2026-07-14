@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getDesignationCompanyFilter, getAuthInfo, getCompanyFilter } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -15,13 +16,32 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
+    const designationFilter = await getDesignationCompanyFilter(req);
+    if (designationFilter === null) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const url = new URL(req.url);
     const departmentId = url.searchParams.get('departmentId');
+    const queryCompanyId = url.searchParams.get('companyId');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
 
+    // Designations are scoped via their Department's companyId
     const where: Record<string, unknown> = { status: 'active' };
-    if (departmentId) where.departmentId = departmentId;
+
+    if (departmentId) {
+      where.departmentId = departmentId;
+    }
+
+    // Apply company scoping through department relation
+    if (Object.keys(designationFilter).length > 0) {
+      // Non-admin or admin with specific company selected
+      where.department = { ...designationFilter };
+    } else if (queryCompanyId) {
+      // Admin with no auto-scope but explicit companyId query param
+      where.department = { companyId: queryCompanyId };
+    }
 
     const designations = await db.designation.findMany({
       where,
@@ -29,7 +49,7 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
       include: {
-        department: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true, companyId: true } },
         _count: { select: { employees: true } },
       },
     });
@@ -51,11 +71,27 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { title, departmentId, level, minSalary, maxSalary, status } = body;
 
     if (!title || !departmentId) {
       return NextResponse.json({ error: 'Title and departmentId are required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Verify the department belongs to the user's company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter) {
+      const department = await db.department.findFirst({
+        where: { id: departmentId, ...companyFilter },
+      });
+      if (!department) {
+        return NextResponse.json({ error: 'Department not found in your company scope' }, { status: 403, headers: corsHeaders() });
+      }
     }
 
     const designation = await db.designation.create({
@@ -81,6 +117,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -88,9 +129,18 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Designation ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await db.designation.findUnique({ where: { id } });
+    const existing = await db.designation.findUnique({
+      where: { id },
+      include: { department: { select: { companyId: true } } },
+    });
     if (!existing) {
       return NextResponse.json({ error: 'Designation not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Non-admin users can only update designations in their own company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter && existing.department.companyId !== companyFilter.companyId) {
+      return NextResponse.json({ error: 'Forbidden: cannot modify designation outside your company' }, { status: 403, headers: corsHeaders() });
     }
 
     const designation = await db.designation.update({
@@ -110,11 +160,30 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await getAuthInfo(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Designation ID is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const existing = await db.designation.findUnique({
+      where: { id },
+      include: { department: { select: { companyId: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Designation not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Non-admin users can only delete designations in their own company
+    const companyFilter = await getCompanyFilter(req);
+    if (companyFilter && 'companyId' in companyFilter && existing.department.companyId !== companyFilter.companyId) {
+      return NextResponse.json({ error: 'Forbidden: cannot delete designation outside your company' }, { status: 403, headers: corsHeaders() });
     }
 
     await db.designation.delete({ where: { id } });

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveCompanyScope } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -16,18 +16,10 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
       return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders() }
       );
     }
@@ -40,6 +32,30 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
 
     const where: Record<string, unknown> = {};
+
+    // ─── Company-scoped data visibility ───
+    if (scope.scope === 'self') {
+      // Employees can only see their own attendance records
+      const employee = await prisma.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { id: true },
+      });
+      if (employee) {
+        where.employeeId = employee.id;
+      } else {
+        // No employee record — return empty
+        return NextResponse.json(
+          { attendance: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+          { headers: corsHeaders() }
+        );
+      }
+    } else if (scope.companyId) {
+      // Admin with a specific company selected via CompanySwitcher
+      where.employee = { companyId: scope.companyId };
+    }
+    // scope === 'all' && no companyId → admin sees all companies
+
+    // Apply additional filters on top of company scope
     if (employeeId) where.employeeId = employeeId;
     if (date) where.date = new Date(date);
     if (status) where.status = status;
@@ -88,18 +104,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
       return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders() }
       );
     }
@@ -113,6 +121,39 @@ export async function POST(request: Request) {
         { status: 400, headers: corsHeaders() }
       );
     }
+
+    // ─── Company-scoped data visibility for POST ───
+    // Verify the target employee belongs to the same company as the user
+    const targetEmployee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, companyId: true, userId: true },
+    });
+
+    if (!targetEmployee) {
+      return NextResponse.json(
+        { error: 'Employee not found' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    if (scope.scope === 'self') {
+      // Employees can only create attendance for themselves
+      if (targetEmployee.userId !== scope.userId) {
+        return NextResponse.json(
+          { error: 'You can only check in/out for yourself' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    } else if (scope.companyId) {
+      // Admin with specific company — employee must belong to that company
+      if (targetEmployee.companyId !== scope.companyId) {
+        return NextResponse.json(
+          { error: 'Employee does not belong to the selected company' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+    }
+    // scope === 'all' && no companyId → admin can access any employee
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

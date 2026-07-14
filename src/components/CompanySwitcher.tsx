@@ -36,8 +36,9 @@ export default function CompanySwitcher() {
     availableTenants, availableCompanies, availableCompanyGroups,
     selectedTenantId, selectedGroupId, selectedCompanyId,
     setSelectedTenant, setSelectedGroup, setSelectedCompany, setRole,
-    effectiveCompanyLabel, canSwitch,
+    effectiveCompanyLabel,
     hydrating, lastError,
+    mappedCompanies,
   } = useCompanyContextStore();
 
   const [open, setOpen] = useState(false);
@@ -121,8 +122,11 @@ export default function CompanySwitcher() {
       if (availableCompanyGroups.length === 0) {
         refreshContext();
       }
+    } else if (!['super_admin', 'tenant_admin'].includes(userRole) && mappedCompanies.length === 0 && !hydrating) {
+      // Employee with mapped companies: auto-refresh if no mappings loaded yet
+      refreshContext();
     }
-  }, [open, user?.role, role, availableTenants.length, availableCompanies.length, availableCompanyGroups.length, hydrating, refreshContext]);
+  }, [open, user?.role, role, availableTenants.length, availableCompanies.length, availableCompanyGroups.length, mappedCompanies.length, hydrating, refreshContext]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -141,7 +145,9 @@ export default function CompanySwitcher() {
   const userRole = (user?.role || role || 'employee').toLowerCase();
   const isSuperAdmin = userRole === 'super_admin';
   const isTenantAdmin = userRole === 'tenant_admin';
-  const allowSwitch = isSuperAdmin || isTenantAdmin;
+  const isAdmin = isSuperAdmin || isTenantAdmin;
+  const hasMappedCompanies = mappedCompanies.length > 1;
+  const allowSwitch = isAdmin || hasMappedCompanies;
 
   // The tenant that's currently in scope (for super_admin: the selected one;
   // for tenant_admin: their own tenant)
@@ -167,9 +173,7 @@ export default function CompanySwitcher() {
     );
   });
 
-  const selectedTenantName = scopedTenant?.name || (isSuperAdmin ? 'Select tenant' : 'My tenant');
-
-  // ---------- non-admin view: static badge showing tenant + company ----------
+  // ---------- non-admin with no mapped companies: static badge ----------
   if (!allowSwitch) {
     const label = ownCompany?.name || 'Not yet assigned';
     const tenantName = tenant?.name;
@@ -184,6 +188,161 @@ export default function CompanySwitcher() {
         <span className="truncate flex items-center gap-1">
           <FiBriefcase className="w-3 h-3 text-slate-500 flex-shrink-0" /> {label}
         </span>
+      </div>
+    );
+  }
+
+  // ---------- employee with multiple mapped companies: dropdown ----------
+  if (!isAdmin && hasMappedCompanies) {
+    const currentCompanyId = selectedCompanyId || ownCompanyId;
+    const currentCompany = mappedCompanies.find((mc) => mc.id === currentCompanyId) || ownCompany;
+    const label = currentCompany?.name || 'Not yet assigned';
+    const tenantName = tenant?.name;
+
+    // Filter mapped companies by search
+    const filteredMapped = search
+      ? mappedCompanies.filter((mc) =>
+          mc.name.toLowerCase().includes(search.toLowerCase()) ||
+          (mc.code || '').toLowerCase().includes(search.toLowerCase()) ||
+          mc.employeeCode.toLowerCase().includes(search.toLowerCase())
+        )
+      : mappedCompanies;
+
+    return (
+      <div className="relative" ref={ref}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors text-xs font-semibold text-slate-700 max-w-[180px] sm:max-w-[260px]"
+          title="Switch company context"
+        >
+          <FiBriefcase className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+          <span className="truncate">{label}</span>
+          <FiChevronDown className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+
+        {open && (
+          <div className="absolute right-0 top-full mt-2 w-[300px] sm:w-[380px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
+            {/* Header */}
+            <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-2">
+                    <FiBriefcase className="w-3.5 h-3.5" /> My Companies
+                  </p>
+                  <p className="text-[11px] text-emerald-700/70 mt-0.5">
+                    Switch between your assigned companies
+                  </p>
+                </div>
+                <button
+                  onClick={() => refreshContext()}
+                  disabled={hydrating}
+                  title="Refresh company list"
+                  className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/60 px-2 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  <FiRefreshCw className={`w-3 h-3 ${hydrating ? 'animate-spin' : ''}`} />
+                  {hydrating ? 'Loading' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            {/* Tenant info */}
+            {tenantName && (
+              <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50">
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <FiHome className="w-2.5 h-2.5" /> {tenantName}
+                </span>
+              </div>
+            )}
+
+            {/* Error banner */}
+            {lastError && mappedCompanies.length === 0 && (
+              <div className="px-4 py-3 border-b border-red-100 bg-red-50/80 flex items-start gap-2">
+                <FiAlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-red-700">{lastError}</p>
+                  <button
+                    onClick={() => refreshContext()}
+                    disabled={hydrating}
+                    className="text-[10px] font-bold text-red-700 hover:text-red-900 underline mt-1 disabled:opacity-50"
+                  >
+                    {hydrating ? 'Retrying…' : 'Retry now'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="px-4 py-3 border-b border-slate-100">
+              <div className="relative">
+                <FiSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search company..."
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-300"
+                />
+              </div>
+            </div>
+
+            {/* Mapped company list */}
+            <div className="max-h-[280px] overflow-y-auto">
+              {filteredMapped.length === 0 ? (
+                <div className="px-4 py-6 text-center text-slate-400">
+                  <FiInfo className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-sm">
+                    {mappedCompanies.length === 0
+                      ? 'No companies assigned yet'
+                      : 'No matches for your search'}
+                  </p>
+                </div>
+              ) : (
+                filteredMapped.map((mc) => {
+                  const isSelected = currentCompanyId === mc.id;
+                  return (
+                    <button
+                      key={mc.id}
+                      onClick={() => {
+                        logSwap({ toCompanyId: mc.id, toCompanyName: mc.name });
+                        setSelectedCompany(mc.id);
+                        setOpen(false);
+                        setSearch('');
+                      }}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between border-b border-slate-100 last:border-b-0 ${
+                        isSelected ? 'bg-emerald-50/40' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {mc.name?.[0]?.toUpperCase() || 'C'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`text-sm font-medium truncate ${isSelected ? 'text-emerald-900' : 'text-slate-900'}`}>
+                            {mc.name}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {mc.code ? `${mc.code} · ` : ''}Emp code: {mc.employeeCode}
+                          </p>
+                        </div>
+                      </div>
+                      {isSelected && <FiCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+              <span>
+                {mappedCompanies.length} compan{mappedCompanies.length === 1 ? 'y' : 'ies'} assigned to you
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

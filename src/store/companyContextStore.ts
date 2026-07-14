@@ -37,6 +37,14 @@ export interface OwnCompanyInfo {
   code: string | null;
 }
 
+export interface MappedCompanyOption {
+  id: string;
+  name: string;
+  code: string | null;
+  companyGroupId: string;
+  employeeCode: string;
+}
+
 export interface TenantInfo {
   id: string;
   name: string;
@@ -70,6 +78,7 @@ interface CompanyContextState {
   availableTenants: TenantOption[];
   availableCompanyGroups: CompanyGroupOption[];
   availableCompanies: CompanyOption[];
+  mappedCompanies: MappedCompanyOption[];
 
   // User's current selection (admins only)
   //   selectedTenantId  — super_admin: which parent (tenant) is in scope
@@ -122,6 +131,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       availableTenants: [],
       availableCompanyGroups: [],
       availableCompanies: [],
+      mappedCompanies: [],
       selectedTenantId: null,
       selectedGroupId: null,
       selectedCompanyId: null,
@@ -144,7 +154,9 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           }
           const data = await res.json();
           const role = data.role || 'employee';
-          const canSwitch = role === 'super_admin' || role === 'tenant_admin';
+          const isAdmin = role === 'super_admin' || role === 'tenant_admin';
+          const hasMappedCompanies = (data.mappedCompanies || []).length > 1;
+          const canSwitch = isAdmin || hasMappedCompanies;
 
           // Default the selected tenant to the caller's tenant for tenant_admin,
           // or to the first available for super_admin (if a previous selection
@@ -167,16 +179,24 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             selectedTenantId = data.tenantId;
           }
 
-          // For non-admins, the effective company is always their own.
+          // For non-admins without multiple mappings, the effective company is always their own.
           // For admins, if the persisted selectedCompanyId is no longer in the
           // fresh list (e.g., company was deleted), reset it to null ("all").
+          // For employees with multiple mappings, validate against mapped companies.
           const persistedSelectedCompany = state.selectedCompanyId;
           const companyStillExists = persistedSelectedCompany
             ? (data.availableCompanies || []).some((c: CompanyOption) => c.id === persistedSelectedCompany)
             : false;
-          const selectedCompanyId = canSwitch
-            ? (companyStillExists ? persistedSelectedCompany : null)
-            : data.ownCompanyId;
+          let selectedCompanyId: string | null;
+          if (isAdmin) {
+            selectedCompanyId = companyStillExists ? persistedSelectedCompany : null;
+          } else if (hasMappedCompanies) {
+            // Employee with multiple mappings — default to their own company if
+            // no valid persisted selection exists.
+            selectedCompanyId = companyStillExists ? persistedSelectedCompany : data.ownCompanyId;
+          } else {
+            selectedCompanyId = data.ownCompanyId;
+          }
 
           // Validate the persisted selectedGroupId — if the group no longer exists
           // (e.g., was deleted by super admin), reset it to null.
@@ -208,6 +228,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             availableTenants: data.availableTenants || [],
             availableCompanyGroups: data.availableCompanyGroups || [],
             availableCompanies: data.availableCompanies || [],
+            mappedCompanies: data.mappedCompanies || [],
             selectedTenantId,
             selectedGroupId,
             selectedCompanyId,
@@ -286,6 +307,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           availableTenants: [],
           availableCompanyGroups: [],
           availableCompanies: [],
+          mappedCompanies: [],
           selectedTenantId: null,
           selectedGroupId: null,
           selectedCompanyId: null,
@@ -297,6 +319,10 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         const r = s.role;
         if (r === 'super_admin' || r === 'tenant_admin') {
           // Admin can choose to view "all companies" (null) or a specific one
+          return s.selectedCompanyId;
+        }
+        // Employee with multiple mapped companies can switch between them
+        if (s.mappedCompanies.length > 1 && s.selectedCompanyId) {
           return s.selectedCompanyId;
         }
         return s.ownCompanyId;
@@ -312,6 +338,11 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             return c?.companyGroupId || s.selectedGroupId || null;
           }
           return s.selectedGroupId;
+        }
+        // Employees with mapped companies: derive from the selected company
+        if (s.mappedCompanies.length > 1 && s.selectedCompanyId) {
+          const mc = s.mappedCompanies.find((x) => x.id === s.selectedCompanyId);
+          return mc?.companyGroupId || null;
         }
         // Non-admins: derive from their own company.
         if (s.ownCompanyId) {
@@ -347,12 +378,23 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const t = s.availableTenants.find((x) => x.id === s.selectedTenantId);
           return t ? `${t.name} (all)` : 'All parents';
         }
+        // Employee with multiple mapped companies — show the currently selected one
+        if (s.mappedCompanies.length > 1) {
+          if (s.selectedCompanyId) {
+            const mc = s.mappedCompanies.find((x) => x.id === s.selectedCompanyId);
+            if (mc) return mc.name;
+          }
+          return s.ownCompany?.name || 'Not yet assigned';
+        }
         return s.ownCompany?.name || 'Not yet assigned';
       },
 
       canSwitch: (userRole?: string) => {
-        const r = (userRole || get().role || 'employee').toLowerCase();
-        return r === 'super_admin' || r === 'tenant_admin';
+        const s = get();
+        const r = (userRole || s.role || 'employee').toLowerCase();
+        if (r === 'super_admin' || r === 'tenant_admin') return true;
+        // Employees with multiple mapped companies can switch between them
+        return s.mappedCompanies.length > 1;
       },
 
       selectedTenant: () => {
@@ -385,6 +427,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         ownCompanyId: s.ownCompanyId,
         ownCompany: s.ownCompany,
         tenant: s.tenant,
+        mappedCompanies: s.mappedCompanies,
       }),
     }
   )

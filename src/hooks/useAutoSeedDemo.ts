@@ -10,10 +10,27 @@
  *  - Uses sessionStorage to avoid re-running across same-session navigation
  *  - Silent: never throws, never shows errors to the user
  *  - Returns { seeded, error } so callers can optionally react
+ *
+ * INTENTIONAL EXCLUSION:
+ *  Tenants with slug '3boxeshrms' or 'marqaitechgroup' are EXCLUDED from
+ *  auto-seeding. These are production tenants that had their sample data
+ *  cleaned up via /api/admin/cleanup-sample-data. Auto-seeding would
+ *  re-introduce the exact data the admin removed. The demo tenant at
+ *  nexus-hrms-mu.vercel.app is NOT excluded and continues to auto-seed.
  */
 import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/store/authStore';
 
 type Module = 'marketplace' | 'wellness' | 'collaboration' | 'clients' | 'vendors' | 'all';
+
+/**
+ * Tenant slugs whose sample data was intentionally cleaned up.
+ * Auto-seeding is disabled for these tenants to prevent re-introducing
+ * the sample data that was removed via the cleanup endpoint.
+ * The demo tenant (nexus-hrms-mu.vercel.app) is NOT in this list
+ * and will continue to auto-seed normally.
+ */
+const CLEANUP_EXCLUDED_SLUGS = ['3boxeshrms', 'marqaitechgroup'];
 
 const sessionCache: Record<string, boolean> = {};
 
@@ -22,6 +39,25 @@ export function useAutoSeedDemo(module: Module, onSeeded?: () => void) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // ─── Intentional exclusion check ───
+    // If the current tenant's slug matches a cleanup-excluded slug,
+    // skip auto-seeding entirely. This prevents sample data from being
+    // re-seeded after an admin runs the cleanup endpoint for production
+    // tenants (3boxeshrms.com, marqaitechgroup.3boxeshrms.com).
+    // The demo at nexus-hrms-mu.vercel.app is NOT excluded.
+    const tenantSlug = useAuthStore.getState().user?.tenant?.slug;
+    if (tenantSlug && CLEANUP_EXCLUDED_SLUGS.includes(tenantSlug)) {
+      // Mark as done in cache so we don't re-check on every render
+      const cacheKey = `auto-seed-${module}`;
+      sessionCache[cacheKey] = true;
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(cacheKey, 'done');
+        }
+      } catch {}
+      return;
+    }
+
     const cacheKey = `auto-seed-${module}`;
     if (sessionCache[cacheKey]) return;
 
