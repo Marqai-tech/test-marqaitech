@@ -100,6 +100,13 @@ interface Employee {
   salaryCurrency?: string;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
+  companyId?: string | null;
+  leavePolicyId?: string | null;
+  attendancePolicyId?: string | null;
+  travelPolicyId?: string | null;
+  salaryStructureId?: string | null;
+  bloodGroup?: string | null;
+  user?: { id: string; email: string; role: string; avatar: string | null } | null;
 }
 
 interface Department { id: string; name: string }
@@ -545,6 +552,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           previousDuration3: (emp as Record<string, unknown>).previousDuration3 as string || '',
           previousReason3: (emp as Record<string, unknown>).previousReason3 as string || '',
           totalExperience: (emp as Record<string, unknown>).totalExperience as string || '',
+          role: emp.user?.role || 'employee',
         });
         setShowForm(true);
         setFormTab('personal');
@@ -633,7 +641,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       state: emp.state || '',
       zipCode: emp.zipCode || '',
       country: emp.country || '',
-      companyId: (emp as Record<string, unknown>).companyId as string || '',
+      companyId: emp.companyId || '',
       departmentId: emp.department?.id || '',
       designationId: emp.designation?.id || '',
       branchId: emp.branch?.id || '',
@@ -667,6 +675,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       attendancePolicyId: emp.attendancePolicyId || '',
       travelPolicyId: emp.travelPolicyId || '',
       salaryStructureId: emp.salaryStructureId || '',
+      role: emp.user?.role || 'employee',
     });
     setShowForm(true);
     setFormTab('personal');

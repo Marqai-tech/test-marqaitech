@@ -328,7 +328,7 @@ export default function EmployeeSettingsPage() {
 
   const fetchDesignations = useCallback(async () => {
     try {
-      const res = await fetch('/api/company/designations', { headers: getAuthHeaders() })
+      const res = await fetch('/api/designations', { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
         setDesignations((data.designations || data || []).map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
@@ -338,10 +338,10 @@ export default function EmployeeSettingsPage() {
 
   const fetchBranches = useCallback(async () => {
     try {
-      const res = await fetch('/api/company/branches', { headers: getAuthHeaders() })
+      const res = await fetch('/api/branches', { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
-        setBranches((data.branches || data || []).map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
+        setBranches(((data.data || data.branches || data || []) as Array<{ id: string; name: string }>).map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
       }
     } catch { /* ignore */ }
   }, [])

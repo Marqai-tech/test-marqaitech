@@ -268,7 +268,21 @@ export default function EmployeeDetailPage() {
     try {
       setLoading(true);
       const res = await fetch(`/api/employees/${id}`, { headers: getAuthHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch employee');
+      if (res.status === 503) {
+        // DB unavailable — don't treat as "not found"
+        console.error('Database unavailable when fetching employee');
+        setEmployee(null);
+        return;
+      }
+      if (res.status === 404) {
+        setEmployee(null);
+        return;
+      }
+      if (!res.ok) {
+        console.error('Failed to fetch employee:', res.status);
+        setEmployee(null);
+        return;
+      }
       const data = await res.json();
       setEmployee(data.employee);
     } catch (err) {

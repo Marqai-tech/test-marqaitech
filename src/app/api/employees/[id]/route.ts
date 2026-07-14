@@ -101,7 +101,7 @@ export async function PUT(
         nationality, address, city, state, zipCode, country, bloodGroup,
         emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
-        status,
+        status, role,
       } = body;
 
       const updateData: Record<string, unknown> = {};
@@ -143,8 +143,64 @@ export async function PUT(
           department: true,
           designation: true,
           branch: true,
+          user: { select: { id: true, email: true, role: true, avatar: true } },
         },
       });
+
+      // ─── Update User role if provided ───
+      // The role field lives on the User model, not Employee.
+      // When editing an employee's role, we need to update the linked User account.
+      if (role && employee.userId) {
+        try {
+          const effectiveRole = role || 'employee';
+          await prisma.user.update({
+            where: { id: employee.userId },
+            data: { role: effectiveRole },
+          });
+
+          // Also update UserRoleAssignment if a Role record exists
+          const roleRecord = await prisma.role.findFirst({
+            where: {
+              OR: [
+                { key: effectiveRole },
+                { name: { equals: effectiveRole, mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (roleRecord) {
+            // Upsert the role assignment
+            const existingAssignment = await prisma.userRoleAssignment.findFirst({
+              where: { userId: employee.userId, roleId: roleRecord.id },
+            });
+            if (!existingAssignment) {
+              await prisma.userRoleAssignment.create({
+                data: {
+                  userId: employee.userId,
+                  roleId: roleRecord.id,
+                  companyId: employee.companyId || null,
+                },
+              });
+            }
+          }
+
+          // Re-fetch employee with updated user role for the response
+          const updatedEmployee = await prisma.employee.findUnique({
+            where: { id },
+            include: {
+              department: true,
+              designation: true,
+              branch: true,
+              user: { select: { id: true, email: true, role: true, avatar: true } },
+            },
+          });
+          if (updatedEmployee) {
+            return NextResponse.json({ employee: updatedEmployee }, { headers: corsHeaders() });
+          }
+        } catch (roleUpdateErr) {
+          console.error('Failed to update user role (non-critical):', roleUpdateErr);
+          // Don't fail the whole request — the employee was already updated successfully
+        }
+      }
 
       // Try audit log (non-critical)
       try {
