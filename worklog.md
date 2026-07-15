@@ -129,3 +129,24 @@ Stage Summary:
 - Invite route now respects employee's assigned role
 - Sample data cleanup available at POST /api/cleanup with {confirm: true}
 - All changes deployed to Vercel via git push
+
+---
+Task ID: 1
+Agent: Main
+Task: Fix company mapping dropdowns, employee company switcher, and enhance mapping display
+
+Work Log:
+- Fixed Department/Designation/Branch API routes to prioritize explicit companyId query param over auto-scope from CompanySwitcher
+- Added separate modal dropdowns state (modalDepartments/modalDesignations/modalBranches) to prevent scope conflicts
+- Created fetchModalDropdowns() function that fetches dropdown data for a specific company
+- Fixed /api/me/context to resolve employee ID via email fallback when userId-linked employee not found
+- Fixed /api/me/context to derive ownCompanyId from EmployeeCompanyMapping when Employee.companyId is null
+- Added company relation and companyMappings to Employee API response (coreInclude)
+- Enhanced Employee detail Company Mapping tab with comprehensive overview (total companies, primary/secondary counts, employee IDs, company names)
+- Added Summary bar to mapping display showing all employee IDs across mapped companies
+- Pushed to GitHub main branch for Vercel auto-deploy
+
+Stage Summary:
+- 7 files modified with 241 insertions and 68 deletions
+- Key fixes: API routes now respect companyId query param, context API resolves mappings better, modal dropdowns are isolated from scope changes
+- Vercel should auto-deploy from the pushed commit
