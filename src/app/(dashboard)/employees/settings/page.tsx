@@ -316,35 +316,50 @@ export default function EmployeeSettingsPage() {
     }
   }, [search, filterDept, scopeCompanyId])
 
-  const fetchDepartments = useCallback(async () => {
+  const fetchDepartments = useCallback(async (companyId?: string) => {
     try {
-      const res = await fetch('/api/departments', { headers: getAuthHeaders() })
+      const params = new URLSearchParams()
+      if (companyId) params.set('companyId', companyId)
+      else if (scopeCompanyId) params.set('companyId', scopeCompanyId)
+      const url = `/api/departments${params.toString() ? '?' + params.toString() : ''}`
+      const res = await fetch(url, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
-        setDepartments((data.departments || data || []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })))
+        const list = Array.isArray(data) ? data : (data.data || data.departments || [])
+        setDepartments(list.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })))
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [scopeCompanyId])
 
-  const fetchDesignations = useCallback(async () => {
+  const fetchDesignations = useCallback(async (companyId?: string) => {
     try {
-      const res = await fetch('/api/designations', { headers: getAuthHeaders() })
+      const params = new URLSearchParams()
+      if (companyId) params.set('companyId', companyId)
+      else if (scopeCompanyId) params.set('companyId', scopeCompanyId)
+      const url = `/api/designations${params.toString() ? '?' + params.toString() : ''}`
+      const res = await fetch(url, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
-        setDesignations((data.designations || data || []).map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
+        const list = Array.isArray(data) ? data : (data.data || data.designations || [])
+        setDesignations(list.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [scopeCompanyId])
 
-  const fetchBranches = useCallback(async () => {
+  const fetchBranches = useCallback(async (companyId?: string) => {
     try {
-      const res = await fetch('/api/branches', { headers: getAuthHeaders() })
+      const params = new URLSearchParams()
+      if (companyId) params.set('companyId', companyId)
+      else if (scopeCompanyId) params.set('companyId', scopeCompanyId)
+      const url = `/api/branches${params.toString() ? '?' + params.toString() : ''}`
+      const res = await fetch(url, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
-        setBranches(((data.data || data.branches || data || []) as Array<{ id: string; name: string }>).map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
+        const list = (data.data || data.branches || data || []) as Array<{ id: string; name: string }>
+        setBranches(list.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [scopeCompanyId])
 
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
   useEffect(() => { fetchDepartments() }, [fetchDepartments])
@@ -538,22 +553,22 @@ export default function EmployeeSettingsPage() {
   }
 
   const setPrimaryMapping = async (mappingId: string) => {
-    // Optimistically update, then call API to set primary
     try {
-      // First unset all existing primary for this employee
-      await prismaFetch('/api/employees/company-mappings', {
-        method: 'POST',
+      const res = await fetch('/api/employees/company-mappings', {
+        method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          employeeId: selectedMapEmployee?.id,
-          companyId: companyMappings.find(m => m.id === mappingId)?.companyId,
-          employeeCode: companyMappings.find(m => m.id === mappingId)?.employeeCode || '',
+          mappingId,
           isPrimary: true,
         }),
       })
-      // Refresh
-      if (selectedMapEmployee) fetchCompanyMappings(selectedMapEmployee.id)
-      toast.success('Primary company updated')
+      if (res.ok) {
+        if (selectedMapEmployee) fetchCompanyMappings(selectedMapEmployee.id)
+        toast.success('Primary company updated')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to set primary')
+      }
     } catch {
       toast.error('Failed to set primary')
     }
@@ -1349,13 +1364,28 @@ export default function EmployeeSettingsPage() {
             )}
           </div>
 
-          {/* Current Mappings */}
+          {/* Current Mappings - Enhanced */}
           {selectedMapEmployee && (
             <div className="thb-card overflow-hidden">
               <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-thb-text-primary">Company Mappings for {selectedMapEmployee.firstName} {selectedMapEmployee.lastName}</h3>
-                  <p className="text-xs text-thb-text-muted mt-0.5">Employee can switch between mapped companies from the header dropdown</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs text-thb-text-muted">Employee can switch between mapped companies from the header dropdown</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">
+                      {companyMappings.length} {companyMappings.length === 1 ? 'Company' : 'Companies'}
+                    </span>
+                    {companyMappings.length > 0 && (
+                      <>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                          {companyMappings.filter(m => m.isPrimary).length} Primary
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                          {companyMappings.filter(m => !m.isPrimary).length} Secondary
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowAddMapping(true)}
@@ -1373,41 +1403,59 @@ export default function EmployeeSettingsPage() {
               ) : (
                 <div className="divide-y divide-thb-border">
                   {companyMappings.map(mapping => (
-                    <div key={mapping.id} className="flex items-center gap-4 px-5 py-4">
+                    <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-indigo-50/30' : ''}`}>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        <FiBriefcase className="w-5 h-5" />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-thb-text-primary">{mapping.company?.name || 'Unknown'}</p>
-                          {mapping.isPrimary && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                          <p className="text-sm font-semibold text-thb-text-primary">{mapping.company?.name || 'Unknown'}</p>
+                          {mapping.isPrimary ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                          ) : (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">SECONDARY</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-thb-text-muted">ID: {mapping.employeeCode}</span>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className="text-indigo-600 font-bold">{mapping.employeeCode}</span></span>
                           {mapping.department && <span className="text-xs text-thb-text-muted">Dept: {mapping.department.name}</span>}
-                          {mapping.designation && <span className="text-xs text-thb-text-muted">Role: {mapping.designation.title}</span>}
+                          {mapping.designation && <span className="text-xs text-thb-text-muted">Designation: {mapping.designation.title}</span>}
                           {mapping.branch && <span className="text-xs text-thb-text-muted">Branch: {mapping.branch.name}</span>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {!mapping.isPrimary && (
                           <button
                             onClick={() => setPrimaryMapping(mapping.id)}
-                            className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium rounded-md transition-colors"
                           >
-                            Set Primary
+                            <FiToggleLeft className="w-3.5 h-3.5" /> Set Primary
                           </button>
                         )}
                         {!mapping.isPrimary && (
                           <button
                             onClick={() => removeMapping(mapping.id)}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 font-medium rounded-md transition-colors"
                           >
-                            Remove
+                            <FiTrash2 className="w-3.5 h-3.5" /> Remove
                           </button>
                         )}
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Summary Bar */}
+              {companyMappings.length > 0 && (
+                <div className="px-5 py-3 bg-slate-50 border-t border-thb-border">
+                  <div className="flex items-center gap-4 text-xs text-thb-text-muted">
+                    <span className="font-medium">Summary:</span>
+                    <span>{companyMappings.length} compan{companyMappings.length === 1 ? 'y' : 'ies'} mapped</span>
+                    <span className="text-indigo-600 font-semibold">{companyMappings.filter(m => m.isPrimary).length} primary</span>
+                    <span className="text-slate-500">{companyMappings.filter(m => !m.isPrimary).length} secondary</span>
+                    <span className="ml-auto">Employee IDs: {companyMappings.map(m => m.employeeCode).join(', ')}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1424,7 +1472,16 @@ export default function EmployeeSettingsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label>
-                    <select value={newMappingCompanyId} onChange={e => setNewMappingCompanyId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    <select value={newMappingCompanyId} onChange={e => {
+                      const cid = e.target.value
+                      setNewMappingCompanyId(cid)
+                      // Re-fetch departments and designations for the selected company
+                      if (cid) {
+                        fetchDepartments(cid)
+                        fetchDesignations(cid)
+                        fetchBranches(cid)
+                      }
+                    }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
                       <option value="">Select Company</option>
                       {availableCompanies.filter(c => !companyMappings.some(m => m.companyId === c.id)).map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
                     </select>

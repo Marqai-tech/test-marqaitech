@@ -5,7 +5,7 @@ import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
@@ -116,6 +116,75 @@ export async function POST(request: Request) {
     return NextResponse.json({ mapping }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('[CompanyMappings POST] Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+/** PATCH — update a company mapping (e.g., set primary, update dept/designation) */
+export async function PATCH(request: Request) {
+  try {
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    const body = await request.json();
+    const { mappingId, isPrimary, departmentId, designationId, branchId } = body;
+
+    if (!mappingId) {
+      return NextResponse.json(
+        { error: 'mappingId is required' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+
+    const existing = await prisma.employeeCompanyMapping.findUnique({
+      where: { id: mappingId },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Mapping not found' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (isPrimary !== undefined) updateData.isPrimary = isPrimary;
+    if (departmentId !== undefined) updateData.departmentId = departmentId || null;
+    if (designationId !== undefined) updateData.designationId = designationId || null;
+    if (branchId !== undefined) updateData.branchId = branchId || null;
+
+    // If setting as primary, unset other primary mappings for the same employee
+    if (isPrimary) {
+      await prisma.employeeCompanyMapping.updateMany({
+        where: { employeeId: existing.employeeId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+
+      // Also update Employee.companyId
+      await prisma.employee.update({
+        where: { id: existing.employeeId },
+        data: { companyId: existing.companyId },
+      });
+    }
+
+    const mapping = await prisma.employeeCompanyMapping.update({
+      where: { id: mappingId },
+      data: updateData,
+      include: {
+        company: { select: { id: true, name: true, code: true } },
+        department: { select: { id: true, name: true } },
+        designation: { select: { id: true, title: true } },
+        branch: { select: { id: true, name: true } },
+      },
+    });
+
+    return NextResponse.json({ mapping }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('[CompanyMappings PATCH] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
