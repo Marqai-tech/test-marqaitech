@@ -160,9 +160,10 @@ interface EmployeeData {
   email: string;
   phone?: string | null;
   avatar?: string | null;
-  department?: { id: string; name: string } | null;
+  department?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
   designation?: { id: string; title: string } | null;
-  branch?: { id: string; name: string } | null;
+  branch?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
+  company?: { id: string; name: string; code: string | null } | null;
   dateOfJoining: string;
   status: string;
   dateOfBirth?: string | null;
@@ -1056,64 +1057,101 @@ export default function EmployeeDetailPage() {
                 </div>
               </div>
 
-              {/* Current Company */}
-              <SectionCard title="Primary Company" icon={<FiBriefcase className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
-                    <FiBriefcase className="w-6 h-6 text-indigo-600" />
-                  </div>
+              {/* Mapping Summary */}
+              <div className="thb-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-thb-text-primary">{employee.department?.name || 'No Department'}</p>
-                    <p className="text-xs text-thb-text-muted">Employee ID: {employee.employeeId}</p>
-                    <p className="text-xs text-thb-text-muted">{employee.designation?.title || 'No Designation'}</p>
+                    <h3 className="font-semibold text-thb-text-primary flex items-center gap-2">
+                      <FiBriefcase className="w-4 h-4 text-indigo-500" />
+                      Company Mapping Overview
+                    </h3>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                        {companyMappings.length + 1} Total Compan{companyMappings.length + 1 === 1 ? 'y' : 'ies'}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                        {companyMappings.filter(m => m.isPrimary).length + 1} Primary
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+                        {companyMappings.filter(m => !m.isPrimary).length} Secondary
+                      </span>
+                    </div>
                   </div>
-                  <span className="ml-auto inline-flex items-center px-2 py-1 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                  <button
+                    onClick={() => router.push('/employees/settings')}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <FiEdit2 className="w-3.5 h-3.5" /> Manage Mappings
+                  </button>
                 </div>
-              </SectionCard>
 
-              {/* Company Mappings */}
-              <SectionCard title="Additional Company Mappings" icon={<FiGlobe className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
-                {companyMappings.length === 0 ? (
-                  <div className="text-center py-6">
-                    <FiGlobe className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
-                    <p className="text-sm text-thb-text-muted">No additional company mappings</p>
-                    <p className="text-xs text-thb-text-muted mt-1">
-                      Go to <button onClick={() => router.push('/employees/settings')} className="text-blue-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
-                    </p>
+                {/* All Company Mappings - including primary */}
+                <div className="divide-y divide-thb-border">
+                  {/* Primary Company (from Employee record) */}
+                  <div className="flex items-center gap-4 px-5 py-4 bg-indigo-50/30">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
+                      <FiBriefcase className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-thb-text-primary">{employee.company?.name || employee.department?.company?.name || employee.branch?.company?.name || 'Primary Company'}</p>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className="text-indigo-600 font-bold">{employee.employeeId}</span></span>
+                        {employee.designation && <span className="text-xs text-thb-text-muted">Designation: {employee.designation.title}</span>}
+                        {employee.department && <span className="text-xs text-thb-text-muted">Dept: {employee.department.name}</span>}
+                        {employee.branch && <span className="text-xs text-thb-text-muted">Branch: {employee.branch.name}</span>}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="divide-y divide-thb-border">
-                    {companyMappings.map(mapping => (
-                      <div key={mapping.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+
+                  {/* Additional Company Mappings */}
+                  {companyMappings.length === 0 ? (
+                    <div className="px-5 py-6 text-center">
+                      <FiGlobe className="w-6 h-6 text-thb-text-muted mx-auto mb-2" />
+                      <p className="text-sm text-thb-text-muted">No additional company mappings</p>
+                      <p className="text-xs text-thb-text-muted mt-1">
+                        Go to <button onClick={() => router.push('/employees/settings')} className="text-blue-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
+                      </p>
+                    </div>
+                  ) : (
+                    companyMappings.map(mapping => (
+                      <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-blue-50/20' : ''}`}>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                          <FiGlobe className="w-5 h-5" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-thb-text-primary">{mapping.company?.name || 'Unknown Company'}</p>
-                            {mapping.isPrimary && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                            <p className="text-sm font-semibold text-thb-text-primary">{mapping.company?.name || 'Unknown Company'}</p>
+                            {mapping.isPrimary ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                            ) : (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">SECONDARY</span>
                             )}
                           </div>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-thb-text-muted">ID: {mapping.employeeCode}</span>
+                            <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className={mapping.isPrimary ? 'text-indigo-600 font-bold' : 'text-slate-700 font-bold'}>{mapping.employeeCode}</span></span>
                             {mapping.department && <span className="text-xs text-thb-text-muted">Dept: {mapping.department.name}</span>}
                             {mapping.designation && <span className="text-xs text-thb-text-muted">Role: {mapping.designation.title}</span>}
                             {mapping.branch && <span className="text-xs text-thb-text-muted">Branch: {mapping.branch.name}</span>}
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </SectionCard>
+                    ))
+                  )}
+                </div>
 
-              {/* Quick link to settings */}
-              <div className="flex justify-end">
-                <button
-                  onClick={() => router.push('/employees/settings')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
-                >
-                  <FiBriefcase className="w-4 h-4" />
-                  Manage Company Mappings
-                </button>
+                {/* Summary Bar */}
+                <div className="px-5 py-3 bg-slate-50 border-t border-thb-border">
+                  <div className="flex items-center gap-4 text-xs text-thb-text-muted flex-wrap">
+                    <span className="font-medium">Summary:</span>
+                    <span>{companyMappings.length + 1} compan{(companyMappings.length + 1) === 1 ? 'y' : 'ies'} mapped</span>
+                    <span className="text-indigo-600 font-semibold">{companyMappings.filter(m => m.isPrimary).length + 1} primary</span>
+                    <span className="text-slate-500">{companyMappings.filter(m => !m.isPrimary).length} secondary</span>
+                    <span className="ml-auto font-medium">Employee IDs: {[employee.employeeId, ...companyMappings.map(m => m.employeeCode)].join(', ')}</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}

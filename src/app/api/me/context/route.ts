@@ -95,6 +95,7 @@ export async function GET(request: Request) {
         select: {
           id: true,
           companyId: true,
+          email: true,
           branch: { select: { id: true, name: true, companyId: true, company: { select: { id: true, name: true, code: true } } } },
         },
       }),
@@ -113,11 +114,64 @@ export async function GET(request: Request) {
         }),
         null,
       );
-    } else {
-      // Fall back: if the user has no Employee record but is a non-admin, try
-      // to derive from the first employee in their tenant (best-effort for
-      // demo accounts). Admins typically don't have an employee record.
-      if (!['super_admin', 'tenant_admin'].includes(role) && callerTenantId) {
+    }
+
+    // For non-admin roles, try to find ownCompanyId from EmployeeCompanyMapping
+    // if it wasn't set from the Employee record directly.
+    if (!ownCompanyId && !['super_admin', 'tenant_admin'].includes(role)) {
+      // Try by userId-linked employee first
+      let employeeIdForMapping = employee?.id || null;
+
+      // If no employee found by userId, try by email match
+      if (!employeeIdForMapping && decoded.email) {
+        const employeeByEmail = await safe(
+          'employee.findFirst(emailFallback)',
+          () => prisma.employee.findFirst({
+            where: { email: { equals: decoded.email as string, mode: 'insensitive' } },
+            select: { id: true, companyId: true },
+          }),
+          null,
+        );
+        if (employeeByEmail) {
+          employeeIdForMapping = employeeByEmail.id;
+          if (employeeByEmail.companyId) {
+            ownCompanyId = employeeByEmail.companyId;
+          }
+        }
+      }
+
+      // Try to get companyId from EmployeeCompanyMapping
+      if (employeeIdForMapping) {
+        const primaryMapping = await safe(
+          'employeeCompanyMapping.findFirst(primary)',
+          () => prisma.employeeCompanyMapping.findFirst({
+            where: { employeeId: employeeIdForMapping!, isPrimary: true, status: 'active' },
+            select: { companyId: true, company: { select: { id: true, name: true, code: true } } },
+          }),
+          null,
+        );
+        if (primaryMapping) {
+          ownCompanyId = primaryMapping.companyId;
+          ownCompany = primaryMapping.company;
+        } else {
+          // Try any mapping if no primary
+          const anyMapping = await safe(
+            'employeeCompanyMapping.findFirst(any)',
+            () => prisma.employeeCompanyMapping.findFirst({
+              where: { employeeId: employeeIdForMapping!, status: 'active' },
+              select: { companyId: true, company: { select: { id: true, name: true, code: true } } },
+            }),
+            null,
+          );
+          if (anyMapping) {
+            ownCompanyId = anyMapping.companyId;
+            ownCompany = anyMapping.company;
+          }
+        }
+      }
+
+      // Still no ownCompanyId? Fall back to tenant's first employee
+      if (!ownCompanyId && callerTenantId) {
         const fallback = await safe(
           'employee.findFirst(fallback)',
           () => prisma.employee.findFirst({
@@ -135,6 +189,21 @@ export async function GET(request: Request) {
           ownCompany = fallback.branch?.company || null;
         }
       }
+    }
+
+    // Resolve the employee ID for company mapping lookup.
+    // If employee was found by userId, use that. Otherwise try by email.
+    let resolvedEmployeeId: string | null = employee?.id || null;
+    if (!resolvedEmployeeId && !['super_admin', 'tenant_admin'].includes(role) && decoded.email) {
+      const employeeByEmail = await safe(
+        'employee.findFirst(emailForMapping)',
+        () => prisma.employee.findFirst({
+          where: { email: { equals: decoded.email as string, mode: 'insensitive' } },
+          select: { id: true },
+        }),
+        null,
+      );
+      resolvedEmployeeId = employeeByEmail?.id || null;
     }
 
     // Build the switcher lists based on role
@@ -237,11 +306,11 @@ export async function GET(request: Request) {
     }
     // For all other roles, look up EmployeeCompanyMapping records so employees
     // who are mapped to multiple companies can switch between them.
-    if (!['super_admin', 'tenant_admin'].includes(role) && employee?.id) {
+    if (!['super_admin', 'tenant_admin'].includes(role) && resolvedEmployeeId) {
       const mappings = await safe(
         'employeeCompanyMapping.findMany',
         () => prisma.employeeCompanyMapping.findMany({
-          where: { employeeId: employee!.id, status: 'active' },
+          where: { employeeId: resolvedEmployeeId!, status: 'active' },
           select: {
             employeeCode: true,
             isPrimary: true,

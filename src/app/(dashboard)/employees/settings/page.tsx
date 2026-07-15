@@ -217,6 +217,10 @@ export default function EmployeeSettingsPage() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [designations, setDesignations] = useState<Array<{ id: string; title: string }>>([])
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([])
+  // Modal-specific dropdowns (scoped to the selected company in Add Mapping modal)
+  const [modalDepartments, setModalDepartments] = useState<Department[]>([])
+  const [modalDesignations, setModalDesignations] = useState<Array<{ id: string; title: string }>>([])
+  const [modalBranches, setModalBranches] = useState<Array<{ id: string; name: string }>>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterDept, setFilterDept] = useState('')
@@ -365,6 +369,35 @@ export default function EmployeeSettingsPage() {
   useEffect(() => { fetchDepartments() }, [fetchDepartments])
   useEffect(() => { fetchDesignations() }, [fetchDesignations])
   useEffect(() => { fetchBranches() }, [fetchBranches])
+
+  /** Fetch dropdown data for the Add Mapping modal, scoped to a specific companyId */
+  const fetchModalDropdowns = useCallback(async (companyId: string) => {
+    try {
+      const headers = getAuthHeaders()
+      const [deptRes, desigRes, branchRes] = await Promise.allSettled([
+        fetch(`/api/departments?companyId=${encodeURIComponent(companyId)}&limit=200`, { headers }),
+        fetch(`/api/designations?companyId=${encodeURIComponent(companyId)}&limit=200`, { headers }),
+        fetch(`/api/branches?companyId=${encodeURIComponent(companyId)}&limit=200`, { headers }),
+      ])
+      if (deptRes.status === 'fulfilled' && deptRes.value.ok) {
+        const data = await deptRes.value.json()
+        const list = Array.isArray(data) ? data : (data.data || data.departments || [])
+        setModalDepartments(list.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })))
+      }
+      if (desigRes.status === 'fulfilled' && desigRes.value.ok) {
+        const data = await desigRes.value.json()
+        const list = Array.isArray(data) ? data : (data.data || data.designations || [])
+        setModalDesignations(list.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
+      }
+      if (branchRes.status === 'fulfilled' && branchRes.value.ok) {
+        const data = await branchRes.value.json()
+        const list = (data.data || data.branches || data || []) as Array<{ id: string; name: string }>
+        setModalBranches(list.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
+      }
+    } catch (err) {
+      console.error('[fetchModalDropdowns] Error:', err)
+    }
+  }, [])
 
   /* Selection */
   const toggleSelect = (id: string) => {
@@ -522,6 +555,9 @@ export default function EmployeeSettingsPage() {
         setNewMappingDesigId('')
         setNewMappingBranchId('')
         setNewMappingIsPrimary(false)
+        setModalDepartments([])
+        setModalDesignations([])
+        setModalBranches([])
         fetchCompanyMappings(selectedMapEmployee.id)
         fetchEmployees()
       } else {
@@ -1475,11 +1511,18 @@ export default function EmployeeSettingsPage() {
                     <select value={newMappingCompanyId} onChange={e => {
                       const cid = e.target.value
                       setNewMappingCompanyId(cid)
+                      // Clear previous selections when company changes
+                      setNewMappingDeptId('')
+                      setNewMappingDesigId('')
+                      setNewMappingBranchId('')
                       // Re-fetch departments and designations for the selected company
                       if (cid) {
-                        fetchDepartments(cid)
-                        fetchDesignations(cid)
-                        fetchBranches(cid)
+                        fetchModalDropdowns(cid)
+                      } else {
+                        // Clear dropdowns if no company selected
+                        setModalDepartments([])
+                        setModalDesignations([])
+                        setModalBranches([])
                       }
                     }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
                       <option value="">Select Company</option>
@@ -1494,21 +1537,21 @@ export default function EmployeeSettingsPage() {
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
                     <select value={newMappingDeptId} onChange={e => setNewMappingDeptId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                       <option value="">Select Department</option>
-                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      {modalDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
                     <select value={newMappingDesigId} onChange={e => setNewMappingDesigId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                       <option value="">Select Designation</option>
-                      {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                      {modalDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
                     <select value={newMappingBranchId} onChange={e => setNewMappingBranchId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
                       <option value="">Select Branch</option>
-                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      {modalBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
                   </div>
                   <label className="flex items-center gap-2">

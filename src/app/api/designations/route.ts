@@ -34,13 +34,13 @@ export async function GET(req: NextRequest) {
       where.departmentId = departmentId;
     }
 
-    // Apply company scoping through department relation
-    if (Object.keys(designationFilter).length > 0) {
-      // Non-admin or admin with specific company selected
-      where.department = { ...designationFilter };
-    } else if (queryCompanyId) {
-      // Admin with no auto-scope but explicit companyId query param
+    // If companyId query param is explicitly provided, use it (overrides auto-scope)
+    // This is needed for company mapping where admin selects a different company
+    if (queryCompanyId) {
       where.department = { companyId: queryCompanyId };
+    } else if (Object.keys(designationFilter).length > 0) {
+      // Non-admin or admin with specific company selected via CompanySwitcher
+      where.department = { ...designationFilter };
     }
 
     const designations = await db.designation.findMany({

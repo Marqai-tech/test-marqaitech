@@ -16,9 +16,10 @@ export async function OPTIONS() {
 
 // Core includes that are guaranteed to exist in the Employee table
 const coreInclude = {
-  department: true,
+  department: { include: { company: { select: { id: true, name: true, code: true } } } },
   designation: true,
-  branch: true,
+  branch: { include: { company: { select: { id: true, name: true, code: true } } } },
+  company: { select: { id: true, name: true, code: true } },
   user: {
     select: { id: true, email: true, role: true, avatar: true },
   },
@@ -44,6 +45,16 @@ async function fetchOptionalRelations(employeeId: string) {
     ['assetAssignments', () => prisma.assetAssignment.findMany({
       where: { employeeId },
       include: { asset: true },
+    })],
+    ['companyMappings', () => prisma.employeeCompanyMapping.findMany({
+      where: { employeeId, status: 'active' },
+      include: {
+        company: { select: { id: true, name: true, code: true } },
+        department: { select: { id: true, name: true } },
+        designation: { select: { id: true, title: true } },
+        branch: { select: { id: true, name: true } },
+      },
+      orderBy: { isPrimary: 'desc' },
     })],
   ];
 
