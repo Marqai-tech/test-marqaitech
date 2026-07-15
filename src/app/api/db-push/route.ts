@@ -285,6 +285,124 @@ export async function POST() {
         "updatedAt" TIMESTAMP(3) NOT NULL,
         CONSTRAINT "ComplianceFiling_pkey" PRIMARY KEY ("id")
       )`,
+
+      // ─── Employee-related tables that might be missing ───
+
+      // EmployeeSkill
+      `CREATE TABLE IF NOT EXISTS "EmployeeSkill" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "skill" TEXT NOT NULL,
+        "level" TEXT NOT NULL DEFAULT 'intermediate',
+        "yearsOfExp" INTEGER,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "EmployeeSkill_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Dependent
+      `CREATE TABLE IF NOT EXISTS "Dependent" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "relation" TEXT NOT NULL,
+        "dateOfBirth" TIMESTAMP(3),
+        "gender" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Dependent_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Qualification
+      `CREATE TABLE IF NOT EXISTS "Qualification" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "degree" TEXT NOT NULL,
+        "institution" TEXT NOT NULL,
+        "year" INTEGER NOT NULL,
+        "percentage" DOUBLE PRECISION,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Qualification_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Experience
+      `CREATE TABLE IF NOT EXISTS "Experience" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "company" TEXT NOT NULL,
+        "designation" TEXT NOT NULL,
+        "startDate" TIMESTAMP(3) NOT NULL,
+        "endDate" TIMESTAMP(3),
+        "isCurrent" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Experience_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Document (employee documents)
+      `CREATE TABLE IF NOT EXISTS "Document" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "fileUrl" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expiryDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Document_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // LeaveBalance
+      `CREATE TABLE IF NOT EXISTS "LeaveBalance" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "leaveTypeId" TEXT NOT NULL,
+        "year" INTEGER NOT NULL,
+        "total" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "used" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "remaining" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "carryForward" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "LeaveBalance_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // AssetAssignment
+      `CREATE TABLE IF NOT EXISTS "AssetAssignment" (
+        "id" TEXT NOT NULL,
+        "assetId" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "assignedDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "returnDate" TIMESTAMP(3),
+        "expectedReturn" TIMESTAMP(3),
+        "condition" TEXT NOT NULL DEFAULT 'good',
+        "notes" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'assigned',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "AssetAssignment_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // EmployeeCompanyMapping
+      `CREATE TABLE IF NOT EXISTS "EmployeeCompanyMapping" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "companyId" TEXT NOT NULL,
+        "employeeCode" TEXT NOT NULL,
+        "departmentId" TEXT,
+        "designationId" TEXT,
+        "branchId" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+        "dateOfJoining" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "EmployeeCompanyMapping_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "EmployeeCompanyMapping_employeeId_companyId_key" UNIQUE ("employeeId", "companyId")
+      )`,
     ];
 
     // Create indexes separately
@@ -307,6 +425,19 @@ export async function POST() {
       `CREATE INDEX IF NOT EXISTS "PayrollValidation_companyId_idx" ON "PayrollValidation"("companyId")`,
       `CREATE INDEX IF NOT EXISTS "ComplianceFiling_payrollRunId_idx" ON "ComplianceFiling"("payrollRunId")`,
       `CREATE INDEX IF NOT EXISTS "ComplianceFiling_obligationId_idx" ON "ComplianceFiling"("obligationId")`,
+
+      // Employee-related table indexes
+      `CREATE INDEX IF NOT EXISTS "EmployeeSkill_employeeId_idx" ON "EmployeeSkill"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "Dependent_employeeId_idx" ON "Dependent"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "Qualification_employeeId_idx" ON "Qualification"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "Experience_employeeId_idx" ON "Experience"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "Document_employeeId_idx" ON "Document"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "LeaveBalance_employeeId_idx" ON "LeaveBalance"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "LeaveBalance_leaveTypeId_idx" ON "LeaveBalance"("leaveTypeId")`,
+      `CREATE INDEX IF NOT EXISTS "AssetAssignment_employeeId_idx" ON "AssetAssignment"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "AssetAssignment_assetId_idx" ON "AssetAssignment"("assetId")`,
+      `CREATE INDEX IF NOT EXISTS "EmployeeCompanyMapping_employeeId_idx" ON "EmployeeCompanyMapping"("employeeId")`,
+      `CREATE INDEX IF NOT EXISTS "EmployeeCompanyMapping_companyId_idx" ON "EmployeeCompanyMapping"("companyId")`,
     ];
 
     // Add missing columns to existing tables (Prisma db push might have missed these)
@@ -365,6 +496,28 @@ export async function POST() {
       `ALTER TABLE "Loan" ADD CONSTRAINT "Loan_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
       `ALTER TABLE "OvertimeRecord" DROP CONSTRAINT IF EXISTS "OvertimeRecord_employeeId_fkey"`,
       `ALTER TABLE "OvertimeRecord" ADD CONSTRAINT "OvertimeRecord_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      // Employee-related FK constraints
+      `ALTER TABLE "EmployeeSkill" DROP CONSTRAINT IF EXISTS "EmployeeSkill_employeeId_fkey"`,
+      `ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "Dependent" DROP CONSTRAINT IF EXISTS "Dependent_employeeId_fkey"`,
+      `ALTER TABLE "Dependent" ADD CONSTRAINT "Dependent_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "Qualification" DROP CONSTRAINT IF EXISTS "Qualification_employeeId_fkey"`,
+      `ALTER TABLE "Qualification" ADD CONSTRAINT "Qualification_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "Experience" DROP CONSTRAINT IF EXISTS "Experience_employeeId_fkey"`,
+      `ALTER TABLE "Experience" ADD CONSTRAINT "Experience_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "Document" DROP CONSTRAINT IF EXISTS "Document_employeeId_fkey"`,
+      `ALTER TABLE "Document" ADD CONSTRAINT "Document_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "LeaveBalance" DROP CONSTRAINT IF EXISTS "LeaveBalance_employeeId_fkey"`,
+      `ALTER TABLE "LeaveBalance" ADD CONSTRAINT "LeaveBalance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "AssetAssignment" DROP CONSTRAINT IF EXISTS "AssetAssignment_employeeId_fkey"`,
+      `ALTER TABLE "AssetAssignment" ADD CONSTRAINT "AssetAssignment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "AssetAssignment" DROP CONSTRAINT IF EXISTS "AssetAssignment_assetId_fkey"`,
+      `ALTER TABLE "AssetAssignment" ADD CONSTRAINT "AssetAssignment_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "EmployeeCompanyMapping" DROP CONSTRAINT IF EXISTS "EmployeeCompanyMapping_employeeId_fkey"`,
+      `ALTER TABLE "EmployeeCompanyMapping" ADD CONSTRAINT "EmployeeCompanyMapping_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "EmployeeCompanyMapping" DROP CONSTRAINT IF EXISTS "EmployeeCompanyMapping_companyId_fkey"`,
+      `ALTER TABLE "EmployeeCompanyMapping" ADD CONSTRAINT "EmployeeCompanyMapping_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
     ];
 
     // Execute CREATE TABLE statements

@@ -14,26 +14,93 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-// Shared include config for employee queries
-const employeeInclude = {
+// Core includes that are guaranteed to exist in the Employee table
+const coreInclude = {
   department: true,
   designation: true,
   branch: true,
   user: {
     select: { id: true, email: true, role: true, avatar: true },
   },
-  leaveBalances: {
-    include: { leaveType: true },
-  },
-  dependents: true,
-  qualifications: true,
-  experiences: true,
-  skills: true,
-  documents: true,
-  assetAssignments: {
-    include: { asset: true },
-  },
 };
+
+/**
+ * Safely fetch optional relations for an employee.
+ * Each relation is fetched independently so one failure doesn't break the rest.
+ */
+async function fetchOptionalRelations(employeeId: string) {
+  const result: Record<string, unknown> = {};
+
+  const optionalFetches: [string, () => Promise<unknown>][] = [
+    ['leaveBalances', () => prisma.leaveBalance.findMany({
+      where: { employeeId },
+      include: { leaveType: true },
+    })],
+    ['dependents', () => prisma.dependent.findMany({ where: { employeeId } })],
+    ['qualifications', () => prisma.qualification.findMany({ where: { employeeId } })],
+    ['experiences', () => prisma.experience.findMany({ where: { employeeId } })],
+    ['skills', () => (prisma as any).employeeSkill?.findMany?.({ where: { employeeId } }) ?? Promise.resolve([])],
+    ['documents', () => prisma.document.findMany({ where: { employeeId } })],
+    ['assetAssignments', () => prisma.assetAssignment.findMany({
+      where: { employeeId },
+      include: { asset: true },
+    })],
+  ];
+
+  await Promise.allSettled(
+    optionalFetches.map(async ([key, fetchFn]) => {
+      try {
+        result[key] = await fetchFn();
+      } catch (err) {
+        console.warn(`[Employee GET] Failed to fetch ${key} for ${employeeId}:`, err instanceof Error ? err.message : err);
+        result[key] = []; // Default to empty array
+      }
+    })
+  );
+
+  return result;
+}
+
+/**
+ * Resolve an employee ID to the actual database record.
+ * Tries: 1) by CUID id → 2) by employeeId (e.g. "EMP001") → 3) by email
+ */
+async function findEmployee(id: string) {
+  // Strategy 1: by database id (CUID)
+  try {
+    const emp = await prisma.employee.findUnique({
+      where: { id },
+      include: coreInclude,
+    });
+    if (emp) return emp;
+  } catch (err) {
+    console.warn(`[Employee GET] findUnique by id failed, trying fallback:`, err instanceof Error ? err.message : err);
+  }
+
+  // Strategy 2: by employeeId (business key like "EMP001")
+  try {
+    const emp = await prisma.employee.findUnique({
+      where: { employeeId: id },
+      include: coreInclude,
+    });
+    if (emp) return emp;
+  } catch {
+    // continue
+  }
+
+  // Strategy 3: by email
+  try {
+    const emp = await prisma.employee.findFirst({
+      where: { email: { equals: id, mode: 'insensitive' } },
+      include: coreInclude,
+    });
+    if (emp) return emp;
+  } catch {
+    // continue
+  }
+
+  return null;
+}
 
 export async function GET(
   request: Request,
@@ -43,51 +110,33 @@ export async function GET(
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
 
-    console.log(`[Employee GET] Looking up employee with id/employeeId: ${id}`);
+    console.log(`[Employee GET] Looking up employee: ${id}`);
 
     try {
-      // Strategy 1: Try findUnique by database id (CUID)
-      let employee = await prisma.employee.findUnique({
-        where: { id },
-        include: employeeInclude,
-      });
+      // Step 1: Find the core employee record
+      let employee = await findEmployee(id);
 
-      // Strategy 2: If not found, try findUnique by employeeId (e.g. "EMP001")
       if (!employee) {
-        console.log(`[Employee GET] Not found by id, trying employeeId: ${id}`);
-        employee = await prisma.employee.findUnique({
-          where: { employeeId: id },
-          include: employeeInclude,
-        });
-      }
-
-      // Strategy 3: If still not found, try a broader search by email or name
-      if (!employee) {
-        console.log(`[Employee GET] Not found by employeeId either, trying email search: ${id}`);
-        employee = await prisma.employee.findFirst({
-          where: { email: { equals: id, mode: 'insensitive' } },
-          include: employeeInclude,
-        });
-      }
-
-      if (employee) {
-        console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
+        console.log(`[Employee GET] Employee not found after all strategies for: ${id}`);
         return NextResponse.json(
-          { employee },
-          { headers: corsHeaders() }
+          { error: 'Employee not found', code: 'NOT_FOUND', searchedId: id },
+          { status: 404, headers: corsHeaders() }
         );
       }
 
-      // All strategies exhausted — employee genuinely not found
-      console.log(`[Employee GET] Employee not found after all lookup strategies for: ${id}`);
+      // Step 2: Fetch optional relations independently (non-fatal if they fail)
+      const optionalData = await fetchOptionalRelations(employee.id);
+      employee = { ...employee, ...optionalData };
+
+      console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
       return NextResponse.json(
-        { error: 'Employee not found', code: 'NOT_FOUND', searchedId: id },
-        { status: 404, headers: corsHeaders() }
+        { employee },
+        { headers: corsHeaders() }
       );
     } catch (dbError) {
       console.error('[Employee GET] DB query failed:', dbError);
       return NextResponse.json(
-        { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE' },
+        { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE', details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 503, headers: corsHeaders() }
       );
     }
@@ -123,7 +172,7 @@ export async function PUT(
         );
       }
 
-      const actualId = existingEmployee.id; // Use the real DB id for updates
+      const actualId = existingEmployee.id;
 
       const {
         firstName, lastName, email, phone, departmentId, designationId,
@@ -169,17 +218,10 @@ export async function PUT(
       const employee = await prisma.employee.update({
         where: { id: actualId },
         data: updateData,
-        include: {
-          department: true,
-          designation: true,
-          branch: true,
-          user: { select: { id: true, email: true, role: true, avatar: true } },
-        },
+        include: coreInclude,
       });
 
       // ─── Update User role if provided ───
-      // The role field lives on the User model, not Employee.
-      // When editing an employee's role, we need to update the linked User account.
       if (role !== undefined && employee.userId) {
         try {
           const effectiveRole = role || 'employee';
@@ -190,37 +232,35 @@ export async function PUT(
           });
 
           // Also update UserRoleAssignment if a Role record exists
-          const roleRecord = await prisma.role.findFirst({
-            where: {
-              OR: [
-                { key: effectiveRole },
-                { name: { equals: effectiveRole, mode: 'insensitive' } },
-              ],
-            },
-          });
-          if (roleRecord) {
-            // Delete existing role assignments for this user and create new one
-            await prisma.userRoleAssignment.deleteMany({
-              where: { userId: employee.userId },
-            });
-            await prisma.userRoleAssignment.create({
-              data: {
-                userId: employee.userId,
-                roleId: roleRecord.id,
-                companyId: employee.companyId || null,
+          try {
+            const roleRecord = await prisma.role.findFirst({
+              where: {
+                OR: [
+                  { key: effectiveRole },
+                  { name: { equals: effectiveRole, mode: 'insensitive' } },
+                ],
               },
             });
+            if (roleRecord) {
+              await prisma.userRoleAssignment.deleteMany({
+                where: { userId: employee.userId },
+              });
+              await prisma.userRoleAssignment.create({
+                data: {
+                  userId: employee.userId,
+                  roleId: roleRecord.id,
+                  companyId: employee.companyId || null,
+                },
+              });
+            }
+          } catch (roleAssignErr) {
+            console.warn('[Employee PUT] Role assignment update failed (non-critical):', roleAssignErr);
           }
 
           // Re-fetch employee with updated user role for the response
           const updatedEmployee = await prisma.employee.findUnique({
             where: { id: actualId },
-            include: {
-              department: true,
-              designation: true,
-              branch: true,
-              user: { select: { id: true, email: true, role: true, avatar: true } },
-            },
+            include: coreInclude,
           });
           if (updatedEmployee) {
             // Try audit log (non-critical)
@@ -245,7 +285,6 @@ export async function PUT(
           }
         } catch (roleUpdateErr) {
           console.error('[Employee PUT] Failed to update user role (non-critical):', roleUpdateErr);
-          // Don't fail the whole request — the employee was already updated successfully
         }
       }
 
@@ -296,7 +335,6 @@ export async function DELETE(
     const id = decodeURIComponent(rawId);
 
     try {
-      // Try to find employee by id first, then by employeeId
       let existingEmployee = await prisma.employee.findUnique({ where: { id } });
       if (!existingEmployee) {
         existingEmployee = await prisma.employee.findUnique({ where: { employeeId: id } });
@@ -311,13 +349,11 @@ export async function DELETE(
 
       const actualId = existingEmployee.id;
 
-      // Soft delete - set status to terminated
       const employee = await prisma.employee.update({
         where: { id: actualId },
         data: { status: 'terminated' },
       });
 
-      // Try audit log (non-critical)
       try {
         const token = getTokenFromHeaders(request);
         if (token) {
