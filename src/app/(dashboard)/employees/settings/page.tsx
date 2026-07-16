@@ -207,7 +207,7 @@ const defaultCustomFields: CustomField[] = [
 
 export default function EmployeeSettingsPage() {
   const { user } = useAuthStore()
-  const { effectiveCompanyId, availableCompanies } = useCompanyContextStore()
+  const { effectiveCompanyId, availableCompanies, refreshContext } = useCompanyContextStore()
   const scopeCompanyId = effectiveCompanyId()
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin'
 
@@ -371,7 +371,13 @@ export default function EmployeeSettingsPage() {
   useEffect(() => { fetchBranches() }, [fetchBranches])
 
   /** Fetch dropdown data for the Add Mapping modal, scoped to a specific companyId */
+  const [modalDropdownsLoading, setModalDropdownsLoading] = useState(false)
+
   const fetchModalDropdowns = useCallback(async (companyId: string) => {
+    setModalDropdownsLoading(true)
+    setModalDepartments([])
+    setModalDesignations([])
+    setModalBranches([])
     try {
       const headers = getAuthHeaders()
       const [deptRes, desigRes, branchRes] = await Promise.allSettled([
@@ -379,23 +385,52 @@ export default function EmployeeSettingsPage() {
         fetch(`/api/designations?companyId=${encodeURIComponent(companyId)}&limit=200`, { headers }),
         fetch(`/api/branches?companyId=${encodeURIComponent(companyId)}&limit=200`, { headers }),
       ])
-      if (deptRes.status === 'fulfilled' && deptRes.value.ok) {
-        const data = await deptRes.value.json()
-        const list = Array.isArray(data) ? data : (data.data || data.departments || [])
-        setModalDepartments(list.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })))
+
+      // Departments
+      if (deptRes.status === 'fulfilled') {
+        if (deptRes.value.ok) {
+          const data = await deptRes.value.json()
+          const list = Array.isArray(data) ? data : (data.data || data.departments || [])
+          setModalDepartments(list.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })))
+        } else {
+          const errData = await deptRes.value.json().catch(() => ({}))
+          console.error('[fetchModalDropdowns] Departments API error:', deptRes.value.status, errData)
+        }
+      } else {
+        console.error('[fetchModalDropdowns] Departments fetch failed:', deptRes.reason)
       }
-      if (desigRes.status === 'fulfilled' && desigRes.value.ok) {
-        const data = await desigRes.value.json()
-        const list = Array.isArray(data) ? data : (data.data || data.designations || [])
-        setModalDesignations(list.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
+
+      // Designations
+      if (desigRes.status === 'fulfilled') {
+        if (desigRes.value.ok) {
+          const data = await desigRes.value.json()
+          const list = Array.isArray(data) ? data : (data.data || data.designations || [])
+          setModalDesignations(list.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
+        } else {
+          const errData = await desigRes.value.json().catch(() => ({}))
+          console.error('[fetchModalDropdowns] Designations API error:', desigRes.value.status, errData)
+        }
+      } else {
+        console.error('[fetchModalDropdowns] Designations fetch failed:', desigRes.reason)
       }
-      if (branchRes.status === 'fulfilled' && branchRes.value.ok) {
-        const data = await branchRes.value.json()
-        const list = (data.data || data.branches || data || []) as Array<{ id: string; name: string }>
-        setModalBranches(list.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
+
+      // Branches
+      if (branchRes.status === 'fulfilled') {
+        if (branchRes.value.ok) {
+          const data = await branchRes.value.json()
+          const list = (data.data || data.branches || data || []) as Array<{ id: string; name: string }>
+          setModalBranches(list.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
+        } else {
+          const errData = await branchRes.value.json().catch(() => ({}))
+          console.error('[fetchModalDropdowns] Branches API error:', branchRes.value.status, errData)
+        }
+      } else {
+        console.error('[fetchModalDropdowns] Branches fetch failed:', branchRes.reason)
       }
     } catch (err) {
       console.error('[fetchModalDropdowns] Error:', err)
+    } finally {
+      setModalDropdownsLoading(false)
     }
   }, [])
 
@@ -560,6 +595,9 @@ export default function EmployeeSettingsPage() {
         setModalBranches([])
         fetchCompanyMappings(selectedMapEmployee.id)
         fetchEmployees()
+        // Refresh company context so the CompanySwitcher dropdown updates
+        // immediately for the mapped employee (if they're logged in)
+        refreshContext()
       } else {
         toast.error(data.error || 'Failed to add mapping')
       }
@@ -580,6 +618,7 @@ export default function EmployeeSettingsPage() {
       if (res.ok) {
         toast.success('Mapping removed')
         if (selectedMapEmployee) fetchCompanyMappings(selectedMapEmployee.id)
+        refreshContext()
       } else {
         toast.error(data.error || 'Failed to remove mapping')
       }
@@ -601,6 +640,7 @@ export default function EmployeeSettingsPage() {
       if (res.ok) {
         if (selectedMapEmployee) fetchCompanyMappings(selectedMapEmployee.id)
         toast.success('Primary company updated')
+        refreshContext()
       } else {
         const data = await res.json()
         toast.error(data.error || 'Failed to set primary')
@@ -1535,22 +1575,34 @@ export default function EmployeeSettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
-                    <select value={newMappingDeptId} onChange={e => setNewMappingDeptId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
-                      <option value="">Select Department</option>
+                    <select value={newMappingDeptId} onChange={e => {
+                      setNewMappingDeptId(e.target.value)
+                      // When department changes, re-filter designations for that department
+                      if (e.target.value) {
+                        fetch(`/api/designations?companyId=${encodeURIComponent(newMappingCompanyId)}&departmentId=${encodeURIComponent(e.target.value)}&limit=200`, { headers: getAuthHeaders() })
+                          .then(r => r.ok ? r.json() : { data: [] })
+                          .then(data => {
+                            const list = Array.isArray(data) ? data : (data.data || data.designations || [])
+                            setModalDesignations(list.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
+                          })
+                          .catch(() => {})
+                      }
+                    }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" disabled={modalDropdownsLoading}>
+                      <option value="">{modalDropdownsLoading ? 'Loading...' : 'Select Department'}</option>
                       {modalDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                    <select value={newMappingDesigId} onChange={e => setNewMappingDesigId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
-                      <option value="">Select Designation</option>
+                    <select value={newMappingDesigId} onChange={e => setNewMappingDesigId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" disabled={modalDropdownsLoading}>
+                      <option value="">{modalDropdownsLoading ? 'Loading...' : 'Select Designation'}</option>
                       {modalDesignations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
-                    <select value={newMappingBranchId} onChange={e => setNewMappingBranchId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm">
-                      <option value="">Select Branch</option>
+                    <select value={newMappingBranchId} onChange={e => setNewMappingBranchId(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm" disabled={modalDropdownsLoading}>
+                      <option value="">{modalDropdownsLoading ? 'Loading...' : 'Select Branch'}</option>
                       {modalBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
                   </div>

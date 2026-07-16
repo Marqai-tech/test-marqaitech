@@ -112,6 +112,59 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── Enforce trial expiry ───
+    // If the user's tenant has status 'trial', check if the trial period has expired.
+    // Super admins can always log in. Expired trial tenants are blocked.
+    if (user.role !== 'super_admin' && user.tenantId) {
+      try {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: user.tenantId },
+          select: { id: true, status: true, slug: true },
+        });
+        if (tenant?.status === 'trial') {
+          // Check the TrialRegistration for expiry
+          const trialReg = await prisma.trialRegistration.findFirst({
+            where: { tenantId: tenant.id },
+            select: { trialEnd: true, status: true },
+          });
+          if (trialReg && trialReg.trialEnd && new Date(trialReg.trialEnd) < new Date()) {
+            // Trial has expired
+            // Auto-update the tenant and registration status
+            try {
+              await prisma.tenant.update({
+                where: { id: tenant.id },
+                data: { status: 'expired' },
+              });
+              await prisma.trialRegistration.update({
+                where: { id: trialReg.id },
+                data: { status: 'expired' },
+              });
+            } catch { /* best effort */ }
+
+            return NextResponse.json(
+              {
+                error: 'Your 15-day free trial has expired. Please contact 3Boxes HRMS support to continue with a subscription plan.',
+                code: 'TRIAL_EXPIRED',
+                trialEnd: trialReg.trialEnd,
+              },
+              { status: 403, headers: corsHeaders() }
+            );
+          }
+        } else if (tenant?.status === 'expired') {
+          return NextResponse.json(
+            {
+              error: 'Your trial access has expired. Please contact 3Boxes HRMS support to activate your subscription.',
+              code: 'TRIAL_EXPIRED',
+            },
+            { status: 403, headers: corsHeaders() }
+          );
+        }
+      } catch (tenantCheckErr) {
+        console.error('[Login] Trial expiry check failed (non-fatal):', tenantCheckErr);
+        // Don't block login if the check fails — it's a safety measure
+      }
+    }
+
     const token = await createToken({
       userId: user.id,
       email: user.email,

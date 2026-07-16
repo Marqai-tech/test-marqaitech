@@ -9,11 +9,21 @@ export default function HomePage() {
   const { isAuthenticated, isLoading, token, fetchUser } = useAuthStore();
 
   useEffect(() => {
-    // Check for existing token in localStorage
+    const hostname = window.location.hostname;
+
+    // If visiting the marketing domain, redirect to the landing page
+    if (
+      hostname === '3boxeshrms.com' ||
+      hostname === 'www.3boxeshrms.com'
+    ) {
+      router.replace('/landing');
+      return;
+    }
+
+    // Otherwise, existing auth-based redirect logic
     const savedToken = localStorage.getItem('tb_token');
 
     if (savedToken && !isAuthenticated) {
-      // Try to fetch user with existing token
       fetchUser().then(() => {
         const { isAuthenticated: nowAuthed } = useAuthStore.getState();
         if (nowAuthed) {

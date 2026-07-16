@@ -80,9 +80,17 @@ export default function LoginPage() {
   }, []);
 
   // Detect site type and load demo credentials
+  // Three site types:
+  // 1. Demo site (nexus-hrms-mu.vercel.app) — has sample data with demo credentials
+  // 2. Trial/main site (3boxeshrms.com) — landing page + trial registration
+  // 3. Tenant/client sites (*.3boxeshrms.com) — actual client data
   useEffect(() => {
     const hostname = window.location.hostname;
-    setIsDemoSite(hostname === 'nexus-hrms-mu.vercel.app');
+    setIsDemoSite(
+      hostname === 'nexus-hrms-mu.vercel.app' ||
+      hostname === '3boxeshrms.com' ||
+      hostname === 'www.3boxeshrms.com'
+    );
   }, []);
 
   // Fetch demo credentials from API

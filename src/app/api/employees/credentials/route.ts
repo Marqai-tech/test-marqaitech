@@ -86,9 +86,30 @@ export async function GET(request: Request) {
     }
 
     // ─── Tenant scope filter (super_admin only, when no companyId) ───
-    // This matches exactly what /api/employees does
+    // Employee has no `company` relation — only a bare companyId field.
+    // To filter by tenant, we need to first find all companies under that tenant,
+    // then filter employees by those company IDs.
     if (!companyId && tenantId && userRole === 'super_admin') {
-      where.company = { companyGroup: { tenantId } };
+      const tenantGroups = await prisma.companyGroup.findMany({
+        where: { tenantId },
+        select: { id: true },
+      });
+      const groupIds = tenantGroups.map(g => g.id);
+      if (groupIds.length > 0) {
+        const tenantCompanies = await prisma.company.findMany({
+          where: { companyGroupId: { in: groupIds } },
+          select: { id: true },
+        });
+        const companyIds = tenantCompanies.map(c => c.id);
+        if (companyIds.length > 0) {
+          where.companyId = { in: companyIds };
+        } else {
+          // No companies in this tenant → return empty
+          where.id = '__never__';
+        }
+      } else {
+        where.id = '__never__';
+      }
     }
 
     // ─── Data scope filtering ───

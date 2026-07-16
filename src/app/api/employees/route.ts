@@ -106,10 +106,28 @@ export async function GET(request: Request) {
 
       // ─── Tenant scope filter (super_admin only) ───
       // For super_admin with no companyId selected, allow narrowing to a
-      // specific tenant's companies. We resolve via the Company → CompanyGroup
-      // → tenant relation so the filter is consistent with the hierarchy.
+      // specific tenant's companies. Employee has no `company` relation —
+      // only a bare companyId field, so we must resolve company IDs first.
       if (!companyId && tenantId && userRole === 'super_admin') {
-        where.company = { companyGroup: { tenantId } };
+        const tenantGroups = await prisma.companyGroup.findMany({
+          where: { tenantId },
+          select: { id: true },
+        });
+        const groupIds = tenantGroups.map(g => g.id);
+        if (groupIds.length > 0) {
+          const tenantCompanies = await prisma.company.findMany({
+            where: { companyGroupId: { in: groupIds } },
+            select: { id: true },
+          });
+          const companyIds = tenantCompanies.map(c => c.id);
+          if (companyIds.length > 0) {
+            where.companyId = { in: companyIds };
+          } else {
+            where.id = '__never__';
+          }
+        } else {
+          where.id = '__never__';
+        }
       }
 
       if (isAuthed) {

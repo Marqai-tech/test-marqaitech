@@ -15,11 +15,13 @@ export async function OPTIONS() {
 }
 
 // Core includes that are guaranteed to exist in the Employee table
+// NOTE: Employee has companyId but NO @relation to Company — it's a bare String field.
+// We must NOT include `company` in the Prisma include clause.
+// Company info is resolved separately via fetchOptionalRelations → companyMappings.
 const coreInclude = {
   department: { include: { company: { select: { id: true, name: true, code: true } } } },
   designation: true,
   branch: { include: { company: { select: { id: true, name: true, code: true } } } },
-  company: { select: { id: true, name: true, code: true } },
   user: {
     select: { id: true, email: true, role: true, avatar: true },
   },
@@ -29,8 +31,23 @@ const coreInclude = {
  * Safely fetch optional relations for an employee.
  * Each relation is fetched independently so one failure doesn't break the rest.
  */
-async function fetchOptionalRelations(employeeId: string) {
+async function fetchOptionalRelations(employeeId: string, companyId?: string | null) {
   const result: Record<string, unknown> = {};
+
+  // Resolve company info from companyId (Employee.companyId is a bare String, not a relation)
+  if (companyId) {
+    try {
+      result.company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { id: true, name: true, code: true },
+      });
+    } catch (err) {
+      console.warn(`[Employee GET] Failed to fetch company for ${companyId}:`, err instanceof Error ? err.message : err);
+      result.company = null;
+    }
+  } else {
+    result.company = null;
+  }
 
   const optionalFetches: [string, () => Promise<unknown>][] = [
     ['leaveBalances', () => prisma.leaveBalance.findMany({
@@ -136,7 +153,7 @@ export async function GET(
       }
 
       // Step 2: Fetch optional relations independently (non-fatal if they fail)
-      const optionalData = await fetchOptionalRelations(employee.id);
+      const optionalData = await fetchOptionalRelations(employee.id, employee.companyId);
       employee = { ...employee, ...optionalData };
 
       console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
