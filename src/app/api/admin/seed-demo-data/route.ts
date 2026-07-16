@@ -68,10 +68,18 @@ export async function POST(request: Request) {
 
     const mod = body.module || 'all';
     const results: Record<string, number> = {};
+    const errors: string[] = [];
     const startTime = Date.now();
+
+    // Helper to run a module section safely
+    async function runSection(name: string, fn: () => Promise<void>) {
+      try { await fn(); }
+      catch (e: any) { errors.push(`${name}: ${e?.message?.substring(0, 200) || String(e)}`); console.warn(`[Seed Demo] Error in ${name}:`, e?.message?.substring(0, 200)); }
+    }
 
     // ── CORE ──
     if (mod === 'all' || mod === 'core') {
+    await runSection('core', async () => {
       // Ensure tenant exists
       let tenant = await prisma.tenant.findUnique({ where: { slug: '3boxes-hrms-demo' } });
       if (!tenant) {
@@ -215,10 +223,12 @@ export async function POST(request: Request) {
         }
         return HOLIDAYS.length * 3;
       }, 'holidays');
+    }); // end core section
     }
 
     // ── EMPLOYEES ──
     if (mod === 'all' || mod === 'employees') {
+    await runSection('employees', async () => {
       const tenant = await prisma.tenant.findUnique({ where: { slug: '3boxes-hrms-demo' } });
       if (!tenant) return NextResponse.json({ error: 'Run "core" module first to create tenant' }, { status: 400, headers: corsHeaders() });
 
@@ -413,10 +423,12 @@ export async function POST(request: Request) {
         qualCount++;
       }
       results.qualifications = qualCount;
+    }); // end employees section
     }
 
     // ── HR Module ──
     if (mod === 'all' || mod === 'hr') {
+    await runSection('hr', async () => {
       const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
       const leaveTypes = await prisma.leaveType.findMany();
       const managers = await prisma.employee.findMany({ where: { email: { contains: 'mgr' } } });
@@ -537,10 +549,12 @@ export async function POST(request: Request) {
         }
       }
       results.trainingEnrollments = enrollCount;
+    }); // end hr section
     }
 
     // ── PROJECTS ──
     if (mod === 'all' || mod === 'projects') {
+    await runSection('projects', async () => {
       const companies = await prisma.company.findMany({ take: 3 });
       const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
 
@@ -605,10 +619,12 @@ export async function POST(request: Request) {
         vendorCount++;
       }
       results.vendors = vendorCount;
+    }); // end projects section
     }
 
     // ── FINANCE ──
     if (mod === 'all' || mod === 'finance') {
+    await runSection('finance', async () => {
       const companies = await prisma.company.findMany({ take: 3 });
       const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
       const managers = await prisma.employee.findMany({ where: { email: { contains: 'mgr' } } });
@@ -693,10 +709,12 @@ export async function POST(request: Request) {
         otCount++;
       }
       results.overtimeRecords = otCount;
+    }); // end finance section
     }
 
     // ── SUPPORT ──
     if (mod === 'all' || mod === 'support') {
+    await runSection('support', async () => {
       const companies = await prisma.company.findMany({ take: 3 });
       const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
       const managers = await prisma.employee.findMany({ where: { email: { contains: 'mgr' } } });
@@ -882,6 +900,7 @@ export async function POST(request: Request) {
         }
         results.subscriptionPlan = 1;
       }
+    }); // end support section
     }
 
     const elapsed = Date.now() - startTime;
@@ -889,6 +908,7 @@ export async function POST(request: Request) {
       success: true,
       module: mod,
       results,
+      errors: errors.length > 0 ? errors : undefined,
       elapsedMs: elapsed,
       message: `Demo data seeded for module "${mod}" in ${elapsed}ms. All passwords: MarqAI@2026`,
       loginCredentials: {
