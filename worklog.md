@@ -1,176 +1,29 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Fix email delivery with Resend sandbox fallback
+Task: Add Tenant Configuration module with Country/Currency/Language/Payroll Policy management
 
 Work Log:
-- Updated /src/lib/email.ts with improved Resend integration
-- Added getEmailFromAddress() helper with RESEND_FROM_EMAIL env var support
-- Auto-fallback to onboarding@resend.dev for unverified domains
-- Added usedFallbackFrom and sandboxWarning to return type
-- Clear admin-facing log messages about domain verification requirement
-- Updated invite route to report email fallback status per employee
+- Read Prisma schema (6400+ lines, 120+ models) to understand existing models
+- Read existing tenant-admin and super-admin page structures and API routes
+- Added 5 new Prisma models: TenantConfiguration, TenantCountryAccess, TenantCurrencyAccess, TenantLanguageAccess, TenantPayrollPolicy
+- Added TenantConfiguration relation to Tenant model
+- Created comprehensive API route at /api/tenant-configuration with full CRUD support
+- API supports: add_countries, add_currencies, add_languages, create_policy, update_config, update_country, update_currency, update_language, update_policy, remove_country/currency/language, delete_policy
+- Created 20-country master data (IN, US, GB, AE, SG, AU, CA, DE, FR, SA, JP, ZA, MY, PH, NL, IE, BD, NP, LK, ID) with country-specific defaults
+- Created 17-currency master data and 15-language master data
+- Auto-provisioning system creates default payroll policies when countries are added (payroll frequency, tax regime, statutory compliance, leave policy, overtime, gratuity, probation, termination, working hours, social security, minimum wage)
+- Cost estimation model: $50/country, $10/extra currency, $5/extra language, tier cost, $0.50/user, $5/company, $0.10/employee
+- Customisation tier system: standard (use defaults only), custom (can create policies), full (can modify everything)
+- Policy versioning with override history tracking
+- Created Tenant Configuration page at /tenant-admin/tenant-configuration with tabs: Countries, Currencies, Languages, Payroll Policies, Settings
+- Added navigation items in both super-admin and tenant-admin sidebar sections
+- Added "Configuration" tab to tenant admin dashboard page
+- Pushed to GitHub main branch (commit 705931b)
 
 Stage Summary:
-- Emails will now send via Resend sandbox (onboarding@resend.dev) as default
-- For production, admin needs to verify domain at resend.com/domains and set RESEND_FROM_EMAIL
-- Invite results now show if sandbox fallback was used
-
----
-Task ID: 2
-Agent: Main Agent
-Task: Map Company feature - Employee multi-company mapping with header dropdown
-
-Work Log:
-- Updated /api/me/context to return mappedCompanies for non-admin users
-- Updated companyContextStore with mappedCompanies state and canSwitch for employees
-- Updated CompanySwitcher with employee company dropdown (emerald theme)
-- Employees with multiple company mappings can switch between companies from header
-- EmployeeCompanyMapping API already existed and is functional
-
-Stage Summary:
-- Employees mapped to multiple companies see a dropdown in header
-- Only shows companies they're mapped to (not all tenant companies)
-- Selection persists in localStorage via companyContextStore
-
----
-Task ID: 3
-Agent: Main Agent
-Task: Role field in Add Employee with auto role-based access
-
-Work Log:
-- Updated role dropdown with tenant_admin, admin, employee options
-- Added dynamic info box showing module access per role
-- Updated employee POST route to create User account with selected role
-- Auto-generates password and creates UserRoleAssignment
-- Creates EmployeeCompanyMapping for primary company
-
-Stage Summary:
-- Role selection in Add Employee now creates proper User + Role assignments
-- Each role shows what modules the employee will have access to
-- User account created automatically with proper role and permissions
-
----
-Task ID: 4
-Agent: Main Agent
-Task: Remove sample data from specific tenants
-
-Work Log:
-- Created /api/admin/cleanup-sample-data route (POST)
-- Only allows cleanup for 3boxeshrms and marqaitechgroup slugs
-- 403 for nexus/demo tenants
-- 7-phase cleanup preserving master data and admin users
-- Updated useAutoSeedDemo to skip auto-seeding for excluded tenants
-
-Stage Summary:
-- Sample data can be cleaned via API for specific tenants
-- Auto-seed hook now skips 3boxeshrms and marqaitechgroup tenants
-- Demo tenant at nexus-hrms-mu.vercel.app is NOT affected
-
----
-Task ID: 5
-Agent: Main Agent
-Task: Company-scoped data visibility across ALL modules
-
-Work Log:
-- Created /src/lib/companyScope.ts shared utility
-- Updated departments, designations, leave-types, holidays, policies, shifts routes
-- Updated attendance, leave, leave/balance, attendance-policy-config routes
-- Added companyId to LeaveType, Holiday, Policy, Shift, AttendancePolicyConfig models
-- Non-admin users only see their own company's data
-- Admins see all data or filter by selected company from CompanySwitcher
-- Removed all hardcoded demo/fallback data from API routes
-
-Stage Summary:
-- All master data (departments, designations, etc.) now filtered by company
-- Leave/attendance data scoped to employee's company
-- CompanySwitcher selection is respected across all API routes
-- Schema updated with companyId on LeaveType, Holiday, Policy, Shift, AttendancePolicyConfig
-
----
-Task ID: 6
-Agent: Main Agent
-Task: Deploy to Vercel and git
-
-Work Log:
-- Build verified successfully (next build passes)
-- Prisma client generated successfully
-- Git commit created with all 23 files changed
-- Git push failed - GitHub PAT token expired/invalid
-- Awaiting valid token from user to push
-
-Stage Summary:
-- All code changes committed locally
-- Build compiles successfully
-- GitHub push requires new/valid PAT token from user
-
----
-Task ID: 7
-Agent: Main Agent
-Task: Session continuation - email fix, company scoping, cleanup, security hardening, deploy
-
-Work Log:
-- Added /api/email/test endpoint (GET=diagnose config, POST=send test email)
-- Fixed branches API: added getCompanyFilter for GET, auth+tenant checks for POST/PUT/DELETE
-- Fixed dashboard API: replaced manual getDataScope+companyId with resolveCompanyScope
-- Fixed payroll API: added company-scoped employee filtering via resolveCompanyScope
-- Fixed payroll/components API: added getCompanyFilter for GET, auth+companyId for POST
-- Fixed companies API PUT/DELETE: added requireAuth, role check, tenant ownership verification
-- Fixed invite route: now preserves employee's assigned role when creating user accounts (was hardcoded 'employee')
-- Created /api/cleanup endpoint for removing sample data from 3boxeshrms.com and marqaitechgroup.3boxeshrms.com tenants
-- Build verified successfully (next build passes)
-- Git push with new PAT (ghp_Jf5Gd...) succeeded - pushed to main
-- Vercel auto-deploy triggered from GitHub push
-
-Stage Summary:
-- Email diagnostic endpoint available at GET/POST /api/email/test
-- Company-scoped data visibility enforced in branches, dashboard, payroll, companies APIs
-- Security: companies PUT/DELETE now require auth + tenant ownership
-- Invite route now respects employee's assigned role
-- Sample data cleanup available at POST /api/cleanup with {confirm: true}
-- All changes deployed to Vercel via git push
-
----
-Task ID: 1
-Agent: Main
-Task: Fix company mapping dropdowns, employee company switcher, and enhance mapping display
-
-Work Log:
-- Fixed Department/Designation/Branch API routes to prioritize explicit companyId query param over auto-scope from CompanySwitcher
-- Added separate modal dropdowns state (modalDepartments/modalDesignations/modalBranches) to prevent scope conflicts
-- Created fetchModalDropdowns() function that fetches dropdown data for a specific company
-- Fixed /api/me/context to resolve employee ID via email fallback when userId-linked employee not found
-- Fixed /api/me/context to derive ownCompanyId from EmployeeCompanyMapping when Employee.companyId is null
-- Added company relation and companyMappings to Employee API response (coreInclude)
-- Enhanced Employee detail Company Mapping tab with comprehensive overview (total companies, primary/secondary counts, employee IDs, company names)
-- Added Summary bar to mapping display showing all employee IDs across mapped companies
-- Pushed to GitHub main branch for Vercel auto-deploy
-
-Stage Summary:
-- 7 files modified with 241 insertions and 68 deletions
-- Key fixes: API routes now respect companyId query param, context API resolves mappings better, modal dropdowns are isolated from scope changes
-- Vercel should auto-deploy from the pushed commit
----
-Task ID: 1
-Agent: Main Agent
-Task: Induct sample data into all modules for the demo link (nexus-hrms-mu.vercel.app)
-
-Work Log:
-- Read Prisma schema (6400+ lines) to understand all models
-- Read existing seed files (seed.ts, seed-payroll.ts, seed-marqai.ts)
-- Read employee detail API route and company mappings API
-- Created comprehensive demo seed script prisma/seed-demo.ts with 40+ employees, 3 companies, 6 branches, 24 departments, 18 designations
-- Demo seed covers: attendance, leave, payroll, recruitment, projects, tickets, assets, training, travel, expenses, timesheets, OKRs, performance reviews, clients, vendors, invoices, requisitions, referrals, audit logs, notifications, announcements, policies, documents, custom fields, RBAC
-- Created API endpoint POST /api/admin/seed-demo-data with module-based seeding to avoid Vercel function timeout
-- Added safeOp/runSection error handling for resilience against missing tables
-- Added 40+ missing table CREATE statements to /api/db-push endpoint
-- Added prisma db push --accept-data-loss to Vercel build command in vercel.json
-- Pushed all changes to GitHub (6 commits) which auto-deploys to Vercel
-
-Stage Summary:
-- Demo seed script and API endpoint are ready
-- Database schema push is now part of Vercel build
-- Waiting for Vercel build with prisma db push to complete
-- Once tables are created, seed modules can be run via API calls
-- All demo users use password: MarqAI@2026
-- Login credentials: superadmin@3boxeshrms.com, tenantadmin@3boxeshrms.com, hr.tcg@3boxeshrms.com, etc.
+- New Prisma models added to schema.prisma
+- Full CRUD API at /api/tenant-configuration
+- Tenant Configuration UI page at /tenant-admin/tenant-configuration
+- Both super_admin and tenant_admin can access (with different permissions)
+- Code pushed to GitHub - Vercel auto-deploy will handle the rest
