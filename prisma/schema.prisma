@@ -77,6 +77,7 @@ model Tenant {
   featureFlags        FeatureFlag[]
   trialRegistrations  TrialRegistration[]
   tenantDatabase      TenantDatabase?
+  configuration       TenantConfiguration?
 }
 
 // ============ PER-TENANT DATABASE ISOLATION ============
@@ -6430,4 +6431,243 @@ model EmployeeCompanyMapping {
   @@unique([employeeId, companyId])  // One mapping per employee per company
   @@index([employeeId])
   @@index([companyId])
+}
+
+// ============ TENANT CONFIGURATION — COUNTRY / CURRENCY / LANGUAGE / POLICY ACCESS ============
+//
+// Super admin configures which countries, currencies, and languages a tenant can access.
+// Based on the selected countries, payroll policies, compliance obligations, tax slabs,
+// and minimum wage configs are auto-provisioned. Tenant admin can then edit or create
+// new policies within their allowed scope.
+//
+// This drives the costing model: more countries = more compliance/policy coverage = higher cost.
+
+/// Master record — one per tenant. Holds the overall tenant config envelope.
+model TenantConfiguration {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Auto-provisioning toggle: when super admin adds a new country, the system
+  // auto-creates default payroll policies, compliance obligations, tax slabs,
+  // and minimum wage configs for that country.
+  autoProvisionPayroll  Boolean @default(true)
+  autoProvisionCompliance Boolean @default(true)
+  autoProvisionTaxSlabs Boolean @default(true)
+  autoProvisionMinWage  Boolean @default(true)
+
+  // Costing metadata (populated / updated when countries/currencies are added/removed)
+  activeCountryCount    Int     @default(0)
+  activeCurrencyCount   Int     @default(0)
+  activeLanguageCount   Int     @default(0)
+  estimatedMonthlyCost  Float   @default(0)
+  estimatedAnnualCost   Float   @default(0)
+
+  // Customisation tier: controls how much the tenant admin can override
+  // 'standard' = can only use pre-configured policies; 'custom' = can create
+  // new policies; 'full' = can modify everything including tax slabs.
+  customisationTier     String  @default("standard") // standard, custom, full
+
+  // User/company quota — set by super admin, drives costing
+  maxUsers              Int     @default(50)
+  maxCompanies          Int     @default(5)
+  maxEmployees          Int     @default(500)
+
+  notes                 String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  countries   TenantCountryAccess[]
+  currencies  TenantCurrencyAccess[]
+  languages   TenantLanguageAccess[]
+  policies    TenantPayrollPolicy[]
+
+  @@index([tenantId])
+}
+
+/// Per-country access record. Super admin grants country access;
+/// system auto-provisions country-specific payroll defaults.
+model TenantCountryAccess {
+  id            String   @id @default(cuid())
+  tenantConfigId String
+  tenantConfig  TenantConfiguration @relation(fields: [tenantConfigId], references: [id], onDelete: Cascade)
+
+  countryCode   String   // ISO 3166-1 alpha-2 (e.g. IN, US, GB, AE)
+  countryName   String   // Human-readable (India, United States, …)
+  isActive      Boolean  @default(true)
+
+  // When this country was granted — used for audit / billing start date
+  accessGrantedAt DateTime @default(now())
+
+  // Auto-provisioned defaults for this country (set when autoProvisionPayroll = true)
+  // The system pre-creates: payroll frequency, statutory components, tax slabs,
+  // compliance obligations, minimum wage configs — all specific to this country.
+  payrollFrequencyDefault  String  @default("MONTHLY") // DAILY, WEEKLY, BI_WEEKLY, SEMI_MONTHLY, MONTHLY
+  payrollCurrencyDefault   String  // Auto-set based on country (INR for India, USD for US, etc.)
+  taxRegimeDefault         String? // OLD, NEW, STANDARD, PROGRESSIVE — country-specific
+  workingHoursPerWeek      Int     @default(40)
+  workingDaysPerWeek       Int     @default(5)
+  overtimeMultiplier       Float   @default(1.5)
+
+  // Compliance flags
+  pfEnabled      Boolean @default(false)  // Provident Fund (India-specific)
+  esiEnabled     Boolean @default(false)  // Employee State Insurance (India)
+  gratuityEnabled Boolean @default(false) // Gratuity (India, UAE)
+  socialSecurityEnabled Boolean @default(false) // Social Security (US, EU, etc.)
+  pensionEnabled Boolean @default(false)  // Pension schemes (UK, JP, etc.)
+  medicaidEnabled Boolean @default(false) // Medical aid (ZA, etc.)
+
+  // Labour law compliance
+  labourLawCode   String? // Reference to applicable labour law (e.g. " Shops & Establishments Act" for India)
+  terminationNoticePeriod Int @default(30) // Days
+  probationPeriod Int     @default(180) // Days
+  annualLeaveEntitlement Float @default(15) // Days per year
+
+  // Data residency requirement for this country
+  dataResidencyRequired  Boolean @default(false)
+  dataResidencyRegion    String? // e.g. "eu-west-1", "ap-south-1"
+
+  // Tenant admin can override these within their customisation tier
+  isOverridden   Boolean @default(false) // Whether tenant admin has modified any defaults
+  overrideNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantConfigId, countryCode])
+  @@index([tenantConfigId])
+  @@index([countryCode])
+  @@index([isActive])
+}
+
+/// Per-currency access record. Super admin grants currency access;
+/// this drives multi-currency payroll and exchange rate features.
+model TenantCurrencyAccess {
+  id            String   @id @default(cuid())
+  tenantConfigId String
+  tenantConfig  TenantConfiguration @relation(fields: [tenantConfigId], references: [id], onDelete: Cascade)
+
+  currencyCode  String   // ISO 4217 (INR, USD, EUR, GBP, etc.)
+  currencyName  String   // Indian Rupee, US Dollar, etc.
+  currencySymbol String  // ₹, $, €, £, etc.
+  isActive      Boolean  @default(true)
+
+  // Exchange rate config
+  exchangeRateSource   String  @default("MANUAL") // CENTRAL_BANK, REUTERS, BLOOMBERG, MANUAL, CUSTOM_API
+  autoFetchEnabled     Boolean @default(false)
+  fetchFrequency       String? // DAILY, WEEKLY, MONTHLY, ON_DEMAND
+  lastFetchedRate      Float?
+  lastFetchedAt        DateTime?
+
+  // Rounding rules
+  roundingPrecision    Int     @default(2)
+  roundingRule         String  @default("NEAREST") // NEAREST, UP, DOWN, BANKERS
+
+  // GL integration
+  gainLossAccount      String? // GL account for exchange rate gains/losses
+
+  // Costing: currency access has per-currency monthly cost
+  monthlyCostPerCurrency Float @default(0)
+
+  isOverridden   Boolean @default(false)
+  overrideNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantConfigId, currencyCode])
+  @@index([tenantConfigId])
+  @@index([currencyCode])
+  @@index([isActive])
+}
+
+/// Per-language access record. Super admin grants language access;
+/// this drives UI localisation and document generation in that language.
+model TenantLanguageAccess {
+  id            String   @id @default(cuid())
+  tenantConfigId String
+  tenantConfig  TenantConfiguration @relation(fields: [tenantConfigId], references: [id], onDelete: Cascade)
+
+  languageCode  String   // ISO 639-1 (en, hi, es, fr, de, ar, etc.)
+  languageName  String   // English, Hindi, Spanish, French, etc.
+  isActive      Boolean  @default(true)
+
+  // Localisation depth
+  uiTranslated       Boolean @default(false) // UI fully translated?
+  documentTemplates  Boolean @default(false) // Payslips, offer letters etc. available?
+  emailTemplates     Boolean @default(false) // Notification emails available?
+  helpArticles       Boolean @default(false) // Help documentation available?
+
+  // Right-to-left support
+  isRTL         Boolean @default(false) // Arabic, Hebrew, etc.
+
+  isOverridden   Boolean @default(false)
+  overrideNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantConfigId, languageCode])
+  @@index([tenantConfigId])
+  @@index([languageCode])
+  @@index([isActive])
+}
+
+/// Tenant-specific payroll policy — pre-configured by system when country is added,
+/// editable by tenant admin (within their customisation tier).
+/// These cascade to companies under the tenant but can be overridden at company level.
+model TenantPayrollPolicy {
+  id              String   @id @default(cuid())
+  tenantConfigId  String
+  tenantConfig    TenantConfiguration @relation(fields: [tenantConfigId], references: [id], onDelete: Cascade)
+
+  countryCode     String   // Which country this policy applies to
+  countryName     String?
+
+  // Policy identification
+  policyName      String
+  policyType      String   // PAYROLL_FREQUENCY, TAX_REGIME, STATUTORY_COMPLIANCE, LEAVE_POLICY,
+                           // OVERTIME_POLICY, GRATUITY_POLICY, PROBATION_POLICY, TERMINATION_POLICY,
+                           // MINIMUM_WAGE, WORKING_HOURS, SOCIAL_SECURITY, PENSION, MEDICAL_AID,
+                           // CUSTOM
+  category        String   // payroll, leave, compliance, benefits, labour_law, custom
+
+  // Policy content — JSON payload with all the configuration details
+  // Structure varies by policyType. Examples:
+  // PAYROLL_FREQUENCY: {"frequency":"MONTHLY","processingDay":25,"paymentDay":1,"cutOffDay":20}
+  // TAX_REGIME: {"regimeType":"NEW","slabTableId":"...","deductionsAllowed":true}
+  // STATUTORY_COMPLIANCE: {"components":["PF","ESI","PT"],"filingFrequency":"MONTHLY"}
+  // LEAVE_POLICY: {"annualLeave":15,"sickLeave":10,"casualLeave":7,"carryForward":true,"maxCarryForward":5}
+  // OVERTIME_POLICY: {"multiplier":1.5,"maxOTHoursPerWeek":12,"compOffEnabled":true}
+  // GRADUITY_POLICY: {"eligibleAfterYears":5,"calculationBasis":"LAST_DRAWN","multiplier":15/26}
+  // PROBATION_POLICY: {"durationDays":180,"extendable":true,"maxExtensionDays":90}
+  // TERMINATION_POLICY: {"noticePeriodDays":30,"paymentInLieu":true,"fnfTimelineDays":30}
+  policyContent   String   // JSON string
+
+  // Policy metadata
+  source          String   @default("system_default") // system_default, tenant_override, custom
+  status          String   @default("active") // active, inactive, draft
+  effectiveFrom   DateTime @default(now())
+  effectiveTo     DateTime?
+
+  // Versioning
+  version         String   @default("1.0")
+  previousVersionId String? // Link to the previous version for audit trail
+
+  // Tenant admin can edit within customisationTier
+  isEditable      Boolean  @default(true) // Whether tenant admin can modify this policy
+  isOverridden    Boolean  @default(false) // Whether tenant admin has modified it
+  overrideHistory String?  // JSON array of previous overrides for audit
+
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantConfigId])
+  @@index([countryCode])
+  @@index([policyType])
+  @@index([status])
+  @@index([source])
 }

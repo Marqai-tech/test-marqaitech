@@ -22,6 +22,8 @@ import {
   FiGlobe,
   FiChevronRight,
   FiBriefcase,
+  FiDollarSign,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -145,7 +147,7 @@ export default function TenantAdminPage() {
   const [loading, setLoading] = useState(true);
   const [groupsLoading, setGroupsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'groups' | 'settings' | 'billing' | 'users' | 'workflows'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'groups' | 'settings' | 'billing' | 'users' | 'workflows' | 'configuration'>('overview');
 
   // Settings editing
   const [settingsEditing, setSettingsEditing] = useState(false);
@@ -321,6 +323,7 @@ export default function TenantAdminPage() {
     { key: 'billing' as const, label: 'Billing', icon: FiCreditCard },
     { key: 'users' as const, label: 'Users', icon: FiUsers },
     { key: 'workflows' as const, label: 'Workflows', icon: FiGitMerge },
+    { key: 'configuration' as const, label: 'Configuration', icon: FiGlobe },
   ];
 
   const tenantName = tenantInfo?.name || tenant?.name || user?.tenant?.name || 'your tenant';
@@ -1047,6 +1050,45 @@ export default function TenantAdminPage() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {/* ═══ CONFIGURATION TAB ═══ */}
+      {activeTab === 'configuration' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-thb-text-secondary">Country, Currency & Language Configuration</h3>
+              <p className="text-xs text-thb-text-muted mt-1">
+                Configure which countries, currencies, and languages your tenant can access. Payroll policies, compliance, and tax slabs are auto-provisioned based on selected countries.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/tenant-admin/tenant-configuration"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium"
+          >
+            <FiGlobe className="w-4 h-4" />
+            Open Tenant Configuration
+          </Link>
+          <div className="thb-card p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4 bg-blue-50 rounded-xl">
+                <FiGlobe className="w-8 h-8 mx-auto text-blue-500 mb-2" />
+                <h4 className="font-semibold text-gray-900">Country Access</h4>
+                <p className="text-xs text-gray-500 mt-1">Select which countries your operations cover. Payroll, compliance & tax policies are auto-configured.</p>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-xl">
+                <FiDollarSign className="w-8 h-8 mx-auto text-green-500 mb-2" />
+                <h4 className="font-semibold text-gray-900">Currency Setup</h4>
+                <p className="text-xs text-gray-500 mt-1">Enable multi-currency payroll with exchange rate configuration and GL integration.</p>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-xl">
+                <FiMessageSquare className="w-8 h-8 mx-auto text-purple-500 mb-2" />
+                <h4 className="font-semibold text-gray-900">Language Support</h4>
+                <p className="text-xs text-gray-500 mt-1">Enable UI localisation, document templates, and email translations in multiple languages.</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
