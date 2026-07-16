@@ -12,9 +12,11 @@
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:seed:payroll": "npx tsx prisma/seed-payroll.ts",
+    "db:seed:demo": "npx tsx prisma/seed-demo.ts",
     "db:seed:all": "npx tsx prisma/seed.ts && npx tsx prisma/seed-payroll.ts",
     "db:reset": "prisma migrate reset --force",
-    "db:setup": "prisma db push && npx tsx prisma/seed.ts && npx tsx prisma/seed-payroll.ts"
+    "db:setup": "prisma db push && npx tsx prisma/seed.ts && npx tsx prisma/seed-payroll.ts",
+    "db:setup:demo": "prisma db push && npx tsx prisma/seed-demo.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
