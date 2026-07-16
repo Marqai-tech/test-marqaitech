@@ -403,6 +403,639 @@ export async function POST() {
         CONSTRAINT "EmployeeCompanyMapping_pkey" PRIMARY KEY ("id"),
         CONSTRAINT "EmployeeCompanyMapping_employeeId_companyId_key" UNIQUE ("employeeId", "companyId")
       )`,
+
+      // ─── Demo Seed Required Tables ───
+
+      // LeaveType
+      `CREATE TABLE IF NOT EXISTS "LeaveType" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "code" TEXT NOT NULL,
+        "description" TEXT,
+        "defaultDays" INTEGER NOT NULL DEFAULT 0,
+        "isPaid" BOOLEAN NOT NULL DEFAULT true,
+        "carryForward" BOOLEAN NOT NULL DEFAULT false,
+        "maxCarryForward" INTEGER,
+        "encashmentAllowed" BOOLEAN NOT NULL DEFAULT false,
+        "encashmentBasis" TEXT DEFAULT 'basic',
+        "maxEncashmentDays" INTEGER DEFAULT 0,
+        "attachmentMandatory" BOOLEAN NOT NULL DEFAULT false,
+        "attachmentMandatoryAfterDays" INTEGER DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "LeaveType_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "LeaveType_code_key" UNIQUE ("code")
+      )`,
+
+      // LeaveRequest
+      `CREATE TABLE IF NOT EXISTS "LeaveRequest" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "leaveTypeId" TEXT NOT NULL,
+        "startDate" TIMESTAMP(3) NOT NULL,
+        "endDate" TIMESTAMP(3) NOT NULL,
+        "numberOfDays" INTEGER NOT NULL,
+        "halfDay" BOOLEAN NOT NULL DEFAULT false,
+        "reason" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "approvedBy" TEXT,
+        "approvedAt" TIMESTAMP(3),
+        "comments" TEXT,
+        "appliedDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "LeaveRequest_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Attendance
+      `CREATE TABLE IF NOT EXISTS "Attendance" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "date" TIMESTAMP(3) NOT NULL,
+        "checkIn" TIMESTAMP(3),
+        "checkOut" TIMESTAMP(3),
+        "workHours" DOUBLE PRECISION DEFAULT 0,
+        "overtime" DOUBLE PRECISION DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'present',
+        "location" TEXT,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Attendance_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Shift
+      `CREATE TABLE IF NOT EXISTS "Shift" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "code" TEXT NOT NULL,
+        "startTime" TEXT NOT NULL,
+        "endTime" TEXT NOT NULL,
+        "companyId" TEXT,
+        "graceMinutes" INTEGER DEFAULT 15,
+        "isNight" BOOLEAN NOT NULL DEFAULT false,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Shift_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Holiday
+      `CREATE TABLE IF NOT EXISTS "Holiday" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "date" TIMESTAMP(3) NOT NULL,
+        "type" TEXT,
+        "country" TEXT,
+        "description" TEXT,
+        "companyId" TEXT,
+        "isOptional" BOOLEAN NOT NULL DEFAULT false,
+        "optionalQuota" INTEGER,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Holiday_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Policy
+      `CREATE TABLE IF NOT EXISTS "Policy" (
+        "id" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "content" TEXT,
+        "category" TEXT,
+        "companyId" TEXT,
+        "version" TEXT DEFAULT '1.0',
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Policy_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Asset
+      `CREATE TABLE IF NOT EXISTS "Asset" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "category" TEXT,
+        "serialNumber" TEXT,
+        "value" DOUBLE PRECISION,
+        "companyId" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'available',
+        "purchaseDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Asset_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Ticket
+      `CREATE TABLE IF NOT EXISTS "Ticket" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT,
+        "subject" TEXT NOT NULL,
+        "category" TEXT,
+        "priority" TEXT,
+        "description" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'open',
+        "assignedTo" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Ticket_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // PerformanceReview
+      `CREATE TABLE IF NOT EXISTS "PerformanceReview" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "reviewerId" TEXT,
+        "period" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "overallRating" INTEGER,
+        "communicationRating" INTEGER,
+        "technicalRating" INTEGER,
+        "leadershipRating" INTEGER,
+        "teamworkRating" INTEGER,
+        "comments" TEXT,
+        "reviewerComments" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "PerformanceReview_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Goal
+      `CREATE TABLE IF NOT EXISTS "Goal" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "description" TEXT,
+        "category" TEXT,
+        "priority" TEXT,
+        "startDate" TIMESTAMP(3),
+        "targetDate" TIMESTAMP(3),
+        "status" TEXT NOT NULL DEFAULT 'not_started',
+        "progress" INTEGER DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Goal_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Training
+      `CREATE TABLE IF NOT EXISTS "Training" (
+        "id" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "category" TEXT,
+        "duration" INTEGER,
+        "mode" TEXT,
+        "provider" TEXT,
+        "level" TEXT,
+        "description" TEXT,
+        "startDate" TIMESTAMP(3),
+        "endDate" TIMESTAMP(3),
+        "maxParticipants" INTEGER,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Training_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // TrainingEnrollment
+      `CREATE TABLE IF NOT EXISTS "TrainingEnrollment" (
+        "id" TEXT NOT NULL,
+        "trainingId" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'enrolled',
+        "enrolledDate" TIMESTAMP(3),
+        "completedDate" TIMESTAMP(3),
+        "rating" INTEGER,
+        "feedback" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "TrainingEnrollment_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Project
+      `CREATE TABLE IF NOT EXISTS "Project" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "code" TEXT,
+        "type" TEXT,
+        "priority" TEXT,
+        "budget" DOUBLE PRECISION,
+        "startDate" TIMESTAMP(3),
+        "endDate" TIMESTAMP(3),
+        "status" TEXT NOT NULL DEFAULT 'planning',
+        "progress" INTEGER DEFAULT 0,
+        "companyId" TEXT,
+        "clientId" TEXT,
+        "description" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // ProjectMember
+      `CREATE TABLE IF NOT EXISTS "ProjectMember" (
+        "id" TEXT NOT NULL,
+        "projectId" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "role" TEXT,
+        "allocation" INTEGER DEFAULT 100,
+        "startDate" TIMESTAMP(3),
+        "endDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "ProjectMember_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // ProjectTask
+      `CREATE TABLE IF NOT EXISTS "ProjectTask" (
+        "id" TEXT NOT NULL,
+        "projectId" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "description" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'todo',
+        "priority" TEXT,
+        "assigneeId" TEXT,
+        "dueDate" TIMESTAMP(3),
+        "estimatedHours" INTEGER,
+        "actualHours" INTEGER,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "ProjectTask_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // ProjectMilestone
+      `CREATE TABLE IF NOT EXISTS "ProjectMilestone" (
+        "id" TEXT NOT NULL,
+        "projectId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "dueDate" TIMESTAMP(3),
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "ProjectMilestone_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Client
+      `CREATE TABLE IF NOT EXISTS "Client" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "industry" TEXT,
+        "email" TEXT,
+        "phone" TEXT,
+        "city" TEXT,
+        "state" TEXT,
+        "country" TEXT,
+        "companyId" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "website" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Vendor
+      `CREATE TABLE IF NOT EXISTS "Vendor" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "category" TEXT,
+        "email" TEXT,
+        "phone" TEXT,
+        "city" TEXT,
+        "state" TEXT,
+        "country" TEXT,
+        "companyId" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "complianceStatus" TEXT DEFAULT 'pending',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Vendor_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // SalaryStructure
+      `CREATE TABLE IF NOT EXISTS "SalaryStructure" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "companyId" TEXT,
+        "effectiveFrom" TIMESTAMP(3),
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "SalaryStructure_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // SalaryComponent
+      `CREATE TABLE IF NOT EXISTS "SalaryComponent" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION,
+        "isFixed" BOOLEAN NOT NULL DEFAULT true,
+        "isTaxable" BOOLEAN NOT NULL DEFAULT true,
+        "salaryStructureId" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "SalaryComponent_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // PayrollComponent
+      `CREATE TABLE IF NOT EXISTS "PayrollComponent" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "calculationType" TEXT,
+        "percentageOf" TEXT,
+        "percentage" DOUBLE PRECISION,
+        "statutory" BOOLEAN NOT NULL DEFAULT false,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "PayrollComponent_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // ExpenseClaim
+      `CREATE TABLE IF NOT EXISTS "ExpenseClaim" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "category" TEXT,
+        "description" TEXT,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "submittedDate" TIMESTAMP(3),
+        "approvedBy" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "ExpenseClaim_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // TravelRequest
+      `CREATE TABLE IF NOT EXISTS "TravelRequest" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "destination" TEXT NOT NULL,
+        "purpose" TEXT,
+        "type" TEXT,
+        "estimatedCost" DOUBLE PRECISION,
+        "startDate" TIMESTAMP(3),
+        "endDate" TIMESTAMP(3),
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "approvedBy" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "TravelRequest_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Recognition
+      `CREATE TABLE IF NOT EXISTS "Recognition" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "type" TEXT,
+        "message" TEXT,
+        "givenBy" TEXT,
+        "date" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Recognition_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Notification
+      `CREATE TABLE IF NOT EXISTS "Notification" (
+        "id" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "userId" TEXT,
+        "title" TEXT NOT NULL,
+        "message" TEXT,
+        "type" TEXT,
+        "category" TEXT,
+        "isRead" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Announcement
+      `CREATE TABLE IF NOT EXISTS "Announcement" (
+        "id" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "title" TEXT NOT NULL,
+        "message" TEXT,
+        "priority" TEXT,
+        "type" TEXT,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "startDate" TIMESTAMP(3),
+        "endDate" TIMESTAMP(3),
+        "createdBy" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Announcement_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // AuditLog
+      `CREATE TABLE IF NOT EXISTS "AuditLog" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT,
+        "action" TEXT NOT NULL,
+        "module" TEXT,
+        "details" TEXT,
+        "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Invoice
+      `CREATE TABLE IF NOT EXISTS "Invoice" (
+        "id" TEXT NOT NULL,
+        "invoiceNumber" TEXT NOT NULL,
+        "companyId" TEXT,
+        "clientId" TEXT,
+        "projectId" TEXT,
+        "amount" DOUBLE PRECISION DEFAULT 0,
+        "tax" DOUBLE PRECISION DEFAULT 0,
+        "totalAmount" DOUBLE PRECISION DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "issueDate" TIMESTAMP(3),
+        "dueDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "Invoice_invoiceNumber_key" UNIQUE ("invoiceNumber")
+      )`,
+
+      // InvoiceLineItem
+      `CREATE TABLE IF NOT EXISTS "InvoiceLineItem" (
+        "id" TEXT NOT NULL,
+        "invoiceId" TEXT NOT NULL,
+        "description" TEXT,
+        "quantity" INTEGER DEFAULT 0,
+        "rate" DOUBLE PRECISION DEFAULT 0,
+        "amount" DOUBLE PRECISION DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "InvoiceLineItem_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // SubscriptionPlan
+      `CREATE TABLE IF NOT EXISTS "SubscriptionPlan" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "planType" TEXT,
+        "monthlyPrice" DOUBLE PRECISION DEFAULT 0,
+        "annualPrice" DOUBLE PRECISION DEFAULT 0,
+        "employeeLimit" INTEGER DEFAULT 0,
+        "companyLimit" INTEGER DEFAULT 0,
+        "payrollEnabled" BOOLEAN NOT NULL DEFAULT true,
+        "recruitmentEnabled" BOOLEAN NOT NULL DEFAULT true,
+        "attendanceEnabled" BOOLEAN NOT NULL DEFAULT true,
+        "projectEnabled" BOOLEAN NOT NULL DEFAULT true,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "description" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "SubscriptionPlan_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Subscription
+      `CREATE TABLE IF NOT EXISTS "Subscription" (
+        "id" TEXT NOT NULL,
+        "tenantId" TEXT NOT NULL,
+        "planId" TEXT NOT NULL,
+        "startDate" TIMESTAMP(3),
+        "endDate" TIMESTAMP(3),
+        "billingCycle" TEXT,
+        "amount" DOUBLE PRECISION DEFAULT 0,
+        "currency" TEXT DEFAULT 'INR',
+        "paymentStatus" TEXT DEFAULT 'pending',
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "autoRenew" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Feedback
+      `CREATE TABLE IF NOT EXISTS "Feedback" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "fromEmployeeId" TEXT,
+        "type" TEXT,
+        "rating" INTEGER,
+        "comment" TEXT,
+        "isAnonymous" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Feedback_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Timesheet
+      `CREATE TABLE IF NOT EXISTS "Timesheet" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "weekStartDate" TIMESTAMP(3) NOT NULL,
+        "weekEndDate" TIMESTAMP(3) NOT NULL,
+        "totalHours" DOUBLE PRECISION DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "approvedBy" TEXT,
+        "projectId" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Timesheet_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Requisition
+      `CREATE TABLE IF NOT EXISTS "Requisition" (
+        "id" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "departmentId" TEXT,
+        "position" TEXT,
+        "type" TEXT,
+        "priority" TEXT,
+        "vacancies" INTEGER DEFAULT 1,
+        "minSalary" DOUBLE PRECISION,
+        "maxSalary" DOUBLE PRECISION,
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "requestedBy" TEXT,
+        "justification" TEXT,
+        "requestedDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Requisition_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Referral
+      `CREATE TABLE IF NOT EXISTS "Referral" (
+        "id" TEXT NOT NULL,
+        "employeeId" TEXT NOT NULL,
+        "referralName" TEXT NOT NULL,
+        "referralEmail" TEXT,
+        "position" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'applied',
+        "bonus" DOUBLE PRECISION DEFAULT 0,
+        "date" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Referral_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // JobPosting
+      `CREATE TABLE IF NOT EXISTS "JobPosting" (
+        "id" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "position" TEXT,
+        "location" TEXT,
+        "type" TEXT,
+        "experience" TEXT,
+        "salary" TEXT,
+        "departmentId" TEXT,
+        "description" TEXT,
+        "requirements" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "postedDate" TIMESTAMP(3),
+        "closingDate" TIMESTAMP(3),
+        "vacancies" INTEGER DEFAULT 1,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "JobPosting_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // JobApplication
+      `CREATE TABLE IF NOT EXISTS "JobApplication" (
+        "id" TEXT NOT NULL,
+        "jobPostingId" TEXT NOT NULL,
+        "candidateName" TEXT NOT NULL,
+        "candidateEmail" TEXT,
+        "candidatePhone" TEXT,
+        "source" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'applied',
+        "appliedDate" TIMESTAMP(3),
+        "rating" INTEGER,
+        "expectedSalary" TEXT,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "JobApplication_pkey" PRIMARY KEY ("id")
+      )`,
+
+      // Interview
+      `CREATE TABLE IF NOT EXISTS "Interview" (
+        "id" TEXT NOT NULL,
+        "jobApplicationId" TEXT NOT NULL,
+        "type" TEXT,
+        "date" TIMESTAMP(3),
+        "time" TEXT,
+        "duration" INTEGER,
+        "location" TEXT,
+        "meetingUrl" TEXT,
+        "interviewer" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'scheduled',
+        "feedback" TEXT,
+        "score" INTEGER,
+        "aiScore" INTEGER,
+        "aiFeedback" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Interview_pkey" PRIMARY KEY ("id")
+      )`,
+
     ];
 
     // Create indexes separately
