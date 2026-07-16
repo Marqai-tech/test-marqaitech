@@ -34,6 +34,15 @@ function randDate(start: Date, end: Date): Date {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
+/** Safe Prisma operation — catches table-not-exists errors and returns 0 */
+async function safeOp(fn: () => Promise<number>, label: string): Promise<number> {
+  try { return await fn(); }
+  catch (e: any) {
+    console.warn(`[Seed Demo] Skipping ${label}: ${e?.message?.substring(0, 100) || e}`);
+    return 0;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
@@ -157,14 +166,15 @@ export async function POST(request: Request) {
         results.designations = 18;
       }
 
-      // Shifts
-      const existingShifts = await prisma.shift.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
-      if (existingShifts.length < 3) {
+      // Shifts (may not exist in deployed schema)
+      results.shifts = await safeOp(async () => {
+        const existingShifts = await prisma.shift.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+        if (existingShifts.length >= 3) return 0;
         await prisma.shift.create({ data: { name: 'General Shift', code: 'GS', startTime: '09:00', endTime: '18:00', companyId: tcg.id, status: 'active', graceMinutes: 15, isNight: false } });
         await prisma.shift.create({ data: { name: 'Factory Shift A', code: 'FA', startTime: '07:00', endTime: '15:00', companyId: mpi.id, status: 'active', graceMinutes: 10, isNight: false } });
         await prisma.shift.create({ data: { name: 'Lab Shift', code: 'LS', startTime: '08:00', endTime: '16:30', companyId: hfs.id, status: 'active', graceMinutes: 15, isNight: false } });
-        results.shifts = 3;
-      }
+        return 3;
+      }, 'shifts');
 
       // Leave Types
       const existingLTs = await prisma.leaveType.findMany();
@@ -185,9 +195,10 @@ export async function POST(request: Request) {
         results.leaveTypes = 6;
       }
 
-      // Holidays
-      const existingHolidays = await prisma.holiday.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
-      if (existingHolidays.length < 10) {
+      // Holidays (may not exist in deployed schema)
+      results.holidays = await safeOp(async () => {
+        const existingHolidays = await prisma.holiday.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+        if (existingHolidays.length >= 10) return 0;
         const HOLIDAYS = [
           { name: 'Republic Day', date: new Date('2026-01-26'), type: 'national' },
           { name: 'Holi', date: new Date('2026-03-14'), type: 'festival' },
@@ -202,8 +213,8 @@ export async function POST(request: Request) {
             await prisma.holiday.create({ data: { name: h.name, date: h.date, type: h.type, companyId: company.id, status: 'active' } });
           }
         }
-        results.holidays = HOLIDAYS.length * 3;
-      }
+        return HOLIDAYS.length * 3;
+      }, 'holidays');
     }
 
     // ── EMPLOYEES ──
