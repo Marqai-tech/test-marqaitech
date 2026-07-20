@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npx prisma generate && echo 'y' | npx prisma db push --accept-data-loss && python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js && npx next build"
+  "buildCommand": "npx prisma generate && python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js && npx next build"
 }
 
