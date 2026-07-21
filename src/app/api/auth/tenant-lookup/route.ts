@@ -34,7 +34,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const db = getPlatformDb();
   try {
     const url = new URL(request.url);
     const code = url.searchParams.get('code')?.trim();

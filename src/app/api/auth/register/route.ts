@@ -15,7 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  const db = await getDb(request);
+  const db = getPlatformDb();
   try {
     const body = await request.json();
     const { name, email, password, tenantName, tenantSlug, role = 'employee' } = body;

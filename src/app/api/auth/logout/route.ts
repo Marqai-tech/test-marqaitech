@@ -16,7 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  const db = await getDb(request);
+  const db = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {

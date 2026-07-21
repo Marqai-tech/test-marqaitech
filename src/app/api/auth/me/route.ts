@@ -15,7 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const db = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {

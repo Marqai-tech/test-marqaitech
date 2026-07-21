@@ -16,7 +16,11 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  const db = await getDb(request);
+  // ⚠️ IMPORTANT: Authentication ALWAYS uses the platform DB.
+  // User records for login live in the platform (shared) database.
+  // Only AFTER authentication do we route to the tenant-specific DB.
+  // This ensures login works even when the tenant DB is empty (e.g., fresh demo DB).
+  const db = getPlatformDb();
   try {
     const body = await request.json();
     const { email, password } = body;
