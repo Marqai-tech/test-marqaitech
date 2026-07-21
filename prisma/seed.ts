@@ -917,6 +917,312 @@ async function main() {
   }
   console.log(`  ✓ Assigned ${userRolesAssigned} user-role assignments`);
 
+  // ==================== TENANT CONFIGURATION ====================
+  console.log('\n📋 Creating Tenant Configuration with sample data...');
+
+  // Check if TenantConfiguration already exists for this tenant
+  const existingConfig = await prisma.tenantConfiguration.findUnique({
+    where: { tenantId: tenant.id },
+    include: { countries: { where: { isActive: true } } },
+  });
+
+  if (!existingConfig || existingConfig.countries.length === 0) {
+    // Delete existing empty config if it exists
+    if (existingConfig) {
+      await prisma.tenantConfiguration.delete({ where: { id: existingConfig.id } });
+    }
+
+    // Master data for tenant configuration (matching API route)
+    const COUNTRY_DATA = [
+      { code: 'IN', name: 'India', currency: 'INR', language: 'hi', payrollFrequency: 'MONTHLY', taxRegime: 'NEW', workingHours: 48, workingDays: 6, overtimeMultiplier: 2.0, pf: true, esi: true, gratuity: true, socialSecurity: false, pension: false, medicaid: false, labourLaw: 'Shops & Establishments Act', terminationNotice: 30, probation: 180, annualLeave: 15, dataResidency: false, dataRegion: 'ap-south-1' },
+      { code: 'US', name: 'United States', currency: 'USD', language: 'en', payrollFrequency: 'SEMI_MONTHLY', taxRegime: 'PROGRESSIVE', workingHours: 40, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: false, socialSecurity: true, pension: false, medicaid: true, labourLaw: 'FLSA', terminationNotice: 14, probation: 90, annualLeave: 10, dataResidency: false, dataRegion: 'us-east-1' },
+      { code: 'GB', name: 'United Kingdom', currency: 'GBP', language: 'en', payrollFrequency: 'MONTHLY', taxRegime: 'PROGRESSIVE', workingHours: 40, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: false, socialSecurity: true, pension: true, medicaid: false, labourLaw: 'Employment Rights Act 1996', terminationNotice: 28, probation: 180, annualLeave: 20, dataResidency: false, dataRegion: 'eu-west-2' },
+      { code: 'AE', name: 'United Arab Emirates', currency: 'AED', language: 'ar', payrollFrequency: 'MONTHLY', taxRegime: null, workingHours: 40, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: true, socialSecurity: false, pension: false, medicaid: false, labourLaw: 'UAE Labour Law', terminationNotice: 30, probation: 180, annualLeave: 21, dataResidency: false, dataRegion: 'me-south-1' },
+      { code: 'SG', name: 'Singapore', currency: 'SGD', language: 'en', payrollFrequency: 'MONTHLY', taxRegime: 'PROGRESSIVE', workingHours: 44, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: false, socialSecurity: true, pension: true, medicaid: false, labourLaw: 'Employment Act', terminationNotice: 14, probation: 90, annualLeave: 7, dataResidency: false, dataRegion: 'ap-southeast-1' },
+      { code: 'AU', name: 'Australia', currency: 'AUD', language: 'en', payrollFrequency: 'MONTHLY', taxRegime: 'PROGRESSIVE', workingHours: 38, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: true, socialSecurity: true, pension: true, medicaid: true, labourLaw: 'Fair Work Act 2009', terminationNotice: 28, probation: 180, annualLeave: 20, dataResidency: false, dataRegion: 'ap-southeast-2' },
+      { code: 'CA', name: 'Canada', currency: 'CAD', language: 'en', payrollFrequency: 'SEMI_MONTHLY', taxRegime: 'PROGRESSIVE', workingHours: 40, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: false, socialSecurity: true, pension: true, medicaid: true, labourLaw: 'Canada Labour Code', terminationNotice: 14, probation: 90, annualLeave: 10, dataResidency: false, dataRegion: 'ca-central-1' },
+      { code: 'DE', name: 'Germany', currency: 'EUR', language: 'de', payrollFrequency: 'MONTHLY', taxRegime: 'PROGRESSIVE', workingHours: 40, workingDays: 5, overtimeMultiplier: 1.5, pf: false, esi: false, gratuity: false, socialSecurity: true, pension: true, medicaid: true, labourLaw: 'Arbeitsgesetz', terminationNotice: 28, probation: 180, annualLeave: 20, dataResidency: true, dataRegion: 'eu-central-1' },
+    ];
+
+    const CURRENCY_DATA = [
+      { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+      { code: 'USD', name: 'US Dollar', symbol: '$' },
+      { code: 'EUR', name: 'Euro', symbol: '€' },
+      { code: 'GBP', name: 'British Pound', symbol: '£' },
+      { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
+      { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
+      { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
+      { code: 'AED', name: 'UAE Dirham', symbol: 'د.إ' },
+    ];
+
+    const LANGUAGE_DATA = [
+      { code: 'en', name: 'English', rtl: false, ui: true, docs: true, email: true, help: true },
+      { code: 'hi', name: 'Hindi', rtl: false, ui: true, docs: true, email: true, help: false },
+      { code: 'ar', name: 'Arabic', rtl: true, ui: true, docs: true, email: true, help: false },
+      { code: 'de', name: 'German', rtl: false, ui: true, docs: true, email: true, help: true },
+      { code: 'fr', name: 'French', rtl: false, ui: true, docs: true, email: true, help: true },
+    ];
+
+    // Helper to generate default policies for a country
+    function getSeedPoliciesForCountry(country: typeof COUNTRY_DATA[0]) {
+      const policies: Array<{ policyName: string; policyType: string; category: string; policyContent: string }> = [];
+
+      policies.push({
+        policyName: `${country.name} — Payroll Frequency`,
+        policyType: 'PAYROLL_FREQUENCY',
+        category: 'payroll',
+        policyContent: JSON.stringify({ frequency: country.payrollFrequency, processingDay: 25, paymentDay: country.payrollFrequency === 'SEMI_MONTHLY' ? 15 : 1, cutOffDay: 20, currencyCode: country.currency }),
+      });
+
+      if (country.taxRegime) {
+        policies.push({
+          policyName: `${country.name} — Tax Regime`,
+          policyType: 'TAX_REGIME',
+          category: 'payroll',
+          policyContent: JSON.stringify({ regimeType: country.taxRegime, deductionsAllowed: country.code === 'IN', filingFrequency: 'ANNUAL', tdsApplicable: country.code === 'IN' }),
+        });
+      }
+
+      const statutoryComponents: string[] = [];
+      if (country.pf) statutoryComponents.push('PF');
+      if (country.esi) statutoryComponents.push('ESI');
+      if (country.socialSecurity) statutoryComponents.push('SOCIAL_SECURITY');
+      if (country.pension) statutoryComponents.push('PENSION');
+      if (country.medicaid) statutoryComponents.push('MEDICAL_AID');
+      if (country.code === 'IN') statutoryComponents.push('PT', 'LWF');
+      if (statutoryComponents.length > 0) {
+        policies.push({
+          policyName: `${country.name} — Statutory Compliance`,
+          policyType: 'STATUTORY_COMPLIANCE',
+          category: 'compliance',
+          policyContent: JSON.stringify({ components: statutoryComponents, filingFrequency: 'MONTHLY', autoDeduct: true, employerContributionRequired: true }),
+        });
+      }
+
+      policies.push({
+        policyName: `${country.name} — Leave Policy`,
+        policyType: 'LEAVE_POLICY',
+        category: 'leave',
+        policyContent: JSON.stringify({ annualLeave: country.annualLeave, sickLeave: country.code === 'IN' ? 7 : 10, casualLeave: country.code === 'IN' ? 7 : 0, carryForward: true, maxCarryForward: 5, encashmentAllowed: true, maternityLeave: country.code === 'IN' ? 182 : country.code === 'US' ? 0 : 84, paternityLeave: country.code === 'IN' ? 15 : 5 }),
+      });
+
+      policies.push({
+        policyName: `${country.name} — Overtime Policy`,
+        policyType: 'OVERTIME_POLICY',
+        category: 'payroll',
+        policyContent: JSON.stringify({ multiplier: country.overtimeMultiplier, maxOTHoursPerWeek: 12, compOffEnabled: true, compOffExpiryDays: 30, requiresApproval: true }),
+      });
+
+      if (country.gratuity) {
+        policies.push({
+          policyName: `${country.name} — Gratuity Policy`,
+          policyType: 'GRATUITY_POLICY',
+          category: 'benefits',
+          policyContent: JSON.stringify({ eligibleAfterYears: country.code === 'IN' ? 5 : 1, calculationBasis: 'LAST_DRAWN', multiplier: 15 / 26, maxCap: country.code === 'IN' ? 2000000 : null }),
+        });
+      }
+
+      policies.push({
+        policyName: `${country.name} — Probation Policy`,
+        policyType: 'PROBATION_POLICY',
+        category: 'labour_law',
+        policyContent: JSON.stringify({ durationDays: country.probation, extendable: true, maxExtensionDays: 90, confirmationRequiresReview: true, noticeDuringProbation: 7 }),
+      });
+
+      policies.push({
+        policyName: `${country.name} — Termination Policy`,
+        policyType: 'TERMINATION_POLICY',
+        category: 'labour_law',
+        policyContent: JSON.stringify({ noticePeriodDays: country.terminationNotice, paymentInLieu: true, fnfTimelineDays: 30, gardenLeave: country.code === 'GB', severancePay: country.code !== 'IN' }),
+      });
+
+      policies.push({
+        policyName: `${country.name} — Working Hours`,
+        policyType: 'WORKING_HOURS',
+        category: 'labour_law',
+        policyContent: JSON.stringify({ hoursPerWeek: country.workingHours, daysPerWeek: country.workingDays, breakDurationMinutes: 30, maxContinuousHours: 5, flexibleTiming: country.code !== 'IN' }),
+      });
+
+      if (country.socialSecurity || country.pension || country.pf) {
+        policies.push({
+          policyName: `${country.name} — Social Security & Retirement`,
+          policyType: 'SOCIAL_SECURITY',
+          category: 'benefits',
+          policyContent: JSON.stringify({ pfRate: country.pf ? 12 : 0, employerPFRate: country.pf ? 12 : 0, esiRate: country.esi ? 0.75 : 0, employerESIRate: country.esi ? 3.25 : 0, socialSecurityRate: country.socialSecurity ? 6.2 : 0, employerSocialSecurityRate: country.socialSecurity ? 6.2 : 0, pensionRate: country.pension ? 5 : 0, employerPensionRate: country.pension ? 3 : 0 }),
+        });
+      }
+
+      policies.push({
+        policyName: `${country.name} — Minimum Wage`,
+        policyType: 'MINIMUM_WAGE',
+        category: 'compliance',
+        policyContent: JSON.stringify({ currencyCode: country.currency, nationalMinimumWage: country.code === 'IN' ? 17800 : country.code === 'US' ? 7.25 * 160 : null, wageType: 'MONTHLY', regionSpecific: country.code === 'IN' || country.code === 'US', reviewFrequency: 'ANNUAL' }),
+      });
+
+      return policies;
+    }
+
+    // Create TenantConfiguration with full tier and auto-provisioning
+    const tenantConfig = await prisma.tenantConfiguration.create({
+      data: {
+        tenantId: tenant.id,
+        autoProvisionPayroll: true,
+        autoProvisionCompliance: true,
+        autoProvisionTaxSlabs: true,
+        autoProvisionMinWage: true,
+        customisationTier: 'full',
+        maxUsers: 500,
+        maxCompanies: 10,
+        maxEmployees: 5000,
+      },
+    });
+
+    // Seed countries with auto-provisioned policies, currencies, and languages
+    for (const country of COUNTRY_DATA) {
+      await prisma.tenantCountryAccess.create({
+        data: {
+          tenantConfigId: tenantConfig.id,
+          countryCode: country.code,
+          countryName: country.name,
+          payrollFrequencyDefault: country.payrollFrequency,
+          payrollCurrencyDefault: country.currency,
+          taxRegimeDefault: country.taxRegime,
+          workingHoursPerWeek: country.workingHours,
+          workingDaysPerWeek: country.workingDays,
+          overtimeMultiplier: country.overtimeMultiplier,
+          pfEnabled: country.pf,
+          esiEnabled: country.esi,
+          gratuityEnabled: country.gratuity,
+          socialSecurityEnabled: country.socialSecurity,
+          pensionEnabled: country.pension,
+          medicaidEnabled: country.medicaid,
+          labourLawCode: country.labourLaw,
+          terminationNoticePeriod: country.terminationNotice,
+          probationPeriod: country.probation,
+          annualLeaveEntitlement: country.annualLeave,
+          dataResidencyRequired: country.dataResidency,
+          dataResidencyRegion: country.dataRegion,
+        },
+      });
+
+      // Seed payroll policies for this country
+      const policies = getSeedPoliciesForCountry(country);
+      for (const p of policies) {
+        await prisma.tenantPayrollPolicy.create({
+          data: {
+            tenantConfigId: tenantConfig.id,
+            countryCode: country.code,
+            countryName: country.name,
+            policyName: p.policyName,
+            policyType: p.policyType,
+            category: p.category,
+            policyContent: p.policyContent,
+            source: 'system_default',
+            status: 'active',
+            isEditable: true,
+          },
+        });
+      }
+
+      // Auto-add the country's default currency
+      const currencyMaster = CURRENCY_DATA.find(c => c.code === country.currency);
+      if (currencyMaster) {
+        await prisma.tenantCurrencyAccess.upsert({
+          where: { tenantConfigId_currencyCode: { tenantConfigId: tenantConfig.id, currencyCode: currencyMaster.code } },
+          update: { isActive: true },
+          create: {
+            tenantConfigId: tenantConfig.id,
+            currencyCode: currencyMaster.code,
+            currencyName: currencyMaster.name,
+            currencySymbol: currencyMaster.symbol,
+          },
+        });
+      }
+
+      // Auto-add the country's default language
+      const langMaster = LANGUAGE_DATA.find(l => l.code === country.language);
+      if (langMaster) {
+        await prisma.tenantLanguageAccess.upsert({
+          where: { tenantConfigId_languageCode: { tenantConfigId: tenantConfig.id, languageCode: langMaster.code } },
+          update: { isActive: true },
+          create: {
+            tenantConfigId: tenantConfig.id,
+            languageCode: langMaster.code,
+            languageName: langMaster.name,
+            isRTL: langMaster.rtl,
+            uiTranslated: langMaster.ui,
+            documentTemplates: langMaster.docs,
+            emailTemplates: langMaster.email,
+            helpArticles: langMaster.help,
+          },
+        });
+      }
+    }
+
+    // Seed extra currencies not auto-added by countries
+    const seededCurrencyCodes = new Set(COUNTRY_DATA.map(c => c.currency));
+    for (const cur of CURRENCY_DATA) {
+      if (seededCurrencyCodes.has(cur.code)) continue;
+      await prisma.tenantCurrencyAccess.create({
+        data: {
+          tenantConfigId: tenantConfig.id,
+          currencyCode: cur.code,
+          currencyName: cur.name,
+          currencySymbol: cur.symbol,
+        },
+      });
+    }
+
+    // Seed extra languages not auto-added by countries
+    const seededLanguageCodes = new Set(COUNTRY_DATA.map(c => c.language));
+    for (const lang of LANGUAGE_DATA) {
+      if (seededLanguageCodes.has(lang.code)) continue;
+      await prisma.tenantLanguageAccess.create({
+        data: {
+          tenantConfigId: tenantConfig.id,
+          languageCode: lang.code,
+          languageName: lang.name,
+          isRTL: lang.rtl,
+          uiTranslated: lang.ui,
+          documentTemplates: lang.docs,
+          emailTemplates: lang.email,
+          helpArticles: lang.help,
+        },
+      });
+    }
+
+    // Calculate and update counts/costing
+    const activeCountries = await prisma.tenantCountryAccess.count({ where: { tenantConfigId: tenantConfig.id, isActive: true } });
+    const activeCurrencies = await prisma.tenantCurrencyAccess.count({ where: { tenantConfigId: tenantConfig.id, isActive: true } });
+    const activeLanguages = await prisma.tenantLanguageAccess.count({ where: { tenantConfigId: tenantConfig.id, isActive: true } });
+    const activePolicies = await prisma.tenantPayrollPolicy.count({ where: { tenantConfigId: tenantConfig.id, status: 'active' } });
+
+    const countryCost = activeCountries * 50;
+    const currencyCost = Math.max(0, activeCurrencies - 1) * 10;
+    const languageCost = Math.max(0, activeLanguages - 1) * 5;
+    const tierCost = 150; // full tier
+    const userCost = 500 * 0.5;
+    const companyCost = 10 * 5;
+    const employeeCost = 5000 * 0.1;
+    const monthlyCost = countryCost + currencyCost + languageCost + tierCost + userCost + companyCost + employeeCost;
+
+    await prisma.tenantConfiguration.update({
+      where: { id: tenantConfig.id },
+      data: {
+        activeCountryCount: activeCountries,
+        activeCurrencyCount: activeCurrencies,
+        activeLanguageCount: activeLanguages,
+        estimatedMonthlyCost: Math.round(monthlyCost * 100) / 100,
+        estimatedAnnualCost: Math.round(monthlyCost * 12 * 100) / 100,
+      },
+    });
+
+    console.log(`  ✓ Tenant Configuration: ${activeCountries} countries, ${activeCurrencies} currencies, ${activeLanguages} languages, ${activePolicies} policies`);
+    console.log(`  ✓ Estimated Monthly Cost: $${Math.round(monthlyCost * 100) / 100}`);
+  } else {
+    console.log('  ⊘ Tenant Configuration already exists with data — skipping seed');
+  }
+
   // ==================== VERIFICATION ====================
   console.log('\n🔍 Verifying seed data...');
   const userCount = await prisma.user.count();
@@ -940,6 +1246,18 @@ async function main() {
   console.log(`  ✓ RBAC Roles: ${roleCount}`);
   console.log(`  ✓ Role-Permission Mappings: ${rolePermCount}`);
   console.log(`  ✓ User-Role Assignments: ${userRoleCount}`);
+
+  // Verify tenant configuration
+  const tenantConfigCount = await prisma.tenantConfiguration.count();
+  const tenantCountryCount = await prisma.tenantCountryAccess.count({ where: { isActive: true } });
+  const tenantCurrencyCount = await prisma.tenantCurrencyAccess.count({ where: { isActive: true } });
+  const tenantLanguageCount = await prisma.tenantLanguageAccess.count({ where: { isActive: true } });
+  const tenantPolicyCount = await prisma.tenantPayrollPolicy.count({ where: { status: 'active' } });
+  console.log(`  ✓ Tenant Configurations: ${tenantConfigCount}`);
+  console.log(`  ✓ Tenant Country Access: ${tenantCountryCount}`);
+  console.log(`  ✓ Tenant Currency Access: ${tenantCurrencyCount}`);
+  console.log(`  ✓ Tenant Language Access: ${tenantLanguageCount}`);
+  console.log(`  ✓ Tenant Payroll Policies: ${tenantPolicyCount}`);
 
   // Verify password hashing works
   const adminUserCheck = await prisma.user.findUnique({ where: { email: 'admin@3boxeshrms.com' } });

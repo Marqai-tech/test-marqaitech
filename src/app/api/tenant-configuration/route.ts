@@ -300,14 +300,163 @@ export async function GET(request: Request) {
     });
 
     if (!config) {
-      // Auto-create with defaults
+      // Auto-create with demo-friendly defaults and seed sample data
       config = await prisma.tenantConfiguration.create({
-        data: { tenantId: targetTenantId },
+        data: {
+          tenantId: targetTenantId,
+          autoProvisionPayroll: true,
+          autoProvisionCompliance: true,
+          autoProvisionTaxSlabs: true,
+          autoProvisionMinWage: true,
+          customisationTier: 'full',
+          maxUsers: 500,
+          maxCompanies: 10,
+          maxEmployees: 5000,
+        },
         include: {
           countries: true,
           currencies: true,
           languages: true,
           policies: true,
+        },
+      });
+
+      // ─── Auto-seed sample data for demo ───
+      const SAMPLE_COUNTRY_CODES = ['IN', 'US', 'GB', 'AE', 'SG', 'AU', 'CA', 'DE'];
+      const SAMPLE_CURRENCY_CODES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD'];
+      const SAMPLE_LANGUAGE_CODES = ['en', 'hi', 'ar', 'de', 'fr'];
+
+      for (const code of SAMPLE_COUNTRY_CODES) {
+        const master = COUNTRY_MASTER.find(c => c.code === code);
+        if (!master) continue;
+
+        await prisma.tenantCountryAccess.create({
+          data: {
+            tenantConfigId: config.id,
+            countryCode: code,
+            countryName: master.name,
+            payrollFrequencyDefault: master.payrollFrequency,
+            payrollCurrencyDefault: master.currency,
+            taxRegimeDefault: master.taxRegime,
+            workingHoursPerWeek: master.workingHours,
+            workingDaysPerWeek: master.workingDays,
+            overtimeMultiplier: master.overtimeMultiplier,
+            pfEnabled: master.pf,
+            esiEnabled: master.esi,
+            gratuityEnabled: master.gratuity,
+            socialSecurityEnabled: master.socialSecurity,
+            pensionEnabled: master.pension,
+            medicaidEnabled: master.medicaid,
+            labourLawCode: master.labourLaw,
+            terminationNoticePeriod: master.terminationNotice,
+            probationPeriod: master.probation,
+            annualLeaveEntitlement: master.annualLeave,
+            dataResidencyRequired: master.dataResidency,
+            dataResidencyRegion: master.dataRegion,
+          },
+        });
+
+        // Auto-provision payroll policies for each country
+        const defaultPolicies = getDefaultPoliciesForCountry(code);
+        for (const p of defaultPolicies) {
+          await prisma.tenantPayrollPolicy.create({
+            data: {
+              tenantConfigId: config.id,
+              countryCode: code,
+              countryName: master.name,
+              policyName: p.policyName,
+              policyType: p.policyType,
+              category: p.category,
+              policyContent: p.policyContent,
+              source: 'system_default',
+              status: 'active',
+              isEditable: true, // full tier allows editing
+            },
+          });
+        }
+
+        // Auto-add the country's default currency
+        const currencyMaster = CURRENCY_MASTER.find(c => c.code === master.currency);
+        if (currencyMaster) {
+          await prisma.tenantCurrencyAccess.upsert({
+            where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: currencyMaster.code } },
+            update: { isActive: true },
+            create: {
+              tenantConfigId: config.id,
+              currencyCode: currencyMaster.code,
+              currencyName: currencyMaster.name,
+              currencySymbol: currencyMaster.symbol,
+            },
+          });
+        }
+
+        // Auto-add the country's default language
+        const langMaster = LANGUAGE_MASTER.find(l => l.code === master.language);
+        if (langMaster) {
+          await prisma.tenantLanguageAccess.upsert({
+            where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: langMaster.code } },
+            update: { isActive: true },
+            create: {
+              tenantConfigId: config.id,
+              languageCode: langMaster.code,
+              languageName: langMaster.name,
+              isRTL: langMaster.rtl,
+              uiTranslated: langMaster.ui,
+              documentTemplates: langMaster.docs,
+              emailTemplates: langMaster.email,
+              helpArticles: langMaster.help,
+            },
+          });
+        }
+      }
+
+      // Seed extra currencies not auto-added by countries
+      const seededCurrencyCodes = new Set(SAMPLE_COUNTRY_CODES.map(c => COUNTRY_MASTER.find(m => m.code === c)?.currency).filter(Boolean));
+      for (const code of SAMPLE_CURRENCY_CODES) {
+        if (seededCurrencyCodes.has(code)) continue;
+        const master = CURRENCY_MASTER.find(c => c.code === code);
+        if (!master) continue;
+        await prisma.tenantCurrencyAccess.create({
+          data: {
+            tenantConfigId: config.id,
+            currencyCode: code,
+            currencyName: master.name,
+            currencySymbol: master.symbol,
+          },
+        });
+      }
+
+      // Seed extra languages not auto-added by countries
+      const seededLanguageCodes = new Set(SAMPLE_COUNTRY_CODES.map(c => COUNTRY_MASTER.find(m => m.code === c)?.language).filter(Boolean));
+      for (const code of SAMPLE_LANGUAGE_CODES) {
+        if (seededLanguageCodes.has(code)) continue;
+        const master = LANGUAGE_MASTER.find(l => l.code === code);
+        if (!master) continue;
+        await prisma.tenantLanguageAccess.create({
+          data: {
+            tenantConfigId: config.id,
+            languageCode: code,
+            languageName: master.name,
+            isRTL: master.rtl,
+            uiTranslated: master.ui,
+            documentTemplates: master.docs,
+            emailTemplates: master.email,
+            helpArticles: master.help,
+          },
+        });
+      }
+
+      // Update counts and costing
+      await updateConfigCounts(config.id);
+
+      // Re-fetch with all seeded data
+      config = await prisma.tenantConfiguration.findUnique({
+        where: { tenantId: targetTenantId },
+        include: {
+          countries: { where: { isActive: true }, orderBy: { countryName: 'asc' } },
+          currencies: { where: { isActive: true }, orderBy: { currencyCode: 'asc' } },
+          languages: { where: { isActive: true }, orderBy: { languageName: 'asc' } },
+          policies: { orderBy: [{ countryCode: 'asc' }, { policyType: 'asc' }] },
         },
       });
     }
