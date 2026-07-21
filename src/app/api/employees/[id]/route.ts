@@ -208,7 +208,7 @@ export async function PUT(
         nationality, address, city, state, zipCode, country, bloodGroup,
         emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
-        status, role,
+        status, role, avatar,
       } = body;
 
       const updateData: Record<string, unknown> = {};
@@ -241,6 +241,7 @@ export async function PUT(
       if (taxId !== undefined) updateData.taxId = taxId;
       if (salary !== undefined) updateData.salary = salary;
       if (salaryCurrency !== undefined) updateData.salaryCurrency = salaryCurrency;
+      if (avatar !== undefined) updateData.avatar = avatar || null;
       if (status !== undefined) updateData.status = status;
 
       const employee = await prisma.employee.update({

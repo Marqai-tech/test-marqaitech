@@ -265,6 +265,7 @@ export async function POST(request: Request) {
       salaryCurrency,
       userId,
       role,
+      avatar,
     } = body;
 
     if (!employeeId || !firstName || !lastName || !email || !departmentId || !designationId) {
@@ -427,6 +428,7 @@ export async function POST(request: Request) {
           salary: salary ? parseFloat(String(salary)) : null,
           salaryCurrency: salaryCurrency || 'INR',
           userId: userId || null,
+          avatar: avatar || null,
           status: 'active',
         },
         include: {
