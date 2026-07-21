@@ -13,7 +13,7 @@ import bcryptjs from 'bcryptjs';
  * Pass ?key=MARQAI_SEED_2026 in the URL.
  */
 
-const SEED_ENABLED = false; // Set to true only when you need to (re-)seed
+const SEED_ENABLED = true; // Temporarily enabled for tenant DB seeding
 
 export async function POST(request: Request) {
   const db = await getDb(request);
