@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     // Same defensive pattern as /api/auth/login: only request columns we know
     // exist, so a schema drift (new columns in schema.prisma not yet pushed to
     // the production DB) cannot break authentication.
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: {
         id: true,
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
     // Step 2: Try to fetch employee data separately (graceful fallback)
     let employeeData = null;
     try {
-      const employee = await prisma.employee.findUnique({
+      const employee = await db.employee.findUnique({
         where: { userId: user.id },
         include: {
           department: { select: { name: true } },
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
         let companyData = null;
         try {
           if (employee.companyId) {
-            const company = await prisma.company.findUnique({
+            const company = await db.company.findUnique({
               where: { id: employee.companyId },
               select: { id: true, name: true, code: true, logo: true, city: true, state: true, country: true },
             });

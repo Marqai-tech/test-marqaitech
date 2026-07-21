@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -58,6 +58,7 @@ function monthKey(d: Date): string {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -91,13 +92,13 @@ export async function GET(request: Request) {
       requisitions,
       boardPostings,
     ] = await Promise.all([
-      prisma.jobPosting.findMany({
+      db.jobPosting.findMany({
         include: {
           department: { select: { id: true, name: true } },
           applications: { select: { id: true, status: true, appliedDate: true, source: true } },
         },
       }),
-      prisma.jobApplication.findMany({
+      db.jobApplication.findMany({
         select: {
           id: true,
           status: true,
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
           jobPosting: { select: { id: true, title: true, departmentId: true, department: { select: { id: true, name: true } } } },
         },
       }),
-      prisma.offer.findMany({
+      db.offer.findMany({
         select: {
           id: true,
           status: true,
@@ -120,7 +121,7 @@ export async function GET(request: Request) {
           respondedAt: true,
         },
       }),
-      prisma.employee.findMany({
+      db.employee.findMany({
         select: {
           id: true,
           dateOfJoining: true,
@@ -128,10 +129,10 @@ export async function GET(request: Request) {
           department: { select: { id: true, name: true } },
         },
       }),
-      prisma.requisition.findMany({
+      db.requisition.findMany({
         select: { id: true, status: true, numberOfOpenings: true },
       }),
-      prisma.jobBoardPosting.findMany({
+      db.jobBoardPosting.findMany({
         select: { id: true, jobPostingId: true, board: true, status: true, postedAt: true, closedAt: true },
       }),
     ]);

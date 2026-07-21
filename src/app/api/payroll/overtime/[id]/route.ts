@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const data = await prisma.overtimeRecord.findUnique({
+      const data = await db.overtimeRecord.findUnique({
         where: { id },
         include: {
           employee: {
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -54,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any = null;
     try {
-      existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+      existing = await db.overtimeRecord.findUnique({ where: { id } });
     } catch (dbError: unknown) {
       console.error('Database error fetching overtime record for update:', dbError);
       return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
@@ -75,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       } else if (rateType === 'PERCENTAGE_OF_BASIC') {
         const employeeId = body.employeeId || existing.employeeId;
         try {
-          const employee = await prisma.employee.findUnique({
+          const employee = await db.employee.findUnique({
             where: { employeeId },
             select: { salary: true },
           });
@@ -105,7 +107,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     };
 
     try {
-      const data = await prisma.overtimeRecord.update({
+      const data = await db.overtimeRecord.update({
         where: { id },
         data: updateData,
       });
@@ -122,6 +124,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -136,7 +139,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     try {
-      const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+      const existing = await db.overtimeRecord.findUnique({ where: { id } });
       if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
 
       const updateData: Record<string, unknown> = {
@@ -147,7 +150,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }),
       };
 
-      const data = await prisma.overtimeRecord.update({
+      const data = await db.overtimeRecord.update({
         where: { id },
         data: updateData,
       });
@@ -164,6 +167,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -171,14 +175,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const existing = await prisma.overtimeRecord.findUnique({ where: { id } });
+      const existing = await db.overtimeRecord.findUnique({ where: { id } });
       if (!existing) return Response.json({ error: 'Overtime record not found' }, { status: 404, headers: corsHeaders });
 
       if (existing.status !== 'pending') {
         return Response.json({ error: 'Only pending overtime records can be deleted' }, { status: 400, headers: corsHeaders });
       }
 
-      await prisma.overtimeRecord.delete({ where: { id } });
+      await db.overtimeRecord.delete({ where: { id } });
 
       return Response.json({ message: 'Overtime record deleted successfully' }, { headers: corsHeaders });
     } catch (dbError: unknown) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET: Check database status
 export async function GET() {
@@ -33,6 +33,7 @@ export async function GET() {
 
 // POST: Seed the database
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const { force } = body || {};

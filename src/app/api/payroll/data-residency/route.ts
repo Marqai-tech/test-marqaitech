@@ -11,7 +11,7 @@
 //   • India sub-company (DPDP Act 2023) → primary region ap-south-1
 //   • US sub-company → no restriction (replicationAllowed=true)
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -29,6 +29,7 @@ export async function OPTIONS() {
 //   ?companyId=...
 //   Returns the residency policy for the company (or a default policy if none set)
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       // List all policies
       let policies: unknown[] = [];
       try {
-        policies = await prisma.dataResidencyPolicy.findMany({ take: 200 });
+        policies = await getPlatformDb().dataResidencyPolicy.findMany({ take: 200 });
       } catch (dbError: unknown) {
         console.error('DB error fetching residency policies:', dbError);
       }
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     let policy = null;
     try {
-      policy = await prisma.dataResidencyPolicy.findUnique({ where: { companyId } });
+      policy = await getPlatformDb().dataResidencyPolicy.findUnique({ where: { companyId } });
     } catch (dbError: unknown) {
       console.error('DB error fetching residency policy:', dbError);
     }
@@ -90,6 +91,7 @@ export async function GET(request: NextRequest) {
 //           policyDocumentUrl? }
 // Creates OR updates a policy (upsert keyed on companyId).
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'allowedRegions must be a non-empty array' }, { status: 400, headers: corsHeaders });
     }
 
-    const created = await prisma.dataResidencyPolicy.upsert({
+    const created = await getPlatformDb().dataResidencyPolicy.upsert({
       where: { companyId: body.companyId },
       create: {
         companyId: body.companyId,
@@ -143,6 +145,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/payroll/data-residency  { companyId, ... }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   // Same logic as POST — both go through upsert
   return POST(request);
 }
@@ -156,7 +159,7 @@ export async function checkResidencyCompliance(
   requestRegion: string | null,
 ): Promise<{ allowed: boolean; reason?: string; policy?: unknown }> {
   try {
-    const policy = await prisma.dataResidencyPolicy.findUnique({ where: { companyId } });
+    const policy = await getPlatformDb().dataResidencyPolicy.findUnique({ where: { companyId } });
     if (!policy) return { allowed: true }; // no policy = no restriction
 
     let allowedRegions: string[] = [];

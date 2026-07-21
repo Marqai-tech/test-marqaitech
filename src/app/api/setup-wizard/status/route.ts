@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // GET: Check if the current tenant has completed the setup wizard
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const token = getTokenFromHeaders(req);
     if (!token) {
@@ -85,6 +86,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Mark setup as completed for the tenant
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const token = getTokenFromHeaders(req);
     if (!token) {

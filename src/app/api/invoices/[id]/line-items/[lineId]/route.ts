@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -21,6 +21,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string; lineId: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -34,7 +35,7 @@ export async function DELETE(
     }
 
     const { id, lineId } = await params;
-    const invoice = await withSchemaSync(() => prisma.invoice.findUnique({ where: { id } }));
+    const invoice = await withSchemaSync(() => db.invoice.findUnique({ where: { id } }));
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -45,10 +46,10 @@ export async function DELETE(
       );
     }
 
-    await withSchemaSync(() => prisma.invoiceLineItem.delete({ where: { id: lineId } }));
+    await withSchemaSync(() => db.invoiceLineItem.delete({ where: { id: lineId } }));
 
     // Recalc invoice totals
-    const lineItems = await withSchemaSync(() => prisma.invoiceLineItem.findMany({ where: { invoiceId: id } }));
+    const lineItems = await withSchemaSync(() => db.invoiceLineItem.findMany({ where: { invoiceId: id } }));
     const subtotal = lineItems.reduce((s, l) => s + l.amount, 0);
     const taxableSubtotal = lineItems.filter((l) => l.taxable).reduce((s, l) => s + l.amount, 0);
     const taxAmount = round(taxableSubtotal * (invoice.taxRate / 100));
@@ -58,12 +59,12 @@ export async function DELETE(
     const subtotalBase = baseCur === invoice.currency ? subtotal : round(subtotal / (invoice.exchangeRate || 1));
     const totalAmountBase = baseCur === invoice.currency ? totalAmount : round(totalAmount / (invoice.exchangeRate || 1));
 
-    await prisma.invoice.update({
+    await db.invoice.update({
       where: { id },
       data: { subtotal, taxAmount, discountAmount, totalAmount, subtotalBase, totalAmountBase },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'REMOVE_INVOICE_LINE',

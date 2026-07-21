@@ -53,7 +53,7 @@
  */
 import { NextResponse } from 'next/server';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -77,6 +77,7 @@ function fail(error: string, status = 400) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     // ─── 1. Authenticate ───
     const token = getTokenFromHeaders(request);
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     // ─── 4. Find tenant ───
-    const tenant = await prisma.tenant.findFirst({
+    const tenant = await getPlatformDb().tenant.findFirst({
       where: { slug: tenantSlug, status: 'active' },
     });
     if (!tenant) return fail(`Tenant with slug "${tenantSlug}" not found or inactive`, 404);
@@ -122,13 +123,13 @@ export async function POST(request: Request) {
     const tenantId = tenant.id;
 
     // Get all companies under this tenant
-    const companyGroups = await prisma.companyGroup.findMany({
+    const companyGroups = await db.companyGroup.findMany({
       where: { tenantId },
       select: { id: true },
     });
     const groupIds = companyGroups.map(g => g.id);
 
-    const companies = await prisma.company.findMany({
+    const companies = await db.company.findMany({
       where: { companyGroupId: { in: groupIds } },
       select: { id: true },
     });
@@ -139,20 +140,20 @@ export async function POST(request: Request) {
     }
 
     // Get branches, departments, designations under these companies
-    const branches = await prisma.branch.findMany({
+    const branches = await db.branch.findMany({
       where: { companyId: { in: companyIds } },
       select: { id: true },
     });
     const branchIds = branches.map(b => b.id);
 
-    const departments = await prisma.department.findMany({
+    const departments = await db.department.findMany({
       where: { companyId: { in: companyIds } },
       select: { id: true },
     });
     const departmentIds = departments.map(d => d.id);
 
     // Get admin users to preserve
-    const adminUsers = await prisma.user.findMany({
+    const adminUsers = await db.user.findMany({
       where: {
         tenantId,
         role: { in: ['super_admin', 'tenant_admin'] },
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
     const adminUserIds = adminUsers.map(u => u.id);
 
     // Get employee records linked to admin users — these are preserved
-    const adminEmployees = await prisma.employee.findMany({
+    const adminEmployees = await db.employee.findMany({
       where: { userId: { in: adminUserIds } },
       select: { id: true },
     });
@@ -171,7 +172,7 @@ export async function POST(request: Request) {
 
     // Get ALL non-admin employee IDs (employees under this tenant's companies)
     // These are the ones we'll delete
-    const nonAdminEmployees = await prisma.employee.findMany({
+    const nonAdminEmployees = await db.employee.findMany({
       where: {
         departmentId: { in: departmentIds },
         id: { notIn: adminEmployeeIds },
@@ -199,102 +200,102 @@ export async function POST(request: Request) {
 
     // Leave management
     await del('leaveBalances', () =>
-      prisma.leaveBalance.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.leaveBalance.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('leaveRequests', () =>
-      prisma.leaveRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.leaveRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('leaveEncashmentRequests', () =>
-      prisma.leaveEncashmentRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.leaveEncashmentRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('optionalHolidayElections', () =>
-      prisma.optionalHolidayElection.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.optionalHolidayElection.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Attendance
     await del('attendance', () =>
-      prisma.attendance.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.attendance.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('attendanceRegularizations', () =>
-      prisma.attendanceRegularization.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.attendanceRegularization.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('hourlyPermissions', () =>
-      prisma.hourlyPermission.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.hourlyPermission.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('gatepasses', () =>
-      prisma.gatepass.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.gatepass.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('overtimeRequests', () =>
-      prisma.overtimeRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.overtimeRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('compOffLeaves', () =>
-      prisma.compOffLeave.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.compOffLeave.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('wfhAttendanceSnapshots', () =>
-      prisma.wfhAttendanceSnapshot.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.wfhAttendanceSnapshot.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('wfhRequests', () =>
-      prisma.wfhRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.wfhRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('burnoutFlags', () =>
-      prisma.burnoutFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.burnoutFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('attendanceAuditLogs', () =>
-      prisma.attendanceAuditLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.attendanceAuditLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('biometricEnrollments', () =>
-      prisma.biometricEnrollment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.biometricEnrollment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('biometricPunches', () =>
-      prisma.biometricPunch.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.biometricPunch.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('rosterAssignments', () =>
-      prisma.employeeRosterAssignment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.employeeRosterAssignment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Payroll - employee linked
     await del('payrolls', () =>
-      prisma.payroll.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.payroll.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('loans', () =>
-      prisma.loan.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.loan.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('overtimeRecords', () =>
-      prisma.overtimeRecord.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.overtimeRecord.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('payrollHolds', () =>
-      prisma.payrollHold.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.payrollHold.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('employeePaymentMethods', () =>
-      prisma.employeePaymentMethod.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.employeePaymentMethod.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('payrollInputs', () =>
-      prisma.payrollInput.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.payrollInput.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('incomeTaxDeclarations', () =>
-      prisma.incomeTaxDeclaration.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.incomeTaxDeclaration.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('fnfCalculations', () =>
-      prisma.fNFCalculation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.fNFCalculation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('payrollAdjustmentLogs', () =>
-      prisma.payrollAdjustmentLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.payrollAdjustmentLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('payrollTransactionLines', () =>
-      prisma.payrollTransactionLine.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.payrollTransactionLine.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Performance & Goals
     await del('performanceReviews', () =>
-      prisma.performanceReview.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.performanceReview.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('goals', () =>
-      prisma.goal.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.goal.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Feedbacks (both from and to)
     await del('feedbacks', () =>
-      prisma.feedback.deleteMany({
+      db.feedback.deleteMany({
         where: {
           OR: [
             { fromId: { in: nonAdminEmployeeIds } },
@@ -306,82 +307,82 @@ export async function POST(request: Request) {
 
     // Training
     await del('trainingEnrollments', () =>
-      prisma.trainingEnrollment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.trainingEnrollment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Assets
     await del('assetAssignments', () =>
-      prisma.assetAssignment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.assetAssignment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Documents
     await del('documents', () =>
-      prisma.document.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.document.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Incidents
     await del('incidentReports', () =>
-      prisma.incidentReport.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.incidentReport.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Travel & Expenses
     await del('travelRequests', () =>
-      prisma.travelRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.travelRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('expenseClaims', () =>
-      prisma.expenseClaim.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.expenseClaim.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('reimbursements', () =>
-      prisma.reimbursement.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.reimbursement.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Timesheets
     await del('timesheets', () =>
-      prisma.timesheet.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.timesheet.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Promotions, Grievances, Separations
     await del('promotions', () =>
-      prisma.promotion.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.promotion.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('grievances', () =>
-      prisma.grievance.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.grievance.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('separations', () =>
-      prisma.separation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.separation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('exitRequests', () =>
-      prisma.exitRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.exitRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('exitInterviews', () =>
-      prisma.exitInterview.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.exitInterview.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Onboarding
     await del('onboardingTasks', () =>
-      prisma.onboardingTask.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.onboardingTask.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Employee personal data
     await del('dependents', () =>
-      prisma.dependent.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.dependent.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('qualifications', () =>
-      prisma.qualification.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.qualification.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('experiences', () =>
-      prisma.experience.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.experience.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('employeeSkills', () =>
-      prisma.employeeSkill.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.employeeSkill.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Employee core & collaboration
     await del('customFieldValues', () =>
-      prisma.employeeCustomFieldValue.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.employeeCustomFieldValue.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('dottedLineManagers', () =>
-      prisma.dottedLineManager.deleteMany({
+      db.dottedLineManager.deleteMany({
         where: {
           OR: [
             { employeeId: { in: nonAdminEmployeeIds } },
@@ -391,44 +392,44 @@ export async function POST(request: Request) {
       }),
     );
     await del('teamMemberships', () =>
-      prisma.teamMember.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.teamMember.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('employeeDimensionAllocations', () =>
-      prisma.employeeDimensionAllocation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.employeeDimensionAllocation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('employeeCompanyMappings', () =>
-      prisma.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Social profiles, calendar syncs
     await del('socialProfiles', () =>
-      prisma.socialProfile.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.socialProfile.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('calendarSyncs', () =>
-      prisma.calendarSync.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.calendarSync.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Marketplace / wellness / ecosystem — employee-linked
     await del('wallets', () =>
-      prisma.wallet.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.wallet.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('marketplaceOrders', () =>
-      prisma.marketplaceOrder.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.marketplaceOrder.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('insurancePolicies', () =>
-      prisma.insurancePolicy.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.insurancePolicy.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('insuranceClaims', () =>
-      prisma.insuranceClaim.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.insuranceClaim.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('ewaRequests', () =>
-      prisma.eWARequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.eWARequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('loanMarketListings', () =>
-      prisma.loanMarketplaceListing.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.loanMarketplaceListing.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('gifts', () =>
-      prisma.gift.deleteMany({
+      db.gift.deleteMany({
         where: {
           OR: [
             { recipientId: { in: nonAdminEmployeeIds } },
@@ -438,275 +439,275 @@ export async function POST(request: Request) {
       }),
     );
     await del('rewardPointsLedger', () =>
-      prisma.rewardPointsLedger.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.rewardPointsLedger.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('marketplaceFraudFlags', () =>
-      prisma.marketplaceFraudFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.marketplaceFraudFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('financialStressFlags', () =>
-      prisma.financialStressFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.financialStressFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('walletBudgetAllocations_employee', () =>
-      prisma.walletBudgetAllocation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.walletBudgetAllocation.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('clientFeedbacks_employee', () =>
-      prisma.clientFeedback.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.clientFeedback.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('personalizedCatalogCaches', () =>
-      prisma.personalizedCatalogCache.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.personalizedCatalogCache.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('utilizationSnapshots', () =>
-      prisma.projectUtilizationSnapshot.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.projectUtilizationSnapshot.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // AI attendance/payroll — employee-linked
     await del('payrollAnomalies', () =>
-      prisma.payrollAnomaly.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.payrollAnomaly.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('ghostEmployeeFlags', () =>
-      prisma.ghostEmployeeFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.ghostEmployeeFlag.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('crossBorderSecondments', () =>
-      prisma.crossBorderSecondment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.crossBorderSecondment.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Referrals
     await del('referrals', () =>
-      prisma.referral.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.referral.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Chat & collaboration — employee-linked
     await del('chatMessages', () =>
-      prisma.chatMessage.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.chatMessage.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('callLogs', () =>
-      prisma.callLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.callLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('callParticipations', () =>
-      prisma.callParticipant.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.callParticipant.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // File system — employee-linked
     await del('fileVersionsUploaded', () =>
-      prisma.fileVersion.deleteMany({ where: { uploadedById: { in: nonAdminEmployeeIds } } }),
+      db.fileVersion.deleteMany({ where: { uploadedById: { in: nonAdminEmployeeIds } } }),
     );
     await del('fileShareLinksCreated', () =>
-      prisma.fileShareLink.deleteMany({ where: { createdById: { in: nonAdminEmployeeIds } } }),
+      db.fileShareLink.deleteMany({ where: { createdById: { in: nonAdminEmployeeIds } } }),
     );
 
     // GDPR / DLP / Watermark — employee-linked
     await del('documentIntelligenceResults', () =>
-      prisma.documentIntelligenceResult.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.documentIntelligenceResult.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('gdprAnonymizationRequests', () =>
-      prisma.gDPRAnonymizationRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.gDPRAnonymizationRequest.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('dlpScanLogs', () =>
-      prisma.dLPScanLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.dLPScanLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('watermarkAccessLogs', () =>
-      prisma.watermarkAccessLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.watermarkAccessLog.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Survey responses & recognitions
     await del('surveyResponses', () =>
-      prisma.surveyResponse.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.surveyResponse.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
     await del('recognitionsReceived', () =>
-      prisma.recognition.deleteMany({ where: { toId: { in: nonAdminEmployeeIds } } }),
+      db.recognition.deleteMany({ where: { toId: { in: nonAdminEmployeeIds } } }),
     );
 
     // ─── Phase 2: Company-scoped data (delete ALL, not just employee-linked) ───
 
     // Projects & project-linked data
     await del('projectAllocations', () =>
-      prisma.projectAllocation.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.projectAllocation.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('projectMembers', () =>
-      prisma.projectMember.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.projectMember.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('timesheets_company', () =>
-      prisma.timesheet.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.timesheet.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('projectTasks', () =>
-      prisma.projectTask.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.projectTask.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('projectMilestones', () =>
-      prisma.projectMilestone.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.projectMilestone.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('contractorRequests', () =>
-      prisma.contractorRequest.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.contractorRequest.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('contractors', () =>
-      prisma.contractor.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
+      db.contractor.deleteMany({ where: { project: { companyId: { in: companyIds } } } }),
     );
     await del('purchaseOrders', () =>
-      prisma.purchaseOrder.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.purchaseOrder.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
     await del('purchaseOrderLineItems', () =>
-      prisma.purchaseOrderLineItem.deleteMany({ where: { purchaseOrder: { company: { id: { in: companyIds } } } } }),
+      db.purchaseOrderLineItem.deleteMany({ where: { purchaseOrder: { company: { id: { in: companyIds } } } } }),
     );
 
     // Invoices
     await del('invoiceLineItems', () =>
-      prisma.invoiceLineItem.deleteMany({ where: { invoice: { companyId: { in: companyIds } } } }),
+      db.invoiceLineItem.deleteMany({ where: { invoice: { companyId: { in: companyIds } } } }),
     );
     await del('invoices', () =>
-      prisma.invoice.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.invoice.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Client data
     await del('clientTimesheetApprovals', () =>
-      prisma.clientTimesheetApproval.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientTimesheetApproval.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clientChurnRisks', () =>
-      prisma.clientChurnRisk.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientChurnRisk.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clientMarginSnapshots', () =>
-      prisma.clientMarginSnapshot.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientMarginSnapshot.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('sows', () =>
-      prisma.sOW.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.sOW.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clientPortalUsers', () =>
-      prisma.clientPortalUser.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientPortalUser.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clientContacts', () =>
-      prisma.clientContact.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientContact.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clientBranches', () =>
-      prisma.clientBranch.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientBranch.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clientFeedbacks_company', () =>
-      prisma.clientFeedback.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
+      db.clientFeedback.deleteMany({ where: { client: { companyId: { in: companyIds } } } }),
     );
     await del('clients', () =>
-      prisma.client.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.client.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Vendor data
     await del('vendorInvoices', () =>
-      prisma.vendorInvoice.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
+      db.vendorInvoice.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
     );
     await del('vendorStaff', () =>
-      prisma.vendorStaff.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
+      db.vendorStaff.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
     );
     await del('vendorPortalUsers', () =>
-      prisma.vendorPortalUser.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
+      db.vendorPortalUser.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
     );
     await del('vendorDocuments', () =>
-      prisma.vendorDocument.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
+      db.vendorDocument.deleteMany({ where: { vendor: { companyId: { in: companyIds } } } }),
     );
     await del('vendors', () =>
-      prisma.vendor.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.vendor.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Projects (now safe after allocations/members deleted)
     await del('projects', () =>
-      prisma.project.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.project.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Marketplace data (company-scoped)
     await del('marketplaceProducts', () =>
-      prisma.marketplaceProduct.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.marketplaceProduct.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
     await del('walletBudgetAllocations_company', () =>
-      prisma.walletBudgetAllocation.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.walletBudgetAllocation.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
     await del('reportSchedules', () =>
-      prisma.reportSchedule.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.reportSchedule.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // Requisitions (company-scoped)
     await del('requisitions', () =>
-      prisma.requisition.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.requisition.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Payroll runs and related (company-scoped)
     await del('bankPaymentFiles', () =>
-      prisma.bankPaymentFile.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.bankPaymentFile.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
     await del('payrollRuns', () =>
-      prisma.payrollRun.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.payrollRun.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
     await del('payrollValidations', () =>
-      prisma.payrollValidation.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.payrollValidation.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
     await del('payrollLockRequests', () =>
-      prisma.payrollLockRequest.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.payrollLockRequest.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
     await del('payrollApprovals', () =>
-      prisma.payrollApproval.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.payrollApproval.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // Compliance filings (company-scoped)
     await del('complianceFilings', () =>
-      prisma.complianceFiling.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.complianceFiling.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // Minimum wage configs (company-scoped)
     await del('minimumWageConfigs', () =>
-      prisma.minimumWageConfig.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.minimumWageConfig.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // Data residency policy (company-scoped, will be re-created if needed)
     await del('dataResidencyPolicy', () =>
-      prisma.dataResidencyPolicy.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      getPlatformDb().dataResidencyPolicy.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // Anomaly insights & workflow triggers (company-scoped)
     await del('anomalyInsights', () =>
-      prisma.anomalyInsight.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.anomalyInsight.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // ─── Phase 3: Recruitment data ───
 
     // Job postings & applications
     await del('interviewFeedbacks', () =>
-      prisma.interviewFeedback.deleteMany({ where: { interview: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } } }),
+      db.interviewFeedback.deleteMany({ where: { interview: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } } }),
     );
     await del('candidateSentimentScores', () =>
-      prisma.candidateSentimentScore.deleteMany({ where: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } }),
+      db.candidateSentimentScore.deleteMany({ where: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } }),
     );
     await del('resumeParses', () =>
-      prisma.resumeParse.deleteMany({ where: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } }),
+      db.resumeParse.deleteMany({ where: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } }),
     );
     await del('interviews', () =>
-      prisma.interview.deleteMany({ where: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } }),
+      db.interview.deleteMany({ where: { jobApplication: { jobPosting: { departmentId: { in: departmentIds } } } } }),
     );
     await del('jobApplications', () =>
-      prisma.jobApplication.deleteMany({ where: { jobPosting: { departmentId: { in: departmentIds } } } }),
+      db.jobApplication.deleteMany({ where: { jobPosting: { departmentId: { in: departmentIds } } } }),
     );
     await del('jobBoardPostings', () =>
-      prisma.jobBoardPosting.deleteMany({ where: { jobPosting: { departmentId: { in: departmentIds } } } }),
+      db.jobBoardPosting.deleteMany({ where: { jobPosting: { departmentId: { in: departmentIds } } } }),
     );
     await del('jobPostings', () =>
-      prisma.jobPosting.deleteMany({ where: { departmentId: { in: departmentIds } } }),
+      db.jobPosting.deleteMany({ where: { departmentId: { in: departmentIds } } }),
     );
 
     // Offers & related
     await del('offerDeclineSurveys', () =>
-      prisma.offerDeclineSurvey.deleteMany({ where: { offer: { department: { not: null } } } }),
+      db.offerDeclineSurvey.deleteMany({ where: { offer: { department: { not: null } } } }),
     );
     await del('offers', () =>
-      prisma.offer.deleteMany({ where: { department: { in: departmentIds } } }),
+      db.offer.deleteMany({ where: { department: { in: departmentIds } } }),
     );
 
     // ─── Phase 4: Non-admin employees ───
     // Now safe to delete non-admin employees after all their dependent records are gone
     await del('employees', () =>
-      prisma.employee.deleteMany({ where: { id: { in: nonAdminEmployeeIds } } }),
+      db.employee.deleteMany({ where: { id: { in: nonAdminEmployeeIds } } }),
     );
 
     // ─── Phase 5: Non-admin users ───
     // Delete UserRoleAssignments for non-admin users first
     await del('userRoleAssignments', () =>
-      prisma.userRoleAssignment.deleteMany({ where: { userId: { notIn: adminUserIds } } }),
+      db.userRoleAssignment.deleteMany({ where: { userId: { notIn: adminUserIds } } }),
     );
 
     // Delete non-admin users under this tenant
     await del('users', () =>
-      prisma.user.deleteMany({
+      db.user.deleteMany({
         where: {
           tenantId,
           id: { notIn: adminUserIds },
@@ -718,185 +719,185 @@ export async function POST(request: Request) {
 
     // Notifications for this tenant
     await del('notifications', () =>
-      prisma.notification.deleteMany({ where: { tenantId } }),
+      db.notification.deleteMany({ where: { tenantId } }),
     );
 
     // Login activities for this tenant's users
     await del('loginActivities', () =>
-      prisma.loginActivity.deleteMany({ where: { user: { tenantId } } }),
+      db.loginActivity.deleteMany({ where: { user: { tenantId } } }),
     );
 
     // Audit logs for this tenant's users
     await del('auditLogs', () =>
-      prisma.auditLog.deleteMany({ where: { user: { tenantId } } }),
+      db.auditLog.deleteMany({ where: { user: { tenantId } } }),
     );
 
     // AI chat logs
     await del('aiChatLogs', () =>
-      prisma.aIChatLog.deleteMany({ where: { user: { tenantId } } }),
+      db.aIChatLog.deleteMany({ where: { user: { tenantId } } }),
     );
 
     // AI prompt logs (tenant-specific)
     await del('aiPromptLogs', () =>
-      prisma.aIPromptLog.deleteMany({ where: { userId: { in: adminUserIds } } }),
+      db.aIPromptLog.deleteMany({ where: { userId: { in: adminUserIds } } }),
     );
 
     // Preboarding candidates
     await del('preboardingCandidates', () =>
-      prisma.preboardingCandidate.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
+      db.preboardingCandidate.deleteMany({ where: { employeeId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Background checks
     await del('backgroundChecks', () =>
-      prisma.backgroundCheck.deleteMany({ where: { preboardingCandidate: { employeeId: { in: nonAdminEmployeeIds } } } }),
+      db.backgroundCheck.deleteMany({ where: { preboardingCandidate: { employeeId: { in: nonAdminEmployeeIds } } } }),
     );
 
     // Welcome series emails
     await del('welcomeSeriesEmails', () =>
-      prisma.welcomeSeriesEmail.deleteMany({ where: { preboardingCandidate: { employeeId: { in: nonAdminEmployeeIds } } } }),
+      db.welcomeSeriesEmail.deleteMany({ where: { preboardingCandidate: { employeeId: { in: nonAdminEmployeeIds } } } }),
     );
 
     // ─── Phase 7: Global/shared data that might have been seeded ───
 
     // Workflow definitions (company-scoped)
     await del('workflowApprovals', () =>
-      prisma.workflowApproval.deleteMany({ where: { workflowInstance: { workflowDefinition: { companyId: { in: companyIds } } } } }),
+      db.workflowApproval.deleteMany({ where: { workflowInstance: { workflowDefinition: { companyId: { in: companyIds } } } } }),
     );
     await del('workflowInstances', () =>
-      prisma.workflowInstance.deleteMany({ where: { workflowDefinition: { companyId: { in: companyIds } } } }),
+      db.workflowInstance.deleteMany({ where: { workflowDefinition: { companyId: { in: companyIds } } } }),
     );
     await del('workflowDefinitions', () =>
-      prisma.workflowDefinition.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.workflowDefinition.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Tickets
     await del('ticketComments', () =>
-      prisma.ticketComment.deleteMany({ where: { ticket: { requesterId: { in: nonAdminEmployeeIds } } } }),
+      db.ticketComment.deleteMany({ where: { ticket: { requesterId: { in: nonAdminEmployeeIds } } } }),
     );
     await del('tickets', () =>
-      prisma.ticket.deleteMany({ where: { requesterId: { in: nonAdminEmployeeIds } } }),
+      db.ticket.deleteMany({ where: { requesterId: { in: nonAdminEmployeeIds } } }),
     );
 
     // Announcements
     await del('announcements', () =>
-      prisma.announcement.deleteMany({}),
+      db.announcement.deleteMany({}),
     );
 
     // Policies (sample)
     await del('policies', () =>
-      prisma.policy.deleteMany({}),
+      db.policy.deleteMany({}),
     );
 
     // Chat rooms & messages (company-scoped)
     await del('chatRoomMembers', () =>
-      prisma.chatRoomMember.deleteMany({ where: { room: { companyId: { in: companyIds } } } }),
+      db.chatRoomMember.deleteMany({ where: { room: { companyId: { in: companyIds } } } }),
     );
     await del('chatMessages_company', () =>
-      prisma.chatMessage.deleteMany({ where: { room: { companyId: { in: companyIds } } } }),
+      db.chatMessage.deleteMany({ where: { room: { companyId: { in: companyIds } } } }),
     );
     await del('chatRooms', () =>
-      prisma.chatRoom.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.chatRoom.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Sentiment analyses & chat summaries
     await del('sentimentAnalyses', () =>
-      prisma.sentimentAnalysis.deleteMany({}),
+      db.sentimentAnalysis.deleteMany({}),
     );
     await del('chatSummaries', () =>
-      prisma.chatSummary.deleteMany({}),
+      db.chatSummary.deleteMany({}),
     );
     await del('aiKnowledgeQueries', () =>
-      prisma.aIKnowledgeQuery.deleteMany({}),
+      db.aIKnowledgeQuery.deleteMany({}),
     );
 
     // Storage analytics
     await del('storageAnalytics', () =>
-      prisma.storageAnalytics.deleteMany({ where: { company: { id: { in: companyIds } } } }),
+      db.storageAnalytics.deleteMany({ where: { company: { id: { in: companyIds } } } }),
     );
 
     // Geofences (branch-scoped)
     await del('geofences', () =>
-      prisma.geofence.deleteMany({ where: { branchId: { in: branchIds } } }),
+      db.geofence.deleteMany({ where: { branchId: { in: branchIds } } }),
     );
 
     // Biometric devices (branch-scoped)
     await del('biometricDevices', () =>
-      prisma.biometricDevice.deleteMany({ where: { branchId: { in: branchIds } } }),
+      db.biometricDevice.deleteMany({ where: { branchId: { in: branchIds } } }),
     );
 
     // Attendance AI thresholds
     await del('attendanceAiThresholds', () =>
-      prisma.attendanceAiThreshold.deleteMany({}),
+      db.attendanceAiThreshold.deleteMany({}),
     );
 
     // Approval routing rules
     await del('approvalRoutingRules', () =>
-      prisma.approvalRoutingRule.deleteMany({}),
+      db.approvalRoutingRule.deleteMany({}),
     );
 
     // Rosters (branch-scoped)
     await del('rosterAssignments_all', () =>
-      prisma.employeeRosterAssignment.deleteMany({ where: { roster: { branchId: { in: branchIds } } } }),
+      db.employeeRosterAssignment.deleteMany({ where: { roster: { branchId: { in: branchIds } } } }),
     );
     await del('rotationalRosters', () =>
-      prisma.rotationalRoster.deleteMany({ where: { branchId: { in: branchIds } } }),
+      db.rotationalRoster.deleteMany({ where: { branchId: { in: branchIds } } }),
     );
 
     // OKRs (company-scoped + individual)
     await del('keyResults', () =>
-      prisma.keyResult.deleteMany({ where: { okr: { companyId: { in: companyIds } } } }),
+      db.keyResult.deleteMany({ where: { okr: { companyId: { in: companyIds } } } }),
     );
     await del('okrs', () =>
-      prisma.oKR.deleteMany({ where: { companyId: { in: companyIds } } }),
+      db.oKR.deleteMany({ where: { companyId: { in: companyIds } } }),
     );
 
     // Surveys (engagement)
     await del('surveyResponses_all', () =>
-      prisma.surveyResponse.deleteMany({}),
+      db.surveyResponse.deleteMany({}),
     );
     await del('surveys', () =>
-      prisma.survey.deleteMany({}),
+      db.survey.deleteMany({}),
     );
 
     // Recognitions (remaining)
     await del('recognitions_all', () =>
-      prisma.recognition.deleteMany({}),
+      db.recognition.deleteMany({}),
     );
 
     // Training data
     await del('trainingEnrollments_all', () =>
-      prisma.trainingEnrollment.deleteMany({}),
+      db.trainingEnrollment.deleteMany({}),
     );
     await del('trainings', () =>
-      prisma.training.deleteMany({}),
+      db.training.deleteMany({}),
     );
 
     // Assets (sample)
     await del('assetAssignments_all', () =>
-      prisma.assetAssignment.deleteMany({}),
+      db.assetAssignment.deleteMany({}),
     );
     await del('assets', () =>
-      prisma.asset.deleteMany({}),
+      db.asset.deleteMany({}),
     );
 
     // Vendor categories
     await del('vendorCategories', () =>
-      prisma.vendorCategory.deleteMany({}),
+      db.vendorCategory.deleteMany({}),
     );
 
     // Marketplace providers
     await del('marketplaceProviders', () =>
-      prisma.marketplaceProvider.deleteMany({}),
+      db.marketplaceProvider.deleteMany({}),
     );
 
     // Wallet buckets
     await del('walletBuckets', () =>
-      prisma.walletBucket.deleteMany({}),
+      db.walletBucket.deleteMany({}),
     );
 
     // Wallet transactions
     await del('walletTransactions', () =>
-      prisma.walletTransaction.deleteMany({}),
+      db.walletTransaction.deleteMany({}),
     );
 
     // ─── Return summary ───

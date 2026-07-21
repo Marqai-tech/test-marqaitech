@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -21,6 +21,7 @@ export async function OPTIONS() {
 // Approves/rejects multiple timesheets at once. Skips locked rows (only
 // super_admin can approve a locked row).
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
     // Fetch all rows to check locks
     const rows = await withSchemaSync(() =>
-      prisma.timesheet.findMany({
+      db.timesheet.findMany({
         where: { id: { in: ids } },
         select: { id: true, locked: true, status: true, date: true },
       })
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
 
     if (approved.length > 0) {
       await withSchemaSync(() =>
-        prisma.timesheet.updateMany({
+        db.timesheet.updateMany({
           where: { id: { in: approved } },
           data: {
             status: newStatus,
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'BULK_APPROVE_TIMESHEETS',

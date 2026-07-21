@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -38,14 +38,14 @@ const PLATFORM_FLAG_CATALOGUE: { key: string; label: string; enabled: boolean; n
 ];
 
 async function seedDefaults(tenantId: string): Promise<void> {
-  const existing = await prisma.featureFlag.findMany({
+  const existing = await getPlatformDb().featureFlag.findMany({
     where: { tenantId },
     select: { key: true },
   });
   const existingKeys = new Set(existing.map((f) => f.key));
   const missing = PLATFORM_FLAG_CATALOGUE.filter((f) => !existingKeys.has(f.key));
   if (missing.length === 0) return;
-  await prisma.featureFlag.createMany({
+  await getPlatformDb().featureFlag.createMany({
     data: missing.map((f) => ({
       tenantId,
       key: f.key,
@@ -59,6 +59,7 @@ async function seedDefaults(tenantId: string): Promise<void> {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
       console.error('[feature-flags] seedDefaults failed (non-fatal):', seedErr);
     }
 
-    const flags = await prisma.featureFlag.findMany({
+    const flags = await getPlatformDb().featureFlag.findMany({
       where: { tenantId },
       orderBy: [{ source: 'asc' }, { key: 'asc' }],
     });
@@ -98,6 +99,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -121,7 +123,7 @@ export async function POST(request: Request) {
     const catalogueEntry = PLATFORM_FLAG_CATALOGUE.find((f) => f.key === key);
     const resolvedLabel = label || catalogueEntry?.label || key;
 
-    const flag = await prisma.featureFlag.upsert({
+    const flag = await getPlatformDb().featureFlag.upsert({
       where: { tenantId_key: { tenantId, key } },
       create: {
         tenantId,
@@ -142,7 +144,7 @@ export async function POST(request: Request) {
     });
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'FEATURE_FLAG_UPDATE',

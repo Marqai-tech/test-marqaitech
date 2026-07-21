@@ -17,7 +17,7 @@
 // so the system works without an external ML service. The schema also
 // supports ML_MODEL / HYBRID for future enhancement.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -38,6 +38,7 @@ export async function OPTIONS() {
 //   ?severity=HIGH         → severity filter
 //   ?scan=true             → run detection BEFORE returning results
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     let anomalies: unknown[] = [];
     try {
-      anomalies = await prisma.payrollAnomaly.findMany({
+      anomalies = await db.payrollAnomaly.findMany({
         where,
         include: {
           employee: {
@@ -100,6 +101,7 @@ export async function GET(request: NextRequest) {
 
 // PATCH /api/payroll/ai/anomalies  { id, status, resolutionNotes }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -111,7 +113,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Invalid status' }, { status: 400, headers: corsHeaders });
     }
 
-    const updated = await prisma.payrollAnomaly.update({
+    const updated = await db.payrollAnomaly.update({
       where: { id: body.id },
       data: {
         status: body.status,
@@ -132,7 +134,7 @@ export async function PATCH(request: NextRequest) {
 // runAnomalyScan — the actual detection engine
 // ────────────────────────────────────────────────────────────────────
 async function runAnomalyScan(payrollRunId: string): Promise<{ scanned: number; detected: number; skipped: number }> {
-  const run = await prisma.payrollRun.findUnique({
+  const run = await db.payrollRun.findUnique({
     where: { id: payrollRunId },
     include: {
       transactionLines: {
@@ -164,7 +166,7 @@ async function runAnomalyScan(payrollRunId: string): Promise<{ scanned: number; 
     byEmployee.set(line.employeeId, arr);
   }
 
-  const existingOpen = await prisma.payrollAnomaly.findMany({
+  const existingOpen = await db.payrollAnomaly.findMany({
     where: { payrollRunId, status: 'OPEN' },
     select: { employeeId: true, anomalyType: true },
   });
@@ -208,7 +210,7 @@ async function runAnomalyScan(payrollRunId: string): Promise<{ scanned: number; 
   const teamAvgOT = empAgg.length > 0 ? empAgg.reduce((s, e) => s + e.otAmount, 0) / empAgg.length : 0;
 
   const employeeIds = Array.from(byEmployee.keys());
-  const priorPayrolls = employeeIds.length > 0 ? await prisma.payroll.findMany({
+  const priorPayrolls = employeeIds.length > 0 ? await db.payroll.findMany({
     where: { employeeId: { in: employeeIds } },
     orderBy: { year: 'desc' },
     take: 3 * employeeIds.length,
@@ -321,7 +323,7 @@ async function runAnomalyScan(payrollRunId: string): Promise<{ scanned: number; 
   }
 
   // Duplicate bank account detection
-  const employeesInRun = employeeIds.length > 0 ? await prisma.employeePaymentMethod.findMany({
+  const employeesInRun = employeeIds.length > 0 ? await db.employeePaymentMethod.findMany({
     where: { employeeId: { in: employeeIds }, status: 'active', paymentType: 'DIRECT_DEPOSIT' },
     select: { employeeId: true, bankAccountNo: true },
   }) : [];
@@ -359,10 +361,10 @@ async function runAnomalyScan(payrollRunId: string): Promise<{ scanned: number; 
   // Minimum wage breach
   let runCountry = 'IN';
   if (run.companyId) {
-    const co = await prisma.company.findUnique({ where: { id: run.companyId }, select: { country: true } });
+    const co = await db.company.findUnique({ where: { id: run.companyId }, select: { country: true } });
     if (co?.country) runCountry = co.country.length > 2 ? co.country.substring(0, 2).toUpperCase() : co.country.toUpperCase();
   }
-  const mwConfigs = await prisma.minimumWageConfig.findMany({
+  const mwConfigs = await db.minimumWageConfig.findMany({
     where: { countryCode: runCountry, isActive: true, effectiveFrom: { lte: new Date() }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }] },
   });
   if (mwConfigs.length > 0) {
@@ -393,7 +395,7 @@ async function runAnomalyScan(payrollRunId: string): Promise<{ scanned: number; 
   let detected = 0;
   if (toCreate.length > 0) {
     try {
-      const r = await prisma.payrollAnomaly.createMany({ data: toCreate });
+      const r = await db.payrollAnomaly.createMany({ data: toCreate });
       detected = r.count;
     } catch (err) {
       console.error('Bulk insert anomalies failed:', err);

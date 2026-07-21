@@ -12,7 +12,7 @@
 // The endpoint aggregates across all ComplianceObligation × ComplianceFiling
 // rows for the period, grouped by company.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -33,6 +33,7 @@ const REMINDER_DAYS = 7; // AMBER window before due date
 //   ?countryCode=US   → filter
 //   ?status=RED       → filter
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -49,13 +50,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Resolve user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { tenantId: true },
     });
     if (!user) return Response.json({ error: 'User not found' }, { status: 404, headers: corsHeaders });
 
-    const groups = await prisma.companyGroup.findMany({
+    const groups = await db.companyGroup.findMany({
       where: { tenantId: user.tenantId },
       include: { companies: { select: { id: true, name: true, country: true, currency: true } } },
     });
@@ -65,12 +66,12 @@ export async function GET(request: NextRequest) {
     // Active obligations (optionally country-filtered)
     const obligationWhere: Record<string, unknown> = { isActive: true };
     if (countryCodeFilter) obligationWhere.countryCode = countryCodeFilter.toUpperCase();
-    const obligations = await prisma.complianceObligation.findMany({ where: obligationWhere });
+    const obligations = await db.complianceObligation.findMany({ where: obligationWhere });
 
     // Filings for the period
     const filingWhere: Record<string, unknown> = { filingPeriod: period };
     if (countryCodeFilter) filingWhere.compliance = { countryCode: countryCodeFilter.toUpperCase() };
-    const filings = await prisma.complianceFiling.findMany({
+    const filings = await db.complianceFiling.findMany({
       where: filingWhere,
       include: { compliance: true, payrollRun: { select: { companyId: true } } },
     });

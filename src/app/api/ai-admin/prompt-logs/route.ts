@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -49,14 +50,14 @@ export async function GET(request: Request) {
 
     const [logs, total] = await Promise.all([
       withSchemaSync(() =>
-        prisma.aIPromptLog.findMany({
+        db.aIPromptLog.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * limit,
           take: limit,
         })
       ),
-      withSchemaSync(() => prisma.aIPromptLog.count({ where })),
+      withSchemaSync(() => db.aIPromptLog.count({ where })),
     ]);
 
     return NextResponse.json({

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function GET(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -49,7 +50,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const role = await prisma.role.findUnique({
+    const role = await db.role.findUnique({
       where: { id },
       include: {
         permissions: {
@@ -146,6 +147,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -163,7 +165,7 @@ export async function PUT(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -186,7 +188,7 @@ export async function PUT(
     const body = await request.json();
     const { name, description, status } = body;
 
-    const existingRole = await prisma.role.findUnique({
+    const existingRole = await db.role.findUnique({
       where: { id },
     });
 
@@ -222,7 +224,7 @@ export async function PUT(
       updateData.status = status;
     }
 
-    const updatedRole = await prisma.role.update({
+    const updatedRole = await db.role.update({
       where: { id },
       data: updateData,
     });
@@ -260,6 +262,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -277,7 +280,7 @@ export async function PATCH(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -300,7 +303,7 @@ export async function PATCH(
     const body = await request.json();
     const { name, description, level, status } = body;
 
-    const existingRole = await prisma.role.findUnique({
+    const existingRole = await db.role.findUnique({
       where: { id },
     });
 
@@ -336,7 +339,7 @@ export async function PATCH(
       updateData.status = status;
     }
 
-    const updatedRole = await prisma.role.update({
+    const updatedRole = await db.role.update({
       where: { id },
       data: updateData,
     });
@@ -374,6 +377,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -391,7 +395,7 @@ export async function DELETE(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -412,7 +416,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existingRole = await prisma.role.findUnique({
+    const existingRole = await db.role.findUnique({
       where: { id },
       include: {
         _count: {
@@ -457,11 +461,11 @@ export async function DELETE(
     }
 
     // Delete role permissions first, then the role
-    await prisma.rolePermission.deleteMany({
+    await db.rolePermission.deleteMany({
       where: { roleId: id },
     });
 
-    await prisma.role.delete({
+    await db.role.delete({
       where: { id },
     });
 

@@ -6,12 +6,13 @@
  * Visitor/contractor gatepasses have no employeeId but log visitorName/Company.
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { buildContext, evaluateGatepassAutoApproval } from '@/lib/auto-approval-engine';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     if (q.status) where.status = q.status;
     if (q.type) where.type = q.type;
 
-    const items = await prisma.gatepass.findMany({
+    const items = await db.gatepass.findMany({
       where,
       include: {
         employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const record = await prisma.gatepass.create({
+    const record = await db.gatepass.create({
       data: {
         employeeId,
         visitorName: (body.visitorName as string) || null,

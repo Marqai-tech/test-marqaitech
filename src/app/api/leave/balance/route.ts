@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 
 function corsHeaders() {
@@ -35,6 +35,7 @@ export async function OPTIONS() {
  * }
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const scope = await resolveCompanyScope(request);
     if (!scope) {
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
       // Employees can only see their own balances
       if (requestedEmployeeId) {
         // If they requested a specific employeeId, verify it's their own
-        const selfEmployee = await prisma.employee.findFirst({
+        const selfEmployee = await db.employee.findFirst({
           where: { userId: scope.userId, status: 'active' },
           select: { id: true },
         });
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
         employeeId = selfEmployee.id;
       } else {
         // No specific employee requested — resolve from authenticated user
-        const employee = await prisma.employee.findFirst({
+        const employee = await db.employee.findFirst({
           where: { userId: scope.userId, status: 'active' },
           select: { id: true },
         });
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
           employeeWhere.companyId = scope.companyId;
         }
 
-        const employees = await prisma.employee.findMany({
+        const employees = await db.employee.findMany({
           where: employeeWhere,
           select: { id: true },
         });
@@ -106,7 +107,7 @@ export async function GET(request: Request) {
 
         const employeeIds = employees.map(e => e.id);
 
-        const balances = await prisma.leaveBalance.findMany({
+        const balances = await db.leaveBalance.findMany({
           where: { employeeId: { in: employeeIds }, year },
           include: {
             leaveType: {
@@ -153,7 +154,7 @@ export async function GET(request: Request) {
         );
       } else {
         // Admin requested a specific employee's balance — verify company scope
-        const targetEmployee = await prisma.employee.findUnique({
+        const targetEmployee = await db.employee.findUnique({
           where: { id: requestedEmployeeId },
           select: { id: true, companyId: true },
         });
@@ -173,7 +174,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const balances = await prisma.leaveBalance.findMany({
+    const balances = await db.leaveBalance.findMany({
       where: { employeeId, year },
       include: {
         leaveType: {
@@ -202,7 +203,7 @@ export async function GET(request: Request) {
         leaveTypeWhere.companyId = scope.companyId;
       }
 
-      const leaveTypes = await prisma.leaveType.findMany({
+      const leaveTypes = await db.leaveType.findMany({
         where: leaveTypeWhere,
         select: {
           id: true,

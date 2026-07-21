@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -20,6 +20,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function PATCH(
 
     await ensureSchemaSynced();
     const existing = await withSchemaSync(() =>
-      prisma.onboardingTaskTemplate.findUnique({ where: { id } })
+      db.onboardingTaskTemplate.findUnique({ where: { id } })
     );
     if (!existing) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404, headers: corsHeaders() });
@@ -52,10 +53,10 @@ export async function PATCH(
     if (isActive !== undefined) updateData.isActive = !!isActive;
 
     const template = await withSchemaSync(() =>
-      prisma.onboardingTaskTemplate.update({ where: { id }, data: updateData })
+      db.onboardingTaskTemplate.update({ where: { id }, data: updateData })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_ONBOARDING_TEMPLATE',
@@ -76,6 +77,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -89,15 +91,15 @@ export async function DELETE(
     const { id } = await params;
     await ensureSchemaSynced();
     const existing = await withSchemaSync(() =>
-      prisma.onboardingTaskTemplate.findUnique({ where: { id } })
+      db.onboardingTaskTemplate.findUnique({ where: { id } })
     );
     if (!existing) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await withSchemaSync(() => prisma.onboardingTaskTemplate.delete({ where: { id } }));
+    await withSchemaSync(() => db.onboardingTaskTemplate.delete({ where: { id } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_ONBOARDING_TEMPLATE',

@@ -9,7 +9,7 @@
 // ships with a "seed demo alerts" mode (?seed=true) that synthesizes a
 // few realistic alerts so the UI has something to render in a fresh tenant.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -29,6 +29,7 @@ export async function OPTIONS() {
 //   ?impactLevel=HIGH   → impact filter
 //   ?effectiveWithinDays=30 → only alerts effective within N days
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     let alerts: unknown[] = [];
     try {
-      alerts = await prisma.complianceChangeAlert.findMany({
+      alerts = await db.complianceChangeAlert.findMany({
         where,
         orderBy: [{ effectiveDate: 'asc' }, { impactLevel: 'desc' }],
         take: 200,
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest) {
 //           affectedComponents? (array of codes) }
 // Creates a new alert (called by the scraper / external job).
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -113,7 +115,7 @@ export async function POST(request: NextRequest) {
       if (!body[f]) return Response.json({ error: `Missing required field: ${f}` }, { status: 400, headers: corsHeaders });
     }
 
-    const created = await prisma.complianceChangeAlert.create({
+    const created = await db.complianceChangeAlert.create({
       data: {
         countryCode: String(body.countryCode).toUpperCase(),
         authorityName: body.authorityName,
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/payroll/ai/compliance-alerts  { id, status, notes }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -161,7 +164,7 @@ export async function PATCH(request: NextRequest) {
       updateData.appliedAt = new Date();
     }
 
-    const updated = await prisma.complianceChangeAlert.update({
+    const updated = await db.complianceChangeAlert.update({
       where: { id: body.id },
       data: updateData,
     });
@@ -177,7 +180,7 @@ export async function PATCH(request: NextRequest) {
 // Realistic example alerts covering multiple countries and change types.
 // Used so the UI has something to render before the scraper is wired up.
 async function seedDemoAlerts() {
-  const existing = await prisma.complianceChangeAlert.count();
+  const existing = await db.complianceChangeAlert.count();
   if (existing > 0) return; // only seed once
 
   const now = new Date();
@@ -250,7 +253,7 @@ async function seedDemoAlerts() {
   ];
 
   try {
-    await prisma.complianceChangeAlert.createMany({ data: demos });
+    await db.complianceChangeAlert.createMany({ data: demos });
     console.log(`[compliance-alerts] Seeded ${demos.length} demo alerts`);
   } catch (err) {
     console.error('[compliance-alerts] Seed failed:', err);

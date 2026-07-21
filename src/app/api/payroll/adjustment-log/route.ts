@@ -11,7 +11,7 @@
 // GET endpoint supports rich filtering so auditors can reconstruct any
 // period's adjustments and see Who / What / When / Why / Before / After.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -34,6 +34,7 @@ export async function OPTIONS() {
 //   ?from=2026-01-01  (adjustedAt >=)
 //   ?to=2026-12-31    (adjustedAt <=)
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     let logs: unknown[] = [];
     try {
-      logs = await prisma.payrollAdjustmentLog.findMany({
+      logs = await db.payrollAdjustmentLog.findMany({
         where,
         include: {
           employee: {
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
 //
 // delta is auto-computed as (afterValue - beforeValue) when both are provided.
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
     const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
     const userAgent = request.headers.get('user-agent') || null;
 
-    const created = await prisma.payrollAdjustmentLog.create({
+    const created = await db.payrollAdjustmentLog.create({
       data: {
         payrollRunId: body.payrollRunId || null,
         employeeId: body.employeeId,

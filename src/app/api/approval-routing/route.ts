@@ -10,11 +10,12 @@
  *  DELETE — delete a rule
  */
 import { requireUser, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     if (q.projectId) where.projectId = q.projectId;
     if (q.active === 'true') where.isActive = true;
 
-    const items = await prisma.approvalRoutingRule.findMany({
+    const items = await db.approvalRoutingRule.findMany({
       where,
       orderBy: { priority: 'asc' },
       take: 100,
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
       return fail('Valid name and requestType required');
     }
 
-    const record = await prisma.approvalRoutingRule.create({
+    const record = await db.approvalRoutingRule.create({
       data: {
         name,
         requestType,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,13 +15,14 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can seed documentation' }, { status: 403, headers: corsHeaders() });
     }
@@ -39,11 +40,11 @@ export async function POST(request: Request) {
 
     const createdCategories: Record<string, string> = {};
     for (const cat of categories) {
-      const existing = await prisma.docCategory.findUnique({ where: { slug: cat.slug } });
+      const existing = await db.docCategory.findUnique({ where: { slug: cat.slug } });
       if (existing) {
         createdCategories[cat.slug] = existing.id;
       } else {
-        const created = await prisma.docCategory.create({ data: cat });
+        const created = await db.docCategory.create({ data: cat });
         createdCategories[cat.slug] = created.id;
       }
     }
@@ -260,7 +261,7 @@ const token = getTokenFromHeaders(request);
 if (!token) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 const payload = await verifyToken(token);
 if (!payload) return Response.json({ error: 'Invalid token' }, { status: 401 });
-const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+const user = await db.user.findUnique({ where: { id: payload.userId } });
 \`\`\`
 
 ## Special Access Rules
@@ -2129,9 +2130,9 @@ For quick answers, use the AI chatbot:
 
     let createdCount = 0;
     for (const article of articles) {
-      const existing = await prisma.docArticle.findUnique({ where: { slug: article.slug } });
+      const existing = await db.docArticle.findUnique({ where: { slug: article.slug } });
       if (!existing) {
-        await prisma.docArticle.create({ data: article });
+        await db.docArticle.create({ data: article });
         createdCount++;
       }
     }
@@ -2148,14 +2149,14 @@ For quick answers, use the AI chatbot:
 
     let rulesCreated = 0;
     for (const restricted of restrictedArticles) {
-      const article = await prisma.docArticle.findUnique({ where: { slug: restricted.slug } });
+      const article = await db.docArticle.findUnique({ where: { slug: restricted.slug } });
       if (article) {
         for (const role of restricted.roles) {
-          const existing = await prisma.docAccessRule.findFirst({
+          const existing = await db.docAccessRule.findFirst({
             where: { articleId: article.id, role },
           });
           if (!existing) {
-            await prisma.docAccessRule.create({
+            await db.docAccessRule.create({
               data: {
                 articleId: article.id,
                 role,

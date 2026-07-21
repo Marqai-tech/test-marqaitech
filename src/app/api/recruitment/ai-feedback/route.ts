@@ -28,7 +28,7 @@
  * without feedback).
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -42,6 +42,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
         department: { company: { companyGroup: { tenantId: decodedRec.tenantId as string } } },
       },
     };
-    const application = await prisma.jobApplication.findFirst({
+    const application = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
         ...tenantFilter,
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
     });
     if (!application) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: CORS });
 
-    const feedback = await prisma.candidateAiFeedback.findUnique({
+    const feedback = await db.candidateAiFeedback.findUnique({
       where: { jobApplicationId: applicationId },
     });
 
@@ -79,6 +80,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
         department: { company: { companyGroup: { tenantId: decodedRec.tenantId as string } } },
       },
     };
-    const application = await prisma.jobApplication.findFirst({
+    const application = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
         ...tenantFilter,
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
     if (!application) return NextResponse.json({ error: 'Application not found in your tenant' }, { status: 404, headers: CORS });
 
     // Fetch the tenant to check if AI feedback is enabled
-    const tenant = await prisma.tenant.findFirst({
+    const tenant = await getPlatformDb().tenant.findFirst({
       where: {
         companyGroups: {
           some: {
@@ -144,7 +146,7 @@ export async function POST(request: Request) {
       }, { status: 403, headers: CORS });
     }
 
-    let feedback = await prisma.candidateAiFeedback.findUnique({
+    let feedback = await db.candidateAiFeedback.findUnique({
       where: { jobApplicationId: applicationId },
     });
 
@@ -152,7 +154,7 @@ export async function POST(request: Request) {
       // Generate the AI draft
       const aiDraft = await generateAiRejectionFeedback(application);
 
-      feedback = await prisma.candidateAiFeedback.upsert({
+      feedback = await db.candidateAiFeedback.upsert({
         where: { jobApplicationId: applicationId },
         create: {
           jobApplicationId: applicationId,
@@ -174,7 +176,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'approve') {
-      feedback = await prisma.candidateAiFeedback.update({
+      feedback = await db.candidateAiFeedback.update({
         where: { id: feedback.id },
         data: {
           hrEditedVersion: hrEditedVersion ?? feedback.aiDraft,
@@ -187,7 +189,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'reject') {
-      feedback = await prisma.candidateAiFeedback.upsert({
+      feedback = await db.candidateAiFeedback.upsert({
         where: { jobApplicationId: applicationId },
         create: {
           jobApplicationId: applicationId,
@@ -204,7 +206,7 @@ export async function POST(request: Request) {
       });
 
       // Update application status to rejected (REQ-STAT-04)
-      await prisma.jobApplication.update({
+      await db.jobApplication.update({
         where: { id: applicationId },
         data: { status: 'rejected' },
       });
@@ -218,7 +220,7 @@ export async function POST(request: Request) {
       }
       const finalFeedback = feedback.hrEditedVersion || feedback.aiDraft || '';
 
-      feedback = await prisma.candidateAiFeedback.update({
+      feedback = await db.candidateAiFeedback.update({
         where: { id: feedback.id },
         data: {
           reviewStatus: 'published',
@@ -227,7 +229,7 @@ export async function POST(request: Request) {
       });
 
       // Update application status to rejected (REQ-STAT-04)
-      await prisma.jobApplication.update({
+      await db.jobApplication.update({
         where: { id: applicationId },
         data: { status: 'rejected' },
       });
@@ -247,7 +249,7 @@ We appreciate the time you invested in this process and wish you all the best in
 Best regards,
 The ${companyName} Talent Team`;
 
-      await prisma.candidateMessage.create({
+      await db.candidateMessage.create({
         data: {
           candidateEmail: application.candidateEmail,
           senderName: `${companyName} Talent Team`,
@@ -256,7 +258,7 @@ The ${companyName} Talent Team`;
         },
       }).catch(() => {});
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decodedRec.userId as string,
           action: 'PUBLISH_AI_FEEDBACK',

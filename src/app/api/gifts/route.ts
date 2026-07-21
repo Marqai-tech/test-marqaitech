@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -27,12 +28,13 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (recipientId) where.recipientId = recipientId;
     if (triggerEvent) where.triggerEvent = triggerEvent;
-    const gifts = await prisma.gift.findMany({ where, include: { product: { select: { id: true, name: true, imageUrl: true } }, recipient: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: 'desc' }, take: 50 });
+    const gifts = await db.gift.findMany({ where, include: { product: { select: { id: true, name: true, imageUrl: true } }, recipient: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: 'desc' }, take: 50 });
     return NextResponse.json({ gifts }, { headers: corsHeaders() });
   } catch (error) { console.error('Get gifts error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { recipientId, senderId, triggerEvent, productId, voucherCode, message, value, currency } = body;
     if (!recipientId || !triggerEvent) return NextResponse.json({ error: 'Missing fields' }, { status: 400, headers: corsHeaders() });
-    const gift = await prisma.gift.create({
+    const gift = await db.gift.create({
       data: { recipientId, senderId: senderId || decoded.userId, triggerEvent, productId, voucherCode, message, value: value || 0, currency: currency || 'INR' },
     });
     return NextResponse.json({ gift }, { status: 201, headers: corsHeaders() });

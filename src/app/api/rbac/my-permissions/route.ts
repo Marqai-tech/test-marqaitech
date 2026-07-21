@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // GET /api/rbac/my-permissions - Get current user's effective permissions
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       include: {
         tenant: true,
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
 
     // Super admin has full access to everything
     if (user.role === 'super_admin') {
-      const allModules = await prisma.module.findMany({
+      const allModules = await db.module.findMany({
         include: {
           permissions: true,
         },
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
     }
 
     // For non-super-admin, get role assignments and their permissions
-    const roleAssignments = await prisma.userRoleAssignment.findMany({
+    const roleAssignments = await db.userRoleAssignment.findMany({
       where: {
         userId: user.id,
       },
@@ -160,7 +161,7 @@ export async function GET(request: Request) {
     // This handles backward compatibility for users who haven't been migrated to the new RBAC system
     if (roles.length === 0 && user.role) {
       // Try to find the system role matching their legacy role
-      const systemRole = await prisma.role.findFirst({
+      const systemRole = await db.role.findFirst({
         where: {
           key: user.role,
           OR: [

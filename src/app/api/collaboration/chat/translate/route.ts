@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -29,6 +29,7 @@ const LANG_NAMES: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     const { messageId, targetLanguage = 'en' } = body;
     if (!messageId) return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
 
-    const message = await prisma.chatMessage.findUnique({
+    const message = await db.chatMessage.findUnique({
       where: { id: messageId },
       select: { id: true, body: true, originalLanguage: true, translatedBody: true, translatedTo: true },
     });
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cache the translation
-    await prisma.chatMessage.update({
+    await db.chatMessage.update({
       where: { id: messageId },
       data: {
         translatedBody: translated,

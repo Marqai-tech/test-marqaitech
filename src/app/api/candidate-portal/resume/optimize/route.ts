@@ -25,7 +25,7 @@
  *   Updates the candidate's edited resume / accepted suggestions and recomputes
  *   the match score on the updated resume text (REQ-AI-RES-09).
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import {
   requireCandidate,
   ok,
@@ -48,7 +48,7 @@ export { OPTIONS };
 
 /** Look up the application + job posting + parse the resume. */
 async function loadApplicationAndResume(jobApplicationId: string, candidateEmail: string) {
-  const application = await prisma.jobApplication.findUnique({
+  const application = await db.jobApplication.findUnique({
     where: { id: jobApplicationId },
     include: {
       jobPosting: {
@@ -101,6 +101,7 @@ async function loadApplicationAndResume(jobApplicationId: string, candidateEmail
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
   if (!jobApplicationId) return fail('jobApplicationId query parameter is required', 400);
 
   // Verify ownership
-  const application = await prisma.jobApplication.findUnique({
+  const application = await db.jobApplication.findUnique({
     where: { id: jobApplicationId },
     select: { candidateEmail: true },
   });
@@ -118,7 +119,7 @@ export async function GET(request: Request) {
     return fail('This application does not belong to you', 403);
   }
 
-  const optimization = await prisma.candidateResumeOptimization.findUnique({
+  const optimization = await db.candidateResumeOptimization.findUnique({
     where: { jobApplicationId },
   });
 
@@ -130,6 +131,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -157,7 +159,7 @@ export async function POST(request: Request) {
   ]);
 
   // Upsert the optimization record
-  const optimization = await prisma.candidateResumeOptimization.upsert({
+  const optimization = await db.candidateResumeOptimization.upsert({
     where: { jobApplicationId },
     create: {
       jobApplicationId,
@@ -191,6 +193,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -200,7 +203,7 @@ export async function PATCH(request: Request) {
   if (!jobApplicationId) return fail('jobApplicationId is required', 400);
 
   // Verify ownership
-  const application = await prisma.jobApplication.findUnique({
+  const application = await db.jobApplication.findUnique({
     where: { id: jobApplicationId },
     select: { candidateEmail: true, jobPosting: { select: { title: true, description: true, requirements: true } } },
   });
@@ -209,7 +212,7 @@ export async function PATCH(request: Request) {
     return fail('This application does not belong to you', 403);
   }
 
-  const existing = await prisma.candidateResumeOptimization.findUnique({
+  const existing = await db.candidateResumeOptimization.findUnique({
     where: { jobApplicationId },
   });
   if (!existing) return fail('No optimization record found — POST first to generate one', 404);
@@ -228,7 +231,7 @@ export async function PATCH(request: Request) {
         }
       }
       // Persist updated suggestion accepted flags
-      await prisma.candidateResumeOptimization.update({
+      await db.candidateResumeOptimization.update({
         where: { jobApplicationId },
         data: { rewriteSuggestions: JSON.stringify(suggestions) },
       });
@@ -253,7 +256,7 @@ export async function PATCH(request: Request) {
     console.warn('[resume/optimize] Failed to recompute score:', err);
   }
 
-  const updated = await prisma.candidateResumeOptimization.update({
+  const updated = await db.candidateResumeOptimization.update({
     where: { jobApplicationId },
     data: {
       optimizedResume: updatedResume,

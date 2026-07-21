@@ -16,7 +16,7 @@
  * Only tenant_admin and super_admin can call this endpoint.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -30,6 +30,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No tenant context' }, { status: 400, headers: CORS });
     }
 
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await getPlatformDb().tenant.findUnique({
       where: { id: tenantId as string },
       select: {
         id: true,
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -113,7 +115,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400, headers: CORS });
     }
 
-    const updated = await prisma.tenant.update({
+    const updated = await getPlatformDb().tenant.update({
       where: { id: tenantId as string },
       data: updateData,
       select: {
@@ -127,7 +129,7 @@ export async function PUT(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decodedRec.userId as string,
         action: 'UPDATE_CANDIDATE_PORTAL_SETTINGS',

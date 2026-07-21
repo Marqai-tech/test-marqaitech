@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 
@@ -11,6 +11,7 @@ import { randomBytes } from 'crypto';
  * by default for sensitive files.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,17 +22,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json();
     const { recipientEmail, recipientUserId, expiresAt, downloadEnabled = true, watermarkEnabled = true } = body;
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
-    const file = await prisma.fileNode.findUnique({ where: { id } });
+    const file = await db.fileNode.findUnique({ where: { id } });
     if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
 
     // Generate a random share token
     const shareToken = randomBytes(16).toString('hex');
     const shareUrl = `/s/${shareToken}`;
 
-    const shareLink = await prisma.fileShareLink.create({
+    const shareLink = await db.fileShareLink.create({
       data: {
         fileId: id,
         createdBy: employee.id,

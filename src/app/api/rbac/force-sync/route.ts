@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { neon } from '@neondatabase/serverless';
 
 function corsHeaders() {
@@ -205,12 +205,12 @@ async function seedRBACData(userId?: string) {
 
   // Step 1: Create modules and permissions
   for (const modDef of MODULE_DEFINITIONS) {
-    const existingModule = await prisma.module.findUnique({ where: { key: modDef.key } });
+    const existingModule = await db.module.findUnique({ where: { key: modDef.key } });
     if (!existingModule) {
-      const createdModule = await prisma.module.create({ data: { key: modDef.key, name: modDef.name, category: modDef.category, icon: modDef.icon, sortOrder: modDef.sortOrder } });
+      const createdModule = await db.module.create({ data: { key: modDef.key, name: modDef.name, category: modDef.category, icon: modDef.icon, sortOrder: modDef.sortOrder } });
       const actions = LIMITED_ACTION_MODULES.includes(modDef.key) ? ['view'] : DEFAULT_ACTIONS;
       for (const action of actions) {
-        await prisma.permission.create({ data: { moduleId: createdModule.id, action, description: `${action} ${modDef.name.toLowerCase()}` } });
+        await db.permission.create({ data: { moduleId: createdModule.id, action, description: `${action} ${modDef.name.toLowerCase()}` } });
         permissionsCreated++;
       }
       modulesCreated++;
@@ -222,23 +222,23 @@ async function seedRBACData(userId?: string) {
   for (const roleDef of SYSTEM_ROLES) {
     let existingRole;
     if (roleDef.tenantId === null) {
-      existingRole = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: null, companyId: null } });
+      existingRole = await db.role.findFirst({ where: { key: roleDef.key, tenantId: null, companyId: null } });
     } else {
-      const tenants = await prisma.tenant.findMany({ take: 1 });
+      const tenants = await getPlatformDb().tenant.findMany({ take: 1 });
       if (tenants.length === 0) continue;
-      existingRole = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null } });
+      existingRole = await db.role.findFirst({ where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null } });
     }
     if (!existingRole) {
       let roleTenantId = roleDef.tenantId;
       if (roleTenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin') {
-        const tenants = await prisma.tenant.findMany({ take: 1 });
+        const tenants = await getPlatformDb().tenant.findMany({ take: 1 });
         roleTenantId = tenants.length > 0 ? tenants[0].id : null;
       }
-      const role = await prisma.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: userId || null } });
+      const role = await db.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: userId || null } });
       createdRoles[roleDef.key] = role.id;
       rolesCreated++;
     } else {
-      await prisma.role.update({
+      await db.role.update({
         where: { id: existingRole.id },
         data: { name: roleDef.name, description: roleDef.description, level: roleDef.level, isSystem: roleDef.isSystem }
       });
@@ -247,7 +247,7 @@ async function seedRBACData(userId?: string) {
   }
 
   // Step 3: Assign permissions to roles
-  const allModules = await prisma.module.findMany({ include: { permissions: true } });
+  const allModules = await db.module.findMany({ include: { permissions: true } });
   const moduleMap = new Map(allModules.map((m) => [m.key, m]));
 
   const assignPermissions = async (roleId: string, moduleKeys: string[], allowedActions?: string[]) => {
@@ -257,9 +257,9 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (allowedActions && !allowedActions.includes(perm.action)) continue;
         try {
-          const existing = await prisma.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: perm.id } } });
+          const existing = await db.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: perm.id } } });
           if (!existing) {
-            await prisma.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
+            await db.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
             rolePermissionsCreated++;
           }
         } catch { /* skip duplicates */ }
@@ -293,23 +293,23 @@ async function seedRBACData(userId?: string) {
     recruitmenthead: 'admin',
   };
 
-  const users = await prisma.user.findMany();
+  const users = await db.user.findMany();
   for (const user of users) {
     const newRoleKey = roleKeyMap[user.role];
     if (!newRoleKey || !createdRoles[newRoleKey]) continue;
     
     // Update User.role field
-    await prisma.user.update({
+    await db.user.update({
       where: { id: user.id },
       data: { role: newRoleKey }
     });
 
     // Remove old role assignments and create new one
-    await prisma.userRoleAssignment.deleteMany({ where: { userId: user.id } });
+    await db.userRoleAssignment.deleteMany({ where: { userId: user.id } });
     
-    const companies = await prisma.company.findMany({ take: 1 });
+    const companies = await db.company.findMany({ take: 1 });
     try {
-      await prisma.userRoleAssignment.create({
+      await db.userRoleAssignment.create({
         data: {
           userId: user.id,
           roleId: createdRoles[newRoleKey],
@@ -353,6 +353,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     // Step 1: Force drop and recreate RBAC tables
     const tableResult = await dropAndRecreateRBACTables();

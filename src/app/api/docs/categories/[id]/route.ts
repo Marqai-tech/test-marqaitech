@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // PUT: Update category (super_admin only)
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -23,7 +24,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can update categories' }, { status: 403, headers: corsHeaders() });
     }
@@ -31,19 +32,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const body = await request.json();
     const { name, slug, description, icon, color, sortOrder, status } = body;
 
-    const existing = await prisma.docCategory.findUnique({ where: { id } });
+    const existing = await db.docCategory.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404, headers: corsHeaders() });
     }
 
     if (slug && slug !== existing.slug) {
-      const slugExists = await prisma.docCategory.findUnique({ where: { slug } });
+      const slugExists = await db.docCategory.findUnique({ where: { slug } });
       if (slugExists) {
         return NextResponse.json({ error: 'Category with this slug already exists' }, { status: 409, headers: corsHeaders() });
       }
     }
 
-    const category = await prisma.docCategory.update({
+    const category = await db.docCategory.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
@@ -68,6 +69,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 // DELETE: Delete category (super_admin only)
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -75,17 +77,17 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can delete categories' }, { status: 403, headers: corsHeaders() });
     }
 
-    const existing = await prisma.docCategory.findUnique({ where: { id } });
+    const existing = await db.docCategory.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.docCategory.delete({ where: { id } });
+    await db.docCategory.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Category deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { email, password } = body;
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     let subdomainTenantId: string | null = null;
 
     if (tenantSlug) {
-      const subdomainTenant = await prisma.tenant.findUnique({
+      const subdomainTenant = await getPlatformDb().tenant.findUnique({
         where: { slug: tenantSlug },
         select: { id: true, status: true },
       });
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     // added language/baseCurrency/dataRegion/subscriptionSeats/
     // subscriptionStorage columns). With `select`, missing columns on the
     // DB side are simply not queried and login stays resilient.
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { email },
       select: {
         id: true,
@@ -117,13 +118,13 @@ export async function POST(request: Request) {
     // Super admins can always log in. Expired trial tenants are blocked.
     if (user.role !== 'super_admin' && user.tenantId) {
       try {
-        const tenant = await prisma.tenant.findUnique({
+        const tenant = await getPlatformDb().tenant.findUnique({
           where: { id: user.tenantId },
           select: { id: true, status: true, slug: true },
         });
         if (tenant?.status === 'trial') {
           // Check the TrialRegistration for expiry
-          const trialReg = await prisma.trialRegistration.findFirst({
+          const trialReg = await getPlatformDb().trialRegistration.findFirst({
             where: { tenantId: tenant.id },
             select: { trialEnd: true, status: true },
           });
@@ -131,11 +132,11 @@ export async function POST(request: Request) {
             // Trial has expired
             // Auto-update the tenant and registration status
             try {
-              await prisma.tenant.update({
+              await getPlatformDb().tenant.update({
                 where: { id: tenant.id },
                 data: { status: 'expired' },
               });
-              await prisma.trialRegistration.update({
+              await getPlatformDb().trialRegistration.update({
                 where: { id: trialReg.id },
                 data: { status: 'expired' },
               });
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
 
     // Non-critical operations - don't block login if these fail
     try {
-      await prisma.user.update({
+      await db.user.update({
         where: { id: user.id },
         data: { lastLogin: new Date() },
       });
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      await prisma.loginActivity.create({
+      await db.loginActivity.create({
         data: {
           userId: user.id,
           action: 'login',
@@ -199,7 +200,7 @@ export async function POST(request: Request) {
       // ─── Clean up ALL previous unread notifications on login ───
       // Mark every previous unread notification as read so the user only sees
       // a single fresh "Welcome" notification — not a wall of stale alerts.
-      await prisma.notification.updateMany({
+      await db.notification.updateMany({
         where: {
           userId: user.id,
           isRead: false,
@@ -221,7 +222,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: user.id,
           action: 'LOGIN',
@@ -244,12 +245,12 @@ export async function POST(request: Request) {
     let companyData = null;
     if (user.role !== 'super_admin') {
       try {
-        const employee = await prisma.employee.findUnique({
+        const employee = await db.employee.findUnique({
           where: { userId: user.id },
           select: { companyId: true },
         });
         if (employee?.companyId) {
-          const company = await prisma.company.findUnique({
+          const company = await db.company.findUnique({
             where: { id: employee.companyId },
             select: { id: true, name: true, code: true, logo: true, city: true, state: true, country: true },
           });

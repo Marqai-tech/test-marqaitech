@@ -21,12 +21,13 @@
  *   404 → job posting not found or not open
  *   400 → candidate has no prior application (so we have no resume to reuse)
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { requireCandidate, ok, fail, OPTIONS, parseBody } from '@/lib/candidate-auth';
 
 export { OPTIONS };
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   // 1. Verify the job posting exists and is open
-  const job = await prisma.jobPosting.findUnique({
+  const job = await db.jobPosting.findUnique({
     where: { id: jobPostingId },
     select: {
       id: true,
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
   }
 
   // 2. Idempotency: prevent duplicate applications
-  const existing = await prisma.jobApplication.findFirst({
+  const existing = await db.jobApplication.findFirst({
     where: {
       jobPostingId,
       candidateEmail: { equals: candidate.email, mode: 'insensitive' },
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
   //    If they have no prior applications, we can't auto-apply because we
   //    don't have their resume on file — they need to use the full apply
   //    flow on /careers first.
-  const priorApp = await prisma.jobApplication.findFirst({
+  const priorApp = await db.jobApplication.findFirst({
     where: {
       candidateEmail: { equals: candidate.email, mode: 'insensitive' },
     },
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   // 4. Create the new application, reusing the candidate's stored info
-  const application = await prisma.jobApplication.create({
+  const application = await db.jobApplication.create({
     data: {
       jobPostingId,
       candidateName: priorApp.candidateName,
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
   try {
     // Reuse the latest ResumeParse row from the prior application if available —
     // avoids re-running the (potentially expensive) parse pipeline.
-    const existingParse = await prisma.resumeParse.findFirst({
+    const existingParse = await db.resumeParse.findFirst({
       where: {
         jobApplication: { candidateEmail: { equals: candidate.email, mode: 'insensitive' } },
       },
@@ -142,7 +143,7 @@ export async function POST(request: Request) {
       select: { rawText: true, language: true, parsedData: true, confidence: true, sourceFormat: true, parseError: true },
     });
     if (existingParse) {
-      await prisma.resumeParse.create({
+      await db.resumeParse.create({
         data: {
           jobApplicationId: application.id,
           rawText: existingParse.rawText,
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
       // No prior parse row — parse from scratch.
       const { parseResumeFromDataUrl } = await import('@/lib/resume-parser');
       const result = await parseResumeFromDataUrl(priorApp.resume);
-      await prisma.resumeParse.create({
+      await db.resumeParse.create({
         data: {
           jobApplicationId: application.id,
           rawText: result.rawText.slice(0, 100_000),
@@ -177,12 +178,12 @@ export async function POST(request: Request) {
   try {
     const tenantId = job.department?.company?.companyGroup?.tenant?.id;
     if (tenantId) {
-      const tenantAdmins = await prisma.user.findMany({
+      const tenantAdmins = await db.user.findMany({
         where: { tenantId, role: { in: ['tenant_admin', 'hr_admin', 'recruiter'] } },
         select: { id: true },
       });
       if (tenantAdmins.length > 0) {
-        await prisma.notification.createMany({
+        await db.notification.createMany({
           data: tenantAdmins.map((u) => ({
             tenantId,
             userId: u.id,

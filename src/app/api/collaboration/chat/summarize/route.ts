@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -14,6 +14,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  */
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,11 +25,11 @@ export async function POST(request: NextRequest) {
     const { roomId, summaryType = 'daily', periodStart, periodEnd } = body;
     if (!roomId) return NextResponse.json({ error: 'roomId is required' }, { status: 400 });
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // Verify membership
-    const membership = await prisma.chatRoomMember.findUnique({
+    const membership = await db.chatRoomMember.findUnique({
       where: { roomId_userId: { roomId, userId: employee.id } },
     });
     if (!membership) return NextResponse.json({ error: 'Not a member of this room' }, { status: 403 });
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       ? new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000)
       : new Date(end.getTime() - 24 * 60 * 60 * 1000);
 
-    const messages = await prisma.chatMessage.findMany({
+    const messages = await db.chatMessage.findMany({
       where: {
         roomId,
         createdAt: { gte: start, lte: end },
@@ -107,7 +108,7 @@ Return ONLY the JSON, no other text.`,
     }
 
     // Persist the summary
-    const summary = await prisma.chatSummary.create({
+    const summary = await db.chatSummary.create({
       data: {
         roomId,
         summaryType,

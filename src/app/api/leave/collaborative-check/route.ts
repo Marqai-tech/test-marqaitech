@@ -10,11 +10,12 @@
  *    returns: { warning: string | null, teamMembersOnLeave: number, threshold: number }
  */
 import { requireUser, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     if (!employeeId || !startDate || !endDate) return fail('Missing required fields');
 
     // Find the employee's department
-    const emp = await prisma.employee.findUnique({
+    const emp = await db.employee.findUnique({
       where: { id: employeeId },
       select: { id: true, departmentId: true },
     });
@@ -36,13 +37,13 @@ export async function POST(request: Request) {
     // Find other team members in the same department (or same project if projectId given)
     let teamMemberIds: string[] = [];
     if (projectId) {
-      const members = await prisma.projectMember.findMany({
+      const members = await db.projectMember.findMany({
         where: { projectId, employeeId: { not: employeeId } },
         select: { employeeId: true },
       });
       teamMemberIds = members.map(m => m.employeeId);
     } else {
-      const team = await prisma.employee.findMany({
+      const team = await db.employee.findMany({
         where: { departmentId: emp.departmentId, id: { not: employeeId }, status: 'active' },
         select: { id: true },
       });
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     }
 
     // Count how many of them have approved/pending leave overlapping with [startDate, endDate]
-    const overlapping = await prisma.leaveRequest.findMany({
+    const overlapping = await db.leaveRequest.findMany({
       where: {
         employeeId: { in: teamMemberIds },
         status: { in: ['approved', 'pending'] },

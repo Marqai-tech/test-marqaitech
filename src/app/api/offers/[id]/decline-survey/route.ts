@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -23,6 +23,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -37,7 +38,7 @@ export async function GET(
     await ensureSchemaSynced();
 
     const survey = await withSchemaSync(() =>
-      prisma.offerDeclineSurvey.findUnique({ where: { offerId: id } })
+      db.offerDeclineSurvey.findUnique({ where: { offerId: id } })
     );
 
     return NextResponse.json({ survey }, { headers: corsHeaders() });
@@ -57,6 +58,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -70,14 +72,14 @@ export async function POST(
     const { id } = await params;
     await ensureSchemaSynced();
 
-    const offer = await withSchemaSync(() => prisma.offer.findUnique({ where: { id } }));
+    const offer = await withSchemaSync(() => db.offer.findUnique({ where: { id } }));
     if (!offer) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // Idempotent: if a survey already exists, return it.
     const existing = await withSchemaSync(() =>
-      prisma.offerDeclineSurvey.findUnique({ where: { offerId: id } })
+      db.offerDeclineSurvey.findUnique({ where: { offerId: id } })
     );
     if (existing) {
       return NextResponse.json({ survey: existing }, { headers: corsHeaders() });
@@ -85,14 +87,14 @@ export async function POST(
 
     // Use upsert for extra safety against race conditions.
     const survey = await withSchemaSync(() =>
-      prisma.offerDeclineSurvey.upsert({
+      db.offerDeclineSurvey.upsert({
         where: { offerId: id },
         create: { offerId: id },
         update: {},
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_DECLINE_SURVEY',

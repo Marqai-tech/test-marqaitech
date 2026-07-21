@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     const employeeId = searchParams.get('employeeId');
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
-    const orders = await prisma.marketplaceOrder.findMany({
+    const orders = await db.marketplaceOrder.findMany({
       where: where as any,
       include: { product: true },
       orderBy: { createdAt: 'desc' },
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -46,12 +48,12 @@ export async function POST(request: Request) {
     const { employeeId, productId, qty, walletBucketId } = body;
     if (!employeeId || !productId) return NextResponse.json({ error: 'Missing fields' }, { status: 400, headers: corsHeaders() });
 
-    const product = await prisma.marketplaceProduct.findUnique({ where: { id: productId } });
+    const product = await db.marketplaceProduct.findUnique({ where: { id: productId } });
     if (!product || product.status !== 'active') return NextResponse.json({ error: 'Product unavailable' }, { status: 400, headers: corsHeaders() });
 
     // REQ-SEC-MKT-05: age verification for restricted products (e.g., wine, tobacco-adjacent, certain insurance)
     if (product.ageRestricted && product.minAge) {
-      const employee = await prisma.employee.findUnique({
+      const employee = await db.employee.findUnique({
         where: { id: employeeId },
         select: { dateOfBirth: true, firstName: true, lastName: true },
       });
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
       const ageMs = Date.now() - employee.dateOfBirth.getTime();
       const ageYears = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
       if (ageYears < product.minAge) {
-        await prisma.auditLog.create({
+        await db.auditLog.create({
           data: {
             userId: (decoded as any).userId as string,
             action: 'AGE_GATE_BLOCK',
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
 
     // Validate bucket
     if (!walletBucketId) return NextResponse.json({ error: 'Wallet bucket required' }, { status: 400, headers: corsHeaders() });
-    const bucket = await prisma.walletBucket.findUnique({ where: { id: walletBucketId } });
+    const bucket = await db.walletBucket.findUnique({ where: { id: walletBucketId } });
     if (!bucket) return NextResponse.json({ error: 'Invalid bucket' }, { status: 400, headers: corsHeaders() });
     const allowedBuckets = product.allowedBuckets.split(',').map(s => s.trim());
     if (!allowedBuckets.includes(bucket.category)) return NextResponse.json({ error: `Product cannot be bought with ${bucket.category} bucket (REQ-MKT-03)` }, { status: 400, headers: corsHeaders() });
@@ -87,20 +89,20 @@ export async function POST(request: Request) {
     // Quarterly quantity limit (REQ-SEC-MKT-04)
     if (product.quantityLimitPerQuarter > 0) {
       const quarterStart = new Date(); quarterStart.setMonth(Math.floor(quarterStart.getMonth() / 3) * 3, 1); quarterStart.setHours(0, 0, 0, 0);
-      const quarterCount = await prisma.marketplaceOrder.count({ where: { employeeId, productId, createdAt: { gte: quarterStart }, status: { not: 'cancelled' } } });
+      const quarterCount = await db.marketplaceOrder.count({ where: { employeeId, productId, createdAt: { gte: quarterStart }, status: { not: 'cancelled' } } });
       if (quarterCount + quantity > product.quantityLimitPerQuarter) return NextResponse.json({ error: 'Quarterly quantity limit exceeded (anti-arbitrage)' }, { status: 400, headers: corsHeaders() });
     }
 
     // Velocity fraud check (REQ-AI-MKT-02)
     const oneMinuteAgo = new Date(Date.now() - 60000);
-    const recentOrders = await prisma.marketplaceOrder.count({ where: { employeeId, createdAt: { gte: oneMinuteAgo } } });
+    const recentOrders = await db.marketplaceOrder.count({ where: { employeeId, createdAt: { gte: oneMinuteAgo } } });
     let blockedByFraud = false;
     let fraudReason = null;
     if (recentOrders >= 3) { blockedByFraud = true; fraudReason = 'velocity'; }
     if (totalAmount > 50000) { blockedByFraud = true; fraudReason = 'bulk_high_value'; }
 
     if (blockedByFraud) {
-      await prisma.marketplaceFraudFlag.create({ data: { employeeId, reason: fraudReason!, riskScore: 0.9, mfaTriggered: true } });
+      await db.marketplaceFraudFlag.create({ data: { employeeId, reason: fraudReason!, riskScore: 0.9, mfaTriggered: true } });
       return NextResponse.json({ error: 'Order blocked by fraud detection. MFA required.', fraudReason }, { status: 403, headers: corsHeaders() });
     }
 
@@ -112,17 +114,17 @@ export async function POST(request: Request) {
     // Create order + debit wallet + record transaction atomically
     // REQ-SEC-MKT-03: append to wallet hash chain for immutability
     const now = new Date();
-    const order = await prisma.marketplaceOrder.create({
+    const order = await db.marketplaceOrder.create({
       data: { employeeId, productId, qty: quantity, unitPrice: product.corporatePrice, totalAmount, currency: product.currency, walletBucketId: bucket.id!, employerCoPayPct: employerPct, employerPaidAmount: employerPaid, employeePaidAmount: employeePaid, fulfillmentStatus: 'fulfilled', fulfillmentRef: `CODE-${Date.now()}`, status: 'completed' },
     });
-    const txRecord = await prisma.walletTransaction.create({
+    const txRecord = await db.walletTransaction.create({
       data: { walletId: bucket.walletId, bucketId: bucket.id, type: 'debit', amount: totalAmount, currency: product.currency, baseAmount: totalAmount, description: `Order: ${product.name} x${quantity}`, createdAt: now },
     });
     // Append hash chain (separate update because we need the row id + createdAt)
     const { appendHashChain } = await import('@/lib/wallet-ledger');
     const { previousHash, chainHash } = await appendHashChain(prisma, bucket.walletId, { id: txRecord.id, amount: totalAmount, type: 'debit', createdAt: now });
-    await prisma.walletTransaction.update({ where: { id: txRecord.id }, data: { previousHash, chainHash } });
-    await prisma.walletBucket.update({ where: { id: bucket.id }, data: { balance: { decrement: totalAmount } } });
+    await db.walletTransaction.update({ where: { id: txRecord.id }, data: { previousHash, chainHash } });
+    await db.walletBucket.update({ where: { id: bucket.id }, data: { balance: { decrement: totalAmount } } });
     return NextResponse.json({ order }, { status: 201, headers: corsHeaders() });
   } catch (error) { console.error('Place order error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }

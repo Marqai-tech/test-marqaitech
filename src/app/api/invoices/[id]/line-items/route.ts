@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { convertCurrency } from '@/lib/fx';
@@ -27,6 +27,7 @@ export async function OPTIONS() {
 // If rateSourceCurrency is set and differs from invoice.currency, we use
 // convertCurrency to compute the rate in invoice currency.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -42,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const body = await request.json();
 
-    const invoice = await withSchemaSync(() => prisma.invoice.findUnique({ where: { id } }));
+    const invoice = await withSchemaSync(() => db.invoice.findUnique({ where: { id } }));
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -85,7 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         : round(amount / (invoice.exchangeRate || 1));
 
     const lineItem = await withSchemaSync(() =>
-      prisma.invoiceLineItem.create({
+      db.invoiceLineItem.create({
         data: {
           invoiceId: id,
           sourceType: body.sourceType || 'manual',
@@ -115,7 +116,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Recalculate invoice totals
     await recalcInvoiceTotals(id);
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'ADD_INVOICE_LINE',
@@ -134,8 +135,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 // Helper: recalculate invoice subtotal/tax/discount/total + base-currency totals
 async function recalcInvoiceTotals(invoiceId: string): Promise<void> {
   const [invoice, lineItems] = await Promise.all([
-    prisma.invoice.findUnique({ where: { id: invoiceId } }),
-    prisma.invoiceLineItem.findMany({ where: { invoiceId } }),
+    db.invoice.findUnique({ where: { id: invoiceId } }),
+    db.invoiceLineItem.findMany({ where: { invoiceId } }),
   ]);
   if (!invoice) return;
 
@@ -149,7 +150,7 @@ async function recalcInvoiceTotals(invoiceId: string): Promise<void> {
   const subtotalBase = baseCur === invoice.currency ? subtotal : round(subtotal / (invoice.exchangeRate || 1));
   const totalAmountBase = baseCur === invoice.currency ? totalAmount : round(totalAmount / (invoice.exchangeRate || 1));
 
-  await prisma.invoice.update({
+  await db.invoice.update({
     where: { id: invoiceId },
     data: {
       subtotal,

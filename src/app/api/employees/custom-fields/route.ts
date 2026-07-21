@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -10,6 +10,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Tenant Admins can configure these; other roles can read.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (countryCode) where.countryCode = countryCode;
     if (companyId) where.companyId = companyId;
 
-    const fields = await prisma.employeeCustomField.findMany({
+    const fields = await db.employeeCustomField.findMany({
       where,
       orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }],
     });
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
  * Tenant Admin / Super Admin only.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'companyId is required when scope=company' }, { status: 400 });
     }
 
-    const field = await prisma.employeeCustomField.create({
+    const field = await db.employeeCustomField.create({
       data: {
         scope,
         countryCode: scope === 'country' ? countryCode : null,

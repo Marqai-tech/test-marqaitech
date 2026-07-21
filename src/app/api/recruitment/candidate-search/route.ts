@@ -19,7 +19,7 @@
  * The endpoint is read-only and tenant-scoped via the JWT.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -87,6 +87,7 @@ function parseSalaryLPA(s: string | null | undefined): number | null {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   // Auth — require an employee JWT (recruiters + admins)
   const token = getTokenFromHeaders(request);
   if (!token) {
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
     // Fetch applications with their resume parse + job posting context.
     // Note: the Prisma relation is `resumeOptimization` (singular) per schema.prisma
     // line 615 — JobApplication has one CandidateResumeOptimization, not many.
-    const applications = await prisma.jobApplication.findMany({
+    const applications = await db.jobApplication.findMany({
       where,
       include: {
         jobPosting: {

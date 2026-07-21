@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -24,6 +24,7 @@ export async function OPTIONS() {
  * This is safe to call repeatedly — it's idempotent.
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     const userId = decoded.userId as string;
 
     // Find all unread login notifications for this user, newest first.
-    const unreadLoginNotifs = await prisma.notification.findMany({
+    const unreadLoginNotifs = await db.notification.findMany({
       where: { userId, type: 'login', isRead: false },
       orderBy: { createdAt: 'desc' },
       select: { id: true, createdAt: true },
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
 
     // Keep the newest one (index 0) as unread; mark the rest as read.
     const idsToMarkRead = unreadLoginNotifs.slice(1).map((n) => n.id);
-    const result = await prisma.notification.updateMany({
+    const result = await db.notification.updateMany({
       where: { id: { in: idsToMarkRead } },
       data: { isRead: true },
     });

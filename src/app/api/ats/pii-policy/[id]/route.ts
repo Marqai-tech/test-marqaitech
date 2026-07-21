@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -53,6 +53,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { error, user } = await requireAuth(request);
     if (error || !user) return error;
@@ -91,7 +92,7 @@ export async function PATCH(
       data.visibleToRoles = JSON.stringify(roles);
     }
 
-    const policy = await prisma.candidatePiiPolicy.update({
+    const policy = await db.candidatePiiPolicy.update({
       where: { id },
       data,
     });
@@ -119,6 +120,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { error, user } = await requireAuth(request);
     if (error || !user) return error;
@@ -132,7 +134,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    await prisma.candidatePiiPolicy.delete({ where: { id } });
+    await db.candidatePiiPolicy.delete({ where: { id } });
 
     return NextResponse.json(
       { ok: true },

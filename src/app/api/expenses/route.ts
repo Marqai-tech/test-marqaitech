@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     if (employeeId) where.employeeId = employeeId;
 
     const [expenseClaims, total] = await Promise.all([
-      prisma.expenseClaim.findMany({
+      db.expenseClaim.findMany({
         where,
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, avatar: true } },
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.expenseClaim.count({ where }),
+      db.expenseClaim.count({ where }),
     ]);
 
     return NextResponse.json({ expenseClaims, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }, { headers: corsHeaders() });
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders() });
     }
 
-    const expenseClaim = await prisma.expenseClaim.create({
+    const expenseClaim = await db.expenseClaim.create({
       data: {
         employeeId,
         title,

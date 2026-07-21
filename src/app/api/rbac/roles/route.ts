@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 // Ensure this route is always dynamically rendered (never cached)
@@ -19,6 +19,7 @@ export async function OPTIONS() {
 
 // GET /api/rbac/roles - List roles
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -106,7 +107,7 @@ export async function GET(request: Request) {
       ? { AND: andConditions }
       : {};
 
-    const roles = await prisma.role.findMany({
+    const roles = await db.role.findMany({
       where,
       include: {
         permissions: {
@@ -190,6 +191,7 @@ export async function GET(request: Request) {
 
 // POST /api/rbac/roles - Create a new role
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -207,7 +209,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -264,7 +266,7 @@ export async function POST(request: Request) {
     }
 
     // Check if role key already exists for this tenant/company combination
-    const existingRole = await prisma.role.findFirst({
+    const existingRole = await db.role.findFirst({
       where: {
         key,
         tenantId: roleTenantId,
@@ -279,7 +281,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const role = await prisma.role.create({
+    const role = await db.role.create({
       data: {
         name,
         key,

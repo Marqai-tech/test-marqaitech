@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (payFrequency) where.payFrequency = payFrequency;
 
     try {
-      const data = await prisma.payrollDefinition.findMany({
+      const data = await db.payrollDefinition.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       });
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     try {
-      const data = await prisma.payrollDefinition.create({ data: body });
+      const data = await db.payrollDefinition.create({ data: body });
 
       return Response.json({ data, message: 'Payroll definition created successfully' }, { headers: corsHeaders });
     } catch (dbError: unknown) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -32,7 +33,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const fnfCalculation = await prisma.fNFCalculation.findUnique({
+    const fnfCalculation = await db.fNFCalculation.findUnique({
       where: { id },
       include: {
         employee: {
@@ -60,6 +61,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -75,7 +77,7 @@ export async function PATCH(
     const body = await request.json();
     const { status, remarks, pendingSalary, leaveEncashment, bonus, incentives, noticeRecovery, assetRecovery, loanRecovery, taxDeduction, otherRecoveries, totalEarnings, totalDeductions, netAmount } = body;
 
-    const existing = await prisma.fNFCalculation.findUnique({ where: { id } });
+    const existing = await db.fNFCalculation.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'FNF calculation not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -121,7 +123,7 @@ export async function PATCH(
     if (totalDeductions !== undefined) updateData.totalDeductions = totalDeductions;
     if (netAmount !== undefined) updateData.netAmount = netAmount;
 
-    const fnfCalculation = await prisma.fNFCalculation.update({
+    const fnfCalculation = await db.fNFCalculation.update({
       where: { id },
       data: updateData,
       include: {
@@ -146,7 +148,7 @@ export async function PATCH(
       }
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_FNF',
@@ -166,6 +168,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -179,14 +182,14 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.fNFCalculation.findUnique({ where: { id } });
+    const existing = await db.fNFCalculation.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'FNF calculation not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.fNFCalculation.delete({ where: { id } });
+    await db.fNFCalculation.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_FNF',

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * GET /api/public/tenant-info?slug=marqaitechgroup
@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
  * name, slug, and logo.
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Slug parameter is required' }, { status: 400 });
     }
 
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await getPlatformDb().tenant.findUnique({
       where: { slug },
       select: {
         id: true,

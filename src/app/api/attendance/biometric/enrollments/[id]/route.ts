@@ -7,18 +7,19 @@
  *   but no new punches will match.
  */
 import { requireUser, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function DELETE(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can revoke biometric enrollments', 403);
 
   const { id } = await ctx.params;
   try {
-    const enrollment = await prisma.biometricEnrollment.update({
+    const enrollment = await db.biometricEnrollment.update({
       where: { id },
       data: { isActive: false },
     });

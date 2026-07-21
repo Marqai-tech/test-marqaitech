@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     if (vendorId) where.vendorId = vendorId;
     if (companyId) where.companyId = companyId;
     if (status) where.status = status;
-    const pos = await prisma.purchaseOrder.findMany({
+    const pos = await db.purchaseOrder.findMany({
       where: where as any,
       include: { vendor: { select: { id: true, name: true } }, company: { select: { id: true, name: true } }, project: { select: { id: true, name: true } }, lineItems: true, _count: { select: { vendorInvoices: true } } },
       orderBy: { createdAt: 'desc' },
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     const { poNumber, vendorId, companyId, projectId, currency, baseCurrency, exchangeRate, lineItems, notes, expectedBy } = body;
     if (!poNumber || !vendorId || !companyId || !lineItems?.length) return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders() });
     const totalAmount = lineItems.reduce((s: number, li: any) => s + (li.quantity * li.unitPrice), 0);
-    const po = await prisma.purchaseOrder.create({
+    const po = await db.purchaseOrder.create({
       data: {
         poNumber, vendorId, companyId, projectId,
         currency: currency || 'INR', baseCurrency: baseCurrency || 'INR', exchangeRate: exchangeRate || 1,
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
       },
       include: { lineItems: true },
     });
-    await prisma.auditLog.create({ data: { userId: decoded.userId as string, action: 'CREATE_PO', module: 'vendors', details: `Created PO ${poNumber} for vendor ${vendorId} amount ${totalAmount}` } });
+    await db.auditLog.create({ data: { userId: decoded.userId as string, action: 'CREATE_PO', module: 'vendors', details: `Created PO ${poNumber} for vendor ${vendorId} amount ${totalAmount}` } });
     return NextResponse.json({ purchaseOrder: po }, { status: 201, headers: corsHeaders() });
   } catch (error) { console.error('Create PO error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }

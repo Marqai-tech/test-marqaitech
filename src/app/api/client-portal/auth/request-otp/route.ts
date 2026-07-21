@@ -8,7 +8,7 @@
  * (In production, deliver via email/SMS.)
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
 import { randomInt } from 'crypto';
 
@@ -23,13 +23,14 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json().catch(() => ({}));
     const email = String(body.email || '').trim().toLowerCase();
     if (!email) {
       return NextResponse.json({ error: 'email is required' }, { status: 400, headers: CORS });
     }
-    const user = await prisma.clientPortalUser.findFirst({
+    const user = await db.clientPortalUser.findFirst({
       where: { email, status: 'active' },
     });
     // Always respond 200 to avoid email-enumeration, but only store OTP if user exists.
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       const otp = String(randomInt(100000, 999999));
       const otpHash = await hashPassword(otp);
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-      await prisma.clientPortalUser.update({
+      await db.clientPortalUser.update({
         where: { id: user.id },
         data: { otpSecret: otpHash, lastLoginAt: null },
       });

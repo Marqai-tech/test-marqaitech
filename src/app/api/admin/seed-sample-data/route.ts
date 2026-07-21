@@ -8,11 +8,12 @@
  * the same module won't create duplicate rows.
  */
 import { requireUser, isAdminRole, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
@@ -25,14 +26,14 @@ export async function POST(request: Request) {
 
   try {
     // Pick a stable set of employees to seed against
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { status: 'active' },
       take: 10,
       orderBy: { createdAt: 'asc' },
     });
     if (employees.length === 0) return fail('No active employees found in DB', 400);
 
-    const companies = await prisma.company.findMany({ take: 5 });
+    const companies = await db.company.findMany({ take: 5 });
     if (companies.length === 0) return fail('No companies found in DB', 400);
     const company = companies[0];
 
@@ -73,7 +74,7 @@ async function seedAttendance(employees: { id: string; firstName: string; lastNa
 
     for (const emp of employees) {
       // Skip if attendance already exists for this employee+date
-      const existing = await prisma.attendance.findFirst({
+      const existing = await db.attendance.findFirst({
         where: { employeeId: emp.id, date },
         select: { id: true },
       });
@@ -112,7 +113,7 @@ async function seedAttendance(employees: { id: string; firstName: string; lastNa
         workHours = workHours ?? 8.5;
       }
 
-      await prisma.attendance.create({
+      await db.attendance.create({
         data: {
           employeeId: emp.id,
           date,
@@ -152,9 +153,9 @@ async function seedLeave(employees: { id: string }[]) {
 
   const ltIds: Record<string, string> = {};
   for (const lt of leaveTypes) {
-    const existing = await prisma.leaveType.findUnique({ where: { code: lt.code } });
+    const existing = await db.leaveType.findUnique({ where: { code: lt.code } });
     if (existing) { ltIds[lt.code] = existing.id; skipped++; continue; }
-    const created_lt = await prisma.leaveType.create({
+    const created_lt = await db.leaveType.create({
       data: {
         name: lt.name,
         code: lt.code,
@@ -180,14 +181,14 @@ async function seedLeave(employees: { id: string }[]) {
     for (const code of balanceCodes) {
       const ltId = ltIds[code];
       if (!ltId) continue;
-      const existing = await prisma.leaveBalance.findFirst({
+      const existing = await db.leaveBalance.findFirst({
         where: { employeeId: emp.id, leaveTypeId: ltId, year },
       });
       if (existing) { skipped++; continue; }
       const lt = leaveTypes.find(t => t.code === code)!;
       const total = lt.defaultDays;
       const used = Math.floor(Math.random() * (total / 2));
-      await prisma.leaveBalance.create({
+      await db.leaveBalance.create({
         data: {
           employeeId: emp.id,
           leaveTypeId: ltId,
@@ -220,12 +221,12 @@ async function seedLeave(employees: { id: string }[]) {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + req.days - 1);
 
-    const existing = await prisma.leaveRequest.findFirst({
+    const existing = await db.leaveRequest.findFirst({
       where: { employeeId: emp.id, startDate, leaveTypeId: ltId },
     });
     if (existing) { skipped++; continue; }
 
-    await prisma.leaveRequest.create({
+    await db.leaveRequest.create({
       data: {
         employeeId: emp.id,
         leaveTypeId: ltId,
@@ -253,18 +254,18 @@ async function seedInvoices(companyId: string) {
   let skipped = 0;
 
   // Find or create a sample client
-  let client = await prisma.client.findFirst({ where: { companyId } });
+  let client = await db.client.findFirst({ where: { companyId } });
   if (!client) {
-    client = await prisma.client.create({
+    client = await db.client.create({
       data: { name: 'Acme Industries', code: 'ACME-001', companyId, contactEmail: 'accounts@acme-industries.com', billingCurrency: 'INR' },
     });
     created++;
   }
 
   // Find or create a sample project
-  let project = await prisma.project.findFirst({ where: { companyId } });
+  let project = await db.project.findFirst({ where: { companyId } });
   if (!project) {
-    project = await prisma.project.create({
+    project = await db.project.create({
       data: {
         name: 'HRMS Implementation',
         code: 'HRMS-IMP-001',
@@ -296,7 +297,7 @@ async function seedInvoices(companyId: string) {
   ];
 
   for (const s of samples) {
-    const existing = await prisma.invoice.findUnique({ where: { invoiceNumber: s.num } });
+    const existing = await db.invoice.findUnique({ where: { invoiceNumber: s.num } });
     if (existing) { skipped++; continue; }
 
     const issueDate = new Date();
@@ -305,7 +306,7 @@ async function seedInvoices(companyId: string) {
     dueDate.setDate(dueDate.getDate() + s.dueOffset);
     const total = s.subtotal + s.tax;
 
-    const inv = await prisma.invoice.create({
+    const inv = await db.invoice.create({
       data: {
         invoiceNumber: s.num,
         companyId,
@@ -354,7 +355,7 @@ async function seedInvoices(companyId: string) {
 
     for (const item of items) {
       const amount = item.qty * item.rate;
-      await prisma.invoiceLineItem.create({
+      await db.invoiceLineItem.create({
         data: {
           invoiceId: inv.id,
           sourceType: s.type === 'timesheet' ? 'timesheet' : 'manual',
@@ -396,15 +397,15 @@ async function seedOptionalHolidays() {
   ];
 
   for (const h of optionalHolidays) {
-    const existing = await prisma.holiday.findFirst({ where: { name: h.name, date: h.date } });
+    const existing = await db.holiday.findFirst({ where: { name: h.name, date: h.date } });
     if (existing) {
       if (!existing.isOptional) {
-        await prisma.holiday.update({ where: { id: existing.id }, data: { isOptional: true, optionalQuota: h.quota } });
+        await db.holiday.update({ where: { id: existing.id }, data: { isOptional: true, optionalQuota: h.quota } });
         created++;
       } else { skipped++; }
       continue;
     }
-    await prisma.holiday.create({
+    await db.holiday.create({
       data: {
         name: h.name,
         date: h.date,

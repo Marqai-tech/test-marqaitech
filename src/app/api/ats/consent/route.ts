@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -75,6 +75,7 @@ function safeNormalizeEmail(email: unknown): string | null {
 
 /* ───────────────────────────────────────────── GET ───────────────────────────────────────────── */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const { searchParams } = new URL(request.url);
     const email = safeNormalizeEmail(searchParams.get('candidateEmail'));
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
       where.withdrawnAt = null;
     }
 
-    const consents = await prisma.candidateConsent.findMany({
+    const consents = await db.candidateConsent.findMany({
       where,
       orderBy: { grantedAt: 'desc' },
       take: 200,
@@ -128,6 +129,7 @@ export async function GET(request: Request) {
 
 /* ───────────────────────────────────────────── POST ──────────────────────────────────────────── */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     let body: Record<string, unknown>;
     try {
@@ -176,7 +178,7 @@ export async function POST(request: Request) {
     // If a previously-granted, not-yet-withdrawn consent exists for the same
     // (email, tenantId, purpose) tuple, treat this as a re-grant (no-op).
     // Otherwise insert a new row. Either way, return the active consent.
-    const existing = await prisma.candidateConsent.findFirst({
+    const existing = await db.candidateConsent.findFirst({
       where: {
         candidateEmail,
         tenantId,
@@ -190,7 +192,7 @@ export async function POST(request: Request) {
     if (existing) {
       consent = existing;
     } else {
-      consent = await prisma.candidateConsent.create({
+      consent = await db.candidateConsent.create({
         data: {
           candidateEmail,
           tenantId,

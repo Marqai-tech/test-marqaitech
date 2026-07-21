@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { ensureSchemaSynced } from '@/lib/schema-sync'
 
 // GET /api/exit-workflow
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // Ensure the ExitRequest table exists (P0 fix for missing model)
     await ensureSchemaSynced()
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/exit-workflow
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     await ensureSchemaSynced()
 
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/exit-workflow
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     await ensureSchemaSynced()
 

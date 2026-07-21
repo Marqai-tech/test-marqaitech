@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     const employeeId = searchParams.get('employeeId');
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
-    const ledger = await prisma.rewardPointsLedger.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 });
+    const ledger = await db.rewardPointsLedger.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 });
     // Aggregate balance
     const balance = ledger.length > 0 ? ledger[0].balanceAfter : 0;
     return NextResponse.json({ ledger, balance }, { headers: corsHeaders() });
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -46,21 +48,21 @@ export async function POST(request: Request) {
     if (points > 100) return NextResponse.json({ error: 'Max 100 points per kudos' }, { status: 400, headers: corsHeaders() });
 
     // Get recipient's current balance
-    const lastEntry = await prisma.rewardPointsLedger.findFirst({ where: { employeeId: toId }, orderBy: { createdAt: 'desc' } });
+    const lastEntry = await db.rewardPointsLedger.findFirst({ where: { employeeId: toId }, orderBy: { createdAt: 'desc' } });
     const newBalance = (lastEntry?.balanceAfter || 0) + points;
 
-    const entry = await prisma.rewardPointsLedger.create({
+    const entry = await db.rewardPointsLedger.create({
       data: { employeeId: toId, type: 'earn', points, balanceAfter: newBalance, source: 'p2p_kudos', referenceId: fromId },
     });
 
     // Credit to recipient's kudos wallet bucket
-    let wallet = await prisma.wallet.findFirst({ where: { employeeId: toId, currency: 'INR' } });
-    if (!wallet) wallet = await prisma.wallet.create({ data: { employeeId: toId, currency: 'INR' } });
-    let kudosBucket = await prisma.walletBucket.findFirst({ where: { walletId: wallet.id, category: 'kudos' } });
-    if (!kudosBucket) kudosBucket = await prisma.walletBucket.create({ data: { walletId: wallet.id, category: 'kudos', balance: 0, employerCoPayPct: 100 } });
-    await prisma.$transaction([
-      prisma.walletBucket.update({ where: { id: kudosBucket.id }, data: { balance: { increment: points } } }),
-      prisma.walletTransaction.create({ data: { walletId: wallet.id, bucketId: kudosBucket.id, type: 'credit', amount: points, currency: 'INR', baseAmount: points, reference: entry.id, description: `Kudos from ${fromId}: ${message || ''}` } }),
+    let wallet = await db.wallet.findFirst({ where: { employeeId: toId, currency: 'INR' } });
+    if (!wallet) wallet = await db.wallet.create({ data: { employeeId: toId, currency: 'INR' } });
+    let kudosBucket = await db.walletBucket.findFirst({ where: { walletId: wallet.id, category: 'kudos' } });
+    if (!kudosBucket) kudosBucket = await db.walletBucket.create({ data: { walletId: wallet.id, category: 'kudos', balance: 0, employerCoPayPct: 100 } });
+    await db.$transaction([
+      db.walletBucket.update({ where: { id: kudosBucket.id }, data: { balance: { increment: points } } }),
+      db.walletTransaction.create({ data: { walletId: wallet.id, bucketId: kudosBucket.id, type: 'credit', amount: points, currency: 'INR', baseAmount: points, reference: entry.id, description: `Kudos from ${fromId}: ${message || ''}` } }),
     ]);
     return NextResponse.json({ entry, newBalance }, { status: 201, headers: corsHeaders() });
   } catch (error) { console.error('Give kudos error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }

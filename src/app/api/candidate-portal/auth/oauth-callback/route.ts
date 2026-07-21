@@ -19,7 +19,7 @@
  *                            https://<host>/api/candidate-portal/auth/oauth-callback)
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { createToken } from '@/lib/auth';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -32,6 +32,7 @@ function redirectWithError(error: string) {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
   const errorParam = url.searchParams.get('error');
@@ -103,7 +104,7 @@ export async function GET(request: Request) {
   }
 
   // Upsert CandidatePortalUser with oauth fields
-  const user = await prisma.candidatePortalUser.upsert({
+  const user = await db.candidatePortalUser.upsert({
     where: { candidateEmail: email },
     create: {
       candidateEmail: email,

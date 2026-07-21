@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -35,12 +36,12 @@ export async function POST(request: Request) {
 
     const userId = decoded.userId as string;
 
-    await prisma.user.update({
+    await db.user.update({
       where: { id: userId },
       data: { lastLogout: new Date() },
     });
 
-    await prisma.loginActivity.create({
+    await db.loginActivity.create({
       data: {
         userId,
         action: 'logout',

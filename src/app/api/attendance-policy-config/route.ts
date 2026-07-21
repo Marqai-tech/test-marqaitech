@@ -10,12 +10,13 @@
  */
 import { isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { resolveCompanyScope } from '@/lib/companyScope';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { withSchemaSync } from '@/lib/schema-sync';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const scope = await resolveCompanyScope(request);
   if (!scope) return fail('Unauthorized', 401);
   try {
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
     }
     // scope === 'all' && no companyId → admin sees the latest policy (no company filter)
 
-    let config = await withSchemaSync(() => prisma.attendancePolicyConfig.findFirst({
+    let config = await withSchemaSync(() => db.attendancePolicyConfig.findFirst({
       where,
       orderBy: { createdAt: 'desc' },
     }));
@@ -85,6 +86,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const db = await getDb(request);
   const scope = await resolveCompanyScope(request);
   if (!scope) return fail('Unauthorized', 401);
   if (!isAdminRole(scope.role)) return fail('Admin only', 403);
@@ -100,7 +102,7 @@ export async function PUT(request: Request) {
       where.companyId = policyCompanyId;
     }
 
-    const existing = await withSchemaSync(() => prisma.attendancePolicyConfig.findFirst({
+    const existing = await withSchemaSync(() => db.attendancePolicyConfig.findFirst({
       where,
       orderBy: { createdAt: 'desc' },
     }));
@@ -123,9 +125,9 @@ export async function PUT(request: Request) {
 
     let config;
     if (existing) {
-      config = await prisma.attendancePolicyConfig.update({ where: { id: existing.id }, data });
+      config = await db.attendancePolicyConfig.update({ where: { id: existing.id }, data });
     } else {
-      config = await prisma.attendancePolicyConfig.create({ data });
+      config = await db.attendancePolicyConfig.create({ data });
     }
     return ok({ config });
   } catch (e: unknown) {

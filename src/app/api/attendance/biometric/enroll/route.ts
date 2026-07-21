@@ -13,13 +13,14 @@
  *   Lists enrollments, optionally filtered.
  */
 import { requireUser, parseBody, getQuery, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 const MODALITIES = ['fingerprint', 'face', 'palm', 'iris'];
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
     if (q.isActive !== undefined) where.isActive = q.isActive === 'true';
     if (q.modality) where.modality = q.modality;
 
-    const enrollments = await prisma.biometricEnrollment.findMany({
+    const enrollments = await db.biometricEnrollment.findMany({
       where,
       orderBy: { enrolledAt: 'desc' },
       include: {
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can enroll biometric templates', 403);
@@ -73,15 +75,15 @@ export async function POST(request: Request) {
   try {
     // Verify employee + device exist
     const [emp, device] = await Promise.all([
-      prisma.employee.findUnique({ where: { id: employeeId }, select: { id: true, firstName: true, lastName: true } }),
-      prisma.biometricDevice.findUnique({ where: { id: deviceId }, select: { id: true, name: true, isActive: true } }),
+      db.employee.findUnique({ where: { id: employeeId }, select: { id: true, firstName: true, lastName: true } }),
+      db.biometricDevice.findUnique({ where: { id: deviceId }, select: { id: true, name: true, isActive: true } }),
     ]);
     if (!emp) return fail('Employee not found', 404);
     if (!device) return fail('Device not found', 404);
     if (!device.isActive) return fail('Cannot enroll against an inactive device');
 
     // Unique (employeeId, deviceId) — upsert
-    const enrollment = await prisma.biometricEnrollment.upsert({
+    const enrollment = await db.biometricEnrollment.upsert({
       where: { employeeId_deviceId: { employeeId, deviceId } },
       create: {
         employeeId,

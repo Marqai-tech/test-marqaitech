@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     if (category) where.category = category;
     if (providerName) where.providerName = providerName;
     if (search) where.name = { contains: search, mode: 'insensitive' };
-    const products = await prisma.marketplaceProduct.findMany({
+    const products = await db.marketplaceProduct.findMany({
       where: where as any,
       orderBy: { createdAt: 'desc' },
     });
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { sku, name, description, category, providerName, publicPrice, corporatePrice, currency, allowedBuckets, imageUrl, fulfillmentMode, quantityLimitPerQuarter } = body;
     if (!sku || !name || !category || !providerName || !publicPrice || !corporatePrice) return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders() });
-    const product = await prisma.marketplaceProduct.create({
+    const product = await db.marketplaceProduct.create({
       data: { sku, name, description, category, providerName, publicPrice: Number(publicPrice), corporatePrice: Number(corporatePrice), currency: currency || 'INR', allowedBuckets: allowedBuckets || 'general_rewards', imageUrl, fulfillmentMode: fulfillmentMode || 'digital', quantityLimitPerQuarter: quantityLimitPerQuarter || 0 },
     });
     return NextResponse.json({ product }, { status: 201, headers: corsHeaders() });

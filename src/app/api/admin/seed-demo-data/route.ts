@@ -11,7 +11,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import bcryptjs from 'bcryptjs';
 
 function corsHeaders() {
@@ -44,6 +44,7 @@ async function safeOp(fn: () => Promise<number>, label: string): Promise<number>
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -81,9 +82,9 @@ export async function POST(request: Request) {
     if (mod === 'all' || mod === 'core') {
     await runSection('core', async () => {
       // Ensure tenant exists
-      let tenant = await prisma.tenant.findUnique({ where: { slug: '3boxes-hrms-demo' } });
+      let tenant = await getPlatformDb().tenant.findUnique({ where: { slug: '3boxes-hrms-demo' } });
       if (!tenant) {
-        tenant = await prisma.tenant.create({
+        tenant = await getPlatformDb().tenant.create({
           data: {
             name: '3 Boxes HRMS Demo', slug: '3boxes-hrms-demo',
             domain: 'nexus-hrms-mu.vercel.app', plan: 'enterprise', status: 'active',
@@ -95,24 +96,24 @@ export async function POST(request: Request) {
       results.tenant = 1;
 
       // Company Group
-      let cg = await prisma.companyGroup.findFirst({ where: { tenantId: tenant.id } });
+      let cg = await db.companyGroup.findFirst({ where: { tenantId: tenant.id } });
       if (!cg) {
-        cg = await prisma.companyGroup.create({ data: { name: '3 Boxes Enterprise Group', tenantId: tenant.id } });
+        cg = await db.companyGroup.create({ data: { name: '3 Boxes Enterprise Group', tenantId: tenant.id } });
       }
 
       // Companies
-      const existingCompanies = await prisma.company.findMany({ where: { companyGroupId: cg.id } });
+      const existingCompanies = await db.company.findMany({ where: { companyGroupId: cg.id } });
       let tcg = existingCompanies.find(c => c.code === 'TCG');
       let mpi = existingCompanies.find(c => c.code === 'MPI');
       let hfs = existingCompanies.find(c => c.code === 'HFS');
 
-      if (!tcg) tcg = await prisma.company.create({ data: { name: 'TechCorp Global', code: 'TCG', companyGroupId: cg.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', city: 'Hyderabad', state: 'TG', email: 'info@techcorp.com', status: 'active' } });
-      if (!mpi) mpi = await prisma.company.create({ data: { name: 'ManufactPro Industries', code: 'MPI', companyGroupId: cg.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', city: 'Mumbai', state: 'MH', email: 'info@manufactpro.com', status: 'active' } });
-      if (!hfs) hfs = await prisma.company.create({ data: { name: 'HealthFirst Solutions', code: 'HFS', companyGroupId: cg.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', city: 'Bengaluru', state: 'KA', email: 'info@healthfirst.com', status: 'active' } });
+      if (!tcg) tcg = await db.company.create({ data: { name: 'TechCorp Global', code: 'TCG', companyGroupId: cg.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', city: 'Hyderabad', state: 'TG', email: 'info@techcorp.com', status: 'active' } });
+      if (!mpi) mpi = await db.company.create({ data: { name: 'ManufactPro Industries', code: 'MPI', companyGroupId: cg.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', city: 'Mumbai', state: 'MH', email: 'info@manufactpro.com', status: 'active' } });
+      if (!hfs) hfs = await db.company.create({ data: { name: 'HealthFirst Solutions', code: 'HFS', companyGroupId: cg.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', city: 'Bengaluru', state: 'KA', email: 'info@healthfirst.com', status: 'active' } });
       results.companies = 3;
 
       // Branches
-      const existingBranches = await prisma.branch.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+      const existingBranches = await db.branch.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
       if (existingBranches.length < 6) {
         const branchData = [
           { name: 'Hyderabad HQ', code: 'TCG-HYD', city: 'Hyderabad', state: 'TG', companyId: tcg.id },
@@ -124,15 +125,15 @@ export async function POST(request: Request) {
         ];
         for (const b of branchData) {
           if (!existingBranches.find(eb => eb.code === b.code)) {
-            await prisma.branch.create({ data: { ...b, country: 'IN', status: 'active' } });
+            await db.branch.create({ data: { ...b, country: 'IN', status: 'active' } });
           }
         }
         results.branches = 6;
       }
 
       // Departments
-      const allBranches = await prisma.branch.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
-      const existingDepts = await prisma.department.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+      const allBranches = await db.branch.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+      const existingDepts = await db.department.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
       if (existingDepts.length < 24) {
         const DEPT_NAMES = ['Engineering', 'Human Resources', 'Finance', 'Operations', 'Sales & Marketing', 'Quality Assurance', 'Research & Development', 'Administration'];
         const DEPT_CODES = ['ENG', 'HR', 'FIN', 'OPS', 'SAL', 'QA', 'RND', 'ADM'];
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
           for (let i = 0; i < DEPT_NAMES.length; i++) {
             const code = `${company.code}-${DEPT_CODES[i]}`;
             if (!existingDepts.find(d => d.code === code)) {
-              await prisma.department.create({
+              await db.department.create({
                 data: { name: DEPT_NAMES[i], code, companyId: company.id, branchId: companyBranches[0]?.id, status: 'active' },
               });
             }
@@ -151,8 +152,8 @@ export async function POST(request: Request) {
       }
 
       // Designations
-      const allDepts = await prisma.department.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
-      const existingDesgs = await prisma.designation.findMany({ where: { departmentId: { in: allDepts.map(d => d.id) } } });
+      const allDepts = await db.department.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+      const existingDesgs = await db.designation.findMany({ where: { departmentId: { in: allDepts.map(d => d.id) } } });
       if (existingDesgs.length < 18) {
         const DESG_TITLES = [
           { title: 'Vice President', level: 8, minSalary: 3500000, maxSalary: 6000000 },
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
           const companyDepts = allDepts.filter(d => d.companyId === company.id);
           for (const desgDef of DESG_TITLES) {
             const dept = pick(companyDepts);
-            await prisma.designation.create({
+            await db.designation.create({
               data: { title: desgDef.title, departmentId: dept.id, level: desgDef.level, minSalary: desgDef.minSalary, maxSalary: desgDef.maxSalary, status: 'active' },
             });
           }
@@ -176,16 +177,16 @@ export async function POST(request: Request) {
 
       // Shifts (may not exist in deployed schema)
       results.shifts = await safeOp(async () => {
-        const existingShifts = await prisma.shift.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+        const existingShifts = await db.shift.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
         if (existingShifts.length >= 3) return 0;
-        await prisma.shift.create({ data: { name: 'General Shift', code: 'GS', startTime: '09:00', endTime: '18:00', companyId: tcg.id, status: 'active', graceMinutes: 15, isNight: false } });
-        await prisma.shift.create({ data: { name: 'Factory Shift A', code: 'FA', startTime: '07:00', endTime: '15:00', companyId: mpi.id, status: 'active', graceMinutes: 10, isNight: false } });
-        await prisma.shift.create({ data: { name: 'Lab Shift', code: 'LS', startTime: '08:00', endTime: '16:30', companyId: hfs.id, status: 'active', graceMinutes: 15, isNight: false } });
+        await db.shift.create({ data: { name: 'General Shift', code: 'GS', startTime: '09:00', endTime: '18:00', companyId: tcg.id, status: 'active', graceMinutes: 15, isNight: false } });
+        await db.shift.create({ data: { name: 'Factory Shift A', code: 'FA', startTime: '07:00', endTime: '15:00', companyId: mpi.id, status: 'active', graceMinutes: 10, isNight: false } });
+        await db.shift.create({ data: { name: 'Lab Shift', code: 'LS', startTime: '08:00', endTime: '16:30', companyId: hfs.id, status: 'active', graceMinutes: 15, isNight: false } });
         return 3;
       }, 'shifts');
 
       // Leave Types
-      const existingLTs = await prisma.leaveType.findMany();
+      const existingLTs = await db.leaveType.findMany();
       if (existingLTs.length < 6) {
         const ltData = [
           { name: 'Casual Leave', code: 'CL', defaultDays: 12, isPaid: true, carryForward: true, maxCarryForward: 3 },
@@ -197,7 +198,7 @@ export async function POST(request: Request) {
         ];
         for (const lt of ltData) {
           if (!existingLTs.find(e => e.code === lt.code)) {
-            await prisma.leaveType.create({ data: { ...lt, status: 'active' } as any });
+            await db.leaveType.create({ data: { ...lt, status: 'active' } as any });
           }
         }
         results.leaveTypes = 6;
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
 
       // Holidays (may not exist in deployed schema)
       results.holidays = await safeOp(async () => {
-        const existingHolidays = await prisma.holiday.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
+        const existingHolidays = await db.holiday.findMany({ where: { companyId: { in: [tcg.id, mpi.id, hfs.id] } } });
         if (existingHolidays.length >= 10) return 0;
         const HOLIDAYS = [
           { name: 'Republic Day', date: new Date('2026-01-26'), type: 'national' },
@@ -218,7 +219,7 @@ export async function POST(request: Request) {
         ];
         for (const company of [tcg, mpi, hfs]) {
           for (const h of HOLIDAYS) {
-            await prisma.holiday.create({ data: { name: h.name, date: h.date, type: h.type, companyId: company.id, status: 'active' } });
+            await db.holiday.create({ data: { name: h.name, date: h.date, type: h.type, companyId: company.id, status: 'active' } });
           }
         }
         return HOLIDAYS.length * 3;
@@ -229,29 +230,29 @@ export async function POST(request: Request) {
     // ── EMPLOYEES ──
     if (mod === 'all' || mod === 'employees') {
     await runSection('employees', async () => {
-      const tenant = await prisma.tenant.findUnique({ where: { slug: '3boxes-hrms-demo' } });
+      const tenant = await getPlatformDb().tenant.findUnique({ where: { slug: '3boxes-hrms-demo' } });
       if (!tenant) return NextResponse.json({ error: 'Run "core" module first to create tenant' }, { status: 400, headers: corsHeaders() });
 
-      const companies = await prisma.company.findMany({ where: { companyGroupId: { not: null } }, take: 3 });
-      const allDepts = await prisma.department.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
-      const allDesgs = await prisma.designation.findMany({ where: { departmentId: { in: allDepts.map(d => d.id) } } });
-      const allBranches = await prisma.branch.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
+      const companies = await db.company.findMany({ where: { companyGroupId: { not: null } }, take: 3 });
+      const allDepts = await db.department.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
+      const allDesgs = await db.designation.findMany({ where: { departmentId: { in: allDepts.map(d => d.id) } } });
+      const allBranches = await db.branch.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
 
       if (companies.length < 3) return NextResponse.json({ error: 'Run "core" first' }, { status: 400, headers: corsHeaders() });
 
       // Users
-      const existingUsers = await prisma.user.findMany({ where: { tenantId: tenant.id } });
+      const existingUsers = await db.user.findMany({ where: { tenantId: tenant.id } });
 
       // Create super_admin if not exists
       let superAdminUser = existingUsers.find(u => u.role === 'super_admin' && u.email === 'superadmin@3boxeshrms.com');
       if (!superAdminUser) {
-        superAdminUser = await prisma.user.create({ data: { email: 'superadmin@3boxeshrms.com', password: DEMO_PASSWORD_HASH, name: 'Super Admin', role: 'super_admin', status: 'active', tenantId: tenant.id } });
+        superAdminUser = await db.user.create({ data: { email: 'superadmin@3boxeshrms.com', password: DEMO_PASSWORD_HASH, name: 'Super Admin', role: 'super_admin', status: 'active', tenantId: tenant.id } });
       }
 
       // Create tenant_admin
       let tenantAdminUser = existingUsers.find(u => u.role === 'tenant_admin');
       if (!tenantAdminUser) {
-        tenantAdminUser = await prisma.user.create({ data: { email: 'tenantadmin@3boxeshrms.com', password: DEMO_PASSWORD_HASH, name: 'Tenant Admin', role: 'tenant_admin', status: 'active', tenantId: tenant.id } });
+        tenantAdminUser = await db.user.create({ data: { email: 'tenantadmin@3boxeshrms.com', password: DEMO_PASSWORD_HASH, name: 'Tenant Admin', role: 'tenant_admin', status: 'active', tenantId: tenant.id } });
       }
 
       // HR Admins
@@ -261,7 +262,7 @@ export async function POST(request: Request) {
       for (let i = 0; i < 3; i++) {
         let hrUser = existingUsers.find(u => u.email === hrAdminEmails[i]);
         if (!hrUser) {
-          hrUser = await prisma.user.create({ data: { email: hrAdminEmails[i], password: DEMO_PASSWORD_HASH, name: hrAdminNames[i], role: 'hr_admin', status: 'active', tenantId: tenant.id } });
+          hrUser = await db.user.create({ data: { email: hrAdminEmails[i], password: DEMO_PASSWORD_HASH, name: hrAdminNames[i], role: 'hr_admin', status: 'active', tenantId: tenant.id } });
         }
         hrAdminUsers.push(hrUser);
       }
@@ -273,7 +274,7 @@ export async function POST(request: Request) {
       for (let i = 0; i < mgrEmails.length; i++) {
         let mgr = existingUsers.find(u => u.email === mgrEmails[i]);
         if (!mgr) {
-          mgr = await prisma.user.create({ data: { email: mgrEmails[i], password: DEMO_PASSWORD_HASH, name: mgrNames[i], role: 'manager', status: 'active', tenantId: tenant.id } });
+          mgr = await db.user.create({ data: { email: mgrEmails[i], password: DEMO_PASSWORD_HASH, name: mgrNames[i], role: 'manager', status: 'active', tenantId: tenant.id } });
         }
         mgrUsers.push(mgr);
       }
@@ -297,18 +298,18 @@ export async function POST(request: Request) {
         const email = `${name.first.toLowerCase()}.${name.last.toLowerCase()}@3boxeshrms.com`;
         let empUser = existingUsers.find(u => u.email === email);
         if (!empUser) {
-          empUser = await prisma.user.create({ data: { email, password: DEMO_PASSWORD_HASH, name: `${name.first} ${name.last}`, role: 'employee', status: 'active', tenantId: tenant.id } });
+          empUser = await db.user.create({ data: { email, password: DEMO_PASSWORD_HASH, name: `${name.first} ${name.last}`, role: 'employee', status: 'active', tenantId: tenant.id } });
         }
         empUsers.push({ ...empUser, firstName: name.first, lastName: name.last });
       }
       results.users = 1 + 1 + 3 + 6 + EMP_NAMES.length; // 41
 
       // Create Employee records
-      const existingEmps = await prisma.employee.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
+      const existingEmps = await db.employee.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
 
       // Super Admin Employee
       if (!existingEmps.find(e => e.employeeId === 'EMP-SYS-SUP001')) {
-        await prisma.employee.create({
+        await db.employee.create({
           data: { employeeId: 'EMP-SYS-SUP001', firstName: 'Super', lastName: 'Admin', email: superAdminUser.email, userId: superAdminUser.id, departmentId: allDepts[0]?.id, designationId: allDesgs[0]?.id, branchId: allBranches[0]?.id, companyId: companies[0].id, dateOfJoining: new Date('2020-01-01'), dateOfBirth: new Date('1980-01-01'), gender: 'male', nationality: 'Indian', city: 'Hyderabad', state: 'TG', country: 'IN', status: 'active', salary: 5000000, salaryCurrency: 'INR' },
         });
       }
@@ -322,7 +323,7 @@ export async function POST(request: Request) {
           const hrDept = companyDepts.find(d => d.name === 'Human Resources') || companyDepts[0];
           const companyDesgs = allDesgs.filter(d => companyDepts.some(cd => cd.id === d.departmentId));
           const desg = companyDesgs.find(d => d.title === 'Senior Manager') || companyDesgs[0];
-          await prisma.employee.create({
+          await db.employee.create({
             data: { employeeId: empCode, firstName: nameParts[0], lastName: nameParts[1] || '', email: hrAdminUsers[i].email, userId: hrAdminUsers[i].id, departmentId: hrDept.id, designationId: desg.id, branchId: allBranches.filter(b => b.companyId === companies[i].id)[0]?.id, companyId: companies[i].id, dateOfJoining: new Date('2020-03-15'), dateOfBirth: new Date('1985-06-20'), gender: i % 2 === 0 ? 'female' : 'male', nationality: 'Indian', city: companies[i].city, state: companies[i].state, country: 'IN', status: 'active', salary: 1800000 + i * 200000, salaryCurrency: 'INR' },
           });
         }
@@ -339,7 +340,7 @@ export async function POST(request: Request) {
           const dept = companyDepts[i % companyDepts.length];
           const companyDesgs = allDesgs.filter(d => companyDepts.some(cd => cd.id === d.departmentId));
           const desg = companyDesgs.find(d => d.title === 'Manager') || companyDesgs[0];
-          await prisma.employee.create({
+          await db.employee.create({
             data: { employeeId: empCode, firstName: nameParts[0], lastName: nameParts[1] || '', email: mgrUsers[i].email, userId: mgrUsers[i].id, departmentId: dept.id, designationId: desg.id, branchId: allBranches.filter(b => b.companyId === company.id)[0]?.id, companyId: company.id, dateOfJoining: randDate(new Date('2019-01-01'), new Date('2022-06-30')), dateOfBirth: randDate(new Date('1975-01-01'), new Date('1990-12-31')), gender: i % 2 === 0 ? 'male' : 'female', nationality: 'Indian', city: company.city, state: company.state, country: 'IN', status: 'active', salary: 1800000 + i * 150000, salaryCurrency: 'INR' },
           });
         }
@@ -360,7 +361,7 @@ export async function POST(request: Request) {
         const desg = companyDesgs[Math.min(Math.floor(i / 5), companyDesgs.length - 1)];
         const companyBranches = allBranches.filter(b => b.companyId === company.id);
 
-        await prisma.employee.create({
+        await db.employee.create({
           data: {
             employeeId: empCode, firstName: name.first, lastName: name.last,
             email: empUsers[i].email, userId: empUsers[i].id,
@@ -379,13 +380,13 @@ export async function POST(request: Request) {
       results.employees = empCreated + 10; // admins + managers + regular
 
       // Employee Company Mappings
-      const allEmployees = await prisma.employee.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
+      const allEmployees = await db.employee.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
       let mappingCount = 0;
       for (const emp of allEmployees) {
         if (emp.companyId) {
-          const existingMapping = await prisma.employeeCompanyMapping.findFirst({ where: { employeeId: emp.id, companyId: emp.companyId } });
+          const existingMapping = await db.employeeCompanyMapping.findFirst({ where: { employeeId: emp.id, companyId: emp.companyId } });
           if (!existingMapping) {
-            await prisma.employeeCompanyMapping.create({
+            await db.employeeCompanyMapping.create({
               data: { employeeId: emp.id, companyId: emp.companyId, employeeCode: emp.employeeId, departmentId: emp.departmentId, designationId: emp.designationId, branchId: emp.branchId, isPrimary: true, status: 'active' },
             });
             mappingCount++;
@@ -397,10 +398,10 @@ export async function POST(request: Request) {
       // Dependents (for first 15 employees)
       let depCount = 0;
       for (const emp of allEmployees.slice(0, 15)) {
-        const existingDeps = await prisma.dependent.findMany({ where: { employeeId: emp.id } });
+        const existingDeps = await db.dependent.findMany({ where: { employeeId: emp.id } });
         if (existingDeps.length > 0) continue;
         for (let d = 0; d < randInt(1, 3); d++) {
-          await prisma.dependent.create({
+          await db.dependent.create({
             data: { employeeId: emp.id, name: `${pick(['Aarav', 'Aditi', 'Vihaan', 'Saanvi'])} ${emp.lastName}`, relationship: pick(['spouse', 'son', 'daughter', 'father', 'mother']), dateOfBirth: randDate(new Date('1960-01-01'), new Date('2020-12-31')), gender: pick(['male', 'female']) },
           });
           depCount++;
@@ -416,10 +417,10 @@ export async function POST(request: Request) {
         { degree: 'M.Sc Statistics', institution: 'ISI Kolkata', year: 2021, percentage: 90.0 },
       ];
       for (const emp of allEmployees.slice(0, 20)) {
-        const existingQuals = await prisma.qualification.findMany({ where: { employeeId: emp.id } });
+        const existingQuals = await db.qualification.findMany({ where: { employeeId: emp.id } });
         if (existingQuals.length > 0) continue;
         const qual = QUAL_DATA[qualCount % QUAL_DATA.length];
-        await prisma.qualification.create({ data: { employeeId: emp.id, ...qual, specialization: pick(['Full Stack', 'Data Science', 'Finance']) } });
+        await db.qualification.create({ data: { employeeId: emp.id, ...qual, specialization: pick(['Full Stack', 'Data Science', 'Finance']) } });
         qualCount++;
       }
       results.qualifications = qualCount;
@@ -429,9 +430,9 @@ export async function POST(request: Request) {
     // ── HR Module ──
     if (mod === 'all' || mod === 'hr') {
     await runSection('hr', async () => {
-      const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
-      const leaveTypes = await prisma.leaveType.findMany();
-      const managers = await prisma.employee.findMany({ where: { email: { contains: 'mgr' } } });
+      const allEmployees = await db.employee.findMany({ where: { status: 'active' } });
+      const leaveTypes = await db.leaveType.findMany();
+      const managers = await db.employee.findMany({ where: { email: { contains: 'mgr' } } });
 
       if (allEmployees.length === 0) return NextResponse.json({ error: 'Run "employees" first' }, { status: 400, headers: corsHeaders() });
 
@@ -440,11 +441,11 @@ export async function POST(request: Request) {
       const currentYear = new Date().getFullYear();
       for (const emp of allEmployees.slice(0, 30)) {
         for (const lt of leaveTypes.slice(0, 4)) {
-          const existing = await prisma.leaveBalance.findFirst({ where: { employeeId: emp.id, leaveTypeId: lt.id, year: currentYear } });
+          const existing = await db.leaveBalance.findFirst({ where: { employeeId: emp.id, leaveTypeId: lt.id, year: currentYear } });
           if (!existing) {
             const total = lt.defaultDays;
             const used = randInt(0, Math.min(total, 8));
-            await prisma.leaveBalance.create({ data: { employeeId: emp.id, leaveTypeId: lt.id, year: currentYear, total, used, remaining: total - used, carryForward: 0 } });
+            await db.leaveBalance.create({ data: { employeeId: emp.id, leaveTypeId: lt.id, year: currentYear, total, used, remaining: total - used, carryForward: 0 } });
             lbCount++;
           }
         }
@@ -454,13 +455,13 @@ export async function POST(request: Request) {
       // Leave Requests
       let lrCount = 0;
       for (const emp of allEmployees.slice(3, 20)) {
-        const existingReqs = await prisma.leaveRequest.findMany({ where: { employeeId: emp.id } });
+        const existingReqs = await db.leaveRequest.findMany({ where: { employeeId: emp.id } });
         if (existingReqs.length > 2) continue;
         for (let r = 0; r < randInt(1, 3); r++) {
           const lt = pick(leaveTypes.filter(l => l.code !== 'ML' && l.code !== 'PL'));
           const startDate = randDate(new Date('2026-01-01'), new Date('2026-07-15'));
           const numDays = randInt(1, 5);
-          await prisma.leaveRequest.create({
+          await db.leaveRequest.create({
             data: { employeeId: emp.id, leaveTypeId: lt.id, startDate, endDate: new Date(startDate.getTime() + numDays * 86400000), numberOfDays: numDays, reason: pick(['Personal work', 'Family function', 'Health checkup', 'Travel']), status: pick(['pending', 'approved', 'approved', 'rejected']), approvedBy: managers[0]?.id },
           });
           lrCount++;
@@ -476,11 +477,11 @@ export async function POST(request: Request) {
         for (let d = 10; d >= 0; d--) {
           const date = new Date(today.getTime() - d * 86400000);
           if (date.getDay() === 0 || date.getDay() === 6) continue;
-          const existing = await prisma.attendance.findFirst({ where: { employeeId: emp.id, date } });
+          const existing = await db.attendance.findFirst({ where: { employeeId: emp.id, date } });
           if (existing) continue;
           const isLate = Math.random() < 0.1;
           const checkIn = new Date(date.getTime() + (isLate ? 10.5 : 9) * 3600000);
-          await prisma.attendance.create({
+          await db.attendance.create({
             data: { employeeId: emp.id, date, checkIn, checkOut: new Date(checkIn.getTime() + 8.5 * 3600000), workHours: 8.5, status: isLate ? 'late' : 'present' },
           });
           attCount++;
@@ -491,9 +492,9 @@ export async function POST(request: Request) {
       // Performance Reviews
       let revCount = 0;
       for (const emp of allEmployees.slice(3, 20)) {
-        const existing = await prisma.performanceReview.findFirst({ where: { employeeId: emp.id, period: 'Q1 2026' } });
+        const existing = await db.performanceReview.findFirst({ where: { employeeId: emp.id, period: 'Q1 2026' } });
         if (existing) continue;
-        await prisma.performanceReview.create({
+        await db.performanceReview.create({
           data: { employeeId: emp.id, reviewerId: managers[0]?.id, period: 'Q1 2026', status: pick(['completed', 'completed', 'in_progress']), overallRating: randInt(3, 5), communicationRating: randInt(3, 5), technicalRating: randInt(3, 5), leadershipRating: randInt(2, 5), teamworkRating: randInt(3, 5), comments: pick(['Strong performer', 'Good team player', 'Room for growth in leadership']) },
         });
         revCount++;
@@ -504,10 +505,10 @@ export async function POST(request: Request) {
       let goalCount = 0;
       const GOAL_TITLES = ['Complete AWS Certification', 'Improve Code Quality', 'Reduce Bug Count', 'Lead Sprint Planning', 'Complete Onboarding Docs'];
       for (const emp of allEmployees.slice(3, 15)) {
-        const existing = await prisma.goal.findFirst({ where: { employeeId: emp.id } });
+        const existing = await db.goal.findFirst({ where: { employeeId: emp.id } });
         if (existing) continue;
         for (let g = 0; g < 2; g++) {
-          await prisma.goal.create({ data: { employeeId: emp.id, title: GOAL_TITLES[g], description: `Target: ${GOAL_TITLES[g].toLowerCase()}`, category: pick(['learning', 'performance', 'leadership']), priority: pick(['high', 'medium']), startDate: new Date('2026-01-01'), targetDate: new Date('2026-12-31'), status: 'in_progress', progress: randInt(20, 80) } });
+          await db.goal.create({ data: { employeeId: emp.id, title: GOAL_TITLES[g], description: `Target: ${GOAL_TITLES[g].toLowerCase()}`, category: pick(['learning', 'performance', 'leadership']), priority: pick(['high', 'medium']), startDate: new Date('2026-01-01'), targetDate: new Date('2026-12-31'), status: 'in_progress', progress: randInt(20, 80) } });
           goalCount++;
         }
       }
@@ -528,23 +529,23 @@ export async function POST(request: Request) {
       ];
 
       let courseCount = 0;
-      const existingCourses = await prisma.training.findMany();
+      const existingCourses = await db.training.findMany();
       for (const c of COURSE_DATA) {
         if (existingCourses.find(ec => ec.title === c.title)) continue;
-        await prisma.training.create({ data: { ...c, status: 'active', description: `Training on ${c.title.toLowerCase()}`, startDate: new Date('2026-02-01'), endDate: new Date('2026-12-31'), maxParticipants: randInt(15, 50) } as any });
+        await db.training.create({ data: { ...c, status: 'active', description: `Training on ${c.title.toLowerCase()}`, startDate: new Date('2026-02-01'), endDate: new Date('2026-12-31'), maxParticipants: randInt(15, 50) } as any });
         courseCount++;
       }
       results.courses = courseCount;
 
       // Training Enrollments
       let enrollCount = 0;
-      const courses = await prisma.training.findMany();
+      const courses = await db.training.findMany();
       for (const course of courses) {
         const selectedEmps = allEmployees.slice(0, randInt(3, 6));
         for (const emp of selectedEmps) {
-          const existing = await prisma.trainingEnrollment.findFirst({ where: { trainingId: course.id, employeeId: emp.id } });
+          const existing = await db.trainingEnrollment.findFirst({ where: { trainingId: course.id, employeeId: emp.id } });
           if (existing) continue;
-          await prisma.trainingEnrollment.create({ data: { trainingId: course.id, employeeId: emp.id, status: pick(['enrolled', 'in_progress', 'completed']), enrolledDate: randDate(new Date('2026-01-01'), new Date('2026-06-30')), rating: randInt(3, 5) } });
+          await db.trainingEnrollment.create({ data: { trainingId: course.id, employeeId: emp.id, status: pick(['enrolled', 'in_progress', 'completed']), enrolledDate: randDate(new Date('2026-01-01'), new Date('2026-06-30')), rating: randInt(3, 5) } });
           enrollCount++;
         }
       }
@@ -555,8 +556,8 @@ export async function POST(request: Request) {
     // ── PROJECTS ──
     if (mod === 'all' || mod === 'projects') {
     await runSection('projects', async () => {
-      const companies = await prisma.company.findMany({ take: 3 });
-      const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
+      const companies = await db.company.findMany({ take: 3 });
+      const allEmployees = await db.employee.findMany({ where: { status: 'active' } });
 
       // Projects
       const PROJECT_DATA = [
@@ -568,22 +569,22 @@ export async function POST(request: Request) {
       ];
 
       let projCount = 0;
-      const existingProjects = await prisma.project.findMany();
+      const existingProjects = await db.project.findMany();
       for (const p of PROJECT_DATA) {
         if (existingProjects.find(ep => ep.code === p.code)) continue;
-        const project = await prisma.project.create({ data: p as any });
+        const project = await db.project.create({ data: p as any });
         projCount++;
 
         // Project Members
         const companyEmps = allEmployees.filter(e => e.companyId === p.companyId);
         for (let m = 0; m < Math.min(5, companyEmps.length); m++) {
-          await prisma.projectMember.create({ data: { projectId: project.id, employeeId: companyEmps[m].id, role: m === 0 ? 'lead' : 'developer', allocation: randInt(50, 100) } });
+          await db.projectMember.create({ data: { projectId: project.id, employeeId: companyEmps[m].id, role: m === 0 ? 'lead' : 'developer', allocation: randInt(50, 100) } });
         }
 
         // Project Tasks
         const TASKS = ['Requirement Analysis', 'System Design', 'API Development', 'Frontend Development', 'Unit Testing', 'Integration Testing'];
         for (let t = 0; t < TASKS.length; t++) {
-          await prisma.projectTask.create({ data: { projectId: project.id, title: TASKS[t], status: t < 2 ? 'completed' : (t < 4 ? 'in_progress' : 'todo'), priority: pick(['medium', 'high']), dueDate: randDate(new Date('2026-03-01'), new Date('2026-12-31')), estimatedHours: randInt(8, 40) } });
+          await db.projectTask.create({ data: { projectId: project.id, title: TASKS[t], status: t < 2 ? 'completed' : (t < 4 ? 'in_progress' : 'todo'), priority: pick(['medium', 'high']), dueDate: randDate(new Date('2026-03-01'), new Date('2026-12-31')), estimatedHours: randInt(8, 40) } });
         }
       }
       results.projects = projCount;
@@ -597,10 +598,10 @@ export async function POST(request: Request) {
         { name: 'Biocon Limited', industry: 'Biotech', email: 'bd@biocon.com', companyId: companies[2]?.id },
       ];
       let clientCount = 0;
-      const existingClients = await prisma.client.findMany();
+      const existingClients = await db.client.findMany();
       for (const c of CLIENT_DATA) {
         if (existingClients.find(ec => ec.name === c.name)) continue;
-        await prisma.client.create({ data: { ...c, status: 'active' } as any });
+        await db.client.create({ data: { ...c, status: 'active' } as any });
         clientCount++;
       }
       results.clients = clientCount;
@@ -612,10 +613,10 @@ export async function POST(request: Request) {
         { name: 'Siemens India', category: 'Industrial Equipment', email: 'supply@siemens.in', companyId: companies[1]?.id },
       ];
       let vendorCount = 0;
-      const existingVendors = await prisma.vendor.findMany();
+      const existingVendors = await db.vendor.findMany();
       for (const v of VENDOR_DATA) {
         if (existingVendors.find(ev => ev.name === v.name)) continue;
-        await prisma.vendor.create({ data: { ...v, status: 'active', complianceStatus: 'approved' } as any });
+        await db.vendor.create({ data: { ...v, status: 'active', complianceStatus: 'approved' } as any });
         vendorCount++;
       }
       results.vendors = vendorCount;
@@ -625,9 +626,9 @@ export async function POST(request: Request) {
     // ── FINANCE ──
     if (mod === 'all' || mod === 'finance') {
     await runSection('finance', async () => {
-      const companies = await prisma.company.findMany({ take: 3 });
-      const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
-      const managers = await prisma.employee.findMany({ where: { email: { contains: 'mgr' } } });
+      const companies = await db.company.findMany({ take: 3 });
+      const allEmployees = await db.employee.findMany({ where: { status: 'active' } });
+      const managers = await db.employee.findMany({ where: { email: { contains: 'mgr' } } });
 
       // Salary Structures
       const SAL_STRUCTS = [
@@ -637,16 +638,16 @@ export async function POST(request: Request) {
       ];
       let ssCount = 0;
       for (const ss of SAL_STRUCTS) {
-        const existing = await prisma.salaryStructure.findFirst({ where: { name: ss.name } });
+        const existing = await db.salaryStructure.findFirst({ where: { name: ss.name } });
         if (existing) continue;
-        const struct = await prisma.salaryStructure.create({ data: { name: ss.name, companyId: ss.companyId, effectiveFrom: new Date('2026-01-01'), status: 'active' } });
+        const struct = await db.salaryStructure.create({ data: { name: ss.name, companyId: ss.companyId, effectiveFrom: new Date('2026-01-01'), status: 'active' } });
         const components = [
           { name: 'Basic Salary', type: 'earning', amount: ss.baseSalary, isFixed: true, isTaxable: true, salaryStructureId: struct.id },
           { name: 'HRA', type: 'earning', amount: ss.baseSalary * 0.4, isFixed: true, isTaxable: true, salaryStructureId: struct.id },
           { name: 'PF', type: 'deduction', amount: ss.baseSalary * 0.12, isFixed: true, isTaxable: false, salaryStructureId: struct.id },
         ];
         for (const comp of components) {
-          await prisma.salaryComponent.create({ data: comp });
+          await db.salaryComponent.create({ data: comp });
         }
         ssCount++;
       }
@@ -662,9 +663,9 @@ export async function POST(request: Request) {
         { name: 'TDS', type: 'deduction', calculationType: 'variable', statutory: true },
       ];
       for (const pc of PAYROLL_COMPS) {
-        const existing = await prisma.payrollComponent.findFirst({ where: { name: pc.name } });
+        const existing = await db.payrollComponent.findFirst({ where: { name: pc.name } });
         if (existing) continue;
-        await prisma.payrollComponent.create({ data: { ...pc, status: 'active' } });
+        await db.payrollComponent.create({ data: { ...pc, status: 'active' } });
         pcCount++;
       }
       results.payrollComponents = pcCount;
@@ -673,7 +674,7 @@ export async function POST(request: Request) {
       let expCount = 0;
       for (let i = 0; i < 10; i++) {
         const emp = pick(allEmployees);
-        await prisma.expenseClaim.create({
+        await db.expenseClaim.create({
           data: { employeeId: emp.id, category: pick(['Travel', 'Meals', 'Software', 'Training']), description: pick(['Flight to Mumbai', 'Team lunch', 'JetBrains subscription', 'AWS exam fee']), amount: pick([2500, 3200, 15000, 22000]), status: pick(['pending', 'approved', 'approved', 'rejected']), submittedDate: randDate(new Date('2026-01-01'), new Date('2026-07-15')), approvedBy: managers[0]?.id },
         });
         expCount++;
@@ -684,7 +685,7 @@ export async function POST(request: Request) {
       let travelCount = 0;
       for (let i = 0; i < 5; i++) {
         const emp = pick(allEmployees);
-        await prisma.travelRequest.create({
+        await db.travelRequest.create({
           data: { employeeId: emp.id, destination: pick(['Mumbai', 'Bengaluru', 'Singapore', 'Dubai']), purpose: pick(['Client Meeting', 'Tech Summit', 'Sales Conference']), type: pick(['domestic', 'international']) as any, estimatedCost: pick([15000, 25000, 150000, 200000]), startDate: randDate(new Date('2026-03-01'), new Date('2026-09-30')), endDate: randDate(new Date('2026-03-03'), new Date('2026-10-02')), status: pick(['pending', 'approved', 'rejected']) as any, approvedBy: managers[0]?.id },
         });
         travelCount++;
@@ -695,7 +696,7 @@ export async function POST(request: Request) {
       let loanCount = 0;
       for (let i = 0; i < 4; i++) {
         const emp = pick(allEmployees.slice(5, 25));
-        await prisma.loan.create({
+        await db.loan.create({
           data: { employeeId: emp.id, type: pick(['personal', 'emergency', 'education', 'vehicle']) as any, amount: pick([50000, 200000, 300000, 500000]), interestRate: pick([5, 6.5, 8.5, 9]), tenure: pick([6, 24, 36, 48]), emi: pick([8550, 9100, 9180, 12450]), outstandingAmount: pick([35000, 140000, 210000]), status: pick(['pending', 'approved', 'active']), appliedDate: randDate(new Date('2025-06-01'), new Date('2026-06-30')) },
         });
         loanCount++;
@@ -705,7 +706,7 @@ export async function POST(request: Request) {
       // Overtime
       let otCount = 0;
       for (const emp of allEmployees.slice(3, 10)) {
-        await prisma.overtimeRecord.create({ data: { employeeId: emp.id, date: randDate(new Date('2026-01-01'), new Date('2026-07-15')), hours: randInt(1, 4), rate: 250, status: pick(['pending', 'approved']), approvedBy: managers[0]?.id, reason: pick(['Project deadline', 'Production issue']) } });
+        await db.overtimeRecord.create({ data: { employeeId: emp.id, date: randDate(new Date('2026-01-01'), new Date('2026-07-15')), hours: randInt(1, 4), rate: 250, status: pick(['pending', 'approved']), approvedBy: managers[0]?.id, reason: pick(['Project deadline', 'Production issue']) } });
         otCount++;
       }
       results.overtimeRecords = otCount;
@@ -715,11 +716,11 @@ export async function POST(request: Request) {
     // ── SUPPORT ──
     if (mod === 'all' || mod === 'support') {
     await runSection('support', async () => {
-      const companies = await prisma.company.findMany({ take: 3 });
-      const allEmployees = await prisma.employee.findMany({ where: { status: 'active' } });
-      const managers = await prisma.employee.findMany({ where: { email: { contains: 'mgr' } } });
-      const tenant = await prisma.tenant.findFirst();
-      const superAdminUser = await prisma.user.findFirst({ where: { role: 'super_admin' } });
+      const companies = await db.company.findMany({ take: 3 });
+      const allEmployees = await db.employee.findMany({ where: { status: 'active' } });
+      const managers = await db.employee.findMany({ where: { email: { contains: 'mgr' } } });
+      const tenant = await getPlatformDb().tenant.findFirst();
+      const superAdminUser = await db.user.findFirst({ where: { role: 'super_admin' } });
 
       // Tickets
       const TICKET_DATA = [
@@ -738,7 +739,7 @@ export async function POST(request: Request) {
       ];
       let ticketCount = 0;
       for (const t of TICKET_DATA) {
-        await prisma.ticket.create({ data: { employeeId: pick(allEmployees).id, subject: t.subject, category: t.category as any, priority: t.priority as any, description: `${t.subject} - needs attention`, status: pick(['open', 'in_progress', 'resolved', 'closed']), assignedTo: pick(managers).id } });
+        await db.ticket.create({ data: { employeeId: pick(allEmployees).id, subject: t.subject, category: t.category as any, priority: t.priority as any, description: `${t.subject} - needs attention`, status: pick(['open', 'in_progress', 'resolved', 'closed']), assignedTo: pick(managers).id } });
         ticketCount++;
       }
       results.tickets = ticketCount;
@@ -754,9 +755,9 @@ export async function POST(request: Request) {
       let policyCount = 0;
       for (const p of POLICY_DATA) {
         for (const company of companies) {
-          const existing = await prisma.policy.findFirst({ where: { title: p.title, companyId: company.id } });
+          const existing = await db.policy.findFirst({ where: { title: p.title, companyId: company.id } });
           if (existing) continue;
-          await prisma.policy.create({ data: { title: p.title, content: p.content, category: p.category as any, companyId: company.id, status: 'active', version: '1.0' } });
+          await db.policy.create({ data: { title: p.title, content: p.content, category: p.category as any, companyId: company.id, status: 'active', version: '1.0' } });
           policyCount++;
         }
       }
@@ -775,9 +776,9 @@ export async function POST(request: Request) {
       ];
       let assetCount = 0;
       for (const a of ASSET_DATA) {
-        const existing = await prisma.asset.findFirst({ where: { serialNumber: a.serialNumber } });
+        const existing = await db.asset.findFirst({ where: { serialNumber: a.serialNumber } });
         if (existing) continue;
-        await prisma.asset.create({ data: { ...a, status: 'available', purchaseDate: randDate(new Date('2024-01-01'), new Date('2026-06-30')) } as any });
+        await db.asset.create({ data: { ...a, status: 'available', purchaseDate: randDate(new Date('2024-01-01'), new Date('2026-06-30')) } as any });
         assetCount++;
       }
       results.assets = assetCount;
@@ -791,7 +792,7 @@ export async function POST(request: Request) {
         { title: 'Customer Champion', type: 'customer' },
       ];
       for (const r of REC_DATA) {
-        await prisma.recognition.create({ data: { employeeId: pick(allEmployees).id, title: r.title, type: r.type as any, message: `${r.title} - outstanding contribution`, givenBy: managers[0]?.id, date: randDate(new Date('2026-01-01'), new Date('2026-07-15')) } });
+        await db.recognition.create({ data: { employeeId: pick(allEmployees).id, title: r.title, type: r.type as any, message: `${r.title} - outstanding contribution`, givenBy: managers[0]?.id, date: randDate(new Date('2026-01-01'), new Date('2026-07-15')) } });
         recCount++;
       }
       results.recognitions = recCount;
@@ -812,11 +813,11 @@ export async function POST(request: Request) {
         { title: 'Intern - Software Development', location: 'Hyderabad', type: 'internship', experience: '0-1 years', salary: '15-25K/month', vacancies: 5 },
       ];
       let jobCount = 0;
-      const allDepts = await prisma.department.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
+      const allDepts = await db.department.findMany({ where: { companyId: { in: companies.map(c => c.id) } } });
       for (const j of JOB_DATA) {
-        const existing = await prisma.jobPosting.findFirst({ where: { title: j.title } });
+        const existing = await db.jobPosting.findFirst({ where: { title: j.title } });
         if (existing) continue;
-        await prisma.jobPosting.create({
+        await db.jobPosting.create({
           data: { title: j.title, position: j.title, location: j.location, type: j.type, experience: j.experience, salary: j.salary, departmentId: pick(allDepts).id, description: `Looking for ${j.title.toLowerCase()}`, requirements: j.experience, status: 'open', postedDate: new Date(), closingDate: new Date('2026-12-31'), vacancies: j.vacancies },
         });
         jobCount++;
@@ -825,7 +826,7 @@ export async function POST(request: Request) {
 
       // Notifications
       let notifCount = 0;
-      const allUsers = await prisma.user.findMany({ where: { tenantId: tenant?.id } });
+      const allUsers = await db.user.findMany({ where: { tenantId: tenant?.id } });
       const NOTIF_DATA = [
         { title: 'New Job Application', message: 'Arun Kumar applied for Senior Full-Stack Developer', type: 'info', category: 'recruitment' },
         { title: 'Leave Approved', message: 'Your casual leave for July 10-12 approved', type: 'success', category: 'leave' },
@@ -840,7 +841,7 @@ export async function POST(request: Request) {
       ];
       for (const n of NOTIF_DATA) {
         for (const user of allUsers.slice(0, randInt(2, 5))) {
-          await prisma.notification.create({ data: { tenantId: tenant?.id, userId: user.id, title: n.title, message: n.message, type: n.type as any, category: n.category as any, isRead: Math.random() > 0.5 } });
+          await db.notification.create({ data: { tenantId: tenant?.id, userId: user.id, title: n.title, message: n.message, type: n.type as any, category: n.category as any, isRead: Math.random() > 0.5 } });
           notifCount++;
         }
       }
@@ -854,9 +855,9 @@ export async function POST(request: Request) {
         { title: 'Mandatory Fire Drill', message: 'July 25 at 11:00 AM - All must participate', priority: 'high', type: 'safety' },
       ];
       for (const a of ANN_DATA) {
-        const existing = await prisma.announcement.findFirst({ where: { title: a.title, tenantId: tenant?.id } });
+        const existing = await db.announcement.findFirst({ where: { title: a.title, tenantId: tenant?.id } });
         if (existing) continue;
-        await prisma.announcement.create({ data: { tenantId: tenant?.id, title: a.title, message: a.message, priority: a.priority as any, type: a.type as any, isActive: true, createdBy: superAdminUser?.id } });
+        await db.announcement.create({ data: { tenantId: tenant?.id, title: a.title, message: a.message, priority: a.priority as any, type: a.type as any, isActive: true, createdBy: superAdminUser?.id } });
       }
       results.announcements = ANN_DATA.length;
 
@@ -868,35 +869,35 @@ export async function POST(request: Request) {
       ];
       for (let i = 0; i < 20; i++) {
         const audit = AUDIT_ACTIONS[i % AUDIT_ACTIONS.length];
-        await prisma.auditLog.create({ data: { userId: pick(allUsers).id, action: audit.action, module: audit.module, details: `${audit.action} performed`, timestamp: randDate(new Date('2026-01-01'), new Date('2026-07-15')) } });
+        await db.auditLog.create({ data: { userId: pick(allUsers).id, action: audit.action, module: audit.module, details: `${audit.action} performed`, timestamp: randDate(new Date('2026-01-01'), new Date('2026-07-15')) } });
         auditCount++;
       }
       results.auditLogs = auditCount;
 
       // Invoices
-      const clients = await prisma.client.findMany();
-      const projects = await prisma.project.findMany();
+      const clients = await db.client.findMany();
+      const projects = await db.project.findMany();
       let invCount = 0;
       for (let i = 0; i < 4; i++) {
         const invNum = `INV-2026-${String(i + 1).padStart(3, '0')}`;
-        const existing = await prisma.invoice.findFirst({ where: { invoiceNumber: invNum } });
+        const existing = await db.invoice.findFirst({ where: { invoiceNumber: invNum } });
         if (existing) continue;
         const amount = pick([450000, 750000, 380000, 250000]);
         const tax = Math.round(amount * 0.18);
-        const inv = await prisma.invoice.create({ data: { invoiceNumber: invNum, companyId: companies[0]?.id, clientId: clients[i % clients.length]?.id, projectId: projects[i % projects.length]?.id, amount, tax, totalAmount: amount + tax, status: pick(['draft', 'sent', 'paid', 'overdue']) as any, issueDate: new Date(), dueDate: new Date(Date.now() + 30 * 86400000) } as any });
-        await prisma.invoiceLineItem.create({ data: { invoiceId: inv.id, description: 'Professional Services', quantity: 100, rate: 3000, amount } });
+        const inv = await db.invoice.create({ data: { invoiceNumber: invNum, companyId: companies[0]?.id, clientId: clients[i % clients.length]?.id, projectId: projects[i % projects.length]?.id, amount, tax, totalAmount: amount + tax, status: pick(['draft', 'sent', 'paid', 'overdue']) as any, issueDate: new Date(), dueDate: new Date(Date.now() + 30 * 86400000) } as any });
+        await db.invoiceLineItem.create({ data: { invoiceId: inv.id, description: 'Professional Services', quantity: 100, rate: 3000, amount } });
         invCount++;
       }
       results.invoices = invCount;
 
       // Subscription Plan
-      const existingPlan = await prisma.subscriptionPlan.findFirst();
+      const existingPlan = await getPlatformDb().subscriptionPlan.findFirst();
       if (!existingPlan) {
-        const plan = await prisma.subscriptionPlan.create({
+        const plan = await getPlatformDb().subscriptionPlan.create({
           data: { name: 'Enterprise Demo', planType: 'enterprise', monthlyPrice: 299, annualPrice: 2990, employeeLimit: 500, companyLimit: 10, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, status: 'active', description: 'Full-featured enterprise demo' },
         });
         if (tenant) {
-          await prisma.subscription.create({ data: { tenantId: tenant.id, planId: plan.id, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31'), billingCycle: 'annual', amount: 2990, currency: 'INR', paymentStatus: 'paid', status: 'active', autoRenew: true } });
+          await getPlatformDb().subscription.create({ data: { tenantId: tenant.id, planId: plan.id, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31'), billingCycle: 'annual', amount: 2990, currency: 'INR', paymentStatus: 'paid', status: 'active', autoRenew: true } });
         }
         results.subscriptionPlan = 1;
       }

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const data = await prisma.payrollDefinition.findUnique({ where: { id } });
+      const data = await db.payrollDefinition.findUnique({ where: { id } });
 
       if (!data) return Response.json({ error: 'Payroll definition not found' }, { status: 404, headers: corsHeaders });
 
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -45,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
 
     try {
-      const data = await prisma.payrollDefinition.update({
+      const data = await db.payrollDefinition.update({
         where: { id },
         data: body,
       });
@@ -62,6 +64,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -70,7 +73,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     try {
       // Soft delete - set status to inactive
-      const data = await prisma.payrollDefinition.update({
+      const data = await db.payrollDefinition.update({
         where: { id },
         data: { status: 'inactive' },
       });

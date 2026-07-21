@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -22,12 +23,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const { id } = await params;
-    const sow = await prisma.sOW.findUnique({ where: { id }, include: { client: true } });
+    const sow = await db.sOW.findUnique({ where: { id }, include: { client: true } });
     if (!sow) return NextResponse.json({ error: 'SOW not found' }, { status: 404, headers: corsHeaders() });
     if (sow.status === 'approved') return NextResponse.json({ error: 'Already approved' }, { status: 400, headers: corsHeaders() });
 
     // Auto-create Project shell
-    const project = await prisma.project.create({
+    const project = await db.project.create({
       data: {
         name: `${sow.client.name} — ${sow.title}`,
         companyId: sow.client.companyId,
@@ -44,11 +45,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
 
-    const updated = await prisma.sOW.update({
+    const updated = await db.sOW.update({
       where: { id },
       data: { status: 'approved', projectId: project.id, approvedById: decoded.userId as string, approvedAt: new Date() },
     });
-    await prisma.auditLog.create({ data: { userId: decoded.userId as string, action: 'APPROVE_SOW', module: 'clients', details: `Approved SOW ${sow.title} → project ${project.id}` } });
+    await db.auditLog.create({ data: { userId: decoded.userId as string, action: 'APPROVE_SOW', module: 'clients', details: `Approved SOW ${sow.title} → project ${project.id}` } });
     return NextResponse.json({ sow: updated, project }, { headers: corsHeaders() });
   } catch (error) { console.error('Approve SOW error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }

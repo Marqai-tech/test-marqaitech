@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,13 +13,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const payroll = await prisma.payroll.findUnique({
+    const payroll = await db.payroll.findUnique({
       where: { id },
       include: {
         employee: {

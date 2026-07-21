@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
@@ -59,6 +59,7 @@ export async function OPTIONS() {
  * create duplicates.
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -88,12 +89,12 @@ export async function POST(request: Request) {
     // 'active' so they appear in the super admin's header dropdown. This is
     // idempotent and only touches tenants that are stuck in pending_approval.
     try {
-      const pendingTenants = await prisma.tenant.findMany({
+      const pendingTenants = await getPlatformDb().tenant.findMany({
         where: { status: 'pending_approval' },
         select: { id: true, name: true },
       });
       if (pendingTenants.length > 0) {
-        await prisma.tenant.updateMany({
+        await getPlatformDb().tenant.updateMany({
           where: { status: 'pending_approval' },
           data: { status: 'active' },
         });
@@ -293,7 +294,7 @@ export async function POST(request: Request) {
       // subscriptionSeats, subscriptionStorage) the route self-heals by
       // running ALTER TABLE ADD COLUMN IF NOT EXISTS, then retries.
       const tenant = await withSchemaSync(() =>
-        prisma.tenant.upsert({
+        getPlatformDb().tenant.upsert({
           where: { slug: sample.slug },
           update: {
             name: sample.name,
@@ -320,7 +321,7 @@ export async function POST(request: Request) {
       );
 
       // Upsert tenant_admin user by email
-      const adminUser = await prisma.user.upsert({
+      const adminUser = await db.user.upsert({
         where: { email: sample.adminEmail },
         update: {
           name: sample.adminName,
@@ -343,11 +344,11 @@ export async function POST(request: Request) {
       for (const sg of sample.groups) {
         // Find an existing group by (tenantId, name) — Prisma doesn't have a
         // unique constraint on this pair, so we do a findFirst + create/update.
-        const existingGroup = await prisma.companyGroup.findFirst({
+        const existingGroup = await db.companyGroup.findFirst({
           where: { tenantId: tenant.id, name: sg.name },
         });
         const group = existingGroup
-          ? await prisma.companyGroup.update({
+          ? await db.companyGroup.update({
               where: { id: existingGroup.id },
               data: {
                 employeeLimitMode: sg.employeeLimitMode,
@@ -356,7 +357,7 @@ export async function POST(request: Request) {
                 notes: sg.notes,
               },
             })
-          : await prisma.companyGroup.create({
+          : await db.companyGroup.create({
               data: {
                 name: sg.name,
                 tenantId: tenant.id,
@@ -369,14 +370,14 @@ export async function POST(request: Request) {
 
         for (const sc of sg.companies) {
           // Find existing company by (companyGroupId, name)
-          const existingCo = await prisma.company.findFirst({
+          const existingCo = await db.company.findFirst({
             where: { companyGroupId: group.id, name: sc.name },
           });
           if (existingCo) {
             // Company update — wrapped because Company now has a `language`
             // column that may not exist on the production DB yet.
             await withSchemaSync(() =>
-              prisma.company.update({
+              db.company.update({
                 where: { id: existingCo.id },
                 data: {
                   code: sc.code,
@@ -393,7 +394,7 @@ export async function POST(request: Request) {
           } else {
             // Company create — wrapped for the same reason.
             await withSchemaSync(() =>
-              prisma.company.create({
+              db.company.create({
                 data: {
                   name: sc.name,
                   code: sc.code,
@@ -440,7 +441,7 @@ export async function POST(request: Request) {
     }
 
     // Audit log
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'SEED_SAMPLE_DATA',

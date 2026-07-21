@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * GET /api/trial/list
@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
  * Supports filtering by status: ?status=pending|approved|rejected|active|expired
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');

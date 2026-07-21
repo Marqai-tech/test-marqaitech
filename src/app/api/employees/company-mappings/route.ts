@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 /** GET — list company mappings for an employee */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'employeeId is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const mappings = await prisma.employeeCompanyMapping.findMany({
+    const mappings = await db.employeeCompanyMapping.findMany({
       where: { employeeId },
       include: {
         company: { select: { id: true, name: true, code: true } },
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
 
 /** POST — add a company mapping for an employee */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
     }
 
     // Check if mapping already exists
-    const existing = await prisma.employeeCompanyMapping.findUnique({
+    const existing = await db.employeeCompanyMapping.findUnique({
       where: { employeeId_companyId: { employeeId, companyId } },
     });
 
@@ -81,13 +83,13 @@ export async function POST(request: Request) {
 
     // If this is set as primary, unset other primary mappings
     if (isPrimary) {
-      await prisma.employeeCompanyMapping.updateMany({
+      await db.employeeCompanyMapping.updateMany({
         where: { employeeId, isPrimary: true },
         data: { isPrimary: false },
       });
     }
 
-    const mapping = await prisma.employeeCompanyMapping.create({
+    const mapping = await db.employeeCompanyMapping.create({
       data: {
         employeeId,
         companyId,
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
 
     // Also update the Employee's companyId if this is primary
     if (isPrimary) {
-      await prisma.employee.update({
+      await db.employee.update({
         where: { id: employeeId },
         data: { companyId },
       });
@@ -122,6 +124,7 @@ export async function POST(request: Request) {
 
 /** PATCH — update a company mapping (e.g., set primary, update dept/designation) */
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -139,7 +142,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const existing = await prisma.employeeCompanyMapping.findUnique({
+    const existing = await db.employeeCompanyMapping.findUnique({
       where: { id: mappingId },
     });
 
@@ -159,19 +162,19 @@ export async function PATCH(request: Request) {
 
     // If setting as primary, unset other primary mappings for the same employee
     if (isPrimary) {
-      await prisma.employeeCompanyMapping.updateMany({
+      await db.employeeCompanyMapping.updateMany({
         where: { employeeId: existing.employeeId, isPrimary: true },
         data: { isPrimary: false },
       });
 
       // Also update Employee.companyId
-      await prisma.employee.update({
+      await db.employee.update({
         where: { id: existing.employeeId },
         data: { companyId: existing.companyId },
       });
     }
 
-    const mapping = await prisma.employeeCompanyMapping.update({
+    const mapping = await db.employeeCompanyMapping.update({
       where: { id: mappingId },
       data: updateData,
       include: {
@@ -191,6 +194,7 @@ export async function PATCH(request: Request) {
 
 /** DELETE — remove a company mapping */
 export async function DELETE(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -205,7 +209,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Mapping ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const mapping = await prisma.employeeCompanyMapping.findUnique({
+    const mapping = await db.employeeCompanyMapping.findUnique({
       where: { id: mappingId },
     });
 
@@ -221,7 +225,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.employeeCompanyMapping.delete({
+    await db.employeeCompanyMapping.delete({
       where: { id: mappingId },
     });
 

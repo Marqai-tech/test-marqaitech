@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { renderOfferTemplate, wrapRenderedOffer } from '@/lib/offer-template';
@@ -34,6 +34,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -52,7 +53,7 @@ export async function POST(
     await ensureSchemaSynced();
 
     const offer = await withSchemaSync(() =>
-      prisma.offer.findUnique({ where: { id } })
+      db.offer.findUnique({ where: { id } })
     );
     if (!offer) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
@@ -121,7 +122,7 @@ export async function POST(
     const signedDataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(signedHtml)}`;
 
     const updated = await withSchemaSync(() =>
-      prisma.offer.update({
+      db.offer.update({
         where: { id },
         data: {
           signedPdfUrl: signedDataUrl,
@@ -135,7 +136,7 @@ export async function POST(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'OFFER_SIGNED',

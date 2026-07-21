@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { createToken, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     // Find the tenant_admin user for this tenant
-    const targetUser = await prisma.user.findFirst({
+    const targetUser = await db.user.findFirst({
       where: {
         tenantId,
         role: 'tenant_admin',

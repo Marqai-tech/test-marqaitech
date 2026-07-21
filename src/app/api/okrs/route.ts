@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -22,6 +22,7 @@ export async function OPTIONS() {
 // Use ?category=company|sub_company|project|individual to filter by level.
 // Use ?companyId=X or ?projectId=Y to filter by owner entity.
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     if (ownerId) where.ownerId = ownerId;
 
     const okrs = await withSchemaSync(() =>
-      prisma.oKR.findMany({
+      db.oKR.findMany({
         where,
         include: {
           owner: { select: { id: true, firstName: true, lastName: true, employeeId: true, avatar: true } },
@@ -109,6 +110,7 @@ export async function GET(request: Request) {
 //   - category='company' or 'sub_company' requires companyId
 //   - category='project' requires projectId
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -140,7 +142,7 @@ export async function POST(request: Request) {
     await ensureSchemaSynced();
 
     const okr = await withSchemaSync(() =>
-      prisma.oKR.create({
+      db.oKR.create({
         data: {
           objective,
           ownerId: ownerId || null,
@@ -171,7 +173,7 @@ export async function POST(request: Request) {
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_OKR',

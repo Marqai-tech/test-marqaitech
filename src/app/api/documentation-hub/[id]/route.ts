@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -23,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
 
-    const document = await prisma.docHubDocument.findUnique({
+    const document = await db.docHubDocument.findUnique({
       where: { id },
       include: {
         category: { select: { id: true, name: true, slug: true, icon: true, color: true } },
@@ -36,7 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Increment view count
-    await prisma.docHubDocument.update({
+    await db.docHubDocument.update({
       where: { id },
       data: { viewCount: { increment: 1 } },
     });
@@ -49,6 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -64,7 +66,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.docHubDocument.findUnique({ where: { id } });
+    const existing = await db.docHubDocument.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -82,7 +84,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.status !== undefined) updateData.status = body.status;
     if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
 
-    const document = await prisma.docHubDocument.update({
+    const document = await db.docHubDocument.update({
       where: { id },
       data: updateData,
       include: {
@@ -98,6 +100,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -112,12 +115,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const { id } = await params;
 
-    const existing = await prisma.docHubDocument.findUnique({ where: { id } });
+    const existing = await db.docHubDocument.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.docHubDocument.delete({ where: { id } });
+    await db.docHubDocument.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Document deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

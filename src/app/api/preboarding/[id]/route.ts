@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -39,7 +40,7 @@ export async function GET(
     const { id } = await params;
     await ensureSchemaSynced();
     const candidate = await withSchemaSync(() =>
-      prisma.preboardingCandidate.findUnique({
+      db.preboardingCandidate.findUnique({
         where: { id },
       })
     );
@@ -68,6 +69,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -89,7 +91,7 @@ export async function PUT(
     const body = await request.json();
 
     await ensureSchemaSynced();
-    const existing = await withSchemaSync(() => prisma.preboardingCandidate.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.preboardingCandidate.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json(
         { error: 'Candidate not found' },
@@ -118,13 +120,13 @@ export async function PUT(
     if (body.accountProvisioned !== undefined) updateData.accountProvisioned = body.accountProvisioned;
 
     const candidate = await withSchemaSync(() =>
-      prisma.preboardingCandidate.update({
+      db.preboardingCandidate.update({
         where: { id },
         data: updateData,
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_PREBOARDING_CANDIDATE',
@@ -150,6 +152,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   // PATCH behaves the same as PUT - partial update
   return PUT(request, { params });
 }
@@ -158,6 +161,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -177,7 +181,7 @@ export async function DELETE(
 
     const { id } = await params;
     await ensureSchemaSynced();
-    const existing = await withSchemaSync(() => prisma.preboardingCandidate.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.preboardingCandidate.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json(
         { error: 'Candidate not found' },
@@ -185,9 +189,9 @@ export async function DELETE(
       );
     }
 
-    await withSchemaSync(() => prisma.preboardingCandidate.delete({ where: { id } }));
+    await withSchemaSync(() => db.preboardingCandidate.delete({ where: { id } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_PREBOARDING_CANDIDATE',

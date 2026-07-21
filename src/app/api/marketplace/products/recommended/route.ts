@@ -19,7 +19,7 @@
  * endpoint returns the top N products in ranked order with an explanation.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -82,6 +82,7 @@ function computeLifeStage(emp: {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -95,13 +96,13 @@ export async function GET(request: Request) {
 
     // Check cache (24h TTL)
     if (!refresh) {
-      const cached = await prisma.personalizedCatalogCache.findFirst({
+      const cached = await db.personalizedCatalogCache.findFirst({
         where: { employeeId, expiresAt: { gt: new Date() } },
         orderBy: { evaluatedAt: 'desc' },
       });
       if (cached) {
         const rankedIds = cached.rankedProductIds.split(',').filter(Boolean);
-        const products = await prisma.marketplaceProduct.findMany({
+        const products = await db.marketplaceProduct.findMany({
           where: { id: { in: rankedIds }, status: 'active' },
         });
         // Preserve ranking order
@@ -118,7 +119,7 @@ export async function GET(request: Request) {
     }
 
     // Compute fresh
-    const employee = await prisma.employee.findUnique({
+    const employee = await db.employee.findUnique({
       where: { id: employeeId },
       select: {
         id: true,
@@ -132,7 +133,7 @@ export async function GET(request: Request) {
     const { stage, signals } = computeLifeStage(employee);
 
     // Pull recent purchases to inform ranking (diversification)
-    const recentOrders = await prisma.marketplaceOrder.findMany({
+    const recentOrders = await db.marketplaceOrder.findMany({
       where: { employeeId, status: 'completed' },
       include: { product: { select: { category: true } } },
       orderBy: { createdAt: 'desc' },
@@ -141,7 +142,7 @@ export async function GET(request: Request) {
     signals.recentCategoryPurchases = recentOrders.map(o => o.product.category);
 
     // Get active products and rank by life-stage priority
-    const allProducts = await prisma.marketplaceProduct.findMany({
+    const allProducts = await db.marketplaceProduct.findMany({
       where: { status: 'active' },
     });
     const priorityCats = LIFE_STAGE_CATEGORY_PRIORITY[stage] || LIFE_STAGE_CATEGORY_PRIORITY.single;
@@ -162,8 +163,8 @@ export async function GET(request: Request) {
     // Persist cache (24h TTL). Delete any existing cached rows for this employee first
     // (avoids growth of stale rows; indexed by employeeId only, not unique).
     try {
-      await prisma.personalizedCatalogCache.deleteMany({ where: { employeeId } });
-      await prisma.personalizedCatalogCache.create({
+      await db.personalizedCatalogCache.deleteMany({ where: { employeeId } });
+      await db.personalizedCatalogCache.create({
         data: {
           employeeId,
           lifeStage: stage,

@@ -7,7 +7,7 @@
  * (REQ-CLT-07/08)
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -31,22 +31,23 @@ async function getClientContext(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const ctx = await getClientContext(request);
     if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
     const [projects, invoices, pendingTimesheetApprovals] = await Promise.all([
-      prisma.project.findMany({
+      db.project.findMany({
         where: { clientId: ctx.clientId, status: 'active' },
         include: { _count: { select: { timesheets: true, allocations: true } } },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: { clientId: ctx.clientId },
         orderBy: { createdAt: 'desc' },
         take: 20,
         select: { id: true, invoiceNumber: true, status: true, totalAmount: true, currency: true, dueDate: true, createdAt: true },
       }),
-      prisma.clientTimesheetApproval.count({ where: { clientId: ctx.clientId, status: 'pending' } }),
+      db.clientTimesheetApproval.count({ where: { clientId: ctx.clientId, status: 'pending' } }),
     ]);
     return NextResponse.json({ projects, invoices, pendingApprovals: pendingTimesheetApprovals }, { headers: CORS });
   } catch (e) {

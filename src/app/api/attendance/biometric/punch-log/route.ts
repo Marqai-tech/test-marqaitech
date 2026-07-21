@@ -13,11 +13,12 @@
  * for the device webhook (POST only).
  */
 import { requireUser, getQuery, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     }
 
     const [punches, total] = await Promise.all([
-      prisma.biometricPunch.findMany({
+      db.biometricPunch.findMany({
         where,
         orderBy: { punchTime: 'desc' },
         skip: (page - 1) * limit,
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
           employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } },
         },
       }),
-      prisma.biometricPunch.count({ where }),
+      db.biometricPunch.count({ where }),
     ]);
 
     // Summary stats for admins
@@ -55,9 +56,9 @@ export async function GET(request: Request) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const [todayTotal, todayFlagged, last7Flagged] = await Promise.all([
-        prisma.biometricPunch.count({ where: { punchTime: { gte: today } } }),
-        prisma.biometricPunch.count({ where: { punchTime: { gte: today }, flagged: true } }),
-        prisma.biometricPunch.count({
+        db.biometricPunch.count({ where: { punchTime: { gte: today } } }),
+        db.biometricPunch.count({ where: { punchTime: { gte: today }, flagged: true } }),
+        db.biometricPunch.count({
           where: {
             flagged: true,
             punchTime: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },

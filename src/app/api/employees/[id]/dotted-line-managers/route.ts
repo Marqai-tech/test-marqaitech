@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,6 +7,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns all managers (solid + dotted) for an employee.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     const { id } = await params;
-    const managers = await prisma.dottedLineManager.findMany({
+    const managers = await db.dottedLineManager.findMany({
       where: { employeeId: id, endDate: null },
       include: {
         manager: {
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * Adds a manager relationship to an employee.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -59,13 +61,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // If adding a solid-line manager, end any existing solid-line
     if (managerType === 'solid') {
-      await prisma.dottedLineManager.updateMany({
+      await db.dottedLineManager.updateMany({
         where: { employeeId: id, managerType: 'solid', endDate: null },
         data: { endDate: new Date() },
       });
     }
 
-    const rel = await prisma.dottedLineManager.create({
+    const rel = await db.dottedLineManager.create({
       data: { employeeId: id, managerId, managerType, notes },
     });
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -17,6 +17,7 @@ export async function OPTIONS() {
 
 // GET /api/tenant-admin - Get tenant dashboard data for the logged-in tenant_admin
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     const section = searchParams.get('section') || 'overview';
 
     // Get tenant with full data
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await getPlatformDb().tenant.findUnique({
       where: { id: tenantId },
       include: {
         companyGroups: {
@@ -70,12 +71,12 @@ export async function GET(request: Request) {
     }
 
     // Get employee counts
-    const totalEmployees = await prisma.employee.count({ where: { status: 'active' } });
-    const activeUsers = await prisma.user.count({ where: { tenantId, status: 'active' } });
+    const totalEmployees = await db.employee.count({ where: { status: 'active' } });
+    const activeUsers = await db.user.count({ where: { tenantId, status: 'active' } });
 
     // Get recent audit logs for the tenant
     const tenantUserIds = tenant.users.map(u => u.id);
-    const recentActivity = await prisma.auditLog.findMany({
+    const recentActivity = await db.auditLog.findMany({
       where: { userId: { in: tenantUserIds } },
       take: 10,
       orderBy: { createdAt: 'desc' },
@@ -85,14 +86,14 @@ export async function GET(request: Request) {
     });
 
     // Get all designations across companies
-    const designations = await prisma.designation.findMany({
+    const designations = await db.designation.findMany({
       where: { status: 'active' },
       include: { department: { select: { name: true, companyId: true } } },
       orderBy: { title: 'asc' },
     });
 
     // Get holidays
-    const holidays = await withSchemaSync(() => prisma.holiday.findMany({
+    const holidays = await withSchemaSync(() => db.holiday.findMany({
       orderBy: { date: 'asc' },
       take: 20,
     }));
@@ -196,7 +197,7 @@ export async function GET(request: Request) {
           paymentStatus: s.paymentStatus,
           autoRenew: s.autoRenew,
         })),
-        availablePlans: await prisma.subscriptionPlan.findMany({
+        availablePlans: await getPlatformDb().subscriptionPlan.findMany({
           where: { status: 'active' },
           orderBy: { monthlyPrice: 'asc' },
         }),
@@ -227,12 +228,12 @@ export async function GET(request: Request) {
           currency: tenant.currency,
           timezone: tenant.timezone,
         },
-        workflows: await prisma.workflowDefinition.findMany({
+        workflows: await db.workflowDefinition.findMany({
           where: { status: 'active' },
           take: 20,
           orderBy: { createdAt: 'desc' },
         }),
-        policies: await prisma.policy.findMany({
+        policies: await db.policy.findMany({
           orderBy: { createdAt: 'desc' },
           take: 20,
         }),
@@ -248,6 +249,7 @@ export async function GET(request: Request) {
 
 // PATCH /api/tenant-admin - Update tenant settings
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -281,7 +283,7 @@ export async function PATCH(request: Request) {
     if (timezone !== undefined) updateData.timezone = timezone;
     if (logo !== undefined) updateData.logo = logo;
 
-    const tenant = await prisma.tenant.update({
+    const tenant = await getPlatformDb().tenant.update({
       where: { id: tenantId },
       data: updateData,
     }).catch(async (err) => {
@@ -289,7 +291,7 @@ export async function PATCH(request: Request) {
       const msg = err && err.message ? err.message : String(err);
       if (/column .* does not exist|does not exist in the current database/i.test(msg)) {
         await ensureSchemaSynced();
-        return prisma.tenant.update({ where: { id: tenantId }, data: updateData });
+        return getPlatformDb().tenant.update({ where: { id: tenantId }, data: updateData });
       }
       throw err;
     });
@@ -303,6 +305,7 @@ export async function PATCH(request: Request) {
 
 // POST /api/tenant-admin - Create user within tenant
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -333,14 +336,14 @@ export async function POST(request: Request) {
     }
 
     // Check for duplicate email
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await db.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 409, headers: corsHeaders() });
     }
 
     const hashedPassword = await hashPassword(password);
 
-    const user = await prisma.user.create({
+    const user = await db.user.create({
       data: {
         email,
         password: hashedPassword,

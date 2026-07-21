@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -82,7 +84,7 @@ export async function GET(request: Request) {
     const type = searchParams.get('type');
 
     if (type === 'rating_distribution') {
-      const reviews = await prisma.performanceReview.findMany({
+      const reviews = await db.performanceReview.findMany({
         where: { status: 'completed' },
         select: { overallRating: true },
       });

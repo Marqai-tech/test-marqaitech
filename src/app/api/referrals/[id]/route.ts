@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -47,7 +47,7 @@ export async function GET(
     const { id } = await params;
 
     const referral = await withSchemaSync(() =>
-      prisma.referral.findUnique({
+      db.referral.findUnique({
         where: { id },
         include: {
           jobPosting: {
@@ -71,7 +71,7 @@ export async function GET(
     const role = String(decoded.role || '').toLowerCase();
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
     // Need to look up the employee for this user to compare IDs.
-    const callerEmployee = await prisma.employee.findFirst({
+    const callerEmployee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
       select: { id: true },
     });
@@ -137,7 +137,7 @@ export async function PATCH(
     const body = await req.json().catch(() => ({}));
 
     const existing = await withSchemaSync(() =>
-      prisma.referral.findUnique({
+      db.referral.findUnique({
         where: { id },
         select: {
           id: true,
@@ -157,7 +157,7 @@ export async function PATCH(
 
     const role = String(decoded.role || '').toLowerCase();
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
-    const callerEmployee = await prisma.employee.findFirst({
+    const callerEmployee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
       select: { id: true },
     });
@@ -243,7 +243,7 @@ export async function PATCH(
     }
 
     const updated = await withSchemaSync(() =>
-      prisma.referral.update({
+      db.referral.update({
         where: { id },
         data,
         include: {
@@ -257,7 +257,7 @@ export async function PATCH(
 
     // Best-effort audit log.
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_REFERRAL',
@@ -313,7 +313,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await withSchemaSync(() =>
-      prisma.referral.findUnique({
+      db.referral.findUnique({
         where: { id },
         select: { id: true, referrerEmployeeId: true, status: true },
       })
@@ -327,7 +327,7 @@ export async function DELETE(
 
     const role = String(decoded.role || '').toLowerCase();
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
-    const callerEmployee = await prisma.employee.findFirst({
+    const callerEmployee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
       select: { id: true },
     });
@@ -348,11 +348,11 @@ export async function DELETE(
       );
     }
 
-    await withSchemaSync(() => prisma.referral.delete({ where: { id } }));
+    await withSchemaSync(() => db.referral.delete({ where: { id } }));
 
     // Best-effort audit log.
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'DELETE_REFERRAL',

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
     await ensureSchemaSynced();
-    const config = await withSchemaSync(() => prisma.aIConfig.findUnique({ where: { id } }));
+    const config = await withSchemaSync(() => db.aIConfig.findUnique({ where: { id } }));
 
     if (!config) {
       return NextResponse.json({ error: 'AI config not found' }, { status: 404, headers: corsHeaders() });
@@ -48,6 +49,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -63,7 +65,7 @@ export async function PUT(
     const { name, type, category, content, model, temperature, maxTokens, isActive, version, description } = body;
 
     await ensureSchemaSynced();
-    const existing = await withSchemaSync(() => prisma.aIConfig.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.aIConfig.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'AI config not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -81,13 +83,13 @@ export async function PUT(
     if (description !== undefined) updateData.description = description;
 
     const config = await withSchemaSync(() =>
-      prisma.aIConfig.update({
+      db.aIConfig.update({
         where: { id },
         data: updateData,
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_AI_CONFIG',
@@ -107,6 +109,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -119,14 +122,14 @@ export async function DELETE(
 
     const { id } = await params;
     await ensureSchemaSynced();
-    const existing = await withSchemaSync(() => prisma.aIConfig.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.aIConfig.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'AI config not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await withSchemaSync(() => prisma.aIConfig.delete({ where: { id } }));
+    await withSchemaSync(() => db.aIConfig.delete({ where: { id } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_AI_CONFIG',

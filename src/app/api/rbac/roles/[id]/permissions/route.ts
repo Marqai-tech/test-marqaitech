@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function GET(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -49,7 +50,7 @@ export async function GET(
 
     const { id: roleId } = await params;
 
-    const role = await prisma.role.findUnique({
+    const role = await db.role.findUnique({
       where: { id: roleId },
     });
 
@@ -69,7 +70,7 @@ export async function GET(
     }
 
     // Get role permissions with module info
-    const rolePermissions = await prisma.rolePermission.findMany({
+    const rolePermissions = await db.rolePermission.findMany({
       where: { roleId },
       include: {
         permission: {
@@ -102,7 +103,7 @@ export async function GET(
     });
 
     // Also get all available permissions so we can show what's not granted
-    const allModules = await prisma.module.findMany({
+    const allModules = await db.module.findMany({
       include: {
         permissions: true,
       },
@@ -135,7 +136,7 @@ export async function GET(
     }));
 
     // Get tenant and company info for the role
-    const fullRole = await prisma.role.findUnique({
+    const fullRole = await db.role.findUnique({
       where: { id: roleId },
       include: {
         tenant: { select: { id: true, name: true, slug: true } },
@@ -204,6 +205,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -221,7 +223,7 @@ export async function PUT(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -242,7 +244,7 @@ export async function PUT(
 
     const { id: roleId } = await params;
 
-    const role = await prisma.role.findUnique({
+    const role = await db.role.findUnique({
       where: { id: roleId },
     });
 
@@ -277,7 +279,7 @@ export async function PUT(
 
     // Validate that all permissionIds exist
     const permissionIds = permissions.map((p) => p.permissionId);
-    const existingPermissions = await prisma.permission.findMany({
+    const existingPermissions = await db.permission.findMany({
       where: { id: { in: permissionIds } },
     });
 
@@ -291,7 +293,7 @@ export async function PUT(
     }
 
     // Use a transaction to atomically replace all permissions
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       // Delete all existing role permissions
       await tx.rolePermission.deleteMany({
         where: { roleId },
@@ -311,7 +313,7 @@ export async function PUT(
     });
 
     // Fetch updated permissions
-    const updatedPermissions = await prisma.rolePermission.findMany({
+    const updatedPermissions = await db.rolePermission.findMany({
       where: { roleId },
       include: {
         permission: {

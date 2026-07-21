@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -19,6 +19,7 @@ export async function OPTIONS() {
 // List timesheets with filters. Supports projectId (FK), status, employeeId,
 // date range, invoiced, locked.
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
 
     const [timesheets, total] = await Promise.all([
       withSchemaSync(() =>
-        prisma.timesheet.findMany({
+        db.timesheet.findMany({
           where,
           include: {
             employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, avatar: true } },
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
           take: limit,
         })
       ),
-      withSchemaSync(() => prisma.timesheet.count({ where })),
+      withSchemaSync(() => db.timesheet.count({ where })),
     ]);
 
     return NextResponse.json({ timesheets, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }, { headers: corsHeaders() });
@@ -86,6 +87,7 @@ export async function GET(request: Request) {
 // NOTE: The previous @@unique([employeeId, date]) constraint is GONE —
 // employees can now log time against multiple projects on the same day.
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -105,16 +107,16 @@ export async function POST(request: Request) {
     let projectText = project;
     let taskText = task;
     if (projectId && !projectText) {
-      const p = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
+      const p = await db.project.findUnique({ where: { id: projectId }, select: { name: true } });
       if (p) projectText = p.name;
     }
     if (projectTaskId && !taskText) {
-      const t = await prisma.projectTask.findUnique({ where: { id: projectTaskId }, select: { name: true } });
+      const t = await db.projectTask.findUnique({ where: { id: projectTaskId }, select: { name: true } });
       if (t) taskText = t.name;
     }
 
     const timesheet = await withSchemaSync(() =>
-      prisma.timesheet.create({
+      db.timesheet.create({
         data: {
           employeeId,
           date: new Date(date),

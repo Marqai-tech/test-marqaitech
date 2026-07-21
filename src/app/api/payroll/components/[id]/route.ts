@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.payrollComponent.update({
+    const data = await db.payrollComponent.update({
       where: { id },
       data: body,
     });
@@ -33,6 +34,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -40,7 +42,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     // Soft delete - set isActive to false
-    const data = await prisma.payrollComponent.update({
+    const data = await db.payrollComponent.update({
       where: { id },
       data: { isActive: false },
     });

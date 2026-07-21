@@ -16,7 +16,7 @@
  */
 import { NextResponse } from 'next/server';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import {
   seedClients,
   seedVendors,
@@ -48,6 +48,7 @@ async function isEmpty(model: string, where: any = {}): Promise<boolean> {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
       | 'clients' | 'vendors' | 'marketplace' | 'wellness' | 'collaboration' | 'all';
 
     // Anchor company + employees — same as admin endpoint
-    const company = await prisma.company.findFirst({ orderBy: { createdAt: 'asc' } });
+    const company = await db.company.findFirst({ orderBy: { createdAt: 'asc' } });
     if (!company) {
       return NextResponse.json({
         ok: false,
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
       }, { headers: CORS });
     }
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { status: 'active' },
       take: 20,
       orderBy: { createdAt: 'asc' },
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
       }, { headers: CORS });
     }
 
-    const projects = await prisma.project.findMany({
+    const projects = await db.project.findMany({
       where: { companyId: company.id },
       take: 10,
       orderBy: { createdAt: 'asc' },
@@ -130,6 +131,7 @@ export async function GET(request: Request) {
 
 // Also accept POST for callers that prefer POST (e.g. SeedEcosystemButton-style).
 export async function POST(request: Request) {
+  const db = await getDb(request);
   // Reuse GET logic — body is ignored, query string is read from URL
   return GET(request);
 }

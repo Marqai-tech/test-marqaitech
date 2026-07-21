@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -27,12 +28,13 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
     if (policyId) where.policyId = policyId;
-    const claims = await prisma.insuranceClaim.findMany({ where, include: { policy: { select: { id: true, providerName: true, policyNumber: true } } }, orderBy: { createdAt: 'desc' } });
+    const claims = await db.insuranceClaim.findMany({ where, include: { policy: { select: { id: true, providerName: true, policyNumber: true } } }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json({ claims }, { headers: corsHeaders() });
   } catch (error) { console.error('Get claims error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
       aiParsedJson = aiParsedRaw || { amount: claimAmount, diagnosis: null, policyNumber: null, hospitalName: null };
       aiConfidence = 0.75;
     }
-    const claim = await prisma.insuranceClaim.create({
+    const claim = await db.insuranceClaim.create({
       data: { policyId, employeeId, claimAmount, billFileUrl, aiParsedJson, aiConfidence, status: 'draft' },
     });
     return NextResponse.json({ claim }, { status: 201, headers: corsHeaders() });

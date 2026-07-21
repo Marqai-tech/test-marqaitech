@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
 
     try {
-      const data = await prisma.payrollValidation.findMany({
+      const data = await db.payrollValidation.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       });
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let allEmployees: any[] = [];
     try {
-      allEmployees = await prisma.employee.findMany({
+      allEmployees = await db.employee.findMany({
         where: { department: { companyId } },
         include: {
           department: { select: { name: true, companyId: true } },
@@ -145,7 +147,7 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let terminatedInPeriod: any[] = [];
     try {
-      terminatedInPeriod = await prisma.employee.findMany({
+      terminatedInPeriod = await db.employee.findMany({
         where: {
           department: { companyId },
           status: { in: ['terminated', 'resigned'] },
@@ -225,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     // Create the validation record
     try {
-      const validation = await prisma.payrollValidation.create({
+      const validation = await db.payrollValidation.create({
         data: {
           payrollRunId: payrollRunId || null,
           companyId,

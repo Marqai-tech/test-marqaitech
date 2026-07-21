@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { parseResumeFromDataUrl } from '@/lib/resume-parser';
 
@@ -43,6 +43,7 @@ export async function OPTIONS() {
  * Returns 201 with the created application on success.
  */
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // Make sure the Referral table exists (it was added in the WAVE2-B
     // schema addendum). ensureSchemaSynced is a no-op if the DB is already

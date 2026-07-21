@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -14,6 +14,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns a tailored employee object based on the viewer's role.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const viewerRole = (searchParams.get('as') || decoded.role || 'employee').toLowerCase();
 
     // Always load the base employee record (public-safe fields only)
-    const employee = await prisma.employee.findUnique({
+    const employee = await db.employee.findUnique({
       where: { id },
       select: {
         id: true,
@@ -72,16 +73,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Manager view: project allocations + skills + attendance summary
     if (viewerRole === 'manager') {
       const [allocations, skills, dottedLineManagers] = await Promise.all([
-        prisma.projectAllocation.findMany({
+        db.projectAllocation.findMany({
           where: { employeeId: id },
           include: { project: { select: { id: true, name: true, status: true } } },
           take: 20,
         }),
-        prisma.employeeSkill.findMany({
+        db.employeeSkill.findMany({
           where: { employeeId: id },
           include: { skill: true },
         }),
-        prisma.dottedLineManager.findMany({
+        db.dottedLineManager.findMany({
           where: { employeeId: id, endDate: null },
           include: { manager: { select: { id: true, firstName: true, lastName: true, email: true } } },
         }),
@@ -98,15 +99,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // HR view: compliance + compensation + custom fields
     if (viewerRole === 'hr' || viewerRole === 'tenant_admin' || viewerRole === 'super_admin') {
       const [documents, customFields, paymentMethods, salaryStructure] = await Promise.all([
-        prisma.document.findMany({ where: { employeeId: id }, take: 50 }),
-        prisma.employeeCustomFieldValue.findMany({
+        db.document.findMany({ where: { employeeId: id }, take: 50 }),
+        db.employeeCustomFieldValue.findMany({
           where: { employeeId: id },
           include: { field: true },
         }),
-        prisma.employeePaymentMethod.findMany({ where: { employeeId: id } }),
-        prisma.salaryStructure.findFirst({ where: { employees: { some: { id } } } }),
+        db.employeePaymentMethod.findMany({ where: { employeeId: id } }),
+        db.salaryStructure.findFirst({ where: { employees: { some: { id } } } }),
       ]);
-      const fullEmployee = await prisma.employee.findUnique({
+      const fullEmployee = await db.employee.findUnique({
         where: { id },
         select: {
           ...employee,
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Self view: everything the employee can see about themselves
-    const self = await prisma.employee.findUnique({ where: { id } });
+    const self = await db.employee.findUnique({ where: { id } });
     return NextResponse.json({ view: 'self', employee: self });
   } catch (error) {
     console.error('GET contextual-view error:', error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -10,6 +10,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * is consuming the most file storage and requests cleanup.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,26 +23,26 @@ export async function GET(request: NextRequest) {
 
     // Aggregate current usage from FileNode (live calculation, no snapshot table needed)
     // Note: FileNode doesn't have a direct tenantId FK; we filter via companyId → companyGroup.tenantId
-    const companies = await prisma.company.findMany({
+    const companies = await db.company.findMany({
       where: { companyGroup: { tenantId: decoded.tenantId } },
       select: { id: true, name: true },
     });
     const companyIds = companies.map((c) => c.id);
 
     const [personalAgg, projectAgg, companyAgg] = await Promise.all([
-      prisma.fileNode.groupBy({
+      db.fileNode.groupBy({
         by: ['ownerEmployeeId'],
         where: { driveType: 'personal', isActive: true },
         _sum: { sizeBytes: true },
         _count: { id: true },
       }),
-      prisma.fileNode.groupBy({
+      db.fileNode.groupBy({
         by: ['projectId'],
         where: { driveType: 'project', isActive: true },
         _sum: { sizeBytes: true },
         _count: { id: true },
       }),
-      prisma.fileNode.groupBy({
+      db.fileNode.groupBy({
         by: ['companyId'],
         where: { driveType: 'company', isActive: true, companyId: { in: companyIds } },
         _sum: { sizeBytes: true },
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
     // Note: This is a simplification — we'd need a lastAccessedAt field for accurate detection.
     // For now, we use createdAt as a proxy.
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const cleanupCandidates = await prisma.fileNode.count({
+    const cleanupCandidates = await db.fileNode.count({
       where: {
         isActive: true,
         createdAt: { lt: ninetyDaysAgo },
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get tenant-wide quota
-    const quota = await prisma.storageQuota.findUnique({
+    const quota = await db.storageQuota.findUnique({
       where: { tenantId: decoded.tenantId },
     });
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -22,6 +22,7 @@ export async function OPTIONS() {
 // Lock or unlock multiple timesheets. Locking is allowed for managers+.
 // Unlocking is super_admin only.
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -69,13 +70,13 @@ export async function POST(request: Request) {
         };
 
     const result = await withSchemaSync(() =>
-      prisma.timesheet.updateMany({
+      db.timesheet.updateMany({
         where: { id: { in: ids } },
         data,
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: shouldLock ? 'BULK_LOCK_TIMESHEETS' : 'BULK_UNLOCK_TIMESHEETS',

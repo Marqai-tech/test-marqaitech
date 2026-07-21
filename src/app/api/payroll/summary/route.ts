@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -24,6 +24,7 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -55,41 +56,41 @@ export async function GET(request: Request) {
       payrollRuns,
       complianceFilingsCount,
     ] = await Promise.all([
-      safeQuery(() => prisma.employee.count({
+      safeQuery(() => db.employee.count({
         where: { status: 'active' },
       }), 0),
-      safeQuery(() => prisma.cTCTemplate.count({
+      safeQuery(() => db.cTCTemplate.count({
         where: { status: 'ACTIVE' },
       }), 0),
-      safeQuery(() => prisma.payrollRun.count({
+      safeQuery(() => db.payrollRun.count({
         where: {
           runStatus: { in: ['OPEN', 'INPUT_COLLECTION', 'PROCESSING', 'REVIEW'] },
           ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
         },
       }), 0),
-      safeQuery(() => prisma.complianceFiling.count({
+      safeQuery(() => db.complianceFiling.count({
         where: {
           filingStatus: { in: ['GENERATED', 'UNDER_REVIEW'] },
         },
       }), 0),
-      safeQuery(() => prisma.payrollComponent.count({
+      safeQuery(() => db.payrollComponent.count({
         where: { isActive: true },
       }), 0),
-      safeQuery(() => prisma.statutoryComponent.count(), 0),
-      safeQuery(() => prisma.taxSlabTable.count(), 0),
-      safeQuery(() => prisma.employeePaymentMethod.count({
+      safeQuery(() => db.statutoryComponent.count(), 0),
+      safeQuery(() => db.taxSlabTable.count(), 0),
+      safeQuery(() => db.employeePaymentMethod.count({
         where: { status: 'active' },
       }), 0),
-      safeQuery(() => prisma.payrollInput.count(), 0),
-      safeQuery(() => prisma.payrollValidation.count(), 0),
-      safeQuery(() => prisma.payroll.count({
+      safeQuery(() => db.payrollInput.count(), 0),
+      safeQuery(() => db.payrollValidation.count(), 0),
+      safeQuery(() => db.payroll.count({
         where: { status: 'paid' },
       }), 0),
-      safeQuery(() => prisma.payrollRun.findMany({
+      safeQuery(() => db.payrollRun.findMany({
         select: { runStatus: true },
         ...(effectiveCompanyId ? { where: { companyId: effectiveCompanyId } } : {}),
       }), [] as { runStatus: string }[]),
-      safeQuery(() => prisma.complianceFiling.count({
+      safeQuery(() => db.complianceFiling.count({
         where: {
           filingStatus: { in: ['GENERATED', 'UNDER_REVIEW', 'SUBMITTED'] },
         },

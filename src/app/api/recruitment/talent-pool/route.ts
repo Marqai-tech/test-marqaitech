@@ -17,7 +17,7 @@
  *   Removes a candidate from the talent pool (sets removedAt).
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -31,6 +31,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
         },
       },
     };
-    const application = await prisma.jobApplication.findFirst({
+    const application = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
         ...tenantFilter,
@@ -90,13 +91,13 @@ export async function POST(request: Request) {
     }
 
     // 1. Update the application status to 'talent_pool' (REQ-STAT-01)
-    const updated = await prisma.jobApplication.update({
+    const updated = await db.jobApplication.update({
       where: { id: applicationId },
       data: { status: 'talent_pool' },
     });
 
     // 2. Upsert the CandidateTalentPool entry (unique per candidateEmail × company)
-    const talentPoolEntry = await prisma.candidateTalentPool.upsert({
+    const talentPoolEntry = await db.candidateTalentPool.upsert({
       where: {
         candidateEmail_companyId: {
           candidateEmail: application.candidateEmail,
@@ -132,7 +133,7 @@ You can view your talent-pool status and any new job alerts on your candidate da
 Best regards,
 The ${companyName} Talent Team`;
 
-    await prisma.candidateMessage.create({
+    await db.candidateMessage.create({
       data: {
         candidateEmail: application.candidateEmail,
         senderName: `${companyName} Talent Team`,
@@ -141,7 +142,7 @@ The ${companyName} Talent Team`;
       },
     }).catch(() => {}); // Non-fatal if message fails
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decodedRec.userId as string,
         action: 'MOVE_TO_TALENT_POOL',
@@ -163,6 +164,7 @@ The ${companyName} Talent Team`;
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -192,7 +194,7 @@ export async function GET(request: Request) {
       ];
     }
 
-    const talentPool = await prisma.candidateTalentPool.findMany({
+    const talentPool = await db.candidateTalentPool.findMany({
       where,
       include: {
         company: { select: { id: true, name: true } },
@@ -209,6 +211,7 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: CORS });
@@ -221,7 +224,7 @@ export async function DELETE(request: Request) {
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400, headers: CORS });
 
     // Verify ownership (tenant scope)
-    const entry = await prisma.candidateTalentPool.findFirst({
+    const entry = await db.candidateTalentPool.findFirst({
       where: {
         id,
         ...(decodedRec.role === 'super_admin' ? {} : {
@@ -231,7 +234,7 @@ export async function DELETE(request: Request) {
     });
     if (!entry) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: CORS });
 
-    await prisma.candidateTalentPool.update({
+    await db.candidateTalentPool.update({
       where: { id },
       data: { removedAt: new Date() },
     });

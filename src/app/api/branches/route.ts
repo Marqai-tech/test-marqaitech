@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 function corsHeaders() {
   return {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // ─── Company-scoped data visibility ───
     // Use getCompanyFilter to enforce that non-admins only see their own company's branches.
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const branches = await prisma.branch.findMany({
+    const branches = await db.branch.findMany({
       where,
       orderBy: { name: 'asc' },
       skip: (page - 1) * limit,
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const total = await prisma.branch.count({ where });
+    const total = await db.branch.count({ where });
 
     return NextResponse.json({
       data: branches,
@@ -74,6 +75,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // ─── Auth + company scoping for mutations ───
     const authInfo = await getAuthInfo(req);
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the company exists and belongs to the admin's tenant (for non-super_admin)
-    const company = await prisma.company.findUnique({
+    const company = await db.company.findUnique({
       where: { id: companyId },
       select: { id: true, companyGroup: { select: { tenantId: true } } },
     });
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Company does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
     }
 
-    const branch = await prisma.branch.create({
+    const branch = await db.branch.create({
       data: {
         name,
         code: code || name.substring(0, 3).toUpperCase(),
@@ -132,6 +134,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const authInfo = await getAuthInfo(req);
     if (!authInfo) {
@@ -150,7 +153,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Branch ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await prisma.branch.findUnique({
+    const existing = await db.branch.findUnique({
       where: { id },
       include: { company: { select: { id: true, companyGroup: { select: { tenantId: true } } } } },
     });
@@ -163,7 +166,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Branch does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
     }
 
-    const branch = await prisma.branch.update({
+    const branch = await db.branch.update({
       where: { id },
       data: updateData,
       include: {
@@ -179,6 +182,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const authInfo = await getAuthInfo(req);
     if (!authInfo) {
@@ -197,7 +201,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Branch ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await prisma.branch.findUnique({
+    const existing = await db.branch.findUnique({
       where: { id },
       include: { company: { select: { id: true, companyGroup: { select: { tenantId: true } } } } },
     });
@@ -210,7 +214,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Branch does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
     }
 
-    await prisma.branch.delete({ where: { id } });
+    await db.branch.delete({ where: { id } });
     return NextResponse.json({ message: 'Branch deleted' }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Branches DELETE error:', error);

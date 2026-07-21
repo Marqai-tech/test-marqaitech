@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.currencyConfig.update({
+    const data = await db.currencyConfig.update({
       where: { id },
       data: body,
     });
@@ -33,13 +34,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    await prisma.currencyConfig.delete({ where: { id } });
+    await db.currencyConfig.delete({ where: { id } });
 
     return Response.json({ message: 'Currency config deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

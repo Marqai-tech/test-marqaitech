@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { renderOfferTemplate, wrapRenderedOffer } from '@/lib/offer-template';
@@ -31,6 +31,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -48,23 +49,23 @@ export async function POST(
     await ensureSchemaSynced();
 
     const offer = await withSchemaSync(() =>
-      prisma.offer.findUnique({ where: { id } })
+      db.offer.findUnique({ where: { id } })
     );
     if (!offer) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // Resolve template: explicit > offer.templateId > first active for tenant
-    let template = null as Awaited<ReturnType<typeof prisma.offerTemplate.findFirst>> | null;
+    let template = null as Awaited<ReturnType<typeof db.offerTemplate.findFirst>> | null;
     const tenantId = (decoded.tenantId as string) || 'default-tenant';
     const candidates = [requestedTemplateId, offer.templateId].filter(Boolean) as string[];
     for (const tid of candidates) {
-      template = await withSchemaSync(() => prisma.offerTemplate.findUnique({ where: { id: tid } }));
+      template = await withSchemaSync(() => db.offerTemplate.findUnique({ where: { id: tid } }));
       if (template) break;
     }
     if (!template) {
       template = await withSchemaSync(() =>
-        prisma.offerTemplate.findFirst({
+        db.offerTemplate.findFirst({
           where: {
             tenantId,
             isActive: true,
@@ -123,7 +124,7 @@ export async function POST(
     const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`;
 
     const updated = await withSchemaSync(() =>
-      prisma.offer.update({
+      db.offer.update({
         where: { id },
         data: {
           templateId: template?.id || null,
@@ -133,7 +134,7 @@ export async function POST(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'GENERATE_OFFER_PDF',

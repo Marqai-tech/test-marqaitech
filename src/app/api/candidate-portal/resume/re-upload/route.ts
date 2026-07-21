@@ -12,7 +12,7 @@
  * Auth: candidate JWT (kind === 'candidate'). The application must belong
  * to the authenticated candidate (email match).
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import {
   requireCandidate,
   ok,
@@ -33,6 +33,7 @@ const ALLOWED_PREFIXES = [
 ];
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   // Verify the application exists + belongs to this candidate
-  const application = await prisma.jobApplication.findUnique({
+  const application = await db.jobApplication.findUnique({
     where: { id: jobApplicationId },
     select: { id: true, candidateEmail: true, jobPostingId: true },
   });
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   // 1. Update the resume data URL + filename on the application
-  await prisma.jobApplication.update({
+  await db.jobApplication.update({
     where: { id: jobApplicationId },
     data: {
       resume: resumeDataUrl,
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
   };
   try {
     const result = await parseResumeFromDataUrl(resumeDataUrl);
-    await prisma.resumeParse.create({
+    await db.resumeParse.create({
       data: {
         jobApplicationId,
         rawText: result.rawText.slice(0, 100_000),

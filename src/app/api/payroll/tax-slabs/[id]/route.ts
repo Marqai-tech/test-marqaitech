@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,13 +13,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.taxSlabTable.findUnique({
+    const data = await db.taxSlabTable.findUnique({
       where: { id },
       include: { rateLines: { orderBy: { sequence: 'asc' } } },
     });
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -44,10 +46,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { rateLines, ...slabData } = body;
 
     if (rateLines) {
-      await prisma.taxSlabRateLine.deleteMany({ where: { slabTableId: id } });
+      await db.taxSlabRateLine.deleteMany({ where: { slabTableId: id } });
     }
 
-    const data = await prisma.taxSlabTable.update({
+    const data = await db.taxSlabTable.update({
       where: { id },
       data: {
         ...slabData,
@@ -66,14 +68,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    await prisma.taxSlabRateLine.deleteMany({ where: { slabTableId: id } });
-    await prisma.taxSlabTable.delete({ where: { id } });
+    await db.taxSlabRateLine.deleteMany({ where: { slabTableId: id } });
+    await db.taxSlabTable.delete({ where: { id } });
 
     return Response.json({ message: 'Tax slab table deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

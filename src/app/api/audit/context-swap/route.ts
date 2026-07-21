@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -37,6 +37,7 @@ export async function OPTIONS() {
  * we never want to block a user's context swap because of a logging issue.
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       : `Context swap: ${fromLabel} → ${toLabel}.`;
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId,
           action: 'CONTEXT_SWAP',

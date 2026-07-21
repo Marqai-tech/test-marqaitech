@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     let data;
     try {
-      data = await prisma.payrollHold.findMany({
+      data = await db.payrollHold.findMany({
         where,
         include: {
           employee: {
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const data = await prisma.payrollHold.create({
+      const data = await db.payrollHold.create({
         data: {
           employeeId: body.employeeId,
           holdType: body.holdType,

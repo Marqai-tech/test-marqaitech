@@ -21,7 +21,7 @@
  * added at the edge (Vercel) in production.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +34,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const url = new URL(request.url);
     const code = url.searchParams.get('code')?.trim();
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     const needle = code.toLowerCase();
 
     // 1. Try Tenant.slug / Tenant.name
-    const tenant = await prisma.tenant.findFirst({
+    const tenant = await getPlatformDb().tenant.findFirst({
       where: {
         OR: [
           { slug: { contains: needle, mode: 'insensitive' } },
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
     }
 
     // 2. Fall back to Company.code / Company.name — return the company + its tenant
-    const company = await prisma.company.findFirst({
+    const company = await db.company.findFirst({
       where: {
         OR: [
           { code: { equals: code, mode: 'insensitive' } },

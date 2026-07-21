@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,6 +7,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Body: { employeeId, role?: 'lead'|'member'|'observer' }
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { employeeId, role = 'member' } = body;
     if (!employeeId) return NextResponse.json({ error: 'employeeId is required' }, { status: 400 });
 
-    const membership = await prisma.teamMember.upsert({
+    const membership = await db.teamMember.upsert({
       where: { teamId_employeeId: { teamId: id, employeeId } },
       create: { teamId: id, employeeId, role, leftAt: null },
       update: { role, leftAt: null },
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
  * Removes a member from the team (sets leftAt).
  */
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -47,7 +49,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const employeeId = searchParams.get('employeeId');
     if (!employeeId) return NextResponse.json({ error: 'employeeId is required' }, { status: 400 });
 
-    await prisma.teamMember.updateMany({
+    await db.teamMember.updateMany({
       where: { teamId: id, employeeId },
       data: { leftAt: new Date() },
     });

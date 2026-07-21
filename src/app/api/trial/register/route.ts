@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -10,6 +10,7 @@ import crypto from 'crypto';
  * Auto-approves and creates full tenant structure immediately.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const {

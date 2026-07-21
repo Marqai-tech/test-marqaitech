@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview — List interviews
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
     if (status) where.status = status;
 
     const [interviews, total] = await Promise.all([
-      prisma.interview.findMany({
+      db.interview.findMany({
         where,
         include: {
           jobApplication: {
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.interview.count({ where }),
+      db.interview.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/ai-interview — Schedule a new interview
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const {
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const interview = await prisma.interview.create({
+    const interview = await db.interview.create({
       data: {
         jobApplicationId,
         type: type || 'technical',
@@ -97,6 +99,7 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/ai-interview — Update interview
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const { id, status, feedback, score, aiScore, aiFeedback, type, date, duration, meetingUrl } = body;
@@ -116,7 +119,7 @@ export async function PUT(req: NextRequest) {
     if (duration !== undefined) updateData.duration = parseInt(String(duration), 10);
     if (meetingUrl !== undefined) updateData.meetingUrl = meetingUrl;
 
-    const interview = await prisma.interview.update({
+    const interview = await db.interview.update({
       where: { id },
       data: updateData,
       include: {

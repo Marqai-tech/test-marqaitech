@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [reviews, total] = await Promise.all([
-      prisma.performanceReview.findMany({
+      db.performanceReview.findMany({
         where,
         include: {
           employee: {
@@ -60,13 +61,13 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.performanceReview.count({ where }),
+      db.performanceReview.count({ where }),
     ]);
 
     // Fetch reviewer info for reviews that have a reviewerId
     const reviewerIds = reviews.map(r => r.reviewerId).filter(Boolean) as string[];
     const reviewers = reviewerIds.length > 0
-      ? await prisma.employee.findMany({
+      ? await db.employee.findMany({
           where: { id: { in: reviewerIds } },
           select: { id: true, firstName: true, lastName: true, employeeId: true },
         })
@@ -100,6 +101,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -142,7 +144,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const review = await prisma.performanceReview.create({
+    const review = await db.performanceReview.create({
       data: {
         employeeId,
         reviewCycle,
@@ -166,7 +168,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_PERFORMANCE_REVIEW',

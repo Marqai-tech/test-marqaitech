@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { convertCurrency } from '@/lib/fx';
@@ -29,6 +29,7 @@ export async function OPTIONS() {
 //   ?from=&to=  → invoice issueDate range
 //   ?currency=  → report currency (default: INR)
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -64,14 +65,14 @@ export async function GET(request: Request) {
 
     // If tenant_admin is calling, restrict to their tenant's companies
     if (userRole === 'tenant_admin' && decoded.tenantId) {
-      const tenantCompanies = await prisma.company.findMany({
+      const tenantCompanies = await db.company.findMany({
         where: { companyGroup: { tenantId: decoded.tenantId as string } },
         select: { id: true },
       });
       invoiceWhere.companyId = { in: tenantCompanies.map((c) => c.id) };
     }
     if (tenantId && userRole === 'super_admin') {
-      const tenantCompanies = await prisma.company.findMany({
+      const tenantCompanies = await db.company.findMany({
         where: { companyGroup: { tenantId } },
         select: { id: true },
       });
@@ -80,7 +81,7 @@ export async function GET(request: Request) {
 
     // Get invoices + their projects
     const invoices = await withSchemaSync(() =>
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: invoiceWhere,
         include: {
           project: {

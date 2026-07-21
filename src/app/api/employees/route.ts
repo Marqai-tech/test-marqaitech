@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 
@@ -33,6 +33,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   // Declare outside try so the global catch can access them
   let isAuthed = false;
   let scope = 'all';
@@ -109,13 +110,13 @@ export async function GET(request: Request) {
       // specific tenant's companies. Employee has no `company` relation —
       // only a bare companyId field, so we must resolve company IDs first.
       if (!companyId && tenantId && userRole === 'super_admin') {
-        const tenantGroups = await prisma.companyGroup.findMany({
+        const tenantGroups = await db.companyGroup.findMany({
           where: { tenantId },
           select: { id: true },
         });
         const groupIds = tenantGroups.map(g => g.id);
         if (groupIds.length > 0) {
-          const tenantCompanies = await prisma.company.findMany({
+          const tenantCompanies = await db.company.findMany({
             where: { companyGroupId: { in: groupIds } },
             select: { id: true },
           });
@@ -134,7 +135,7 @@ export async function GET(request: Request) {
         if (scope === 'self' && userId) {
           where.userId = userId;
         } else if (scope === 'team' && userId) {
-          const ownEmp = await prisma.employee.findFirst({
+          const ownEmp = await db.employee.findFirst({
             where: { userId, status: 'active' },
             select: { departmentId: true },
           });
@@ -147,7 +148,7 @@ export async function GET(request: Request) {
       }
 
       const [employees, total] = await Promise.all([
-        prisma.employee.findMany({
+        db.employee.findMany({
           where,
           include: {
             department: true,
@@ -161,7 +162,7 @@ export async function GET(request: Request) {
           skip: (page - 1) * limit,
           take: limit,
         }),
-        prisma.employee.count({ where }),
+        db.employee.count({ where }),
       ]);
 
       if (employees.length > 0 || total > 0) {
@@ -205,6 +206,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     // Try auth but allow demo mode
     let isAuthed = false;
@@ -286,7 +288,7 @@ export async function POST(request: Request) {
     // Try to create in database
     try {
       // Check for duplicate employeeId
-      const existingEmployee = await prisma.employee.findUnique({
+      const existingEmployee = await db.employee.findUnique({
         where: { employeeId },
       });
       if (existingEmployee) {
@@ -297,7 +299,7 @@ export async function POST(request: Request) {
       }
 
       // Check for duplicate email
-      const existingEmail = await prisma.employee.findFirst({
+      const existingEmail = await db.employee.findFirst({
         where: { email },
       });
       if (existingEmail) {
@@ -321,7 +323,7 @@ export async function POST(request: Request) {
       // company from the branch.
       let effectiveCompanyId: string | null = companyId || null;
       if (!effectiveCompanyId && branchId) {
-        const branch = await prisma.branch.findUnique({
+        const branch = await db.branch.findUnique({
           where: { id: branchId },
           select: { companyId: true },
         });
@@ -329,7 +331,7 @@ export async function POST(request: Request) {
       }
 
       if (effectiveCompanyId) {
-        const company = await prisma.company.findUnique({
+        const company = await db.company.findUnique({
           where: { id: effectiveCompanyId },
           select: {
             id: true,
@@ -349,7 +351,7 @@ export async function POST(request: Request) {
         if (company?.companyGroup && company.companyGroup.maxEmployees !== null && company.companyGroup.maxEmployees > 0) {
           const grp = company.companyGroup;
           if (grp.employeeLimitMode === 'per_company') {
-            const countInCompany = await prisma.employee.count({
+            const countInCompany = await db.employee.count({
               where: { companyId: effectiveCompanyId, status: 'active' },
             });
             if (countInCompany >= grp.maxEmployees) {
@@ -368,11 +370,11 @@ export async function POST(request: Request) {
             }
           } else {
             // group_total mode
-            const groupCompanyIds = await prisma.company.findMany({
+            const groupCompanyIds = await db.company.findMany({
               where: { companyGroupId: grp.id },
               select: { id: true },
             });
-            const countInGroup = await prisma.employee.count({
+            const countInGroup = await db.employee.count({
               where: {
                 companyId: { in: groupCompanyIds.map((c) => c.id) },
                 status: 'active',
@@ -395,7 +397,7 @@ export async function POST(request: Request) {
         }
       }
 
-      const employee = await prisma.employee.create({
+      const employee = await db.employee.create({
         data: {
           employeeId,
           firstName,
@@ -440,7 +442,7 @@ export async function POST(request: Request) {
 
       if (isAuthed && decodedUserId) {
         try {
-          await prisma.auditLog.create({
+          await db.auditLog.create({
             data: {
               userId: decodedUserId,
               action: 'CREATE_EMPLOYEE',
@@ -461,7 +463,7 @@ export async function POST(request: Request) {
         // Resolve tenantId from the authenticated admin user
         let adminTenantId: string | undefined;
         if (isAuthed && decodedUserId) {
-          const adminUser = await prisma.user.findUnique({
+          const adminUser = await db.user.findUnique({
             where: { id: decodedUserId },
             select: { tenantId: true },
           });
@@ -470,7 +472,7 @@ export async function POST(request: Request) {
 
         if (adminTenantId) {
           // Check if a User with this email already exists
-          const existingUser = await prisma.user.findUnique({
+          const existingUser = await db.user.findUnique({
             where: { email },
           });
 
@@ -478,7 +480,7 @@ export async function POST(request: Request) {
 
           if (existingUser) {
             // Update existing user's role
-            await prisma.user.update({
+            await db.user.update({
               where: { id: existingUser.id },
               data: { role: effectiveRole },
             });
@@ -488,7 +490,7 @@ export async function POST(request: Request) {
             const randomPassword = generateRandomPassword();
             const hashedPwd = await hashPassword(randomPassword);
 
-            const newUser = await prisma.user.create({
+            const newUser = await db.user.create({
               data: {
                 email,
                 name: `${firstName} ${lastName}`,
@@ -502,7 +504,7 @@ export async function POST(request: Request) {
           }
 
           // Link the User to the Employee by setting userId
-          await prisma.employee.update({
+          await db.employee.update({
             where: { id: employee.id },
             data: { userId: userIdForEmployee },
           });
@@ -511,7 +513,7 @@ export async function POST(request: Request) {
           const effectiveCompanyId = companyId || null;
           if (effectiveCompanyId) {
             try {
-              await prisma.employeeCompanyMapping.create({
+              await db.employeeCompanyMapping.create({
                 data: {
                   employeeId: employee.id,
                   companyId: effectiveCompanyId,
@@ -531,7 +533,7 @@ export async function POST(request: Request) {
 
           // Create UserRoleAssignment linking the user to the appropriate Role
           try {
-            const roleRecord = await prisma.role.findFirst({
+            const roleRecord = await db.role.findFirst({
               where: {
                 OR: [
                   { key: effectiveRole },
@@ -542,7 +544,7 @@ export async function POST(request: Request) {
 
             if (roleRecord) {
               // Check if this assignment already exists to avoid unique constraint violation
-              const existingAssignment = await prisma.userRoleAssignment.findFirst({
+              const existingAssignment = await db.userRoleAssignment.findFirst({
                 where: {
                   userId: userIdForEmployee,
                   roleId: roleRecord.id,
@@ -551,7 +553,7 @@ export async function POST(request: Request) {
               });
 
               if (!existingAssignment) {
-                await prisma.userRoleAssignment.create({
+                await db.userRoleAssignment.create({
                   data: {
                     userId: userIdForEmployee,
                     roleId: roleRecord.id,

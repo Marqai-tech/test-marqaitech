@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -30,6 +30,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -47,7 +48,7 @@ export async function POST(
     await ensureSchemaSynced();
 
     const offer = await withSchemaSync(() =>
-      prisma.offer.findUnique({ where: { id } })
+      db.offer.findUnique({ where: { id } })
     );
     if (!offer) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
@@ -86,7 +87,7 @@ export async function POST(
     const signingUrl = `/offers/${id}/sign?envelopeId=${encodeURIComponent(envelopeId)}`;
 
     const updated = await withSchemaSync(() =>
-      prisma.offer.update({
+      db.offer.update({
         where: { id },
         data: {
           esignProvider: effectiveProvider,
@@ -95,7 +96,7 @@ export async function POST(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'OFFER_SENT_FOR_ESIGN',

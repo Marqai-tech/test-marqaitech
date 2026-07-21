@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 import { NextRequest } from 'next/server';
@@ -14,6 +14,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const authInfo = await getAuthInfo(request);
     if (!authInfo) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (componentCategory) where.componentCategory = componentCategory;
     if (isActive !== null && isActive !== undefined) where.isActive = isActive === 'true';
 
-    const data = await prisma.payrollComponent.findMany({
+    const data = await db.payrollComponent.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const authInfo = await getAuthInfo(request);
     if (!authInfo) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
     // if not explicitly provided
     if (!body.companyId && authInfo.role !== 'super_admin') {
       // Try to resolve from the admin's employee record
-      const adminEmployee = await prisma.employee.findFirst({
+      const adminEmployee = await db.employee.findFirst({
         where: { userId: authInfo.userId, status: 'active' },
         select: { companyId: true },
       });
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const data = await prisma.payrollComponent.create({ data: body });
+    const data = await db.payrollComponent.create({ data: body });
 
     return Response.json({ data, message: 'Payroll component created successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

@@ -3,11 +3,12 @@
  *  GET — list audit log entries (admin only). Supports filtering by employeeId, action, date range.
  */
 import { requireUser, isAdminRole, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
       if (q.to) (where.createdAt as Record<string, unknown>).lte = new Date(q.to);
     }
 
-    const items = await prisma.attendanceAuditLog.findMany({
+    const items = await db.attendanceAuditLog.findMany({
       where,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
       orderBy: { createdAt: 'desc' },

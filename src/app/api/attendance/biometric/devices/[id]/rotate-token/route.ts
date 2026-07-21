@@ -7,7 +7,7 @@
  * The old token immediately stops working.
  */
 import { requireUser, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { randomBytes, createHash } from 'crypto';
 
 export { OPTIONS };
@@ -17,6 +17,7 @@ function hashToken(raw: string) {
 }
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can rotate device tokens', 403);
@@ -26,7 +27,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   const apiTokenHash = hashToken(rawToken);
 
   try {
-    const device = await prisma.biometricDevice.update({
+    const device = await db.biometricDevice.update({
       where: { id },
       data: { apiTokenHash },
     });

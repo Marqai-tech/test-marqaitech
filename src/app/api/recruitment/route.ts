@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -47,6 +47,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
     if (departmentId) where.departmentId = departmentId;
 
     const [jobPostings, total] = await Promise.all([
-      prisma.jobPosting.findMany({
+      db.jobPosting.findMany({
         where,
         include: {
           department: {
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.jobPosting.count({ where }),
+      db.jobPosting.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -132,6 +133,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -164,7 +166,7 @@ export async function POST(request: Request) {
       }
 
       // Verify job posting exists AND belongs to the caller's tenant
-      const jobExists = await prisma.jobPosting.findFirst({
+      const jobExists = await db.jobPosting.findFirst({
         where: tenantScopedJobPostingFilter(jobPostingId, decodedRec),
       });
       if (!jobExists) {
@@ -174,7 +176,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const application = await prisma.jobApplication.create({
+      const application = await db.jobApplication.create({
         data: {
           jobPostingId,
           candidateName,
@@ -186,7 +188,7 @@ export async function POST(request: Request) {
         },
       });
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'SUBMIT_APPLICATION',
@@ -224,7 +226,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the department belongs to the caller's tenant (prevent cross-tenant job creation)
-    const department = await prisma.department.findFirst({
+    const department = await db.department.findFirst({
       where: {
         id: departmentId,
         company: {
@@ -239,7 +241,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const jobPosting = await prisma.jobPosting.create({
+    const jobPosting = await db.jobPosting.create({
       data: {
         title,
         departmentId,
@@ -262,7 +264,7 @@ export async function POST(request: Request) {
     });
 
     // Notify HR admins about the new job posting
-    const hrAdmins = await prisma.user.findMany({
+    const hrAdmins = await db.user.findMany({
       where: {
         tenantId: decodedRec.tenantId as string,
         role: { in: ['super_admin', 'tenant_admin', 'admin'] },
@@ -281,7 +283,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_JOB_POSTING',

@@ -14,7 +14,7 @@
 // The response is a list of proposed inter-company JEs — the caller (a
 // finance system or the bank-file generator) can post them to the GL.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -31,6 +31,7 @@ export async function OPTIONS() {
 // GET /api/payroll/intercompany?payrollRunId=...
 // Computes inter-company JEs for the specified run.
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const payrollRunId = searchParams.get('payrollRunId');
     if (!payrollRunId) return Response.json({ error: 'payrollRunId required' }, { status: 400, headers: corsHeaders });
 
-    const run = await prisma.payrollRun.findUnique({
+    const run = await db.payrollRun.findUnique({
       where: { id: payrollRunId },
       include: {
         transactionLines: {
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       return Response.json({ data: [], message: 'Run has no companyId — cannot compute inter-company JEs.' }, { headers: corsHeaders });
     }
 
-    const homeCompany = await prisma.company.findUnique({
+    const homeCompany = await db.company.findUnique({
       where: { id: homeCompanyId },
       select: { id: true, name: true, currency: true },
     });
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
       // 2) If no explicit split, check EmployeeDimensionAllocation for a cross-company allocation
       if (crossCompanySplits.length === 0) {
         try {
-          const allocations = await prisma.employeeDimensionAllocation.findMany({
+          const allocations = await db.employeeDimensionAllocation.findMany({
             where: { employeeId: line.employeeId, effectiveTo: null },
             include: { dimension: { select: { code: true } } },
           });
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
           // Resolve company names (lazy-load)
           let toCompanyName = split.toCompanyId;
           try {
-            const toCo = await prisma.company.findUnique({ where: { id: split.toCompanyId }, select: { name: true } });
+            const toCo = await db.company.findUnique({ where: { id: split.toCompanyId }, select: { name: true } });
             if (toCo) toCompanyName = toCo.name;
           } catch { /* ignore */ }
           entry = {

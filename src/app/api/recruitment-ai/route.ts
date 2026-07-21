@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import {
   parseResumeFromDataUrl,
   detectLanguage,
@@ -22,6 +22,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });

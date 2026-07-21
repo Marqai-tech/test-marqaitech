@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -39,6 +39,7 @@ export async function OPTIONS() {
  * to 'applied'.
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     }
 
     // Resolve the authenticated employee.
-    const employee = await prisma.employee.findFirst({
+    const employee = await db.employee.findFirst({
       where: { userId: decoded.userId as string },
       select: { id: true, firstName: true, lastName: true },
     });
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     // Validate the job exists.
-    const jobPosting = await prisma.jobPosting.findUnique({
+    const jobPosting = await db.jobPosting.findUnique({
       where: { id: jobPostingId },
       select: { id: true, title: true, status: true, location: true },
     });
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
     // the same job and get the same URL back.
     const PLACEHOLDER_EMAIL_PREFIX = 'pending+';
     const existing = await withSchemaSync(() =>
-      prisma.referral.findFirst({
+      db.referral.findFirst({
         where: {
           referrerEmployeeId: employee.id,
           jobPostingId,
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
       // — they get overwritten by /api/public/apply when someone actually
       // applies through this link.
       const created = await withSchemaSync(() =>
-        prisma.referral.create({
+        db.referral.create({
           data: {
             jobPostingId,
             referrerEmployeeId: employee.id,

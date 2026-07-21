@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -32,7 +33,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const offer = await prisma.offer.findUnique({ where: { id } });
+    const offer = await db.offer.findUnique({ where: { id } });
     if (!offer) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -48,6 +49,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -63,7 +65,7 @@ export async function PATCH(
     const body = await request.json();
     const { status, responseNotes, candidateName, candidateEmail, position, department, offeredSalary, offeredCurrency, joiningDate, probationPeriod } = body;
 
-    const existing = await prisma.offer.findUnique({ where: { id } });
+    const existing = await db.offer.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -105,7 +107,7 @@ export async function PATCH(
     if (joiningDate !== undefined) updateData.joiningDate = joiningDate ? new Date(joiningDate) : null;
     if (probationPeriod !== undefined) updateData.probationPeriod = probationPeriod;
 
-    const offer = await prisma.offer.update({
+    const offer = await db.offer.update({
       where: { id },
       data: updateData,
     });
@@ -148,7 +150,7 @@ export async function PATCH(
       const notificationInfo = notificationMap[status];
       if (notificationInfo) {
         // Notify the HR admin / approvers
-        const hrAdmins = await prisma.user.findMany({
+        const hrAdmins = await db.user.findMany({
           where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin'] } },
         });
 
@@ -166,7 +168,7 @@ export async function PATCH(
       }
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_OFFER_STATUS',
@@ -186,6 +188,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -199,14 +202,14 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.offer.findUnique({ where: { id } });
+    const existing = await db.offer.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.offer.delete({ where: { id } });
+    await db.offer.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_OFFER',

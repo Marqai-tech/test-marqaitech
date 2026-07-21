@@ -9,21 +9,22 @@
  * the mobile punch endpoint (POST /api/attendance/punch/mobile) consult these.
  */
 import { requireUser, parseBody, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
-    let thresholds = await prisma.attendanceAiThreshold.findFirst({
+    let thresholds = await db.attendanceAiThreshold.findFirst({
       where: { isActive: true },
       orderBy: { updatedAt: 'desc' },
     });
     if (!thresholds) {
       // Lazily create defaults
-      thresholds = await prisma.attendanceAiThreshold.create({ data: { name: 'default' } });
+      thresholds = await db.attendanceAiThreshold.create({ data: { name: 'default' } });
     }
     return ok({ thresholds });
   } catch (e: unknown) {
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can update AI thresholds', 403);
@@ -40,12 +42,12 @@ export async function PATCH(request: Request) {
   if (!body) return fail('Invalid JSON');
 
   try {
-    let thresholds = await prisma.attendanceAiThreshold.findFirst({
+    let thresholds = await db.attendanceAiThreshold.findFirst({
       where: { isActive: true },
       orderBy: { updatedAt: 'desc' },
     });
     if (!thresholds) {
-      thresholds = await prisma.attendanceAiThreshold.create({ data: { name: 'default' } });
+      thresholds = await db.attendanceAiThreshold.create({ data: { name: 'default' } });
     }
 
     const data: Record<string, unknown> = {};
@@ -57,7 +59,7 @@ export async function PATCH(request: Request) {
     if (typeof body.offHoursEndMinutes === 'number') data.offHoursEndMinutes = body.offHoursEndMinutes;
     if (typeof body.isActive === 'boolean') data.isActive = body.isActive;
 
-    const updated = await prisma.attendanceAiThreshold.update({ where: { id: thresholds.id }, data });
+    const updated = await db.attendanceAiThreshold.update({ where: { id: thresholds.id }, data });
     return ok({ thresholds: updated });
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to update thresholds', 500);

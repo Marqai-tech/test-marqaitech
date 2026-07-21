@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // GET: List all leave types (company-scoped)
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Create a new leave type
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {

@@ -1,6 +1,6 @@
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +14,7 @@ export async function OPTIONS() {
 
 // GET: List income tax declarations
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -33,11 +34,11 @@ export async function GET(request: NextRequest) {
     // Non-admin users can only see their own declarations
     if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       const userId = (decoded as Record<string, unknown>).userId || (decoded as Record<string, unknown>).sub;
-      const emp = await prisma.employee.findFirst({ where: { userId: userId as string } });
+      const emp = await db.employee.findFirst({ where: { userId: userId as string } });
       if (emp) where.employeeId = emp.id;
     }
 
-    const declarations = await prisma.incomeTaxDeclaration.findMany({
+    const declarations = await db.incomeTaxDeclaration.findMany({
       where,
       include: {
         employee: {
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Create income tax declaration
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // If employee is creating their own declaration
     if (!employeeId && userRole === 'admin') {
-      const emp = await prisma.employee.findFirst({ where: { userId: userId as string } });
+      const emp = await db.employee.findFirst({ where: { userId: userId as string } });
       if (!emp) return Response.json({ error: 'Employee profile not found' }, { status: 404, headers: corsHeaders });
       employeeId = emp.id;
     }
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
       (body.section80E_EducationLoan || 0) + (body.section80G_Donations || 0) +
       (body.section80TTA_SavingsInterest || 0) + (body.otherDeductions || 0);
 
-    const declaration = await prisma.incomeTaxDeclaration.create({
+    const declaration = await db.incomeTaxDeclaration.create({
       data: {
         employeeId,
         financialYear: body.financialYear || '2024-25',

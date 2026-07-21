@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -26,7 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Assign asset to employee
     if (body.action === 'assign' && body.employeeId) {
-      const assignment = await prisma.assetAssignment.create({
+      const assignment = await db.assetAssignment.create({
         data: {
           assetId: id,
           employeeId: body.employeeId,
@@ -38,13 +39,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           employee: { select: { firstName: true, lastName: true, employeeId: true } },
         },
       });
-      await prisma.asset.update({ where: { id }, data: { status: 'assigned' } });
+      await db.asset.update({ where: { id }, data: { status: 'assigned' } });
       return NextResponse.json({ assignment }, { status: 201, headers: corsHeaders() });
     }
 
     // Return asset
     if (body.action === 'return' && body.assignmentId) {
-      const assignment = await prisma.assetAssignment.update({
+      const assignment = await db.assetAssignment.update({
         where: { id: body.assignmentId },
         data: {
           returnDate: new Date(),
@@ -53,11 +54,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         },
       });
       // Check if asset has other active assignments
-      const activeAssignments = await prisma.assetAssignment.count({
+      const activeAssignments = await db.assetAssignment.count({
         where: { assetId: id, status: 'assigned' },
       });
       if (activeAssignments === 0) {
-        await prisma.asset.update({ where: { id }, data: { status: 'available' } });
+        await db.asset.update({ where: { id }, data: { status: 'available' } });
       }
       return NextResponse.json({ assignment }, { headers: corsHeaders() });
     }
@@ -77,7 +78,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.warrantyExpiry !== undefined) data.warrantyExpiry = body.warrantyExpiry ? new Date(body.warrantyExpiry) : null;
     if (body.notes !== undefined) data.notes = body.notes;
 
-    const asset = await prisma.asset.update({
+    const asset = await db.asset.update({
       where: { id },
       data,
       include: {
@@ -96,6 +97,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -104,10 +106,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     // Delete asset assignments first
-    await prisma.assetAssignment.deleteMany({ where: { assetId: id } });
+    await db.assetAssignment.deleteMany({ where: { assetId: id } });
 
     // Delete the asset
-    await prisma.asset.delete({ where: { id } });
+    await db.asset.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Asset deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

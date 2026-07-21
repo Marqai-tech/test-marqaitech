@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { registerTenantDatabase } from '@/lib/tenant-db';
 
@@ -38,7 +38,8 @@ export async function POST(request: Request) {
     }
 
     // Verify tenant exists
-    const tenant = await prisma.tenant.findUnique({
+    const platformDb = getPlatformDb();
+    const tenant = await platformDb.tenant.findUnique({
       where: { id: tenantId },
       select: { id: true, name: true, slug: true },
     });

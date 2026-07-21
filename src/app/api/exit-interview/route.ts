@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
     await ensureSchemaSynced();
 
     const interviews = await withSchemaSync(() =>
-      prisma.exitInterview.findMany({
+      db.exitInterview.findMany({
         where,
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } }, designation: { select: { title: true } } } },
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
     await ensureSchemaSynced();
 
     const interview = await withSchemaSync(() =>
-      prisma.exitInterview.create({
+      db.exitInterview.create({
         data: {
           separationId,
           employeeId,

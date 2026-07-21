@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 
 function corsHeaders() {
@@ -22,6 +22,7 @@ interface InvitationResult {
 }
 
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const token = getTokenFromHeaders(req);
     if (!token) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -65,6 +65,7 @@ async function safe<T>(
  * The endpoint only 500s if the JWT verification itself fails.
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
     // otherwise crash the whole endpoint.
     const employee = await safe(
       'employee.findFirst',
-      () => prisma.employee.findFirst({
+      () => db.employee.findFirst({
         where: { userId },
         select: {
           id: true,
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
     if (ownCompanyId) {
       ownCompany = await safe(
         'company.findUnique(ownCompany)',
-        () => prisma.company.findUnique({
+        () => db.company.findUnique({
           where: { id: ownCompanyId as string },
           select: { id: true, name: true, code: true },
         }),
@@ -126,7 +127,7 @@ export async function GET(request: Request) {
       if (!employeeIdForMapping && decoded.email) {
         const employeeByEmail = await safe(
           'employee.findFirst(emailFallback)',
-          () => prisma.employee.findFirst({
+          () => db.employee.findFirst({
             where: { email: { equals: decoded.email as string, mode: 'insensitive' } },
             select: { id: true, companyId: true },
           }),
@@ -144,7 +145,7 @@ export async function GET(request: Request) {
       if (employeeIdForMapping) {
         const primaryMapping = await safe(
           'employeeCompanyMapping.findFirst(primary)',
-          () => prisma.employeeCompanyMapping.findFirst({
+          () => db.employeeCompanyMapping.findFirst({
             where: { employeeId: employeeIdForMapping!, isPrimary: true, status: 'active' },
             select: { companyId: true, company: { select: { id: true, name: true, code: true } } },
           }),
@@ -157,7 +158,7 @@ export async function GET(request: Request) {
           // Try any mapping if no primary
           const anyMapping = await safe(
             'employeeCompanyMapping.findFirst(any)',
-            () => prisma.employeeCompanyMapping.findFirst({
+            () => db.employeeCompanyMapping.findFirst({
               where: { employeeId: employeeIdForMapping!, status: 'active' },
               select: { companyId: true, company: { select: { id: true, name: true, code: true } } },
             }),
@@ -174,7 +175,7 @@ export async function GET(request: Request) {
       if (!ownCompanyId && callerTenantId) {
         const fallback = await safe(
           'employee.findFirst(fallback)',
-          () => prisma.employee.findFirst({
+          () => db.employee.findFirst({
             where: { user: { tenantId: callerTenantId } },
             select: {
               id: true,
@@ -197,7 +198,7 @@ export async function GET(request: Request) {
     if (!resolvedEmployeeId && !['super_admin', 'tenant_admin'].includes(role) && decoded.email) {
       const employeeByEmail = await safe(
         'employee.findFirst(emailForMapping)',
-        () => prisma.employee.findFirst({
+        () => db.employee.findFirst({
           where: { email: { equals: decoded.email as string, mode: 'insensitive' } },
           select: { id: true },
         }),
@@ -230,7 +231,7 @@ export async function GET(request: Request) {
       // admin can see and manage suspended/pending tenants too.
       availableTenants = await safe(
         'tenant.findMany(all)',
-        () => prisma.tenant.findMany({
+        () => getPlatformDb().tenant.findMany({
           select: { id: true, name: true, slug: true, plan: true, status: true, maxCompaniesAllowed: true },
           orderBy: { name: 'asc' },
         }),
@@ -242,7 +243,7 @@ export async function GET(request: Request) {
       if (effectiveTenantId) {
         availableCompanyGroups = await safe(
           'companyGroup.findMany(super_admin)',
-          () => prisma.companyGroup.findMany({
+          () => db.companyGroup.findMany({
             where: { tenantId: effectiveTenantId },
             select: {
               id: true, name: true, tenantId: true,
@@ -256,7 +257,7 @@ export async function GET(request: Request) {
         if (groupIds.length > 0) {
           availableCompanies = await safe(
             'company.findMany(super_admin)',
-            () => prisma.company.findMany({
+            () => db.company.findMany({
               where: { companyGroupId: { in: groupIds } },
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
@@ -275,7 +276,7 @@ export async function GET(request: Request) {
       if (callerTenantId) {
         availableCompanyGroups = await safe(
           'companyGroup.findMany(tenant_admin)',
-          () => prisma.companyGroup.findMany({
+          () => db.companyGroup.findMany({
             where: { tenantId: callerTenantId },
             select: {
               id: true, name: true, tenantId: true,
@@ -289,7 +290,7 @@ export async function GET(request: Request) {
         if (groupIds.length > 0) {
           availableCompanies = await safe(
             'company.findMany(tenant_admin)',
-            () => prisma.company.findMany({
+            () => db.company.findMany({
               where: { companyGroupId: { in: groupIds } },
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
@@ -309,7 +310,7 @@ export async function GET(request: Request) {
     if (!['super_admin', 'tenant_admin'].includes(role) && resolvedEmployeeId) {
       const mappings = await safe(
         'employeeCompanyMapping.findMany',
-        () => prisma.employeeCompanyMapping.findMany({
+        () => db.employeeCompanyMapping.findMany({
           where: { employeeId: resolvedEmployeeId!, status: 'active' },
           select: {
             employeeCode: true,
@@ -341,7 +342,7 @@ export async function GET(request: Request) {
         const mappedCompanyIds = mappedCompanies.map((mc) => mc.id);
         availableCompanies = await safe(
           'company.findMany(employeeMappings)',
-          () => prisma.company.findMany({
+          () => db.company.findMany({
             where: { id: { in: mappedCompanyIds } },
             select: {
               id: true, name: true, code: true, companyGroupId: true,
@@ -357,7 +358,7 @@ export async function GET(request: Request) {
         if (mappedGroupIds.length > 0) {
           availableCompanyGroups = await safe(
             'companyGroup.findMany(employeeMappings)',
-            () => prisma.companyGroup.findMany({
+            () => db.companyGroup.findMany({
               where: { id: { in: mappedGroupIds as string[] } },
               select: {
                 id: true, name: true, tenantId: true,
@@ -375,7 +376,7 @@ export async function GET(request: Request) {
     const callerTenant = callerTenantId
       ? await safe(
           'tenant.findUnique(caller)',
-          () => prisma.tenant.findUnique({
+          () => getPlatformDb().tenant.findUnique({
             where: { id: callerTenantId },
             select: {
               id: true, name: true, slug: true, plan: true, status: true,
@@ -395,7 +396,7 @@ export async function GET(request: Request) {
     if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
       const groupsForQuota = await safe(
         'companyGroup.findMany(quota)',
-        () => prisma.companyGroup.findMany({
+        () => db.companyGroup.findMany({
           where: { tenantId: callerTenant.id },
           select: { id: true },
         }),
@@ -405,7 +406,7 @@ export async function GET(request: Request) {
       const usedCompanies = groupIdsForQuota.length
         ? await safe(
             'company.count(quota)',
-            () => prisma.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
+            () => db.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
             0,
           )
         : 0;

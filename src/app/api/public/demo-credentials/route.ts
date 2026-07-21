@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * GET /api/public/demo-credentials
@@ -12,6 +12,7 @@ import prisma from '@/lib/prisma';
  * Only super_admin and tenant_admin users are returned — no sample/employee users.
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const host = request.headers.get('x-tenant-domain') || '';
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
@@ -26,13 +27,13 @@ export async function GET(request: Request) {
 
     if (isDemoSite || isPlatformSite) {
       // Demo / Platform site — show ONLY super admins and tenant admins with company details
-      const superAdmins = await prisma.user.findMany({
+      const superAdmins = await db.user.findMany({
         where: { role: 'super_admin', status: 'active' },
         select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
         orderBy: { name: 'asc' },
       });
 
-      const tenantAdmins = await prisma.user.findMany({
+      const tenantAdmins = await db.user.findMany({
         where: { role: 'tenant_admin', status: 'active' },
         select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
         orderBy: { tenant: { name: 'asc' } },
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
 
     if (isTenantSubdomain) {
       // Tenant subdomain — show only that tenant's admin
-      const tenant = await prisma.tenant.findUnique({
+      const tenant = await getPlatformDb().tenant.findUnique({
         where: { slug: tenantSlug },
         select: { id: true, name: true, slug: true },
       });
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
       }
 
       // Only return tenant_admin for this tenant (no sample users)
-      const users = await prisma.user.findMany({
+      const users = await db.user.findMany({
         where: { tenantId: tenant.id, status: 'active', role: 'tenant_admin' },
         select: { email: true, name: true, role: true },
         orderBy: { name: 'asc' },

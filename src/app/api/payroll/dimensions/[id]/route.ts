@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.dimensionDefinition.update({
+    const data = await db.dimensionDefinition.update({
       where: { id },
       data: body,
     });
@@ -33,14 +34,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    await prisma.employeeDimensionAllocation.deleteMany({ where: { dimensionId: id } });
-    await prisma.dimensionDefinition.delete({ where: { id } });
+    await db.employeeDimensionAllocation.deleteMany({ where: { dimensionId: id } });
+    await db.dimensionDefinition.delete({ where: { id } });
 
     return Response.json({ message: 'Dimension definition deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

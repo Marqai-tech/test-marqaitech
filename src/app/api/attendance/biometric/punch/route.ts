@@ -44,7 +44,7 @@
  *   8. Persist BiometricPunch row with rawPayload + AI scores.
  *   9. Write AttendanceAuditLog entry (REQ-SEC-ATT-04).
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { Prisma } from '@/generated/prisma/client';
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
@@ -80,7 +80,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 async function resolveThresholds() {
-  const t = await prisma.attendanceAiThreshold.findFirst({
+  const t = await db.attendanceAiThreshold.findFirst({
     where: { isActive: true },
     orderBy: { updatedAt: 'desc' },
   });
@@ -97,6 +97,7 @@ async function resolveThresholds() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const token = request.headers.get('x-biometric-token');
   if (!token) return fail('Missing X-Biometric-Token header', 401);
 
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
   if (!serialNumber) return fail('Missing serialNumber in body');
 
   // 1. Authenticate device by serial + token hash
-  const device = await prisma.biometricDevice.findUnique({
+  const device = await db.biometricDevice.findUnique({
     where: { serialNumber },
     include: {
       branch: { select: { id: true, name: true } },
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
   if (device.apiTokenHash !== hashToken(token)) return fail('Invalid device token', 401);
 
   // Update heartbeat
-  await prisma.biometricDevice.update({
+  await db.biometricDevice.update({
     where: { id: device.id },
     data: {
       lastHeartbeatAt: new Date(),
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
   // 2. Resolve employee
   const employeeCode = String(body.employeeCode || '').trim();
   if (!employeeCode) return fail('Missing employeeCode in body');
-  const employee = await prisma.employee.findUnique({
+  const employee = await db.employee.findUnique({
     where: { employeeId: employeeCode },
     select: { id: true, firstName: true, lastName: true, branchId: true },
   });
@@ -169,7 +170,7 @@ export async function POST(request: Request) {
 
   // 6a. Impossible-travel check
   const sinceMs = thresholds.impossibleTravelMinutes * 60 * 1000;
-  const recentPunches = await prisma.biometricPunch.findMany({
+  const recentPunches = await db.biometricPunch.findMany({
     where: {
       employeeId: employee.id,
       punchTime: { gte: new Date(punchTime.getTime() - sinceMs), lte: punchTime },
@@ -219,13 +220,13 @@ export async function POST(request: Request) {
   const dayStart = new Date(punchTime);
   dayStart.setHours(0, 0, 0, 0);
 
-  const existing = await prisma.attendance.findUnique({
+  const existing = await db.attendance.findUnique({
     where: { employeeId_date: { employeeId: employee.id, date: dayStart } },
   });
 
   let attendanceId: string | null = null;
   try {
-    const attendance = await prisma.attendance.upsert({
+    const attendance = await db.attendance.upsert({
       where: { employeeId_date: { employeeId: employee.id, date: dayStart } },
       create: {
         employeeId: employee.id,
@@ -251,7 +252,7 @@ export async function POST(request: Request) {
   }
 
   // 8. Persist BiometricPunch row
-  const punch = await prisma.biometricPunch.create({
+  const punch = await db.biometricPunch.create({
     data: {
       deviceId: device.id,
       employeeId: employee.id,
@@ -268,7 +269,7 @@ export async function POST(request: Request) {
 
   // 9. Audit log (REQ-SEC-ATT-04)
   try {
-    await prisma.attendanceAuditLog.create({
+    await db.attendanceAuditLog.create({
       data: {
         employeeId: employee.id,
         attendanceId,

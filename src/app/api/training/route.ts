@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     if (category) where.category = category;
 
     const [trainings, total] = await Promise.all([
-      prisma.training.findMany({
+      db.training.findMany({
         where,
         include: {
           enrollments: {
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.training.count({ where }),
+      db.training.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -92,6 +93,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -130,7 +132,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const training = await prisma.training.create({
+    const training = await db.training.create({
       data: {
         title,
         description,
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_TRAINING',

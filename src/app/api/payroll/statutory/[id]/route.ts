@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,13 +13,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.statutoryComponent.findUnique({
+    const data = await db.statutoryComponent.findUnique({
       where: { id },
       include: { component: true },
     });
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -43,13 +45,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
 
     // Get existing statutory component to find the linked PayrollComponent
-    const existing = await prisma.statutoryComponent.findUnique({ where: { id } });
+    const existing = await db.statutoryComponent.findUnique({ where: { id } });
     if (!existing) return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
 
     // Update the linked PayrollComponent
     if (existing.componentId) {
       const componentType = body.partyType === 'EMPLOYER' ? 'EMPLOYER_CONTRIB' : body.partyType === 'BOTH' ? 'EMPLOYER_CONTRIB' : 'EMPLOYEE_CONTRIB';
-      await prisma.payrollComponent.update({
+      await db.payrollComponent.update({
         where: { id: existing.componentId },
         data: {
           code: body.componentCode,
@@ -66,7 +68,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Update StatutoryComponent
-    const data = await prisma.statutoryComponent.update({
+    const data = await db.statutoryComponent.update({
       where: { id },
       data: {
         componentCode: body.componentCode,
@@ -103,6 +105,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -110,15 +113,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     // Get the statutory component to find the linked PayrollComponent
-    const existing = await prisma.statutoryComponent.findUnique({ where: { id } });
+    const existing = await db.statutoryComponent.findUnique({ where: { id } });
 
     // Delete the statutory component
-    await prisma.statutoryComponent.delete({ where: { id } });
+    await db.statutoryComponent.delete({ where: { id } });
 
     // Also delete the linked PayrollComponent if it exists
     if (existing?.componentId) {
       try {
-        await prisma.payrollComponent.delete({ where: { id: existing.componentId } });
+        await db.payrollComponent.delete({ where: { id: existing.componentId } });
       } catch {
         // Ignore if component already deleted or has other references
       }

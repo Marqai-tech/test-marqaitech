@@ -1,6 +1,6 @@
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +14,7 @@ export async function OPTIONS() {
 
 // GET: Get mapped policies for an employee
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
 
-    const employee = await prisma.employee.findUnique({
+    const employee = await db.employee.findUnique({
       where: { id },
       select: {
         id: true,
@@ -41,18 +42,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Fetch policy details
     const [leavePolicies, attendancePolicies, travelPolicies, salaryStructures] = await Promise.all([
-      prisma.policy.findMany({ where: { category: 'leave', status: 'active' }, orderBy: { title: 'asc' } }),
-      prisma.policy.findMany({ where: { category: 'attendance', status: 'active' }, orderBy: { title: 'asc' } }),
-      prisma.policy.findMany({ where: { category: 'travel', status: 'active' }, orderBy: { title: 'asc' } }),
-      prisma.salaryStructure.findMany({ where: { status: 'active' }, orderBy: { name: 'asc' } }),
+      db.policy.findMany({ where: { category: 'leave', status: 'active' }, orderBy: { title: 'asc' } }),
+      db.policy.findMany({ where: { category: 'attendance', status: 'active' }, orderBy: { title: 'asc' } }),
+      db.policy.findMany({ where: { category: 'travel', status: 'active' }, orderBy: { title: 'asc' } }),
+      db.salaryStructure.findMany({ where: { status: 'active' }, orderBy: { name: 'asc' } }),
     ]);
 
     // Fetch mapped policy/structure details
     const [mappedLeavePolicy, mappedAttendancePolicy, mappedTravelPolicy, mappedSalaryStructure] = await Promise.all([
-      employee.leavePolicyId ? prisma.policy.findUnique({ where: { id: employee.leavePolicyId } }) : null,
-      employee.attendancePolicyId ? prisma.policy.findUnique({ where: { id: employee.attendancePolicyId } }) : null,
-      employee.travelPolicyId ? prisma.policy.findUnique({ where: { id: employee.travelPolicyId } }) : null,
-      employee.salaryStructureId ? prisma.salaryStructure.findUnique({
+      employee.leavePolicyId ? db.policy.findUnique({ where: { id: employee.leavePolicyId } }) : null,
+      employee.attendancePolicyId ? db.policy.findUnique({ where: { id: employee.attendancePolicyId } }) : null,
+      employee.travelPolicyId ? db.policy.findUnique({ where: { id: employee.travelPolicyId } }) : null,
+      employee.salaryStructureId ? db.salaryStructure.findUnique({
         where: { id: employee.salaryStructureId },
         include: { components: true },
       }) : null,
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 // PUT: Update mapped policies for an employee
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -106,7 +108,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return Response.json({ error: 'Only HR/Admin can update employee policies' }, { status: 403, headers: corsHeaders });
     }
 
-    const employee = await prisma.employee.findUnique({ where: { id } });
+    const employee = await db.employee.findUnique({ where: { id } });
     if (!employee) {
       return Response.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders });
     }
@@ -117,7 +119,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.travelPolicyId !== undefined) updateData.travelPolicyId = body.travelPolicyId || null;
     if (body.salaryStructureId !== undefined) updateData.salaryStructureId = body.salaryStructureId || null;
 
-    const updated = await prisma.employee.update({
+    const updated = await db.employee.update({
       where: { id },
       data: updateData,
     });

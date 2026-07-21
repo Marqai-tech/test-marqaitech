@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
     }
 
     const [logs, total] = await Promise.all([
-      prisma.auditLog.findMany({
+      db.auditLog.findMany({
         where,
         include: {
           user: {
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.auditLog.count({ where }),
+      db.auditLog.count({ where }),
     ]);
 
     return NextResponse.json(

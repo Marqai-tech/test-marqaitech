@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 
@@ -40,6 +40,7 @@ function generateRandomPassword(length = 12): string {
 
 /** GET — list all employees with their login credential status */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50');
 
     // Get user info
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { id: true, role: true, tenantId: true },
     });
@@ -90,13 +91,13 @@ export async function GET(request: Request) {
     // To filter by tenant, we need to first find all companies under that tenant,
     // then filter employees by those company IDs.
     if (!companyId && tenantId && userRole === 'super_admin') {
-      const tenantGroups = await prisma.companyGroup.findMany({
+      const tenantGroups = await db.companyGroup.findMany({
         where: { tenantId },
         select: { id: true },
       });
       const groupIds = tenantGroups.map(g => g.id);
       if (groupIds.length > 0) {
-        const tenantCompanies = await prisma.company.findMany({
+        const tenantCompanies = await db.company.findMany({
           where: { companyGroupId: { in: groupIds } },
           select: { id: true },
         });
@@ -117,7 +118,7 @@ export async function GET(request: Request) {
     if (scope === 'self' && userId) {
       where.userId = userId;
     } else if (scope === 'team' && userId) {
-      const ownEmp = await prisma.employee.findFirst({
+      const ownEmp = await db.employee.findFirst({
         where: { userId, status: 'active' },
         select: { departmentId: true },
       });
@@ -131,7 +132,7 @@ export async function GET(request: Request) {
     console.log('[Credentials GET] userRole:', userRole, 'scope:', scope, 'tenantId:', user.tenantId, 'companyId:', companyId);
 
     const [employees, total] = await Promise.all([
-      prisma.employee.findMany({
+      db.employee.findMany({
         where,
         select: {
           id: true,
@@ -150,7 +151,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.employee.count({ where }),
+      db.employee.count({ where }),
     ]);
 
     console.log('[Credentials GET] Found', employees.length, 'of', total, 'employees');
@@ -181,6 +182,7 @@ export async function GET(request: Request) {
 
 /** POST — Create/reset passwords for single, multiple, or all employees */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -203,7 +205,7 @@ export async function POST(request: Request) {
     }
 
     // Get admin user
-    const admin = await prisma.user.findUnique({
+    const admin = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { id: true, role: true, tenantId: true },
     });
@@ -225,7 +227,7 @@ export async function POST(request: Request) {
       error?: string;
     }> = [];
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where,
       select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, userId: true },
     });
@@ -241,7 +243,7 @@ export async function POST(request: Request) {
 
         if (emp.userId) {
           // Update existing user password
-          await prisma.user.update({
+          await db.user.update({
             where: { id: emp.userId },
             data: { password: hashedPwd, status: 'active' },
           });
@@ -255,7 +257,7 @@ export async function POST(request: Request) {
           });
         } else {
           // Create new user account
-          const newUser = await prisma.user.create({
+          const newUser = await db.user.create({
             data: {
               email: emp.email,
               password: hashedPwd,
@@ -266,7 +268,7 @@ export async function POST(request: Request) {
             },
           });
           // Link employee to user
-          await prisma.employee.update({
+          await db.employee.update({
             where: { id: emp.id },
             data: { userId: newUser.id },
           });
@@ -285,15 +287,15 @@ export async function POST(request: Request) {
         if (errorMsg.includes('Unique constraint') || errorMsg.includes('unique')) {
           // Try to find existing user by email and link
           try {
-            const existingUser = await prisma.user.findUnique({ where: { email: emp.email } });
+            const existingUser = await db.user.findUnique({ where: { email: emp.email } });
             if (existingUser) {
               const pwd = password || generateRandomPassword();
               const hashedPwd = await hashPassword(pwd);
-              await prisma.user.update({
+              await db.user.update({
                 where: { id: existingUser.id },
                 data: { password: hashedPwd, status: 'active' },
               });
-              await prisma.employee.update({
+              await db.employee.update({
                 where: { id: emp.id },
                 data: { userId: existingUser.id },
               });
@@ -357,6 +359,7 @@ export async function POST(request: Request) {
 
 /** PUT — Update a single employee's login email or password */
 export async function PUT(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -371,7 +374,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'employeeId is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const employee = await prisma.employee.findUnique({
+    const employee = await db.employee.findUnique({
       where: { id: employeeId },
       select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, userId: true },
     });
@@ -383,12 +386,12 @@ export async function PUT(request: Request) {
     if (action === 'update_email' && email) {
       // Update the user's login email
       if (employee.userId) {
-        await prisma.user.update({
+        await db.user.update({
           where: { id: employee.userId },
           data: { email },
         });
         // Also update employee email
-        await prisma.employee.update({
+        await db.employee.update({
           where: { id: employeeId },
           data: { email },
         });
@@ -401,17 +404,17 @@ export async function PUT(request: Request) {
       const hashedPwd = await hashPassword(pwd);
 
       if (employee.userId) {
-        await prisma.user.update({
+        await db.user.update({
           where: { id: employee.userId },
           data: { password: hashedPwd },
         });
       } else {
         // Create account if doesn't exist
-        const admin = await prisma.user.findUnique({
+        const admin = await db.user.findUnique({
           where: { id: decoded.userId as string },
           select: { tenantId: true },
         });
-        const newUser = await prisma.user.create({
+        const newUser = await db.user.create({
           data: {
             email: employee.email,
             password: hashedPwd,
@@ -421,7 +424,7 @@ export async function PUT(request: Request) {
             status: 'active',
           },
         });
-        await prisma.employee.update({
+        await db.employee.update({
           where: { id: employeeId },
           data: { userId: newUser.id },
         });
@@ -438,9 +441,9 @@ export async function PUT(request: Request) {
       if (!employee.userId) {
         return NextResponse.json({ error: 'Employee has no login account' }, { status: 400, headers: corsHeaders() });
       }
-      const currentUser = await prisma.user.findUnique({ where: { id: employee.userId }, select: { status: true } });
+      const currentUser = await db.user.findUnique({ where: { id: employee.userId }, select: { status: true } });
       const newStatus = currentUser?.status === 'active' ? 'inactive' : 'active';
-      await prisma.user.update({
+      await db.user.update({
         where: { id: employee.userId },
         data: { status: newStatus },
       });
@@ -452,12 +455,12 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Employee has no login account' }, { status: 400, headers: corsHeaders() });
       }
       // Unlink employee first
-      await prisma.employee.update({
+      await db.employee.update({
         where: { id: employeeId },
         data: { userId: null },
       });
       // Delete user
-      await prisma.user.delete({
+      await db.user.delete({
         where: { id: employee.userId },
       });
       return NextResponse.json({ message: 'Login account deleted' }, { headers: corsHeaders() });

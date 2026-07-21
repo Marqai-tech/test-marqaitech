@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -24,13 +25,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
     if (!employeeId) return NextResponse.json({ error: 'Missing employeeId' }, { status: 400, headers: corsHeaders() });
-    let wallet: any = await prisma.wallet.findFirst({
+    let wallet: any = await db.wallet.findFirst({
       where: { employeeId, currency: 'INR' },
       include: { buckets: { include: { _count: { select: { transactions: true } } } }, transactions: { orderBy: { createdAt: 'desc' }, take: 20 } },
     });
     if (!wallet) {
       // Auto-create wallet with default buckets
-      wallet = await prisma.wallet.create({
+      wallet = await db.wallet.create({
         data: {
           employeeId, currency: 'INR',
           buckets: { create: [
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -59,19 +61,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { employeeId, bucketId, type, amount, description, reference } = body;
     if (!employeeId || !bucketId || !type || !amount) return NextResponse.json({ error: 'Missing fields' }, { status: 400, headers: corsHeaders() });
-    let wallet: any = await prisma.wallet.findFirst({ where: { employeeId, currency: 'INR' } });
+    let wallet: any = await db.wallet.findFirst({ where: { employeeId, currency: 'INR' } });
     if (!wallet) {
-      wallet = await prisma.wallet.create({ data: { employeeId, currency: 'INR' } });
+      wallet = await db.wallet.create({ data: { employeeId, currency: 'INR' } });
     }
-    const bucket = await prisma.walletBucket.findUnique({ where: { id: bucketId } });
+    const bucket = await db.walletBucket.findUnique({ where: { id: bucketId } });
     if (!bucket || !bucket.walletId || bucket.walletId !== wallet.id) return NextResponse.json({ error: 'Invalid bucket' }, { status: 400, headers: corsHeaders() });
 
     const newBalance = type === 'credit' ? bucket.balance + amount : type === 'debit' ? bucket.balance - amount : bucket.balance;
     if (newBalance < 0) return NextResponse.json({ error: 'Insufficient balance' }, { status: 400, headers: corsHeaders() });
 
-    const [updatedBucket, txn] = await prisma.$transaction([
-      prisma.walletBucket.update({ where: { id: bucketId }, data: { balance: newBalance } }),
-      prisma.walletTransaction.create({ data: { walletId: wallet.id, bucketId, type, amount, currency: wallet.currency, baseAmount: amount, reference, description, initiatedById: decoded.userId as string } }),
+    const [updatedBucket, txn] = await db.$transaction([
+      db.walletBucket.update({ where: { id: bucketId }, data: { balance: newBalance } }),
+      db.walletTransaction.create({ data: { walletId: wallet.id, bucketId, type, amount, currency: wallet.currency, baseAmount: amount, reference, description, initiatedById: decoded.userId as string } }),
     ]);
     return NextResponse.json({ bucket: updatedBucket, transaction: txn }, { headers: corsHeaders() });
   } catch (error) { console.error('Wallet op error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }

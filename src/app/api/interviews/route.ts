@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const url = new URL(req.url);
     const status = url.searchParams.get('status');
@@ -118,6 +119,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const {
@@ -165,6 +167,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const { id, ...updateData } = body;

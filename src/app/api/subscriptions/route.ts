@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [subscriptions, total] = await Promise.all([
-      prisma.subscription.findMany({
+      getPlatformDb().subscription.findMany({
         where,
         include: {
           plan: true,
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.subscription.count({ where }),
+      getPlatformDb().subscription.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const subscription = await prisma.subscription.create({
+    const subscription = await getPlatformDb().subscription.create({
       data: {
         tenantId,
         planId,
@@ -109,7 +111,7 @@ export async function POST(request: Request) {
     });
 
     // Get tenant admin to notify
-    const tenantAdmin = await prisma.user.findFirst({
+    const tenantAdmin = await db.user.findFirst({
       where: { tenantId, role: 'tenant_admin' },
     });
 
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_SUBSCRIPTION',

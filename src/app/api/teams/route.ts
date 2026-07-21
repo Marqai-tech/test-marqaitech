@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -8,6 +8,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * admins see all teams.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Non-admins: only teams they're a member of (or teams they lead)
     if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
-      const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+      const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
       if (employee) {
         where.OR = [
           { leadId: employee.id },
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const teams = await prisma.team.findMany({
+    const teams = await db.team.findMany({
       where,
       include: {
         lead: { select: { id: true, firstName: true, lastName: true, email: true, avatar: true } },
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
  * Body: { name, description?, teamType?, companyId?, leadId?, memberIds?: string[] }
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -71,10 +73,10 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     // Resolve creator employee ID
-    const creator = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const creator = await db.employee.findFirst({ where: { userId: decoded.id } });
     const creatorId = creator?.id || leadId;
 
-    const team = await prisma.team.create({
+    const team = await db.team.create({
       data: {
         name,
         description,

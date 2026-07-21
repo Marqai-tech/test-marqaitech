@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -33,7 +34,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
     if (body.resolution !== undefined) { data.resolution = body.resolution; data.resolvedDate = new Date(); }
 
-    const grievance = await prisma.grievance.update({
+    const grievance = await db.grievance.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
@@ -47,6 +48,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -60,7 +62,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.assignedTo) data.assignedTo = body.assignedTo;
     if (body.resolution) { data.resolution = body.resolution; data.resolvedDate = new Date(); }
 
-    const grievance = await prisma.grievance.update({
+    const grievance = await db.grievance.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
@@ -74,6 +76,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -81,7 +84,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    await prisma.grievance.delete({ where: { id } });
+    await db.grievance.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Grievance deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const data = await prisma.payrollHold.findUnique({
+      const data = await db.payrollHold.findUnique({
         where: { id },
         include: {
           employee: {
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -60,7 +62,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
 
     try {
-      const data = await prisma.payrollHold.update({
+      const data = await db.payrollHold.update({
         where: { id },
         data: {
           ...(body.holdType && { holdType: body.holdType }),
@@ -83,6 +85,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -94,7 +97,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (action === 'release') {
       try {
-        const data = await prisma.payrollHold.update({
+        const data = await db.payrollHold.update({
           where: { id },
           data: {
             status: 'released',
@@ -112,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (action === 'cancel') {
       try {
-        const data = await prisma.payrollHold.update({
+        const data = await db.payrollHold.update({
           where: { id },
           data: {
             status: 'cancelled',

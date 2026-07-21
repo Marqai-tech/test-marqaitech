@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     if (readinessStatus) where.readinessStatus = readinessStatus;
 
     const [plans, total] = await Promise.all([
-      prisma.successionPlan.findMany({
+      db.successionPlan.findMany({
         where,
         include: {
           candidates: true,
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
-      prisma.successionPlan.count({ where }),
+      db.successionPlan.count({ where }),
     ]);
 
     // Enrich with employee data for candidates
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
       if (p.currentHolderId) employeeIds.add(p.currentHolderId);
     });
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { id: { in: Array.from(employeeIds) } },
       select: {
         id: true,
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
     // Also get department data
     const deptIds = plans.map(p => p.departmentId).filter(Boolean) as string[];
     const departments = deptIds.length > 0
-      ? await prisma.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
+      ? await db.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
       : [];
     const deptMap = new Map(departments.map(d => [d.id, d]));
 
@@ -100,6 +101,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing required fields: successionPlanId, employeeId' }, { status: 400, headers: corsHeaders() });
       }
 
-      const candidate = await prisma.successionCandidate.create({
+      const candidate = await db.successionCandidate.create({
         data: {
           successionPlanId,
           employeeId,
@@ -138,7 +140,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required field: positionTitle' }, { status: 400, headers: corsHeaders() });
     }
 
-    const plan = await prisma.successionPlan.create({
+    const plan = await db.successionPlan.create({
       data: {
         positionTitle,
         departmentId: departmentId || null,

@@ -9,7 +9,7 @@
  * for convenience — NEVER do this in production.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
 import { randomInt } from 'crypto';
 
@@ -24,6 +24,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json().catch(() => ({}));
     const email = String(body.email || '').trim().toLowerCase();
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     // Look up candidate name from any job application they've ever submitted.
     // If they haven't applied yet, we still create a CandidatePortalUser so they
     // can pre-register (per REQ-CAND-05: "candidates can register before applying").
-    const apps = await prisma.jobApplication.findFirst({
+    const apps = await db.jobApplication.findFirst({
       where: { candidateEmail: email },
       select: { candidateName: true },
     });
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const otpHash = await hashPassword(otp);
     const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    await prisma.candidatePortalUser.upsert({
+    await db.candidatePortalUser.upsert({
       where: { candidateEmail: email },
       create: {
         candidateEmail: email,

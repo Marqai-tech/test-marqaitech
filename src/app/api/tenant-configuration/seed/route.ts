@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -219,11 +219,11 @@ function getDefaultPoliciesForCountry(countryCode: string): Array<{ policyName: 
 
 // ─── Helper: Update counts and estimated costs ───
 async function updateConfigCounts(configId: string) {
-  const activeCountries = await prisma.tenantCountryAccess.count({ where: { tenantConfigId: configId, isActive: true } });
-  const activeCurrencies = await prisma.tenantCurrencyAccess.count({ where: { tenantConfigId: configId, isActive: true } });
-  const activeLanguages = await prisma.tenantLanguageAccess.count({ where: { tenantConfigId: configId, isActive: true } });
+  const activeCountries = await db.tenantCountryAccess.count({ where: { tenantConfigId: configId, isActive: true } });
+  const activeCurrencies = await db.tenantCurrencyAccess.count({ where: { tenantConfigId: configId, isActive: true } });
+  const activeLanguages = await db.tenantLanguageAccess.count({ where: { tenantConfigId: configId, isActive: true } });
 
-  const config = await prisma.tenantConfiguration.findUnique({ where: { id: configId } });
+  const config = await db.tenantConfiguration.findUnique({ where: { id: configId } });
   const countryCost = activeCountries * 50;
   const currencyCost = Math.max(0, activeCurrencies - 1) * 10;
   const languageCost = Math.max(0, activeLanguages - 1) * 5;
@@ -235,7 +235,7 @@ async function updateConfigCounts(configId: string) {
   const monthlyCost = countryCost + currencyCost + languageCost + tierCost + userCost + companyCost + employeeCost;
   const annualCost = monthlyCost * 12;
 
-  await prisma.tenantConfiguration.update({
+  await db.tenantConfiguration.update({
     where: { id: configId },
     data: {
       activeCountryCount: activeCountries,
@@ -249,6 +249,7 @@ async function updateConfigCounts(configId: string) {
 
 // ─── GET: Check if seeded ───
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -269,7 +270,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const targetTenantId = searchParams.get('tenantId') || tenantId;
 
-    const config = await prisma.tenantConfiguration.findUnique({
+    const config = await db.tenantConfiguration.findUnique({
       where: { tenantId: targetTenantId },
       include: {
         countries: { where: { isActive: true } },
@@ -303,6 +304,7 @@ export async function GET(request: Request) {
 
 // ─── POST: Seed sample data ───
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -331,7 +333,7 @@ export async function POST(request: Request) {
     }
 
     // Ensure configuration exists
-    let config = await prisma.tenantConfiguration.findUnique({
+    let config = await db.tenantConfiguration.findUnique({
       where: { tenantId: targetTenantId },
       include: {
         countries: { where: { isActive: true } },
@@ -341,7 +343,7 @@ export async function POST(request: Request) {
     });
 
     if (!config) {
-      config = await prisma.tenantConfiguration.create({
+      config = await db.tenantConfiguration.create({
         data: {
           tenantId: targetTenantId,
           autoProvisionPayroll: true,
@@ -381,7 +383,7 @@ export async function POST(request: Request) {
       const master = COUNTRY_MASTER.find(c => c.code === code);
       if (!master) continue;
 
-      await prisma.tenantCountryAccess.upsert({
+      await db.tenantCountryAccess.upsert({
         where: { tenantConfigId_countryCode: { tenantConfigId: config.id, countryCode: code } },
         update: { isActive: true },
         create: {
@@ -413,11 +415,11 @@ export async function POST(request: Request) {
       // Auto-provision payroll policies
       const defaultPolicies = getDefaultPoliciesForCountry(code);
       for (const p of defaultPolicies) {
-        const existing = await prisma.tenantPayrollPolicy.findFirst({
+        const existing = await db.tenantPayrollPolicy.findFirst({
           where: { tenantConfigId: config.id, countryCode: code, policyType: p.policyType, source: 'system_default' },
         });
         if (!existing) {
-          await prisma.tenantPayrollPolicy.create({
+          await db.tenantPayrollPolicy.create({
             data: {
               tenantConfigId: config.id,
               countryCode: code,
@@ -437,7 +439,7 @@ export async function POST(request: Request) {
       // Auto-add the country's default currency
       const currencyMaster = CURRENCY_MASTER.find(c => c.code === master.currency);
       if (currencyMaster) {
-        await prisma.tenantCurrencyAccess.upsert({
+        await db.tenantCurrencyAccess.upsert({
           where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: currencyMaster.code } },
           update: { isActive: true },
           create: {
@@ -452,7 +454,7 @@ export async function POST(request: Request) {
       // Auto-add the country's default language
       const langMaster = LANGUAGE_MASTER.find(l => l.code === master.language);
       if (langMaster) {
-        await prisma.tenantLanguageAccess.upsert({
+        await db.tenantLanguageAccess.upsert({
           where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: langMaster.code } },
           update: { isActive: true },
           create: {
@@ -471,7 +473,7 @@ export async function POST(request: Request) {
 
     // ─── Seed additional currencies (beyond what countries auto-added) ───
     const existingCurrencyCodes = new Set(
-      (await prisma.tenantCurrencyAccess.findMany({
+      (await db.tenantCurrencyAccess.findMany({
         where: { tenantConfigId: config.id, isActive: true },
         select: { currencyCode: true },
       })).map(c => c.currencyCode)
@@ -483,7 +485,7 @@ export async function POST(request: Request) {
       const master = CURRENCY_MASTER.find(c => c.code === code);
       if (!master) continue;
 
-      await prisma.tenantCurrencyAccess.create({
+      await db.tenantCurrencyAccess.create({
         data: {
           tenantConfigId: config.id,
           currencyCode: code,
@@ -496,7 +498,7 @@ export async function POST(request: Request) {
 
     // ─── Seed additional languages (beyond what countries auto-added) ───
     const existingLanguageCodes = new Set(
-      (await prisma.tenantLanguageAccess.findMany({
+      (await db.tenantLanguageAccess.findMany({
         where: { tenantConfigId: config.id, isActive: true },
         select: { languageCode: true },
       })).map(l => l.languageCode)
@@ -508,7 +510,7 @@ export async function POST(request: Request) {
       const master = LANGUAGE_MASTER.find(l => l.code === code);
       if (!master) continue;
 
-      await prisma.tenantLanguageAccess.create({
+      await db.tenantLanguageAccess.create({
         data: {
           tenantConfigId: config.id,
           languageCode: code,
@@ -527,7 +529,7 @@ export async function POST(request: Request) {
     await updateConfigCounts(config.id);
 
     // Get final counts
-    const finalConfig = await prisma.tenantConfiguration.findUnique({
+    const finalConfig = await db.tenantConfiguration.findUnique({
       where: { id: config.id },
       include: {
         countries: { where: { isActive: true } },

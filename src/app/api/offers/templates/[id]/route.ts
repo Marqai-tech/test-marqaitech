@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -20,6 +20,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -34,7 +35,7 @@ export async function GET(
     await ensureSchemaSynced();
 
     const template = await withSchemaSync(() =>
-      prisma.offerTemplate.findUnique({ where: { id } })
+      db.offerTemplate.findUnique({ where: { id } })
     );
 
     if (!template) {
@@ -53,6 +54,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -68,7 +70,7 @@ export async function PATCH(
     const { name, country, language, body: templateBody, header, footer, clauses, isActive } = body;
 
     await ensureSchemaSynced();
-    const existing = await withSchemaSync(() => prisma.offerTemplate.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.offerTemplate.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -90,10 +92,10 @@ export async function PATCH(
     if (isActive !== undefined) updateData.isActive = !!isActive;
 
     const template = await withSchemaSync(() =>
-      prisma.offerTemplate.update({ where: { id }, data: updateData })
+      db.offerTemplate.update({ where: { id }, data: updateData })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_OFFER_TEMPLATE',
@@ -114,6 +116,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -126,14 +129,14 @@ export async function DELETE(
 
     const { id } = await params;
     await ensureSchemaSynced();
-    const existing = await withSchemaSync(() => prisma.offerTemplate.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.offerTemplate.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await withSchemaSync(() => prisma.offerTemplate.delete({ where: { id } }));
+    await withSchemaSync(() => db.offerTemplate.delete({ where: { id } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_OFFER_TEMPLATE',

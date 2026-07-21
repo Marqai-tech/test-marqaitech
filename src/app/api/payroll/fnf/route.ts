@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
 
     try {
-      const data = await prisma.fNFCalculation.findMany({
+      const data = await db.fNFCalculation.findMany({
         where,
         include: {
           employee: {
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
     const netAmount = totalEarnings - totalDeductions;
 
     try {
-      const data = await prisma.fNFCalculation.create({
+      const data = await db.fNFCalculation.create({
         data: {
           employeeId: body.employeeId,
           separationId: body.separationId || null,

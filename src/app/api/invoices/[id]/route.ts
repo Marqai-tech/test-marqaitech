@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -18,6 +18,7 @@ export async function OPTIONS() {
 // ─── GET /api/invoices/[id] ───────────────────────────────────────
 // Detail view with all line items.
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -33,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params;
 
     const invoice = await withSchemaSync(() =>
-      prisma.invoice.findUnique({
+      db.invoice.findUnique({
         where: { id },
         include: {
           client: true,
@@ -68,6 +69,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 //   { status?, taxRate?, discountRate?, dueDate?, notes?, internalNotes?,
 //     exchangeRate?, paymentRef?, currency? }
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -83,7 +85,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await withSchemaSync(() => prisma.invoice.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.invoice.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -133,7 +135,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (needsRecalc || Object.keys(update).length > 0) {
       // Re-fetch line items to compute totals
       const lineItems = await withSchemaSync(() =>
-        prisma.invoiceLineItem.findMany({ where: { invoiceId: id } })
+        db.invoiceLineItem.findMany({ where: { invoiceId: id } })
       );
 
       const taxRate = update.taxRate !== undefined ? update.taxRate : existing.taxRate;
@@ -166,7 +168,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const invoice = await withSchemaSync(() =>
-      prisma.invoice.update({
+      db.invoice.update({
         where: { id },
         data: update,
         include: {
@@ -178,7 +180,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_INVOICE',
@@ -197,6 +199,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 // ─── DELETE /api/invoices/[id] ────────────────────────────────────
 // Only draft invoices can be deleted.
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -210,7 +213,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     }
 
     const { id } = await params;
-    const existing = await withSchemaSync(() => prisma.invoice.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.invoice.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -222,9 +225,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       );
     }
 
-    await withSchemaSync(() => prisma.invoice.delete({ where: { id } }));
+    await withSchemaSync(() => db.invoice.delete({ where: { id } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_INVOICE',

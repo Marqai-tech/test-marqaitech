@@ -7,7 +7,7 @@
  * Call this endpoint after deployment to check database status and identify what needs setup.
  */
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

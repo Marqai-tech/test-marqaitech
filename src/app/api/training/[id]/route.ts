@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -26,7 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Enroll employee
     if (body.action === 'enroll' && body.employeeId) {
-      const enrollment = await prisma.trainingEnrollment.create({
+      const enrollment = await db.trainingEnrollment.create({
         data: { trainingId: id, employeeId: body.employeeId },
         include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
       });
@@ -34,7 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // Update training
-    const training = await prisma.training.update({
+    const training = await db.training.update({
       where: { id },
       data: {
         ...(body.title && { title: body.title }),
@@ -59,6 +60,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -80,7 +82,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.location !== undefined) data.location = body.location;
     if (body.cost !== undefined) data.cost = body.cost;
 
-    const training = await prisma.training.update({
+    const training = await db.training.update({
       where: { id },
       data,
       include: {
@@ -101,6 +103,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -109,14 +112,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     // Check if user is admin
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    const user = await db.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user || !['super_admin', 'tenant_admin', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
     // Delete enrollments first (cascade)
-    await prisma.trainingEnrollment.deleteMany({ where: { trainingId: id } });
-    await prisma.training.delete({ where: { id } });
+    await db.trainingEnrollment.deleteMany({ where: { trainingId: id } });
+    await db.training.delete({ where: { id } });
 
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // GET: Get single article (check access, increment viewCount)
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -23,10 +24,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
-    const article = await prisma.docArticle.findUnique({
+    const article = await db.docArticle.findUnique({
       where: { id },
       include: {
         category: true,
@@ -56,7 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Increment view count (non-blocking)
-    prisma.docArticle.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+    db.docArticle.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
 
     const result = {
       ...article,
@@ -75,6 +76,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 // PUT: Update article (super_admin only)
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -82,7 +84,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can update articles' }, { status: 403, headers: corsHeaders() });
     }
@@ -90,25 +92,25 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const body = await request.json();
     let { categoryId, title, slug, summary, content, docType, moduleKey, tags, version, status, sortOrder } = body;
 
-    const existing = await prisma.docArticle.findUnique({ where: { id } });
+    const existing = await db.docArticle.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // If categoryId looks like a slug (not a cuid), look up the actual ID
     if (categoryId && !categoryId.startsWith('cl') || categoryId && categoryId.length < 20) {
-      const category = await prisma.docCategory.findUnique({ where: { slug: categoryId } });
+      const category = await db.docCategory.findUnique({ where: { slug: categoryId } });
       if (category) categoryId = category.id;
     }
 
     if (slug && slug !== existing.slug) {
-      const slugExists = await prisma.docArticle.findUnique({ where: { slug } });
+      const slugExists = await db.docArticle.findUnique({ where: { slug } });
       if (slugExists) {
         return NextResponse.json({ error: 'Article with this slug already exists' }, { status: 409, headers: corsHeaders() });
       }
     }
 
-    const article = await prisma.docArticle.update({
+    const article = await db.docArticle.update({
       where: { id },
       data: {
         ...(categoryId !== undefined && { categoryId }),
@@ -138,6 +140,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 // DELETE: Delete article (super_admin only)
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -145,17 +148,17 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can delete articles' }, { status: 403, headers: corsHeaders() });
     }
 
-    const existing = await prisma.docArticle.findUnique({ where: { id } });
+    const existing = await db.docArticle.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.docArticle.delete({ where: { id } });
+    await db.docArticle.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Article deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

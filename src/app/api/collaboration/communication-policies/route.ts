@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -10,13 +10,14 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * announcement channels. Set rules for auto-deleting chat histories.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const policies = await prisma.communicationPolicy.findMany({
+    const policies = await db.communicationPolicy.findMany({
       where: { tenantId: decoded.tenantId },
     });
 
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     const missing = defaultPolicies.filter((p) => !existingKeys.has(p.policyKey));
 
     if (missing.length > 0) {
-      await prisma.communicationPolicy.createMany({
+      await db.communicationPolicy.createMany({
         data: missing.map((p) => ({
           tenantId: decoded.tenantId,
           policyKey: p.policyKey,
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
         })),
         skipDuplicates: true,
       });
-      const refreshed = await prisma.communicationPolicy.findMany({
+      const refreshed = await db.communicationPolicy.findMany({
         where: { tenantId: decoded.tenantId },
       });
       return NextResponse.json({ policies: refreshed });
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
  * Tenant Admin / Super Admin only.
  */
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -87,7 +89,7 @@ export async function PATCH(request: NextRequest) {
     const { policyKey, policyValue, appliesToRoomType } = body;
     if (!policyKey || !policyValue) return NextResponse.json({ error: 'policyKey and policyValue are required' }, { status: 400 });
 
-    const policy = await prisma.communicationPolicy.upsert({
+    const policy = await db.communicationPolicy.upsert({
       where: { tenantId_policyKey: { tenantId: decoded.tenantId, policyKey } },
       create: {
         tenantId: decoded.tenantId,

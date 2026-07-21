@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
     }
 
     const [tenants, total] = await Promise.all([
-      prisma.tenant.findMany({
+      getPlatformDb().tenant.findMany({
         where,
         include: {
           _count: { select: { users: true, companyGroups: true, subscriptions: true } },
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.tenant.count({ where }),
+      getPlatformDb().tenant.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -78,6 +79,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -113,20 +115,20 @@ export async function POST(request: Request) {
     }
 
     // Check for duplicate slug
-    const existingTenant = await prisma.tenant.findUnique({ where: { slug } });
+    const existingTenant = await getPlatformDb().tenant.findUnique({ where: { slug } });
     if (existingTenant) {
       return NextResponse.json({ error: 'Tenant slug already exists' }, { status: 409, headers: corsHeaders() });
     }
 
     // Check for duplicate admin email
-    const existingUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+    const existingUser = await db.user.findUnique({ where: { email: adminEmail } });
     if (existingUser) {
       return NextResponse.json({ error: 'Admin email already exists' }, { status: 409, headers: corsHeaders() });
     }
 
     const hashedPassword = await hashPassword(adminPassword);
 
-    const tenant = await prisma.tenant.create({
+    const tenant = await getPlatformDb().tenant.create({
       data: {
         name,
         slug,
@@ -167,11 +169,11 @@ export async function POST(request: Request) {
     // (Idempotent — if a group with the same name already exists under this
     // tenant, we skip the create.)
     try {
-      const existingGroup = await prisma.companyGroup.findFirst({
+      const existingGroup = await db.companyGroup.findFirst({
         where: { tenantId: tenant.id, name },
       });
       if (!existingGroup) {
-        await prisma.companyGroup.create({
+        await db.companyGroup.create({
           data: {
             name, // SAME name as the tenant — this is intentional
             tenantId: tenant.id,
@@ -189,7 +191,7 @@ export async function POST(request: Request) {
       console.error('[Tenants/Create] Auto-group-create failed (non-fatal):', groupErr);
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_TENANT',

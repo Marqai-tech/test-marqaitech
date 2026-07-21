@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { resolveProjectAccess } from '@/lib/project-rbac';
@@ -23,6 +23,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -52,7 +53,7 @@ export async function PATCH(
     if (body.permissions !== undefined) updateData.permissions = body.permissions || null;
 
     const member = await withSchemaSync(() =>
-      prisma.projectMember.update({
+      db.projectMember.update({
         where: { id: memberId },
         data: updateData,
         include: {
@@ -61,7 +62,7 @@ export async function PATCH(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_PROJECT_MEMBER',
@@ -83,6 +84,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -100,9 +102,9 @@ export async function DELETE(
       );
     }
 
-    await withSchemaSync(() => prisma.projectMember.delete({ where: { id: memberId } }));
+    await withSchemaSync(() => db.projectMember.delete({ where: { id: memberId } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'REMOVE_PROJECT_MEMBER',

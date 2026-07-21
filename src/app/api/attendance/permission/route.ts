@@ -6,11 +6,12 @@
  *  PATCH /api/attendance/permission/[id]    — approve/reject (managers) OR auto-approve
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     if (q.status) where.status = q.status;
     if (q.date) where.date = new Date(q.date);
 
-    const items = await prisma.hourlyPermission.findMany({
+    const items = await db.hourlyPermission.findMany({
       where,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
       orderBy: { date: 'desc' },
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
     adjustedCheckOut.setMinutes(adjustedCheckOut.getMinutes() + Math.round((hours % 1) * 60));
 
     // REQ-AI-ATT-04: auto-approve if employee has >90% attendance AND permission ≤ threshold
-    const config = await prisma.attendancePolicyConfig.findFirst();
+    const config = await db.attendancePolicyConfig.findFirst();
     const autoMinutes = config?.autoApprovePermissionMinutes || 0;
     const minAttendancePct = config?.autoApproveMinAttendancePct || 90;
 
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
       // Check last 30 days attendance percentage
       const since = new Date();
       since.setDate(since.getDate() - 30);
-      const records = await prisma.attendance.findMany({
+      const records = await db.attendance.findMany({
         where: { employeeId: emp.id, date: { gte: since } },
         select: { status: true },
       });
@@ -93,7 +95,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const record = await prisma.hourlyPermission.create({
+    const record = await db.hourlyPermission.create({
       data: {
         employeeId: emp.id,
         date,

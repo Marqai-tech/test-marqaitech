@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {
@@ -146,6 +149,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const auth = await getAuthInfo(req);
     if (!auth) {

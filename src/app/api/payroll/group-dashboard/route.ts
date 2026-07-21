@@ -11,7 +11,7 @@
 // This endpoint is for Tenant Admins — Super Admins see all tenants,
 // Tenant Admins see only their own group.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -28,6 +28,7 @@ export async function OPTIONS() {
 // GET /api/payroll/group-dashboard
 //   ?period=2026-06   → defaults to most recent completed run
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -37,13 +38,13 @@ export async function GET(request: NextRequest) {
     const periodParam = searchParams.get('period');
 
     // Resolve the user's tenant
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { tenantId: true, role: true },
     });
     if (!user) return Response.json({ error: 'User not found' }, { status: 404, headers: corsHeaders });
 
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await getPlatformDb().tenant.findUnique({
       where: { id: user.tenantId },
       select: { id: true, name: true, baseCurrency: true, currency: true },
     });
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     const baseCurrency = tenant.baseCurrency || tenant.currency || 'INR';
 
     // Get all companies in the tenant's group(s)
-    const groups = await prisma.companyGroup.findMany({
+    const groups = await db.companyGroup.findMany({
       where: { tenantId: tenant.id },
       include: {
         companies: {
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
     // Determine the target period
     let targetPeriod = periodParam;
     if (!targetPeriod) {
-      const latestRun = await prisma.payrollRun.findFirst({
+      const latestRun = await db.payrollRun.findFirst({
         where: { companyId: { in: companyIds } },
         orderBy: { payrollPeriod: 'desc' },
         select: { payrollPeriod: true },
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all payroll runs for the target period (one per company)
-    const runs = targetPeriod ? await prisma.payrollRun.findMany({
+    const runs = targetPeriod ? await db.payrollRun.findMany({
       where: { companyId: { in: companyIds }, payrollPeriod: targetPeriod },
       include: {
         company: { select: { id: true, name: true, country: true, currency: true } },
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
         }
       }
       if (relevantCurrencies.size > 0) {
-        const rates = await prisma.exchangeRate.findMany({
+        const rates = await db.exchangeRate.findMany({
           where: {
             OR: Array.from(relevantCurrencies).flatMap((cur) => [
               { fromCurrency: cur, toCurrency: baseCurrency },
@@ -186,15 +187,15 @@ export async function GET(request: NextRequest) {
 
     // Pending approvals across all runs in this period
     const runIds = runs.map((r) => r.id);
-    const pendingApprovals = runIds.length > 0 ? await prisma.payrollApproval.count({
+    const pendingApprovals = runIds.length > 0 ? await db.payrollApproval.count({
       where: { payrollRunId: { in: runIds }, status: 'PENDING' },
     }) : 0;
 
-    const openLockRequests = runIds.length > 0 ? await prisma.payrollLockRequest.count({
+    const openLockRequests = runIds.length > 0 ? await db.payrollLockRequest.count({
       where: { payrollRunId: { in: runIds }, status: 'PENDING' },
     }) : 0;
 
-    const openAnomalies = runIds.length > 0 ? await prisma.payrollAnomaly.count({
+    const openAnomalies = runIds.length > 0 ? await db.payrollAnomaly.count({
       where: { payrollRunId: { in: runIds }, status: 'OPEN' },
     }) : 0;
 

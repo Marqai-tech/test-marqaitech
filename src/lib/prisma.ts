@@ -1,10 +1,18 @@
 /**
- * 3Boxes HRMS — Re-export of the database client
+ * 3Boxes HRMS — Re-export of the database client (DEPRECATED)
  *
- * This file exists for backward compatibility with existing imports.
- * All new code should import from '@/lib/db' directly.
+ * ⚠️  This file is DEPRECATED. Do NOT import from here in new code.
+ * ⚠️  Use the tenant-aware database routing instead:
  *
- * ⚠️  The canonical database client is in '@/lib/db'.
- * ⚠️  Do NOT create a separate PrismaClient instance here.
+ *   import { getDb, getPlatformDb } from '@/lib/tenant-db';
+ *
+ *   // For tenant-scoped data (most routes):
+ *   const db = await getDb(request);
+ *
+ *   // For platform-level data (auth, tenant management):
+ *   const db = getPlatformDb();
+ *
+ * This file still exports `db` as `prisma` and `default` for any
+ * remaining non-API files that haven't been migrated yet.
  */
 export { db as prisma, db as default } from '@/lib/db'

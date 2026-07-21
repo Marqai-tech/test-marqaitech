@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save user message
-    await prisma.aIChatLog.create({
+    await db.aIChatLog.create({
       data: {
         userId: decoded.id as string,
         sessionId,
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Get conversation history for context
-    const history = await prisma.aIChatLog.findMany({
+    const history = await db.aIChatLog.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
       take: 20,
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save assistant reply
-    await prisma.aIChatLog.create({
+    await db.aIChatLog.create({
       data: {
         userId: decoded.id as string,
         sessionId,

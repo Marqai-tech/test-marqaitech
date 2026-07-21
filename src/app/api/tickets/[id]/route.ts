@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const ticket = await prisma.ticket.findUnique({
+    const ticket = await db.ticket.findUnique({
       where: { id },
       include: {
         category: true,
@@ -65,6 +66,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -80,7 +82,7 @@ export async function PATCH(
     const body = await request.json();
     const { status, assignedAgentId, assignedAgentName, resolutionNotes } = body;
 
-    const existing = await prisma.ticket.findUnique({ where: { id } });
+    const existing = await db.ticket.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -101,7 +103,7 @@ export async function PATCH(
       if (!existing.resolvedAt) updateData.resolvedAt = new Date();
     }
 
-    const ticket = await prisma.ticket.update({
+    const ticket = await db.ticket.update({
       where: { id },
       data: updateData,
       include: { category: true },
@@ -111,7 +113,7 @@ export async function PATCH(
     if (status && status !== existing.status && decoded.tenantId) {
       try {
         // Try to find the requester's user record
-        const requesterUser = await prisma.user.findFirst({
+        const requesterUser = await db.user.findFirst({
           where: { id: existing.requesterId },
         });
 
@@ -134,7 +136,7 @@ export async function PATCH(
     }
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_TICKET',
@@ -160,6 +162,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -174,7 +177,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.ticket.findUnique({ where: { id } });
+    const existing = await db.ticket.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -185,14 +188,14 @@ export async function PUT(
       if (body[field] !== undefined) updateData[field] = body[field];
     }
 
-    const ticket = await prisma.ticket.update({
+    const ticket = await db.ticket.update({
       where: { id },
       data: updateData,
       include: { category: true },
     });
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_TICKET',
@@ -218,6 +221,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -231,17 +235,17 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.ticket.findUnique({ where: { id } });
+    const existing = await db.ticket.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // Delete comments first, then the ticket
-    await prisma.ticketComment.deleteMany({ where: { ticketId: id } });
-    await prisma.ticket.delete({ where: { id } });
+    await db.ticketComment.deleteMany({ where: { ticketId: id } });
+    await db.ticket.delete({ where: { id } });
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'DELETE_TICKET',

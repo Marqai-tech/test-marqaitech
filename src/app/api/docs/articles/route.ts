@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,13 +16,14 @@ export async function OPTIONS() {
 
 // GET: List articles the current user has access to
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
     const { searchParams } = new URL(request.url);
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     // Filter by category slug
     if (categorySlug) {
       try {
-        const cat = await prisma.docCategory.findUnique({ where: { slug: categorySlug } });
+        const cat = await db.docCategory.findUnique({ where: { slug: categorySlug } });
         if (cat) where.categoryId = cat.id;
       } catch {
         // Table might not exist yet
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
 
     let articles;
     try {
-      articles = await prisma.docArticle.findMany({
+      articles = await db.docArticle.findMany({
         where,
         include: {
           category: { select: { name: true, slug: true, icon: true, color: true } },
@@ -124,13 +125,14 @@ export async function GET(request: Request) {
 
 // POST: Create article (super_admin only)
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can create articles' }, { status: 403, headers: corsHeaders() });
     }
@@ -144,19 +146,19 @@ export async function POST(request: Request) {
 
     // If categoryId looks like a slug (not a cuid), look up the actual ID
     if (!categoryId.startsWith('cl') || categoryId.length < 20) {
-      const category = await prisma.docCategory.findUnique({ where: { slug: categoryId } });
+      const category = await db.docCategory.findUnique({ where: { slug: categoryId } });
       if (!category) {
         return NextResponse.json({ error: 'Category not found' }, { status: 400, headers: corsHeaders() });
       }
       categoryId = category.id;
     }
 
-    const existing = await prisma.docArticle.findUnique({ where: { slug } });
+    const existing = await db.docArticle.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json({ error: 'Article with this slug already exists' }, { status: 409, headers: corsHeaders() });
     }
 
-    const article = await prisma.docArticle.create({
+    const article = await db.docArticle.create({
       data: {
         categoryId,
         title,

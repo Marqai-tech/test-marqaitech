@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -9,6 +9,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * REQ-6.1: Global Storage Quotas — Super Admin defines per Parent Company.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,19 +17,19 @@ export async function GET(request: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     if (decoded.role === 'super_admin') {
-      const quotas = await prisma.storageQuota.findMany({
+      const quotas = await db.storageQuota.findMany({
         orderBy: { tenantId: 'asc' },
       });
       return NextResponse.json({ quotas });
     }
 
-    const quota = await prisma.storageQuota.findUnique({
+    const quota = await db.storageQuota.findUnique({
       where: { tenantId: decoded.tenantId },
     });
 
     if (!quota) {
       // Auto-create default quota if not exists
-      const newQuota = await prisma.storageQuota.create({
+      const newQuota = await db.storageQuota.create({
         data: { tenantId: decoded.tenantId },
       });
       return NextResponse.json({ quota: newQuota });
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
  * Super Admin only.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
     } = body;
     if (!tenantId) return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
 
-    const quota = await prisma.storageQuota.upsert({
+    const quota = await db.storageQuota.upsert({
       where: { tenantId },
       create: {
         tenantId,

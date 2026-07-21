@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,13 +16,14 @@ export async function OPTIONS() {
 
 // GET: Get all access rules (super_admin only)
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can view access rules' }, { status: 403, headers: corsHeaders() });
     }
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (articleId) where.articleId = articleId;
 
-    const rules = await prisma.docAccessRule.findMany({
+    const rules = await db.docAccessRule.findMany({
       where,
       include: {
         article: { select: { title: true, slug: true } },
@@ -53,13 +54,14 @@ export async function GET(request: Request) {
 
 // POST: Create/update access rule (super_admin only)
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can manage access rules' }, { status: 403, headers: corsHeaders() });
     }
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     // Check for existing rule
-    const existing = await prisma.docAccessRule.findFirst({
+    const existing = await db.docAccessRule.findFirst({
       where: {
         articleId,
         ...(role ? { role } : {}),
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       // Update existing rule
-      const updated = await prisma.docAccessRule.update({
+      const updated = await db.docAccessRule.update({
         where: { id: existing.id },
         data: {
           accessType: accessType || existing.accessType,
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     // Create new rule
-    const rule = await prisma.docAccessRule.create({
+    const rule = await db.docAccessRule.create({
       data: {
         articleId,
         role: role || null,
@@ -119,13 +121,14 @@ export async function POST(request: Request) {
 
 // DELETE: Remove access rule (super_admin only)
 export async function DELETE(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can delete access rules' }, { status: 403, headers: corsHeaders() });
     }
@@ -137,12 +140,12 @@ export async function DELETE(request: Request) {
     const targetUserId = searchParams.get('userId');
 
     if (ruleId) {
-      await prisma.docAccessRule.delete({ where: { id: ruleId } });
+      await db.docAccessRule.delete({ where: { id: ruleId } });
     } else if (articleId) {
       const where: Record<string, unknown> = { articleId };
       if (role) where.role = role;
       if (targetUserId) where.userId = targetUserId;
-      await prisma.docAccessRule.deleteMany({ where });
+      await db.docAccessRule.deleteMany({ where });
     } else {
       return NextResponse.json({ error: 'Provide either id or articleId with optional role/userId' }, { status: 400, headers: corsHeaders() });
     }

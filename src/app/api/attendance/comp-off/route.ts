@@ -3,11 +3,12 @@
  * Lists comp-offs earned by the employee; supports marking as used.
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     }
     if (q.status) where.status = q.status;
 
-    const items = await prisma.compOffLeave.findMany({
+    const items = await db.compOffLeave.findMany({
       where,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
       orderBy: { earnedDate: 'desc' },

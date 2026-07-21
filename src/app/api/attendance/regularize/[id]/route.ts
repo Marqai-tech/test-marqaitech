@@ -3,7 +3,7 @@
  * PATCH /api/attendance/regularize/[id]
  */
 import { requireUser, isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
@@ -11,6 +11,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only managers/HR can approve', 403);
@@ -22,10 +23,10 @@ export async function PATCH(
   if (!['approved', 'rejected'].includes(status)) return fail('Invalid status');
 
   try {
-    const existing = await prisma.attendanceRegularization.findUnique({ where: { id } });
+    const existing = await db.attendanceRegularization.findUnique({ where: { id } });
     if (!existing) return fail('Not found', 404);
 
-    const updated = await prisma.attendanceRegularization.update({
+    const updated = await db.attendanceRegularization.update({
       where: { id },
       data: {
         status,
@@ -38,19 +39,19 @@ export async function PATCH(
     // If approved, apply the punch to the attendance record + write audit log
     if (status === 'approved') {
       const date = existing.date;
-      let attendance = await prisma.attendance.findFirst({ where: { employeeId: existing.employeeId, date } });
+      let attendance = await db.attendance.findFirst({ where: { employeeId: existing.employeeId, date } });
       const beforeData = attendance ? {
         checkIn: attendance.checkIn, checkOut: attendance.checkOut, status: attendance.status,
       } : null;
 
       if (existing.punchType === 'check_in') {
         if (attendance) {
-          attendance = await prisma.attendance.update({
+          attendance = await db.attendance.update({
             where: { id: attendance.id },
             data: { checkIn: existing.requestedTime, status: 'present' },
           });
         } else {
-          attendance = await prisma.attendance.create({
+          attendance = await db.attendance.create({
             data: {
               employeeId: existing.employeeId,
               date,
@@ -62,24 +63,24 @@ export async function PATCH(
       } else {
         // check_out
         if (attendance) {
-          attendance = await prisma.attendance.update({
+          attendance = await db.attendance.update({
             where: { id: attendance.id },
             data: { checkOut: existing.requestedTime },
           });
           // Recompute work hours
           if (attendance.checkIn && attendance.checkOut) {
             const hours = (attendance.checkOut.getTime() - attendance.checkIn.getTime()) / (1000 * 60 * 60);
-            await prisma.attendance.update({ where: { id: attendance.id }, data: { workHours: Math.round(hours * 100) / 100 } });
+            await db.attendance.update({ where: { id: attendance.id }, data: { workHours: Math.round(hours * 100) / 100 } });
           }
         } else {
-          attendance = await prisma.attendance.create({
+          attendance = await db.attendance.create({
             data: { employeeId: existing.employeeId, date, checkOut: existing.requestedTime, status: 'present' },
           });
         }
       }
 
       // REQ-SEC-ATT-04: audit log
-      await prisma.attendanceAuditLog.create({
+      await db.attendanceAuditLog.create({
         data: {
           employeeId: existing.employeeId,
           attendanceId: attendance?.id || null,

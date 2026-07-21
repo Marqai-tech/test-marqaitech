@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,13 +13,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const data = await prisma.cTCTemplate.findUnique({
+    const data = await db.cTCTemplate.findUnique({
       where: { id },
       include: { componentMappings: { orderBy: { calculationSequence: 'asc' } } },
     });
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -45,10 +47,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Delete existing mappings and recreate
     if (componentMappings) {
-      await prisma.cTCComponentMapping.deleteMany({ where: { ctcTemplateId: id } });
+      await db.cTCComponentMapping.deleteMany({ where: { ctcTemplateId: id } });
     }
 
-    const data = await prisma.cTCTemplate.update({
+    const data = await db.cTCTemplate.update({
       where: { id },
       data: {
         ...templateData,
@@ -67,14 +69,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    await prisma.cTCComponentMapping.deleteMany({ where: { ctcTemplateId: id } });
-    await prisma.cTCTemplate.delete({ where: { id } });
+    await db.cTCComponentMapping.deleteMany({ where: { ctcTemplateId: id } });
+    await db.cTCTemplate.delete({ where: { id } });
 
     return Response.json({ message: 'CTC template deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

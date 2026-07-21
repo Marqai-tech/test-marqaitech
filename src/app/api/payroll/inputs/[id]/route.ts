@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -22,7 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     let data;
     try {
-      data = await prisma.payrollInput.update({
+      data = await db.payrollInput.update({
         where: { id },
         data: body,
       });
@@ -39,6 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -54,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     let data;
     try {
-      data = await prisma.payrollInput.update({
+      data = await db.payrollInput.update({
         where: { id },
         data: {
           approvalStatus,
@@ -76,6 +78,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -83,7 +86,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      await prisma.payrollInput.delete({ where: { id } });
+      await db.payrollInput.delete({ where: { id } });
     } catch (dbError: unknown) {
       console.error('PayrollInput table not available:', dbError);
       return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });

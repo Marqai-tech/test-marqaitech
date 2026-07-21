@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -24,7 +24,7 @@ export async function GET(
     const { id } = await params;
 
     try {
-      const bankFile = await prisma.bankPaymentFile.findUnique({ where: { id } });
+      const bankFile = await db.bankPaymentFile.findUnique({ where: { id } });
 
       if (!bankFile) {
         return Response.json({ error: 'Bank file not found' }, { status: 404, headers: corsHeaders });
@@ -45,6 +45,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -61,7 +62,7 @@ export async function PATCH(
     }
 
     try {
-      const existing = await prisma.bankPaymentFile.findUnique({ where: { id } });
+      const existing = await db.bankPaymentFile.findUnique({ where: { id } });
       if (!existing) {
         return Response.json({ error: 'Bank file not found' }, { status: 404, headers: corsHeaders });
       }
@@ -71,7 +72,7 @@ export async function PATCH(
         updateData.generatedAt = new Date();
       }
 
-      const updated = await prisma.bankPaymentFile.update({
+      const updated = await db.bankPaymentFile.update({
         where: { id },
         data: updateData,
       });

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { status: 'active' },
       select: {
         id: true, firstName: true, lastName: true, departmentId: true, dateOfJoining: true,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    const departments = await prisma.department.findMany({ select: { id: true, name: true } });
+    const departments = await db.department.findMany({ select: { id: true, name: true } });
 
     const now = new Date();
     const flightRisk = employees
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       reason: e.score >= 75 ? 'Low engagement + delayed promotion' : e.score >= 50 ? 'Compensation below market' : 'Manager conflict indicators',
     }));
 
-    const designations = await prisma.designation.findMany({
+    const designations = await db.designation.findMany({
       select: { id: true, title: true, department: { select: { name: true } } }, take: 20,
     });
     const riskLevels = ['Critical', 'High', 'Medium', 'Low'];

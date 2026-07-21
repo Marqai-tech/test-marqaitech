@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -71,6 +71,7 @@ function normalizeRolesArray(input: unknown): string[] {
 
 /* ───────────────────────────────────────────── GET ───────────────────────────────────────────── */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const { error, user } = await requireAuth(request);
     if (error || !user) return error;
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const policies = await prisma.candidatePiiPolicy.findMany({
+    const policies = await db.candidatePiiPolicy.findMany({
       where: { tenantId },
       orderBy: { field: 'asc' },
     });
@@ -109,6 +110,7 @@ export async function GET(request: Request) {
 
 /* ───────────────────────────────────────────── POST (upsert) ─────────────────────────────────── */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const { error, user } = await requireAuth(request);
     if (error || !user) return error;
@@ -159,7 +161,7 @@ export async function POST(request: Request) {
     const visibleToRolesArr = normalizeRolesArray(body.visibleToRoles);
     const visibleToRolesJson = JSON.stringify(visibleToRolesArr);
 
-    const policy = await prisma.candidatePiiPolicy.upsert({
+    const policy = await db.candidatePiiPolicy.upsert({
       where: { tenantId_field: { tenantId, field } },
       create: {
         tenantId,

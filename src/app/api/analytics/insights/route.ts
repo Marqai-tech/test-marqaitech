@@ -15,7 +15,7 @@
  *   - Projects: project utilization <50% or >120% of estimated hours
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -31,6 +31,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = { generatedAt: { gte: since } };
     if (moduleFilter) where.module = moduleFilter;
 
-    const cached = await prisma.anomalyInsight.findMany({
+    const cached = await db.anomalyInsight.findMany({
       where,
       orderBy: { generatedAt: 'desc' },
       take: 50,
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
 
     // ─── Payroll anomalies: look for outlier payrolls ───
     if (!moduleFilter || moduleFilter === 'payroll') {
-      const recentPayrolls = await prisma.payroll.findMany({
+      const recentPayrolls = await db.payroll.findMany({
         where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
         select: { employeeId: true, netSalary: true, createdAt: true },
         take: 500,
@@ -101,7 +102,7 @@ export async function GET(request: Request) {
 
     // ─── Recruitment: high drop-off at interview stages ───
     if (!moduleFilter || moduleFilter === 'recruitment') {
-      const interviews = await prisma.interview.findMany({
+      const interviews = await db.interview.findMany({
         where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
         select: { status: true, type: true },
         take: 500,
@@ -134,7 +135,7 @@ export async function GET(request: Request) {
 
     // ─── Marketplace: velocity fraud ───
     if (!moduleFilter || moduleFilter === 'marketplace') {
-      const fraudFlags = await prisma.marketplaceFraudFlag.findMany({
+      const fraudFlags = await db.marketplaceFraudFlag.findMany({
         where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
         select: { reason: true, riskScore: true, employeeId: true },
       });
@@ -161,7 +162,7 @@ export async function GET(request: Request) {
 
     // ─── Projects: utilization outliers ───
     if (!moduleFilter || moduleFilter === 'projects') {
-      const projects = await prisma.project.findMany({
+      const projects = await db.project.findMany({
         where: { status: 'active' },
         select: { id: true, name: true, estimatedHours: true, actualHours: true },
         take: 100,
@@ -201,7 +202,7 @@ export async function GET(request: Request) {
     const persisted: any[] = [];
     for (const insight of insights) {
       try {
-        const row = await prisma.anomalyInsight.create({
+        const row = await db.anomalyInsight.create({
           data: {
             module: insight.module,
             severity: insight.severity,

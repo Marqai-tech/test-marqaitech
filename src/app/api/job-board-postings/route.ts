@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 import { createNotification } from '@/lib/notifications';
@@ -47,6 +47,7 @@ async function simulateExternalBoardCall(jobPostingId: string, board: string): P
  *   - status: filter by status
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
     if (board) where.board = board;
     if (status) where.status = status;
 
-    const postings = await prisma.jobBoardPosting.findMany({
+    const postings = await db.jobBoardPosting.findMany({
       where,
       include: {
         jobPosting: {
@@ -109,6 +110,7 @@ export async function GET(request: Request) {
  *  - errors -> status='failed' with errorMessage
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -146,7 +148,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the job posting exists
-    const jobPosting = await prisma.jobPosting.findUnique({ where: { id: jobPostingId } });
+    const jobPosting = await db.jobPosting.findUnique({ where: { id: jobPostingId } });
     if (!jobPosting) {
       return NextResponse.json(
         { error: 'Job posting not found' },
@@ -156,7 +158,7 @@ export async function POST(request: Request) {
 
     // Use upsert to enforce the @@unique([jobPostingId, board]) constraint.
     // If a posting already exists for (jobPostingId, board), return it as-is.
-    const existing = await prisma.jobBoardPosting.findFirst({
+    const existing = await db.jobBoardPosting.findFirst({
       where: { jobPostingId, board },
     });
     if (existing) {
@@ -170,7 +172,7 @@ export async function POST(request: Request) {
     }
 
     // Create the posting in pending status immediately
-    const posting = await prisma.jobBoardPosting.create({
+    const posting = await db.jobBoardPosting.create({
       data: {
         jobPostingId,
         board,
@@ -178,7 +180,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_JOB_BOARD_POSTING',
@@ -190,7 +192,7 @@ export async function POST(request: Request) {
     // ── Branch by board ──
     if (board === 'internal_careers') {
       // Internal careers page — instantly posted
-      const updated = await prisma.jobBoardPosting.update({
+      const updated = await db.jobBoardPosting.update({
         where: { id: posting.id },
         data: {
           status: 'posted',
@@ -204,7 +206,7 @@ export async function POST(request: Request) {
 
       // Notify HR admins (best-effort, non-blocking)
       try {
-        const hrAdmins = await prisma.user.findMany({
+        const hrAdmins = await db.user.findMany({
           where: {
             tenantId: decoded.tenantId as string,
             role: { in: ['super_admin', 'tenant_admin', 'admin'] },
@@ -234,7 +236,7 @@ export async function POST(request: Request) {
     // External board — simulate async API call (fire-and-await; the client sees ~2s latency)
     try {
       const { externalJobId, externalUrl } = await simulateExternalBoardCall(jobPostingId, board);
-      const updated = await prisma.jobBoardPosting.update({
+      const updated = await db.jobBoardPosting.update({
         where: { id: posting.id },
         data: {
           status: 'posted',
@@ -256,7 +258,7 @@ export async function POST(request: Request) {
       );
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown external API error';
-      const updated = await prisma.jobBoardPosting.update({
+      const updated = await db.jobBoardPosting.update({
         where: { id: posting.id },
         data: {
           status: 'failed',

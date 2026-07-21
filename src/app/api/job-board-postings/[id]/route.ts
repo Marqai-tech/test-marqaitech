@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -39,7 +40,7 @@ export async function GET(
     await ensureSchemaSynced();
 
     const { id } = await params;
-    const posting = await prisma.jobBoardPosting.findUnique({
+    const posting = await db.jobBoardPosting.findUnique({
       where: { id },
       include: {
         jobPosting: {
@@ -76,6 +77,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -97,7 +99,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.jobBoardPosting.findUnique({ where: { id } });
+    const existing = await db.jobBoardPosting.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
         { error: 'Job board posting not found' },
@@ -114,7 +116,7 @@ export async function DELETE(
 
     // Stub: simulate closing on the external board (no-op for now).
     // Real OAuth/API integration would call board's DELETE endpoint here.
-    const updated = await prisma.jobBoardPosting.update({
+    const updated = await db.jobBoardPosting.update({
       where: { id },
       data: {
         status: 'closed',
@@ -132,7 +134,7 @@ export async function DELETE(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CLOSE_JOB_BOARD_POSTING',

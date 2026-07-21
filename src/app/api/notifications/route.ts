@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -43,13 +44,13 @@ export async function GET(request: Request) {
     };
 
     const [notifications, total] = await Promise.all([
-      prisma.notification.findMany({
+      db.notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.notification.count({ where }),
+      db.notification.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -95,7 +97,7 @@ export async function PATCH(request: Request) {
     const { id, markAll } = body;
 
     if (markAll) {
-      await prisma.notification.updateMany({
+      await db.notification.updateMany({
         where: {
           userId: decoded.userId as string,
           isRead: false,
@@ -116,7 +118,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const notification = await prisma.notification.findFirst({
+    const notification = await db.notification.findFirst({
       where: {
         id,
         userId: decoded.userId as string,
@@ -130,7 +132,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    await prisma.notification.update({
+    await db.notification.update({
       where: { id },
       data: { isRead: true },
     });

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (month) where.month = parseInt(month);
     if (year) where.year = parseInt(year);
 
-    const data = await prisma.payroll.findMany({
+    const data = await db.payroll.findMany({
       where,
       include: {
         employee: {
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Payroll ID is required' }, { status: 400, headers: corsHeaders });
     }
 
-    const payroll = await prisma.payroll.findUnique({
+    const payroll = await db.payroll.findUnique({
       where: { id: payrollId },
       include: {
         employee: {
@@ -149,7 +151,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Update the payroll record with payslip reference
-    await prisma.payroll.update({
+    await db.payroll.update({
       where: { id: payrollId },
       data: { paySlip: JSON.stringify(payslipData) },
     });

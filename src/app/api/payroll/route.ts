@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope, getEmployeeCompanyFilter } from '@/lib/companyScope';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
     // scope === 'all' with no companyId → admin sees all (no filter)
 
     const [payrolls, total] = await Promise.all([
-      prisma.payroll.findMany({
+      db.payroll.findMany({
         where,
         include: {
           employee: {
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.payroll.count({ where }),
+      db.payroll.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -107,6 +108,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -135,7 +137,7 @@ export async function POST(request: Request) {
     }
 
     // Check if payroll already exists for this month/year/employee
-    const existingPayroll = await prisma.payroll.findUnique({
+    const existingPayroll = await db.payroll.findUnique({
       where: {
         employeeId_month_year: {
           employeeId,
@@ -152,7 +154,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const employee = await prisma.employee.findUnique({
+    const employee = await db.employee.findUnique({
       where: { id: employeeId },
     });
 
@@ -179,7 +181,7 @@ export async function POST(request: Request) {
     const totalDeductions = pf + esi + tax + professionalTax + otherDeductions;
     const netSalary = grossSalary - totalDeductions;
 
-    const payroll = await prisma.payroll.create({
+    const payroll = await db.payroll.create({
       data: {
         employeeId,
         month,
@@ -212,7 +214,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'GENERATE_PAYROLL',

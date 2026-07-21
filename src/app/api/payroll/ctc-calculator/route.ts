@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -327,6 +327,7 @@ function calculateFromTemplate(
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -342,7 +343,7 @@ export async function POST(request: NextRequest) {
     const effectiveCTC = ctcType === 'MONTHLY' ? ctcAmount * 12 : ctcAmount;
 
     if (templateId) {
-      const template = await prisma.cTCTemplate.findUnique({
+      const template = await db.cTCTemplate.findUnique({
         where: { id: templateId },
         include: { componentMappings: { orderBy: { calculationSequence: 'asc' } } },
       });
@@ -375,12 +376,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const templates = await prisma.cTCTemplate.findMany({
+    const templates = await db.cTCTemplate.findMany({
       where: { status: 'ACTIVE' },
       include: { componentMappings: { orderBy: { calculationSequence: 'asc' } } },
       orderBy: { isDefault: 'desc' },

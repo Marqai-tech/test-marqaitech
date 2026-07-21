@@ -1,7 +1,9 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
+import { getPlatformDb } from '@/lib/tenant-db';
+
+const db = getPlatformDb();
 
 export const authOptions: NextAuthOptions = {
   providers: [

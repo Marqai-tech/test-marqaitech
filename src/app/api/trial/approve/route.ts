@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -10,6 +10,7 @@ import crypto from 'crypto';
  * Sets tempPassword and trialStart/trialEnd on the registration.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { registrationId, trialDays, reviewedBy } = body;

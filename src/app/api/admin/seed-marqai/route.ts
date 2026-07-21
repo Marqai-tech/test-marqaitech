@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import bcryptjs from 'bcryptjs';
 
 /**
@@ -16,6 +16,7 @@ import bcryptjs from 'bcryptjs';
 const SEED_ENABLED = false; // Set to true only when you need to (re-)seed
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     if (!SEED_ENABLED) {
       return NextResponse.json({ error: 'Seed endpoint is disabled. Set SEED_ENABLED=true in source code to re-enable.' }, { status: 403 });
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     const force = searchParams.get('force') === 'true';
 
     // Check if MarqAI tenant already exists
-    const existing = await prisma.tenant.findUnique({
+    const existing = await getPlatformDb().tenant.findUnique({
       where: { slug: 'marqaitechgroup' },
     });
 
@@ -46,11 +47,11 @@ export async function POST(request: Request) {
     if (existing) {
       console.log('[seed-marqai] Force re-seed: cleaning up existing data...');
       // Delete in reverse dependency order
-      const existingGroup = await prisma.companyGroup.findFirst({
+      const existingGroup = await db.companyGroup.findFirst({
         where: { tenantId: existing.id },
       });
       if (existingGroup) {
-        const existingCompanies = await prisma.company.findMany({
+        const existingCompanies = await db.company.findMany({
           where: { companyGroupId: existingGroup.id },
           select: { id: true },
         });
@@ -58,26 +59,26 @@ export async function POST(request: Request) {
 
         // Delete employees, branches, departments for each company
         for (const companyId of companyIds) {
-          await prisma.employee.deleteMany({ where: { companyId } });
-          await prisma.department.deleteMany({ where: { companyId } });
-          await prisma.branch.deleteMany({ where: { companyId } });
+          await db.employee.deleteMany({ where: { companyId } });
+          await db.department.deleteMany({ where: { companyId } });
+          await db.branch.deleteMany({ where: { companyId } });
         }
-        await prisma.company.deleteMany({ where: { companyGroupId: existingGroup.id } });
-        await prisma.companyGroup.deleteMany({ where: { id: existingGroup.id } });
+        await db.company.deleteMany({ where: { companyGroupId: existingGroup.id } });
+        await db.companyGroup.deleteMany({ where: { id: existingGroup.id } });
       }
       // Delete users for this tenant (except super_admin from different tenant)
-      await prisma.user.deleteMany({
+      await db.user.deleteMany({
         where: { tenantId: existing.id },
       });
       // Delete the tenant itself
-      await prisma.tenant.delete({ where: { id: existing.id } });
+      await getPlatformDb().tenant.delete({ where: { id: existing.id } });
       console.log('[seed-marqai] Cleanup complete, re-seeding...');
     }
 
     const hashedPassword = await bcryptjs.hash('MarqAI@2026', 12);
 
     // ==================== TENANT ====================
-    const tenant = await prisma.tenant.create({
+    const tenant = await getPlatformDb().tenant.create({
       data: {
         name: 'MarqAI Tech Group',
         slug: 'marqaitechgroup',
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
     });
 
     // ==================== COMPANY GROUP ====================
-    const companyGroup = await prisma.companyGroup.create({
+    const companyGroup = await db.companyGroup.create({
       data: {
         name: 'MarqAI Tech Group',
         tenantId: tenant.id,
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     const createdCompanies = [];
     const createdBranches = [];
     for (const c of companiesData) {
-      const company = await prisma.company.create({
+      const company = await db.company.create({
         data: {
           name: c.name, code: c.code, companyGroupId: companyGroup.id,
           country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata',
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
       });
       createdCompanies.push(company);
 
-      const branch = await prisma.branch.create({
+      const branch = await db.branch.create({
         data: {
           name: `${c.name} - Head Office`, code: `${c.code}-HO`,
           companyId: company.id, city: c.city, state: c.state, country: 'IN', status: 'active',
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
     const allDepts: { id: string; name: string; companyIndex: number }[] = [];
     for (let i = 0; i < createdCompanies.length; i++) {
       for (const dn of deptNames) {
-        const dept = await prisma.department.create({
+        const dept = await db.department.create({
           data: { name: dn, companyId: createdCompanies[i].id, branchId: createdBranches[i].id, status: 'active' },
         });
         allDepts.push({ id: dept.id, name: dept.name, companyIndex: i });
@@ -169,7 +170,7 @@ export async function POST(request: Request) {
       for (const dd of designationDefs) {
         const dept = allDepts.find(d => d.companyIndex === i && d.name === dd.dept);
         if (dept) {
-          const des = await prisma.designation.create({
+          const des = await db.designation.create({
             data: { title: dd.title, departmentId: dept.id, status: 'active' },
           });
           allDesignations.push({ id: des.id, title: dd.title, companyIndex: i });
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
     }
 
     // ==================== SUPER ADMIN ====================
-    const superAdmin = await prisma.user.create({
+    const superAdmin = await db.user.create({
       data: {
         email: 'superadmin@3boxeshrms.com', name: '3Boxes Super Admin',
         password: hashedPassword, role: 'super_admin', status: 'active', tenantId: tenant.id,
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
     });
 
     // ==================== TENANT ADMIN ====================
-    const tenantAdmin = await prisma.user.create({
+    const tenantAdmin = await db.user.create({
       data: {
         email: 'admin@marqaitechgroup.com', name: 'MarqAI Tech Group Admin',
         password: hashedPassword, role: 'tenant_admin', status: 'active', tenantId: tenant.id,
@@ -209,7 +210,7 @@ export async function POST(request: Request) {
       const hrDept = allDepts.find(d => d.companyIndex === i && d.name === 'Human Resources');
       const hrDes = allDesignations.find(d => d.companyIndex === i && d.title === 'HR Manager');
 
-      const hrUser = await prisma.user.create({
+      const hrUser = await db.user.create({
         data: {
           email: hrEmails[i], name: `HR Admin - ${createdCompanies[i].name}`,
           password: hashedPassword, role: 'admin', status: 'active', tenantId: tenant.id,
@@ -218,7 +219,7 @@ export async function POST(request: Request) {
       createdUsers.push(hrUser);
 
       if (hrDept && hrDes) {
-        await prisma.employee.create({
+        await db.employee.create({
           data: {
             userId: hrUser.id, companyId: createdCompanies[i].id, branchId: createdBranches[i].id,
             departmentId: hrDept.id, designationId: hrDes.id,
@@ -234,7 +235,7 @@ export async function POST(request: Request) {
       const engDept = allDepts.find(d => d.companyIndex === i && d.name === 'Engineering') || allDepts.find(d => d.companyIndex === i && d.name === 'Finance');
       const empDes = allDesignations.find(d => d.companyIndex === i && d.title === emp.desName);
 
-      const empUser = await prisma.user.create({
+      const empUser = await db.user.create({
         data: {
           email: emp.email, name: `${emp.firstName} ${emp.lastName}`,
           password: hashedPassword, role: 'admin', status: 'active', tenantId: tenant.id,
@@ -243,7 +244,7 @@ export async function POST(request: Request) {
       createdUsers.push(empUser);
 
       if (engDept && empDes) {
-        await prisma.employee.create({
+        await db.employee.create({
           data: {
             userId: empUser.id, companyId: createdCompanies[i].id, branchId: createdBranches[i].id,
             departmentId: engDept.id, designationId: empDes.id,
@@ -257,7 +258,7 @@ export async function POST(request: Request) {
 
     // ==================== SUBSCRIPTION PLAN ====================
     try {
-      await prisma.subscriptionPlan.create({
+      await getPlatformDb().subscriptionPlan.create({
         data: {
           id: 'plan-enterprise-marqai',
           name: 'Enterprise', price: 9999.00, currency: 'INR', billingCycle: 'monthly',

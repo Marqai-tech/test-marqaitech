@@ -6,16 +6,17 @@
  * DELETE /api/attendance/biometric/devices/[id]   — deactivate (soft delete)
  */
 import { requireUser, parseBody, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const { id } = await ctx.params;
   try {
-    const device = await prisma.biometricDevice.findUnique({
+    const device = await db.biometricDevice.findUnique({
       where: { id },
       include: {
         branch: { select: { id: true, name: true } },
@@ -31,6 +32,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
 }
 
 export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can edit biometric devices', 403);
@@ -49,7 +51,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
   if (typeof body.encryptionKeyId === 'string') data.encryptionKeyId = body.encryptionKeyId;
 
   try {
-    const device = await prisma.biometricDevice.update({ where: { id }, data });
+    const device = await db.biometricDevice.update({ where: { id }, data });
     return ok({ device });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Failed to update device';
@@ -59,6 +61,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
 }
 
 export async function DELETE(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can deactivate biometric devices', 403);
@@ -66,7 +69,7 @@ export async function DELETE(request: Request, ctx: { params: Promise<{ id: stri
 
   // Soft-delete: mark as inactive. Historical punch records are retained for audit (REQ-SEC-ATT-04).
   try {
-    const device = await prisma.biometricDevice.update({
+    const device = await db.biometricDevice.update({
       where: { id },
       data: { isActive: false },
     });

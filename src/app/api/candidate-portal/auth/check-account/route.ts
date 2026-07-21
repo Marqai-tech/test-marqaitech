@@ -12,7 +12,7 @@
  * Never leaks anything beyond what's needed for UX routing.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +25,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const url = new URL(request.url);
     const email = String(url.searchParams.get('email') || '').trim().toLowerCase();
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400, headers: CORS });
     }
 
-    const user = await prisma.candidatePortalUser.findUnique({
+    const user = await db.candidatePortalUser.findUnique({
       where: { candidateEmail: email },
       select: {
         passwordHash: true,

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -22,6 +22,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -29,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.complianceFiling.update({
+    const data = await db.complianceFiling.update({
       where: { id },
       data: body,
     });
@@ -42,6 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -55,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: 'filingStatus is required' }, { status: 400, headers: corsHeaders });
     }
 
-    const currentFiling = await prisma.complianceFiling.findUnique({ where: { id } });
+    const currentFiling = await db.complianceFiling.findUnique({ where: { id } });
     if (!currentFiling) return Response.json({ error: 'Compliance filing not found' }, { status: 404, headers: corsHeaders });
 
     const allowedTransitions = FILING_STATUS_TRANSITIONS[currentFiling.filingStatus] || [];
@@ -83,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updateData.acknowledgementRef = body.acknowledgementRef;
     }
 
-    const data = await prisma.complianceFiling.update({
+    const data = await db.complianceFiling.update({
       where: { id },
       data: updateData,
     });

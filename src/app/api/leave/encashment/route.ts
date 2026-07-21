@@ -6,11 +6,12 @@
  *  PATCH — approve/reject (admin)
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     }
     if (q.status) where.status = q.status;
 
-    const items = await prisma.leaveEncashmentRequest.findMany({
+    const items = await db.leaveEncashmentRequest.findMany({
       where,
       include: {
         employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
@@ -41,6 +42,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     if (!leaveTypeId) return fail('Leave type is required');
     if (!Number.isFinite(days) || days <= 0) return fail('Invalid days');
 
-    const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+    const leaveType = await db.leaveType.findUnique({ where: { id: leaveTypeId } });
     if (!leaveType) return fail('Leave type not found', 404);
     if (!leaveType.encashmentAllowed) return fail('Encashment not allowed for this leave type');
     if (leaveType.maxEncashmentDays > 0 && days > leaveType.maxEncashmentDays) {
@@ -63,13 +65,13 @@ export async function POST(request: Request) {
 
     // Verify the employee has the days available in the current year's balance
     const year = new Date().getFullYear();
-    const balance = await prisma.leaveBalance.findUnique({
+    const balance = await db.leaveBalance.findUnique({
       where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId, year } },
     });
     if (!balance || balance.remaining < days) return fail('Insufficient leave balance');
 
     // Compute amount: based on salary and basis
-    const employee = await prisma.employee.findUnique({ where: { id: emp.id }, select: { salary: true } });
+    const employee = await db.employee.findUnique({ where: { id: emp.id }, select: { salary: true } });
     const monthlySalary = employee?.salary || 0;
     let ratePerDay = 0;
     if (leaveType.encashmentBasis === 'gross') {
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
     // Tax implications — placeholder; in production this would be country-specific
     const taxImplications = { note: 'Tax will be deducted at source as per applicable law', tdsRate: 0.1 };
 
-    const record = await prisma.leaveEncashmentRequest.create({
+    const record = await db.leaveEncashmentRequest.create({
       data: {
         employeeId: emp.id,
         leaveTypeId,

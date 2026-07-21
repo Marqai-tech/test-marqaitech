@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -39,7 +40,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.exitInterview !== undefined) data.exitInterview = body.exitInterview;
     if (body.settlementAmount !== undefined) data.settlementAmount = parseFloat(body.settlementAmount);
 
-    const separation = await prisma.separation.update({
+    const separation = await db.separation.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
@@ -53,6 +54,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -70,7 +72,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
-    const separation = await prisma.separation.update({
+    const separation = await db.separation.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
@@ -84,6 +86,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -91,7 +94,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    await prisma.separation.delete({ where: { id } });
+    await db.separation.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Separation deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

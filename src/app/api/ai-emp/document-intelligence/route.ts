@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -56,6 +56,7 @@ Return ONLY valid JSON.`,
 };
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // If fileId provided, fetch from DB
     if (!textToProcess && fileId) {
-      const file = await prisma.fileNode.findUnique({ where: { id: fileId } });
+      const file = await db.fileNode.findUnique({ where: { id: fileId } });
       if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
       // In production, we'd OCR the file here. For MVP, expect rawText to be passed.
       textToProcess = `[File: ${file.name}] — OCR text not yet available. Pass rawText in the request body.`;
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Persist the result
-    const result = await prisma.documentIntelligenceResult.create({
+    const result = await db.documentIntelligenceResult.create({
       data: {
         fileId: fileId || null,
         documentId: documentId || null,

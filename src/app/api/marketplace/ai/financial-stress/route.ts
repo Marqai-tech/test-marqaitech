@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,13 +15,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { status: 'active' },
       select: { id: true, firstName: true, lastName: true, employeeId: true },
     });
@@ -31,9 +32,9 @@ export async function GET(request: Request) {
     const results = [];
     for (const emp of employees) {
       const [ewaCount, loanCount, attendanceDrop] = await Promise.all([
-        prisma.eWARequest.count({ where: { employeeId: emp.id, createdAt: { gte: thirtyDaysAgo } } }),
-        prisma.loanMarketplaceListing.count({ where: { employeeId: emp.id, applicationStatus: { in: ['applied', 'approved', 'disbursed'] } } }),
-        prisma.attendance.count({ where: { employeeId: emp.id, date: { gte: thirtyDaysAgo }, status: 'absent' } }),
+        db.eWARequest.count({ where: { employeeId: emp.id, createdAt: { gte: thirtyDaysAgo } } }),
+        db.loanMarketplaceListing.count({ where: { employeeId: emp.id, applicationStatus: { in: ['applied', 'approved', 'disbursed'] } } }),
+        db.attendance.count({ where: { employeeId: emp.id, date: { gte: thirtyDaysAgo }, status: 'absent' } }),
       ]);
       let score = 0;
       score += Math.min(0.5, ewaCount * 0.15);
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
       score = Math.min(1, score);
       const riskLevel = score >= 0.6 ? 'high' : score >= 0.3 ? 'medium' : 'low';
       if (riskLevel === 'low') continue; // only flag medium+
-      const flag = await prisma.financialStressFlag.create({
+      const flag = await db.financialStressFlag.create({
         data: { employeeId: emp.id, riskScore: score, riskLevel, factorsJson: { ewaCount, loanCount, attendanceDrop }, recommendedAction: riskLevel === 'high' ? 'Offer financial counseling session' : 'Send EWA best-practices guide', notifiedHR: false, anonymized: true },
       });
       results.push({ employeeId: emp.id, employeeName: `${emp.firstName} ${emp.lastName}`, riskLevel, riskScore: Math.round(score * 100) / 100, factors: { ewaCount, loanCount, attendanceDrop }, flagId: flag.id });

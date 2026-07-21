@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { scanContentForPII } from '@/lib/dlp';
 
@@ -12,6 +12,7 @@ import { scanContentForPII } from '@/lib/dlp';
  *   - Company Drive: visible to all employees of a sub-company
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     const companyId = searchParams.get('companyId');
     const parentId = searchParams.get('parentId') || null;
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ files: [] });
 
     const where: Record<string, unknown> = {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       where.companyId = companyId;
     }
 
-    const files = await prisma.fileNode.findMany({
+    const files = await db.fileNode.findMany({
       where,
       orderBy: [{ nodeType: 'asc' }, { name: 'asc' }], // folders first
       include: {
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
  * REQ-SEC-EMP-04: Watermark enabled per file
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'companyId required for company drive' }, { status: 400 });
     }
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // REQ-SEC-EMP-01: DLP scan on name + description
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
     let dlpScanStatus = 'clean';
     let dlpFlags: string | null = null;
     if (dlpResult.action === 'block') {
-      await prisma.dLPScanLog.create({
+      await db.dLPScanLog.create({
         data: {
           sourceType: 'file_upload',
           sourceId: 'pending',
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create file node + initial version in a transaction
-    const file = await prisma.fileNode.create({
+    const file = await db.fileNode.create({
       data: {
         name,
         driveType,
@@ -157,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     // Log DLP flag if applicable
     if (dlpResult.action === 'flag') {
-      await prisma.dLPScanLog.create({
+      await db.dLPScanLog.create({
         data: {
           sourceType: 'file_upload',
           sourceId: file.id,

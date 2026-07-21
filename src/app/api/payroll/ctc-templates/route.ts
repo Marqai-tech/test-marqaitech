@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (companyId) where.companyId = companyId;
 
-    const data = await prisma.cTCTemplate.findMany({
+    const data = await db.cTCTemplate.findMany({
       where,
       include: { componentMappings: { orderBy: { calculationSequence: 'asc' } } },
       orderBy: { createdAt: 'desc' },
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { componentMappings, ...templateData } = body;
 
-    const data = await prisma.cTCTemplate.create({
+    const data = await db.cTCTemplate.create({
       data: {
         ...templateData,
         createdBy: decoded.userId as string,

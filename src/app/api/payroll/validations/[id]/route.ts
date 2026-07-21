@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -24,7 +24,7 @@ export async function GET(
     const { id } = await params;
 
     try {
-      const validation = await prisma.payrollValidation.findUnique({ where: { id } });
+      const validation = await db.payrollValidation.findUnique({ where: { id } });
 
       if (!validation) {
         return Response.json({ error: 'Validation not found' }, { status: 404, headers: corsHeaders });

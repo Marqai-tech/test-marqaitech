@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const allocations = await prisma.projectAllocation.findMany({
+    const allocations = await db.projectAllocation.findMany({
       where: { projectId: id },
       include: {
         employee: {
@@ -55,6 +56,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -69,7 +71,7 @@ export async function POST(
     const { id } = await params;
 
     // Verify project exists
-    const project = await prisma.project.findUnique({ where: { id } });
+    const project = await db.project.findUnique({ where: { id } });
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -89,12 +91,12 @@ export async function POST(
     }
 
     // Verify employee exists
-    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    const employee = await db.employee.findUnique({ where: { id: employeeId } });
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    const allocation = await prisma.projectAllocation.create({
+    const allocation = await db.projectAllocation.create({
       data: {
         projectId: id,
         employeeId,
@@ -116,7 +118,7 @@ export async function POST(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_PROJECT_ALLOCATION',

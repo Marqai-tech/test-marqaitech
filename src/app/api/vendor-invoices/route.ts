@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     if (vendorId) where.vendorId = vendorId;
     if (poId) where.poId = poId;
     if (status) where.status = status;
-    const vis = await prisma.vendorInvoice.findMany({
+    const vis = await db.vendorInvoice.findMany({
       where: where as any,
       include: { vendor: { select: { id: true, name: true } }, po: { select: { id: true, poNumber: true, totalAmount: true, currency: true } } },
       orderBy: { createdAt: 'desc' },
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
     let matchedJson = null;
     let status = 'draft';
     if (autoMatch && poId) {
-      const po = await prisma.purchaseOrder.findUnique({ where: { id: poId }, include: { lineItems: true, project: { include: { timesheets: { select: { hours: true, status: true } } } } } });
+      const po = await db.purchaseOrder.findUnique({ where: { id: poId }, include: { lineItems: true, project: { include: { timesheets: { select: { hours: true, status: true } } } } } });
       if (po) {
         const poMatched = Math.abs(po.totalAmount - totalAmount) < 0.01;
         // Timesheet match: hours × costRate ~ totalAmount
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const vi = await prisma.vendorInvoice.create({
+    const vi = await db.vendorInvoice.create({
       data: {
         vendorId, poId, invoiceNumber,
         invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),

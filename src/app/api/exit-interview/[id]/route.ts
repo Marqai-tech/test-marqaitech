@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -25,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     await ensureSchemaSynced();
 
     const interview = await withSchemaSync(() =>
-      prisma.exitInterview.findUnique({
+      db.exitInterview.findUnique({
         where: { id },
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } }, designation: { select: { title: true } } } },
@@ -45,6 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -65,7 +67,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     await ensureSchemaSynced();
     const interview = await withSchemaSync(() =>
-      prisma.exitInterview.update({
+      db.exitInterview.update({
         where: { id },
         data,
         include: {

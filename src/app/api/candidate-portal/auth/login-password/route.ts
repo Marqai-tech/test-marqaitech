@@ -11,7 +11,7 @@
  * so the client can redirect the user to OTP login first.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
 
 const CORS = {
@@ -25,6 +25,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json().catch(() => ({}));
     const email = String(body.email || '').trim().toLowerCase();
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'email and password are required' }, { status: 400, headers: CORS });
     }
 
-    const user = await prisma.candidatePortalUser.findUnique({
+    const user = await db.candidatePortalUser.findUnique({
       where: { candidateEmail: email },
     });
     if (!user) {
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     // Stamp last login
-    await prisma.candidatePortalUser.update({
+    await db.candidatePortalUser.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });

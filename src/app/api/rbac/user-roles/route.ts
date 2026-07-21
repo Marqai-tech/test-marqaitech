@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 function corsHeaders() {
   return {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 
 // GET /api/rbac/user-roles — List users with their role assignments
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const { searchParams } = new URL(req.url);
     const tenantId = searchParams.get('tenantId');
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const users = await prisma.user.findMany({
+    const users = await db.user.findMany({
       where,
       select: {
         id: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const comments = await prisma.ticketComment.findMany({
+    const comments = await db.ticketComment.findMany({
       where: { ticketId: id },
       orderBy: { createdAt: 'asc' },
     });
@@ -47,6 +48,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -61,7 +63,7 @@ export async function POST(
     const { id } = await params;
 
     // Verify ticket exists
-    const ticket = await prisma.ticket.findUnique({ where: { id } });
+    const ticket = await db.ticket.findUnique({ where: { id } });
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -76,7 +78,7 @@ export async function POST(
       );
     }
 
-    const comment = await prisma.ticketComment.create({
+    const comment = await db.ticketComment.create({
       data: {
         ticketId: id,
         authorId,
@@ -86,7 +88,7 @@ export async function POST(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'ADD_TICKET_COMMENT',

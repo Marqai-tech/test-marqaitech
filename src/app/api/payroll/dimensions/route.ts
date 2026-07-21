@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (companyId) where.companyId = companyId;
     if (dimensionType) where.dimensionType = dimensionType;
 
-    const data = await prisma.dimensionDefinition.findMany({
+    const data = await db.dimensionDefinition.findMany({
       where,
       include: { allocations: true },
       orderBy: { createdAt: 'desc' },
@@ -40,13 +41,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.dimensionDefinition.create({ data: body });
+    const data = await db.dimensionDefinition.create({ data: body });
 
     return Response.json({ data, message: 'Dimension definition created successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

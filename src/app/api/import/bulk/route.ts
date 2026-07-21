@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as xlsx from 'xlsx';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 
 function corsHeaders() {
@@ -438,6 +438,7 @@ async function processSalaryStructureRow(
 // ── Main POST handler ──────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // ── Auth ──
     const token = getTokenFromHeaders(req);

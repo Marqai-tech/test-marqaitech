@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth'
 
 function corsHeaders() {
@@ -12,6 +12,7 @@ function corsHeaders() {
 
 // GET /api/helpdesk - Returns tickets with stats
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const token = getTokenFromHeaders(req);
     if (!token) {
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     if (priority) where.priority = priority
     if (categoryId) where.categoryId = categoryId
 
-    const tickets = await prisma.ticket.findMany({
+    const tickets = await db.ticket.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/helpdesk - Create a ticket (simplified)
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const token = getTokenFromHeaders(req);
     if (!token) {
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate ticket ID
-    const lastTicket = await prisma.ticket.findFirst({
+    const lastTicket = await db.ticket.findFirst({
       orderBy: { createdAt: 'desc' },
       select: { ticketId: true },
     });
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
     }
     const ticketId = `TK-${nextNum.toString().padStart(4, '0')}`;
 
-    const ticket = await prisma.ticket.create({
+    const ticket = await db.ticket.create({
       data: {
         ticketId,
         categoryId: categoryId || null,
@@ -129,6 +131,7 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/helpdesk - Update a ticket
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const token = getTokenFromHeaders(req);
     if (!token) {
@@ -160,7 +163,7 @@ export async function PUT(req: NextRequest) {
       updateData.closedAt = new Date();
     }
 
-    const ticket = await prisma.ticket.update({ where: { id }, data: updateData });
+    const ticket = await db.ticket.update({ where: { id }, data: updateData });
 
     return NextResponse.json(ticket, { headers: corsHeaders() });
   } catch (error: unknown) {

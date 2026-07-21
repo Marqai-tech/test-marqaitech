@@ -9,11 +9,12 @@
  *  DELETE — remove an attachment (admin only)
  */
 import { requireUser, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     if (!leaveRequestId) return fail('leaveRequestId is required');
 
     // Verify ownership (employees can only see their own leave attachments)
-    const leaveRequest = await prisma.leaveRequest.findUnique({
+    const leaveRequest = await db.leaveRequest.findUnique({
       where: { id: leaveRequestId },
       select: { id: true, employeeId: true },
     });
@@ -30,11 +31,11 @@ export async function GET(request: Request) {
 
     if (!isAdminRole(user.role)) {
       // Find the employee record for the current user
-      const emp = await prisma.employee.findFirst({ where: { email: user.email }, select: { id: true } });
+      const emp = await db.employee.findFirst({ where: { email: user.email }, select: { id: true } });
       if (!emp || emp.id !== leaveRequest.employeeId) return fail('Forbidden', 403);
     }
 
-    const items = await prisma.leaveAttachment.findMany({
+    const items = await db.leaveAttachment.findMany({
       where: { leaveRequestId },
       orderBy: { uploadedAt: 'desc' },
     });
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
     const isMedical = !!body.isMedical;
     if (!leaveRequestId || !fileName || !fileUrl) return fail('Missing required fields');
 
-    const record = await prisma.leaveAttachment.create({
+    const record = await db.leaveAttachment.create({
       data: {
         leaveRequestId,
         fileName,

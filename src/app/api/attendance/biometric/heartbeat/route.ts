@@ -7,7 +7,7 @@
  * `lastHeartbeatAt` and `ipAddress`. Devices whose heartbeat is older
  * than 15min are shown as "offline" in the admin UI.
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 
@@ -22,6 +22,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const token = request.headers.get('x-biometric-token');
   if (!token) {
     return NextResponse.json({ error: 'Missing X-Biometric-Token' }, { status: 401, headers: CORS });
@@ -34,12 +35,12 @@ export async function POST(request: Request) {
   if (!serial) {
     return NextResponse.json({ error: 'Missing serialNumber' }, { status: 400, headers: CORS });
   }
-  const device = await prisma.biometricDevice.findUnique({ where: { serialNumber: serial } });
+  const device = await db.biometricDevice.findUnique({ where: { serialNumber: serial } });
   if (!device) return NextResponse.json({ error: 'Unknown device' }, { status: 404, headers: CORS });
   if (device.apiTokenHash !== createHash('sha256').update(token).digest('hex')) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: CORS });
   }
-  const updated = await prisma.biometricDevice.update({
+  const updated = await db.biometricDevice.update({
     where: { id: device.id },
     data: {
       lastHeartbeatAt: new Date(),

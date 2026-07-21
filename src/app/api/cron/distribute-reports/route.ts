@@ -15,7 +15,7 @@
  *   - If next-due-time <= now, fire the schedule and update lastRunAt = now.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { createNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -73,6 +73,7 @@ function computeNextDue(schedule: {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   // Auth check via CRON_SECRET header (set in Vercel env)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
   const now = new Date();
 
   try {
-    const schedules = await prisma.reportSchedule.findMany({
+    const schedules = await db.reportSchedule.findMany({
       where: { isActive: true },
       take: 100,
     });
@@ -117,7 +118,7 @@ export async function GET(request: Request) {
         for (const r of recipients) {
           if (r.type === 'collab_user' && r.value) {
             // Look up the user's tenantId (notifications table has FK to Tenant + User)
-            const user = await prisma.user.findUnique({
+            const user = await db.user.findUnique({
               where: { id: r.value },
               select: { id: true, tenantId: true },
             }).catch(() => null);
@@ -142,7 +143,7 @@ export async function GET(request: Request) {
       }
 
       // Update lastRunAt
-      await prisma.reportSchedule.update({
+      await db.reportSchedule.update({
         where: { id: schedule.id },
         data: {
           lastRunAt: now,
@@ -152,7 +153,7 @@ export async function GET(request: Request) {
       });
 
       // Audit log
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: 'system',
           action: 'REPORT_SCHEDULE_DISPATCHED',

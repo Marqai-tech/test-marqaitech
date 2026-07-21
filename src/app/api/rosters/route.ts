@@ -5,11 +5,12 @@
  *  PATCH — update roster
  */
 import { requireUser, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (q.active === 'true') where.isActive = true;
 
-    const items = await prisma.rotationalRoster.findMany({
+    const items = await db.rotationalRoster.findMany({
       where,
       include: { assignments: { include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } } } },
       orderBy: { createdAt: 'desc' },
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
     const rotationUnit = body.rotationUnit === 'day' ? 'day' : 'week';
     const startDate = new Date(body.startDate as string);
 
-    const record = await prisma.rotationalRoster.create({
+    const record = await db.rotationalRoster.create({
       data: {
         name,
         description: (body.description as string) || null,

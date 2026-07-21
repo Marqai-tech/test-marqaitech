@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     if (companyId) where.companyId = companyId;
     if (status) where.status = status;
 
-    const salaryStructures = await prisma.salaryStructure.findMany({
+    const salaryStructures = await db.salaryStructure.findMany({
       where,
       include: {
         company: { select: { id: true, name: true } },
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const salaryStructure = await prisma.salaryStructure.create({
+    const salaryStructure = await db.salaryStructure.create({
       data: {
         name,
         companyId,
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_SALARY_STRUCTURE',

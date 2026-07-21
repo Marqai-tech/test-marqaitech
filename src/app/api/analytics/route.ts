@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -15,23 +16,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Total employees
-    const totalEmployees = await prisma.employee.count({ where: { status: 'active' } });
+    const totalEmployees = await db.employee.count({ where: { status: 'active' } });
 
     // New hires (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newHires = await prisma.employee.count({
+    const newHires = await db.employee.count({
       where: { dateOfJoining: { gte: thirtyDaysAgo } },
     });
 
     // Attrition (separated employees in last 30 days)
-    const separated = await prisma.employee.count({
+    const separated = await db.employee.count({
       where: { status: { in: ['terminated', 'resigned'] } },
     });
     const attritionRate = totalEmployees > 0 ? ((separated / totalEmployees) * 100).toFixed(1) : '0';
 
     // Department distribution
-    const deptEmployees = await prisma.employee.findMany({
+    const deptEmployees = await db.employee.findMany({
       where: { status: 'active' },
       select: { department: { select: { name: true } } },
     });
@@ -43,12 +44,12 @@ export async function GET(request: NextRequest) {
     const departmentDistribution = Object.entries(deptMap).map(([name, count]) => ({ name, count }));
 
     // Leave statistics
-    const pendingLeaves = await prisma.leaveRequest.count({ where: { status: 'pending' } });
-    const approvedLeaves = await prisma.leaveRequest.count({ where: { status: 'approved' } });
-    const totalLeaves = await prisma.leaveRequest.count();
+    const pendingLeaves = await db.leaveRequest.count({ where: { status: 'pending' } });
+    const approvedLeaves = await db.leaveRequest.count({ where: { status: 'approved' } });
+    const totalLeaves = await db.leaveRequest.count();
 
     // Attendance rate (last 30 days)
-    const recentAttendance = await prisma.attendance.findMany({
+    const recentAttendance = await db.attendance.findMany({
       where: { date: { gte: thirtyDaysAgo } },
       select: { status: true },
     });
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     // Payroll summary
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
-    const payrollRecords = await prisma.payroll.findMany({
+    const payrollRecords = await db.payroll.findMany({
       where: { month: currentMonth, year: currentYear },
       select: { netSalary: true, status: true, currency: true },
     });
@@ -66,11 +67,11 @@ export async function GET(request: NextRequest) {
     const paidPayroll = payrollRecords.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.netSalary, 0);
 
     // Recruitment funnel
-    const openPositions = await prisma.jobPosting.count({ where: { status: 'open' } });
-    const totalApplications = await prisma.jobApplication.count();
-    const interviewStage = await prisma.jobApplication.count({ where: { status: 'interview' } });
-    const offered = await prisma.jobApplication.count({ where: { status: 'offered' } });
-    const hired = await prisma.jobApplication.count({ where: { status: 'hired' } });
+    const openPositions = await db.jobPosting.count({ where: { status: 'open' } });
+    const totalApplications = await db.jobApplication.count();
+    const interviewStage = await db.jobApplication.count({ where: { status: 'interview' } });
+    const offered = await db.jobApplication.count({ where: { status: 'offered' } });
+    const hired = await db.jobApplication.count({ where: { status: 'hired' } });
 
     return NextResponse.json({
       employees: { total: totalEmployees, newHires, attritionRate: parseFloat(attritionRate) },

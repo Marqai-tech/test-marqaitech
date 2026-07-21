@@ -1,6 +1,6 @@
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,13 +14,14 @@ export async function OPTIONS() {
 
 // GET: Single declaration
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const { id } = await params;
-    const declaration = await prisma.incomeTaxDeclaration.findUnique({
+    const declaration = await db.incomeTaxDeclaration.findUnique({
       where: { id },
       include: {
         employee: {
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 // PUT: Update / approve / reject declaration
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -52,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const userRole = (decoded as Record<string, unknown>).role as string;
     const userId = (decoded as Record<string, unknown>).userId || (decoded as Record<string, unknown>).sub;
 
-    const existing = await prisma.incomeTaxDeclaration.findUnique({ where: { id } });
+    const existing = await db.incomeTaxDeclaration.findUnique({ where: { id } });
     if (!existing) {
       return Response.json({ error: 'Declaration not found' }, { status: 404, headers: corsHeaders });
     }
@@ -131,7 +133,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       updateData.status = 'DRAFT';
     }
 
-    const updated = await prisma.incomeTaxDeclaration.update({
+    const updated = await db.incomeTaxDeclaration.update({
       where: { id },
       data: updateData,
     });
@@ -145,13 +147,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // DELETE: Delete declaration (only DRAFT can be deleted)
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const { id } = await params;
-    const existing = await prisma.incomeTaxDeclaration.findUnique({ where: { id } });
+    const existing = await db.incomeTaxDeclaration.findUnique({ where: { id } });
     if (!existing) {
       return Response.json({ error: 'Declaration not found' }, { status: 404, headers: corsHeaders });
     }
@@ -160,7 +163,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return Response.json({ error: 'Only DRAFT declarations can be deleted' }, { status: 400, headers: corsHeaders });
     }
 
-    await prisma.incomeTaxDeclaration.delete({ where: { id } });
+    await db.incomeTaxDeclaration.delete({ where: { id } });
     return Response.json({ message: 'Declaration deleted successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error deleting declaration:', error);

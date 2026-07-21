@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -47,7 +47,7 @@ async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void>
   if (tenantIds.length === 0) return;
   await safe('ensureDefaultGroupsForTenants', async () => {
     // Fetch tenant names + existing group counts in one query each
-    const tenants = await prisma.tenant.findMany({
+    const tenants = await getPlatformDb().tenant.findMany({
       where: { id: { in: tenantIds } },
       select: {
         id: true,
@@ -58,7 +58,7 @@ async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void>
     const tenantsNeedingGroup = tenants.filter((t) => t.companyGroups.length === 0);
     if (tenantsNeedingGroup.length === 0) return;
     await Promise.all(tenantsNeedingGroup.map((t) =>
-      prisma.companyGroup.create({
+      db.companyGroup.create({
         data: {
           name: t.name,
           tenantId: t.id,
@@ -96,6 +96,7 @@ async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void>
  *   }] }
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -140,7 +141,7 @@ export async function GET(request: Request) {
       // Super admin viewing all tenants — ensure default groups for every tenant
       const allTenantIds = await safe(
         'tenant.findMany(ids)',
-        () => prisma.tenant.findMany({ select: { id: true } }),
+        () => getPlatformDb().tenant.findMany({ select: { id: true } }),
         [],
       );
       await ensureDefaultGroupsForTenants(allTenantIds.map((t) => t.id));
@@ -152,7 +153,7 @@ export async function GET(request: Request) {
 
     const groups = await safe(
       'companyGroup.findMany',
-      () => prisma.companyGroup.findMany({
+      () => db.companyGroup.findMany({
         where,
         include: {
           tenant: { select: { id: true, name: true, slug: true } },
@@ -169,7 +170,7 @@ export async function GET(request: Request) {
               // field on Company). Counting employees per-company would
               // require a raw SQL join. We count branches+departments here
               // instead; the group-level employee count is computed below
-              // from a separate prisma.employee.count() call.
+              // from a separate db.employee.count() call.
               _count: { select: { branches: true, departments: true } },
             },
             orderBy: { name: 'asc' },
@@ -193,7 +194,7 @@ export async function GET(request: Request) {
         // Group employee counts by companyId using a single query
         const employeeCounts = await safe(
           'employee.groupBy(companyId)',
-          () => prisma.employee.groupBy({
+          () => db.employee.groupBy({
             by: ['companyId'],
             where: { companyId: { in: allCompanyIds } },
             _count: { _all: true },
@@ -271,6 +272,7 @@ export async function GET(request: Request) {
  *  - notes: string | null
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -320,7 +322,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the tenant exists
-    const tenant = await prisma.tenant.findUnique({ where: { id: targetTenantId } });
+    const tenant = await getPlatformDb().tenant.findUnique({ where: { id: targetTenantId } });
     if (!tenant) {
       return NextResponse.json({ error: 'Target tenant not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -333,7 +335,7 @@ export async function POST(request: Request) {
     const maxComp = typeof maxCompanies === 'number' && maxCompanies >= 0 ? maxCompanies : null;
 
     // Check for duplicate name within the same tenant
-    const existing = await prisma.companyGroup.findFirst({
+    const existing = await db.companyGroup.findFirst({
       where: { tenantId: targetTenantId, name: { equals: String(name).trim(), mode: 'insensitive' } },
     });
     if (existing) {
@@ -343,7 +345,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const group = await prisma.companyGroup.create({
+    const group = await db.companyGroup.create({
       data: {
         name: String(name).trim(),
         tenantId: targetTenantId,
@@ -358,7 +360,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_COMPANY_GROUP',

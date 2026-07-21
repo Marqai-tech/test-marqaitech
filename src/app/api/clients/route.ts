@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
     }
 
     const [clients, total] = await Promise.all([
-      prisma.client.findMany({
+      db.client.findMany({
         where,
         include: {
           company: { select: { id: true, name: true, code: true } },
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.client.count({ where }),
+      db.client.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -68,6 +69,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -93,7 +95,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const client = await prisma.client.create({
+    const client = await db.client.create({
       data: {
         name,
         code,
@@ -118,7 +120,7 @@ export async function POST(request: Request) {
       include: { company: { select: { id: true, name: true } } },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_CLIENT',

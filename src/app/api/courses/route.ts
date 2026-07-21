@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -8,6 +8,7 @@ function corsHeaders() {
 export async function OPTIONS() { return NextResponse.json({}, { headers: corsHeaders() }); }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const { searchParams } = new URL(request.url);
-    const courses = await prisma.course.findMany({
+    const courses = await db.course.findMany({
       include: { _count: { select: { enrollments: true, modules: true } } },
       orderBy: { createdAt: 'desc' },
       take: parseInt(searchParams.get('limit') || '50'),
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
     const { title, description, category, trainer, duration, mode, level, skills, status } = body;
     if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400, headers: corsHeaders() });
 
-    const course = await prisma.course.create({
+    const course = await db.course.create({
       data: { title, description, category, trainer, duration, mode: mode || 'online', level: level || 'beginner', skills, status: status || 'draft' },
     });
     return NextResponse.json({ course }, { status: 201, headers: corsHeaders() });

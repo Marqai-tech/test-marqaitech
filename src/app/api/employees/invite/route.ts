@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { sendEmail } from '@/lib/email';
@@ -132,6 +132,7 @@ function buildInviteEmailHtml(params: {
 
 /** POST — Send invite emails to employees with login credentials */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -150,7 +151,7 @@ export async function POST(request: Request) {
     }
 
     // Get admin info
-    const admin = await prisma.user.findUnique({
+    const admin = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { id: true, name: true, role: true, tenantId: true, tenant: { select: { id: true, name: true, slug: true, domain: true, logo: true } } },
     });
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
     if (scope === 'self' && admin.id) {
       where.userId = admin.id;
     } else if (scope === 'team' && admin.id) {
-      const ownEmp = await prisma.employee.findFirst({
+      const ownEmp = await db.employee.findFirst({
         where: { userId: admin.id, status: 'active' },
         select: { departmentId: true },
       });
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
     }
     // scope === 'all' → no additional filtering (tenant_admin, admin, super_admin can see all)
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where,
       select: { id: true, employeeId: true, firstName: true, lastName: true, email: true, userId: true, phone: true, user: { select: { id: true, role: true } } },
     });
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
       try {
         // Ensure employee has a user account
         let userAccount = emp.userId
-          ? await prisma.user.findUnique({ where: { id: emp.userId } })
+          ? await db.user.findUnique({ where: { id: emp.userId } })
           : null;
 
         let pwd = '';
@@ -222,19 +223,19 @@ export async function POST(request: Request) {
 
           if (userAccount) {
             // Reset password
-            await prisma.user.update({
+            await db.user.update({
               where: { id: userAccount.id },
               data: { password: hashedPwd, status: 'active' },
             });
           } else {
             // Check if user already exists with this email
-            const existingUser = await prisma.user.findUnique({ where: { email: emp.email } });
+            const existingUser = await db.user.findUnique({ where: { email: emp.email } });
             if (existingUser) {
-              await prisma.user.update({
+              await db.user.update({
                 where: { id: existingUser.id },
                 data: { password: hashedPwd, status: 'active' },
               });
-              await prisma.employee.update({
+              await db.employee.update({
                 where: { id: emp.id },
                 data: { userId: existingUser.id },
               });
@@ -243,7 +244,7 @@ export async function POST(request: Request) {
               // Use the employee's assigned role (from their User account) if available,
               // otherwise default to 'employee'
               const employeeRole = emp.user?.role || 'employee';
-              const newUser = await prisma.user.create({
+              const newUser = await db.user.create({
                 data: {
                   email: emp.email,
                   password: hashedPwd,
@@ -253,7 +254,7 @@ export async function POST(request: Request) {
                   status: 'active',
                 },
               });
-              await prisma.employee.update({
+              await db.employee.update({
                 where: { id: emp.id },
                 data: { userId: newUser.id },
               });

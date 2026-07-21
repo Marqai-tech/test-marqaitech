@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (clientId) (where as Record<string, unknown>).clientId = clientId;
     if (status) (where as Record<string, unknown>).status = status;
-    const sows = await prisma.sOW.findMany({
+    const sows = await db.sOW.findMany({
       where: where as any,
       include: { client: { select: { id: true, name: true } }, project: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
       };
     }
 
-    const sow = await prisma.sOW.create({
+    const sow = await db.sOW.create({
       data: {
         clientId, title, fileName, fileUrl, rawText,
         startDate: aiParsed.startDate ? new Date(aiParsed.startDate) : null,
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
         aiConfidence: aiParsed.aiConfidence,
       },
     });
-    await prisma.auditLog.create({ data: { userId: decoded.userId as string, action: 'AI_PARSE_SOW', module: 'clients', details: `AI parsed SOW ${title} (confidence ${aiParsed.aiConfidence})` } });
+    await db.auditLog.create({ data: { userId: decoded.userId as string, action: 'AI_PARSE_SOW', module: 'clients', details: `AI parsed SOW ${title} (confidence ${aiParsed.aiConfidence})` } });
     return NextResponse.json({ sow, aiParsed }, { status: 201, headers: corsHeaders() });
   } catch (error) { console.error('Create SOW error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }

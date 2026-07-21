@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
     }
 
     const [documents, total] = await Promise.all([
-      prisma.docHubDocument.findMany({
+      db.docHubDocument.findMany({
         where,
         include: {
           category: { select: { id: true, name: true, slug: true, icon: true, color: true } },
@@ -68,11 +69,11 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.docHubDocument.count({ where }),
+      db.docHubDocument.count({ where }),
     ]);
 
     // Get categories with doc counts
-    const categories = await prisma.docHubCategory.findMany({
+    const categories = await db.docHubCategory.findMany({
       where: { status: 'active' },
       include: { _count: { select: { documents: { where: { status: 'published' } } } } },
       orderBy: { sortOrder: 'asc' },
@@ -90,6 +91,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -113,7 +115,7 @@ export async function POST(request: Request) {
     // Generate slug from title
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
 
-    const document = await prisma.docHubDocument.create({
+    const document = await db.docHubDocument.create({
       data: {
         title,
         slug,

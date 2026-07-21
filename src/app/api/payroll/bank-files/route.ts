@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (payrollRunId) where.payrollRunId = payrollRunId;
 
     try {
-      const data = await prisma.bankPaymentFile.findMany({
+      const data = await db.bankPaymentFile.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       });
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Fetch the payroll run
     let payrollRun;
     try {
-      payrollRun = await prisma.payrollRun.findUnique({
+      payrollRun = await db.payrollRun.findUnique({
         where: { id: payrollRunId },
       });
     } catch (dbError: unknown) {
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let transactionLines: any[] = [];
     try {
-      transactionLines = await prisma.payrollTransactionLine.findMany({
+      transactionLines = await db.payrollTransactionLine.findMany({
         where: {
           payrollRunId,
           isReversal: false,
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let employees: any[] = [];
     try {
-      employees = await prisma.employee.findMany({
+      employees = await db.employee.findMany({
         where: { id: { in: employeeIds } },
         include: {
           employeePaymentMethods: {
@@ -265,7 +267,7 @@ export async function POST(request: NextRequest) {
     // Create the bank payment file record
     const fileName = `${format}_${payrollRun.payrollPeriod}_${new Date().toISOString().split('T')[0]}.json`;
     try {
-      const bankFile = await prisma.bankPaymentFile.create({
+      const bankFile = await db.bankPaymentFile.create({
         data: {
           payrollRunId,
           fileName,

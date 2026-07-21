@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
     if (type === 'recognitions' || type === 'recognition') {
       const recognitions = await withSchemaSync(() =>
-        prisma.recognition.findMany({
+        db.recognition.findMany({
           where: status ? { category: status } : {},
           orderBy: { createdAt: 'desc' },
           take: 50,
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
         employeeIds.add(r.toId);
       });
 
-      const employees = await prisma.employee.findMany({
+      const employees = await db.employee.findMany({
         where: { id: { in: Array.from(employeeIds) } },
         select: { id: true, firstName: true, lastName: true, avatar: true, department: { select: { name: true } } },
       });
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
 
     const [surveys, total] = await Promise.all([
       withSchemaSync(() =>
-        prisma.survey.findMany({
+        db.survey.findMany({
           where,
           include: {
             _count: { select: { responses: true } },
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
           take: 50,
         })
       ),
-      withSchemaSync(() => prisma.survey.count({ where })),
+      withSchemaSync(() => db.survey.count({ where })),
     ]);
 
     return NextResponse.json({ surveys, total }, { headers: corsHeaders() });
@@ -90,6 +91,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -112,7 +114,7 @@ export async function POST(request: Request) {
       await ensureSchemaSynced();
 
       const recognition = await withSchemaSync(() =>
-        prisma.recognition.create({
+        db.recognition.create({
           data: {
             fromId: decoded.userId as string,
             toId,
@@ -139,7 +141,7 @@ export async function POST(request: Request) {
       await ensureSchemaSynced();
 
       const response = await withSchemaSync(() =>
-        prisma.surveyResponse.create({
+        db.surveyResponse.create({
           data: {
             surveyId,
             employeeId: decoded.userId as string,
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
     await ensureSchemaSynced();
 
     const survey = await withSchemaSync(() =>
-      prisma.survey.create({
+      db.survey.create({
         data: {
           title,
           description: description || null,

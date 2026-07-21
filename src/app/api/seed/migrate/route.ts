@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { secret } = body;
@@ -188,7 +189,7 @@ export async function POST(request: Request) {
     const results = [];
     for (const sql of createTables) {
       try {
-        await prisma.$executeRawUnsafe(sql);
+        await db.$executeRawUnsafe(sql);
         results.push({ sql: sql.substring(0, 60) + '...', status: 'ok' });
       } catch (err: any) {
         // Ignore "already exists" errors

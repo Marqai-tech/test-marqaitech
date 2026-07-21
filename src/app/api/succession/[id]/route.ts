@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -27,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
 
-    const plan = await prisma.successionPlan.findUnique({
+    const plan = await db.successionPlan.findUnique({
       where: { id },
       include: { candidates: true },
     });
@@ -41,7 +42,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     plan.candidates.forEach(c => employeeIds.add(c.employeeId));
     if (plan.currentHolderId) employeeIds.add(plan.currentHolderId);
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { id: { in: Array.from(employeeIds) } },
       select: {
         id: true, firstName: true, lastName: true, email: true, avatar: true,
@@ -53,7 +54,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     let department = null;
     if (plan.departmentId) {
-      const dept = await prisma.department.findUnique({ where: { id: plan.departmentId }, select: { id: true, name: true } });
+      const dept = await db.department.findUnique({ where: { id: plan.departmentId }, select: { id: true, name: true } });
       department = dept;
     }
 
@@ -75,6 +76,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -94,7 +96,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       if (!candidateId) {
         return NextResponse.json({ error: 'Missing candidateId' }, { status: 400, headers: corsHeaders() });
       }
-      const candidate = await prisma.successionCandidate.update({
+      const candidate = await db.successionCandidate.update({
         where: { id: candidateId },
         data: {
           ...(readinessLevel && { readinessLevel }),
@@ -112,12 +114,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       if (!candidateId) {
         return NextResponse.json({ error: 'Missing candidateId' }, { status: 400, headers: corsHeaders() });
       }
-      await prisma.successionCandidate.delete({ where: { id: candidateId } });
+      await db.successionCandidate.delete({ where: { id: candidateId } });
       return NextResponse.json({ success: true }, { headers: corsHeaders() });
     }
 
     // Default: update plan
-    const plan = await prisma.successionPlan.update({
+    const plan = await db.successionPlan.update({
       where: { id },
       data: {
         ...(body.positionTitle && { positionTitle: body.positionTitle }),
@@ -139,6 +141,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -152,7 +155,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
 
     // Cascading delete (candidates will be deleted by Prisma)
-    await prisma.successionPlan.delete({ where: { id } });
+    await db.successionPlan.delete({ where: { id } });
 
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {

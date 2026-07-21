@@ -1,6 +1,6 @@
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -107,6 +107,7 @@ function calculateHRAExemption(actualHRA: number, basicSalary: number, rentPaid:
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -232,12 +233,13 @@ export async function POST(request: NextRequest) {
 
 // GET: Fetch tax slab tables from database
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
-    const taxSlabs = await prisma.taxSlabTable.findMany({
+    const taxSlabs = await db.taxSlabTable.findMany({
       include: { rateLines: { orderBy: { sequence: 'asc' } } },
       orderBy: { taxYear: 'desc' },
       take: 10,

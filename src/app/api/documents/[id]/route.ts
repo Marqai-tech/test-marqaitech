@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -31,7 +32,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.fileUrl !== undefined) data.fileUrl = body.fileUrl;
     if (body.description !== undefined) data.description = body.description;
 
-    const document = await prisma.document.update({
+    const document = await db.document.update({
       where: { id },
       data,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
@@ -45,6 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -52,7 +54,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    await prisma.document.delete({ where: { id } });
+    await db.document.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Document deleted successfully' }, { headers: corsHeaders() });
   } catch (error) {

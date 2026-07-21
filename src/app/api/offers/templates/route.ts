@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -17,6 +17,7 @@ export async function OPTIONS() {
 
 // GET /api/offers/templates?country=IN&isActive=true
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     }
 
     const templates = await withSchemaSync(() =>
-      prisma.offerTemplate.findMany({
+      db.offerTemplate.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       })
@@ -73,6 +74,7 @@ export async function GET(request: Request) {
 
 // POST /api/offers/templates
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
     const tenantId = (decoded.tenantId as string) || 'default-tenant';
 
     const template = await withSchemaSync(() =>
-      prisma.offerTemplate.create({
+      db.offerTemplate.create({
         data: {
           tenantId,
           name,
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_OFFER_TEMPLATE',

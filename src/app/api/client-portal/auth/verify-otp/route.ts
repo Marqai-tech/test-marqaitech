@@ -8,7 +8,7 @@
  * { kind: 'client_portal', portalUserId, clientId, email, name }
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
 
 const CORS = {
@@ -22,6 +22,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json().catch(() => ({}));
     const email = String(body.email || '').trim().toLowerCase();
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     if (!email || !otp) {
       return NextResponse.json({ error: 'email and otp are required' }, { status: 400, headers: CORS });
     }
-    const user = await prisma.clientPortalUser.findFirst({
+    const user = await db.clientPortalUser.findFirst({
       where: { email, status: 'active' },
     });
     if (!user || !user.otpSecret) {
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid OTP' }, { status: 401, headers: CORS });
     }
     // Clear OTP
-    await prisma.clientPortalUser.update({
+    await db.clientPortalUser.update({
       where: { id: user.id },
       data: { otpSecret: null, lastLoginAt: new Date() },
     });

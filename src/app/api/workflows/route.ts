@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
       where.isActive = isActive === 'true';
     }
 
-    const workflows = await prisma.workflowDefinition.findMany({
+    const workflows = await db.workflowDefinition.findMany({
       where,
       include: {
         _count: { select: { instances: true } },
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const workflow = await prisma.workflowDefinition.create({
+    const workflow = await db.workflowDefinition.create({
       data: {
         name,
         module,
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_WORKFLOW',

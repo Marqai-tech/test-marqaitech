@@ -20,7 +20,7 @@
  *     (curated static mapping; would be AI-driven in production)
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { parseResumeFromDataUrl } from '@/lib/resume-parser';
 
@@ -72,13 +72,14 @@ function slugifySkill(s: string): string {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const auth = await requireCandidate(request);
   if ('error' in auth) return auth.error;
   const { email, name } = auth;
 
   try {
     // ─── Applications + job postings + interviews ─────────────────────────
-    const applications = await prisma.jobApplication.findMany({
+    const applications = await db.jobApplication.findMany({
       where: { candidateEmail: email },
       include: {
         jobPosting: {
@@ -136,7 +137,7 @@ export async function GET(request: Request) {
             // update the latest row in place rather than creating a new one.
             const latestId = a.resumeParses[0]?.id as string | undefined;
             if (latestId) {
-              await prisma.resumeParse.update({
+              await db.resumeParse.update({
                 where: { id: latestId },
                 data: {
                   rawText: result.rawText.slice(0, 100_000),
@@ -148,7 +149,7 @@ export async function GET(request: Request) {
                 },
               });
             } else {
-              await prisma.resumeParse.create({
+              await db.resumeParse.create({
                 data: {
                   jobApplicationId: a.id,
                   rawText: result.rawText.slice(0, 100_000),
@@ -179,14 +180,14 @@ export async function GET(request: Request) {
     );
 
     // ─── AI Interview Sessions (separate from manual Interview records) ──
-    const aiSessions = await prisma.interviewSession.findMany({
+    const aiSessions = await db.interviewSession.findMany({
       where: { candidateEmail: email },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
     // ─── Talent Pool entries (REQ-STAT-01) ──────────────────────────────
-    const talentPoolEntries = await prisma.candidateTalentPool.findMany({
+    const talentPoolEntries = await db.candidateTalentPool.findMany({
       where: { candidateEmail: email, removedAt: null },
       include: {
         company: { select: { id: true, name: true, logo: true } },
@@ -195,7 +196,7 @@ export async function GET(request: Request) {
     });
 
     // ─── Saved Jobs (REQ-CAND-07) ───────────────────────────────────────
-    const savedJobs = await prisma.candidateSavedJob.findMany({
+    const savedJobs = await db.candidateSavedJob.findMany({
       where: { candidateEmail: email },
       include: {
         jobPosting: {
@@ -217,7 +218,7 @@ export async function GET(request: Request) {
     });
 
     // ─── Resume Optimization per application (REQ-AI-RES-03..09) ─────────
-    const optimizations = await prisma.candidateResumeOptimization.findMany({
+    const optimizations = await db.candidateResumeOptimization.findMany({
       where: { candidateEmail: email },
       select: {
         jobApplicationId: true,
@@ -236,7 +237,7 @@ export async function GET(request: Request) {
     }
 
     // ─── AI Feedback published to this candidate (REQ-STAT-05) ──────────
-    const aiFeedback = await prisma.candidateAiFeedback.findMany({
+    const aiFeedback = await db.candidateAiFeedback.findMany({
       where: { candidateEmail: email, reviewStatus: 'published' },
       select: {
         jobApplicationId: true,
@@ -253,7 +254,7 @@ export async function GET(request: Request) {
     }
 
     // ─── Job Alerts (REQ-STAT-03) ───────────────────────────────────────
-    const jobAlerts = await prisma.candidateJobAlert.findMany({
+    const jobAlerts = await db.candidateJobAlert.findMany({
       where: { candidateEmail: email, seenAt: null },
       include: {
         jobPosting: {

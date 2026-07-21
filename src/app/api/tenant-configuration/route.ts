@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -261,6 +261,7 @@ function getDefaultPoliciesForCountry(countryCode: string): Array<{ policyName: 
 
 // ─── GET: Retrieve tenant configuration ───
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -289,7 +290,7 @@ export async function GET(request: Request) {
     }
 
     // Get or create the configuration
-    let config = await prisma.tenantConfiguration.findUnique({
+    let config = await db.tenantConfiguration.findUnique({
       where: { tenantId: targetTenantId },
       include: {
         countries: { where: { isActive: true }, orderBy: { countryName: 'asc' } },
@@ -303,7 +304,7 @@ export async function GET(request: Request) {
       // Auto-create with demo-friendly defaults and seed sample data
       // This also handles the case where config exists but is empty (e.g., created before seed feature was added)
       if (!config) {
-        config = await prisma.tenantConfiguration.create({
+        config = await db.tenantConfiguration.create({
           data: {
             tenantId: targetTenantId,
             autoProvisionPayroll: true,
@@ -326,7 +327,7 @@ export async function GET(request: Request) {
 
       // Update existing config with demo-friendly defaults if needed
       if (config.customisationTier === 'standard' || config.maxUsers === 50) {
-        await prisma.tenantConfiguration.update({
+        await db.tenantConfiguration.update({
           where: { id: config.id },
           data: {
             autoProvisionPayroll: true,
@@ -350,7 +351,7 @@ export async function GET(request: Request) {
         const master = COUNTRY_MASTER.find(c => c.code === code);
         if (!master) continue;
 
-        await prisma.tenantCountryAccess.create({
+        await db.tenantCountryAccess.create({
           data: {
             tenantConfigId: config.id,
             countryCode: code,
@@ -379,7 +380,7 @@ export async function GET(request: Request) {
         // Auto-provision payroll policies for each country
         const defaultPolicies = getDefaultPoliciesForCountry(code);
         for (const p of defaultPolicies) {
-          await prisma.tenantPayrollPolicy.create({
+          await db.tenantPayrollPolicy.create({
             data: {
               tenantConfigId: config.id,
               countryCode: code,
@@ -398,7 +399,7 @@ export async function GET(request: Request) {
         // Auto-add the country's default currency
         const currencyMaster = CURRENCY_MASTER.find(c => c.code === master.currency);
         if (currencyMaster) {
-          await prisma.tenantCurrencyAccess.upsert({
+          await db.tenantCurrencyAccess.upsert({
             where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: currencyMaster.code } },
             update: { isActive: true },
             create: {
@@ -413,7 +414,7 @@ export async function GET(request: Request) {
         // Auto-add the country's default language
         const langMaster = LANGUAGE_MASTER.find(l => l.code === master.language);
         if (langMaster) {
-          await prisma.tenantLanguageAccess.upsert({
+          await db.tenantLanguageAccess.upsert({
             where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: langMaster.code } },
             update: { isActive: true },
             create: {
@@ -436,7 +437,7 @@ export async function GET(request: Request) {
         if (seededCurrencyCodes.has(code)) continue;
         const master = CURRENCY_MASTER.find(c => c.code === code);
         if (!master) continue;
-        await prisma.tenantCurrencyAccess.create({
+        await db.tenantCurrencyAccess.create({
           data: {
             tenantConfigId: config.id,
             currencyCode: code,
@@ -452,7 +453,7 @@ export async function GET(request: Request) {
         if (seededLanguageCodes.has(code)) continue;
         const master = LANGUAGE_MASTER.find(l => l.code === code);
         if (!master) continue;
-        await prisma.tenantLanguageAccess.create({
+        await db.tenantLanguageAccess.create({
           data: {
             tenantConfigId: config.id,
             languageCode: code,
@@ -470,7 +471,7 @@ export async function GET(request: Request) {
       await updateConfigCounts(config.id);
 
       // Re-fetch with all seeded data
-      config = await prisma.tenantConfiguration.findUnique({
+      config = await db.tenantConfiguration.findUnique({
         where: { tenantId: targetTenantId },
         include: {
           countries: { where: { isActive: true }, orderBy: { countryName: 'asc' } },
@@ -504,6 +505,7 @@ export async function GET(request: Request) {
 
 // ─── POST: Add country/currency/language access, or create custom policy ───
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -533,11 +535,11 @@ export async function POST(request: Request) {
     }
 
     // Ensure configuration exists
-    let config = await prisma.tenantConfiguration.findUnique({
+    let config = await db.tenantConfiguration.findUnique({
       where: { tenantId: targetTenantId },
     });
     if (!config) {
-      config = await prisma.tenantConfiguration.create({
+      config = await db.tenantConfiguration.create({
         data: { tenantId: targetTenantId },
       });
     }
@@ -555,7 +557,7 @@ export async function POST(request: Request) {
         if (!master) continue;
 
         // Upsert country access
-        const countryAccess = await prisma.tenantCountryAccess.upsert({
+        const countryAccess = await db.tenantCountryAccess.upsert({
           where: { tenantConfigId_countryCode: { tenantConfigId: config.id, countryCode: code } },
           update: { isActive: true, isOverridden: false },
           create: {
@@ -589,11 +591,11 @@ export async function POST(request: Request) {
           const defaultPolicies = getDefaultPoliciesForCountry(code);
           for (const p of defaultPolicies) {
             // Check if policy already exists for this country+type
-            const existing = await prisma.tenantPayrollPolicy.findFirst({
+            const existing = await db.tenantPayrollPolicy.findFirst({
               where: { tenantConfigId: config.id, countryCode: code, policyType: p.policyType, source: 'system_default' },
             });
             if (!existing) {
-              await prisma.tenantPayrollPolicy.create({
+              await db.tenantPayrollPolicy.create({
                 data: {
                   tenantConfigId: config.id,
                   countryCode: code,
@@ -615,7 +617,7 @@ export async function POST(request: Request) {
         if (config.autoProvisionPayroll) {
           const currencyMaster = CURRENCY_MASTER.find(c => c.code === master.currency);
           if (currencyMaster) {
-            await prisma.tenantCurrencyAccess.upsert({
+            await db.tenantCurrencyAccess.upsert({
               where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: currencyMaster.code } },
               update: { isActive: true },
               create: {
@@ -632,7 +634,7 @@ export async function POST(request: Request) {
         if (config.autoProvisionPayroll) {
           const langMaster = LANGUAGE_MASTER.find(l => l.code === master.language);
           if (langMaster) {
-            await prisma.tenantLanguageAccess.upsert({
+            await db.tenantLanguageAccess.upsert({
               where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: langMaster.code } },
               update: { isActive: true },
               create: {
@@ -653,7 +655,7 @@ export async function POST(request: Request) {
       // Update counts and costing
       await updateConfigCounts(config.id);
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'ADD_COUNTRY_ACCESS',
@@ -677,7 +679,7 @@ export async function POST(request: Request) {
         const master = CURRENCY_MASTER.find(c => c.code === code);
         if (!master) continue;
 
-        const currencyAccess = await prisma.tenantCurrencyAccess.upsert({
+        const currencyAccess = await db.tenantCurrencyAccess.upsert({
           where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: code } },
           update: { isActive: true },
           create: {
@@ -692,7 +694,7 @@ export async function POST(request: Request) {
 
       await updateConfigCounts(config.id);
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'ADD_CURRENCY_ACCESS',
@@ -716,7 +718,7 @@ export async function POST(request: Request) {
         const master = LANGUAGE_MASTER.find(l => l.code === code);
         if (!master) continue;
 
-        const langAccess = await prisma.tenantLanguageAccess.upsert({
+        const langAccess = await db.tenantLanguageAccess.upsert({
           where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: code } },
           update: { isActive: true },
           create: {
@@ -735,7 +737,7 @@ export async function POST(request: Request) {
 
       await updateConfigCounts(config.id);
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'ADD_LANGUAGE_ACCESS',
@@ -760,14 +762,14 @@ export async function POST(request: Request) {
       }
 
       // Verify the country is in the tenant's allowed list
-      const countryAccess = await prisma.tenantCountryAccess.findFirst({
+      const countryAccess = await db.tenantCountryAccess.findFirst({
         where: { tenantConfigId: config.id, countryCode, isActive: true },
       });
       if (!countryAccess) {
         return NextResponse.json({ error: `Country ${countryCode} is not in the allowed list for this tenant. Add it first.` }, { status: 400, headers: corsHeaders() });
       }
 
-      const policy = await prisma.tenantPayrollPolicy.create({
+      const policy = await db.tenantPayrollPolicy.create({
         data: {
           tenantConfigId: config.id,
           countryCode,
@@ -783,7 +785,7 @@ export async function POST(request: Request) {
         },
       });
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'CREATE_TENANT_POLICY',
@@ -819,20 +821,20 @@ export async function POST(request: Request) {
       if (maxEmployees !== undefined) updateData.maxEmployees = maxEmployees;
       if (notes !== undefined) updateData.notes = notes;
 
-      const updated = await prisma.tenantConfiguration.update({
+      const updated = await db.tenantConfiguration.update({
         where: { id: config.id },
         data: updateData,
       });
 
       // If customisation tier changed, update isEditable on policies
       if (customisationTier) {
-        await prisma.tenantPayrollPolicy.updateMany({
+        await db.tenantPayrollPolicy.updateMany({
           where: { tenantConfigId: config.id, source: 'system_default' },
           data: { isEditable: customisationTier !== 'standard' },
         });
       }
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_TENANT_CONFIG',
@@ -857,6 +859,7 @@ export async function POST(request: Request) {
 
 // ─── PATCH: Update country/currency/language access or policy ───
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -880,13 +883,13 @@ export async function PATCH(request: Request) {
 
     // ─── ACTION: update_country ───
     if (action === 'update_country') {
-      const countryAccess = await prisma.tenantCountryAccess.findUnique({ where: { id: itemId } });
+      const countryAccess = await db.tenantCountryAccess.findUnique({ where: { id: itemId } });
       if (!countryAccess) {
         return NextResponse.json({ error: 'Country access not found' }, { status: 404, headers: corsHeaders() });
       }
 
       // Verify tenant access
-      const config = await prisma.tenantConfiguration.findUnique({ where: { id: countryAccess.tenantConfigId } });
+      const config = await db.tenantConfiguration.findUnique({ where: { id: countryAccess.tenantConfigId } });
       if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
@@ -913,11 +916,11 @@ export async function PATCH(request: Request) {
 
       if (Object.keys(updateData).length > 0) {
         updateData.isOverridden = userRole === 'tenant_admin';
-        await prisma.tenantCountryAccess.update({ where: { id: itemId }, data: updateData });
+        await db.tenantCountryAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_COUNTRY_ACCESS',
@@ -931,12 +934,12 @@ export async function PATCH(request: Request) {
 
     // ─── ACTION: update_currency ───
     if (action === 'update_currency') {
-      const currencyAccess = await prisma.tenantCurrencyAccess.findUnique({ where: { id: itemId } });
+      const currencyAccess = await db.tenantCurrencyAccess.findUnique({ where: { id: itemId } });
       if (!currencyAccess) {
         return NextResponse.json({ error: 'Currency access not found' }, { status: 404, headers: corsHeaders() });
       }
 
-      const config = await prisma.tenantConfiguration.findUnique({ where: { id: currencyAccess.tenantConfigId } });
+      const config = await db.tenantConfiguration.findUnique({ where: { id: currencyAccess.tenantConfigId } });
       if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
@@ -949,7 +952,7 @@ export async function PATCH(request: Request) {
 
       if (Object.keys(updateData).length > 0) {
         updateData.isOverridden = userRole === 'tenant_admin';
-        await prisma.tenantCurrencyAccess.update({ where: { id: itemId }, data: updateData });
+        await db.tenantCurrencyAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
 
@@ -958,12 +961,12 @@ export async function PATCH(request: Request) {
 
     // ─── ACTION: update_language ───
     if (action === 'update_language') {
-      const langAccess = await prisma.tenantLanguageAccess.findUnique({ where: { id: itemId } });
+      const langAccess = await db.tenantLanguageAccess.findUnique({ where: { id: itemId } });
       if (!langAccess) {
         return NextResponse.json({ error: 'Language access not found' }, { status: 404, headers: corsHeaders() });
       }
 
-      const config = await prisma.tenantConfiguration.findUnique({ where: { id: langAccess.tenantConfigId } });
+      const config = await db.tenantConfiguration.findUnique({ where: { id: langAccess.tenantConfigId } });
       if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
@@ -976,7 +979,7 @@ export async function PATCH(request: Request) {
 
       if (Object.keys(updateData).length > 0) {
         updateData.isOverridden = userRole === 'tenant_admin';
-        await prisma.tenantLanguageAccess.update({ where: { id: itemId }, data: updateData });
+        await db.tenantLanguageAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
 
@@ -985,12 +988,12 @@ export async function PATCH(request: Request) {
 
     // ─── ACTION: update_policy ───
     if (action === 'update_policy') {
-      const policy = await prisma.tenantPayrollPolicy.findUnique({ where: { id: itemId } });
+      const policy = await db.tenantPayrollPolicy.findUnique({ where: { id: itemId } });
       if (!policy) {
         return NextResponse.json({ error: 'Policy not found' }, { status: 404, headers: corsHeaders() });
       }
 
-      const config = await prisma.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
+      const config = await db.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
       if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
@@ -1030,10 +1033,10 @@ export async function PATCH(request: Request) {
         updateData.version = newVersion;
         updateData.previousVersionId = policy.id;
 
-        await prisma.tenantPayrollPolicy.update({ where: { id: itemId }, data: updateData });
+        await db.tenantPayrollPolicy.update({ where: { id: itemId }, data: updateData });
       }
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_TENANT_POLICY',
@@ -1053,13 +1056,13 @@ export async function PATCH(request: Request) {
       }
 
       if (action === 'remove_country') {
-        await prisma.tenantCountryAccess.update({ where: { id: itemId }, data: { isActive: false } });
+        await db.tenantCountryAccess.update({ where: { id: itemId }, data: { isActive: false } });
         // Also deactivate related policies
-        const countryAccess = await prisma.tenantCountryAccess.findUnique({ where: { id: itemId } });
+        const countryAccess = await db.tenantCountryAccess.findUnique({ where: { id: itemId } });
         if (countryAccess) {
-          const config2 = await prisma.tenantConfiguration.findUnique({ where: { id: countryAccess.tenantConfigId } });
+          const config2 = await db.tenantConfiguration.findUnique({ where: { id: countryAccess.tenantConfigId } });
           if (config2) {
-            await prisma.tenantPayrollPolicy.updateMany({
+            await db.tenantPayrollPolicy.updateMany({
               where: { tenantConfigId: config2.id, countryCode: countryAccess.countryCode, source: 'system_default' },
               data: { status: 'inactive' },
             });
@@ -1068,18 +1071,18 @@ export async function PATCH(request: Request) {
         }
       }
       if (action === 'remove_currency') {
-        await prisma.tenantCurrencyAccess.update({ where: { id: itemId }, data: { isActive: false } });
-        const currencyAccess = await prisma.tenantCurrencyAccess.findUnique({ where: { id: itemId } });
+        await db.tenantCurrencyAccess.update({ where: { id: itemId }, data: { isActive: false } });
+        const currencyAccess = await db.tenantCurrencyAccess.findUnique({ where: { id: itemId } });
         if (currencyAccess) {
-          const config2 = await prisma.tenantConfiguration.findUnique({ where: { id: currencyAccess.tenantConfigId } });
+          const config2 = await db.tenantConfiguration.findUnique({ where: { id: currencyAccess.tenantConfigId } });
           if (config2) await updateConfigCounts(config2.id);
         }
       }
       if (action === 'remove_language') {
-        await prisma.tenantLanguageAccess.update({ where: { id: itemId }, data: { isActive: false } });
-        const langAccess = await prisma.tenantLanguageAccess.findUnique({ where: { id: itemId } });
+        await db.tenantLanguageAccess.update({ where: { id: itemId }, data: { isActive: false } });
+        const langAccess = await db.tenantLanguageAccess.findUnique({ where: { id: itemId } });
         if (langAccess) {
-          const config2 = await prisma.tenantConfiguration.findUnique({ where: { id: langAccess.tenantConfigId } });
+          const config2 = await db.tenantConfiguration.findUnique({ where: { id: langAccess.tenantConfigId } });
           if (config2) await updateConfigCounts(config2.id);
         }
       }
@@ -1100,6 +1103,7 @@ export async function PATCH(request: Request) {
 
 // ─── DELETE: Hard delete a custom policy ───
 export async function DELETE(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -1125,12 +1129,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'policyId is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const policy = await prisma.tenantPayrollPolicy.findUnique({ where: { id: policyId } });
+    const policy = await db.tenantPayrollPolicy.findUnique({ where: { id: policyId } });
     if (!policy) {
       return NextResponse.json({ error: 'Policy not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    const config = await prisma.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
+    const config = await db.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
     if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
@@ -1140,9 +1144,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Cannot delete system default policies. Deactivate instead.' }, { status: 403, headers: corsHeaders() });
     }
 
-    await prisma.tenantPayrollPolicy.delete({ where: { id: policyId } });
+    await db.tenantPayrollPolicy.delete({ where: { id: policyId } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_TENANT_POLICY',
@@ -1160,16 +1164,16 @@ export async function DELETE(request: Request) {
 
 // ─── Helper: Update counts and estimated costs ───
 async function updateConfigCounts(configId: string) {
-  const activeCountries = await prisma.tenantCountryAccess.count({ where: { tenantConfigId: configId, isActive: true } });
-  const activeCurrencies = await prisma.tenantCurrencyAccess.count({ where: { tenantConfigId: configId, isActive: true } });
-  const activeLanguages = await prisma.tenantLanguageAccess.count({ where: { tenantConfigId: configId, isActive: true } });
+  const activeCountries = await db.tenantCountryAccess.count({ where: { tenantConfigId: configId, isActive: true } });
+  const activeCurrencies = await db.tenantCurrencyAccess.count({ where: { tenantConfigId: configId, isActive: true } });
+  const activeLanguages = await db.tenantLanguageAccess.count({ where: { tenantConfigId: configId, isActive: true } });
 
   // Simple costing model:
   // Base: $50/month per country access
   // Currency: $10/month per additional currency beyond the first
   // Language: $5/month per additional language beyond the first
   // Customisation: standard=$0, custom=$50, full=$150
-  const config = await prisma.tenantConfiguration.findUnique({ where: { id: configId } });
+  const config = await db.tenantConfiguration.findUnique({ where: { id: configId } });
   const countryCost = activeCountries * 50;
   const currencyCost = Math.max(0, activeCurrencies - 1) * 10;
   const languageCost = Math.max(0, activeLanguages - 1) * 5;
@@ -1181,7 +1185,7 @@ async function updateConfigCounts(configId: string) {
   const monthlyCost = countryCost + currencyCost + languageCost + tierCost + userCost + companyCost + employeeCost;
   const annualCost = monthlyCost * 12;
 
-  await prisma.tenantConfiguration.update({
+  await db.tenantConfiguration.update({
     where: { id: configId },
     data: {
       activeCountryCount: activeCountries,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -8,13 +8,14 @@ function corsHeaders() {
 export async function OPTIONS() { return NextResponse.json({}, { headers: corsHeaders() }); }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const paths = await prisma.learningPath.findMany({
+    const paths = await db.learningPath.findMany({
       include: { _count: { select: { courses: true } } },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     const { title, description, category, level, duration, skills, status, courseIds } = body;
     if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400, headers: corsHeaders() });
 
-    const path = await prisma.learningPath.create({
+    const path = await db.learningPath.create({
       data: {
         title, description, category, level, duration, skills, status: status || 'draft',
         courses: courseIds ? { create: courseIds.map((cId: string, idx: number) => ({ courseId: cId, order: idx })) } : undefined,

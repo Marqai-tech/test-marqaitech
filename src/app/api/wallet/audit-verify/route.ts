@@ -10,7 +10,7 @@
  * Returns: { walletId, totalTransactions, tampered, tamperedIds, ok }
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { verifyWalletChain } from '@/lib/wallet-ledger';
 
@@ -27,6 +27,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     if (walletId) {
       walletIds = [walletId];
     } else if (employeeId) {
-      const wallets = await prisma.wallet.findMany({ where: { employeeId }, select: { id: true } });
+      const wallets = await db.wallet.findMany({ where: { employeeId }, select: { id: true } });
       walletIds = wallets.map(w => w.id);
     }
 
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
     }
 
     if (totalTampered > 0) {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: (decoded as any).userId as string,
           action: 'WALLET_TAMPER_DETECTED',

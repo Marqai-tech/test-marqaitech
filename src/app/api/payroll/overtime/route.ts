@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const data = await prisma.overtimeRecord.findMany({
+      const data = await db.overtimeRecord.findMany({
         where,
         include: {
           employee: {
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
     } else if (rateType === 'PERCENTAGE_OF_BASIC') {
       // Need to get employee salary for percentage calculation
       try {
-        const employee = await prisma.employee.findUnique({
+        const employee = await db.employee.findUnique({
           where: { employeeId: body.employeeId },
           select: { salary: true },
         });
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const data = await prisma.overtimeRecord.create({
+      const data = await db.overtimeRecord.create({
         data: {
           employeeId: body.employeeId,
           date: new Date(body.date),

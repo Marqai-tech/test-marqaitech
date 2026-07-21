@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (countryCode) where.countryCode = countryCode;
     if (taxYear) where.taxYear = taxYear;
 
-    const data = await prisma.taxSlabTable.findMany({
+    const data = await db.taxSlabTable.findMany({
       where,
       include: { rateLines: { orderBy: { sequence: 'asc' } } },
       orderBy: { createdAt: 'desc' },
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { rateLines, ...slabData } = body;
 
-    const data = await prisma.taxSlabTable.create({
+    const data = await db.taxSlabTable.create({
       data: {
         ...slabData,
         rateLines: rateLines

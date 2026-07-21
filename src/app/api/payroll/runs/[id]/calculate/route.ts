@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // 1. Get the payroll run
     let payrollRun;
     try {
-      payrollRun = await prisma.payrollRun.findUnique({ where: { id } });
+      payrollRun = await db.payrollRun.findUnique({ where: { id } });
     } catch (dbError: unknown) {
       console.error('PayrollRun table not available:', dbError);
       return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // 2. Get all active employees for the legal entity
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: {
         status: 'active',
         companyId: payrollRun.companyId || undefined,
@@ -51,13 +52,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // 3. Get payroll components
-    const components = await prisma.payrollComponent.findMany({
+    const components = await db.payrollComponent.findMany({
       where: { isActive: true },
       orderBy: { componentType: 'asc' },
     });
 
     // 4. Get CTC templates for the country
-    const ctcTemplates = await prisma.cTCTemplate.findMany({
+    const ctcTemplates = await db.cTCTemplate.findMany({
       where: {
         countryCode: 'IND',
         status: 'ACTIVE',
@@ -66,9 +67,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     // 5. Get payroll inputs for this run
-    let payrollInputs: Awaited<ReturnType<typeof prisma.payrollInput.findMany>> = [];
+    let payrollInputs: Awaited<ReturnType<typeof db.payrollInput.findMany>> = [];
     try {
-      payrollInputs = await prisma.payrollInput.findMany({
+      payrollInputs = await db.payrollInput.findMany({
         where: {
           payrollRunId: id,
           approvalStatus: 'APPROVED',
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // 6. Delete existing transaction lines for this run
     try {
-      await prisma.payrollTransactionLine.deleteMany({ where: { payrollRunId: id } });
+      await db.payrollTransactionLine.deleteMany({ where: { payrollRunId: id } });
     } catch (dbError: unknown) {
       console.error('PayrollTransactionLine table not available, skipping delete:', dbError);
     }
@@ -253,7 +254,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // 8. Create all transaction lines in batch
     try {
-      await prisma.payrollTransactionLine.createMany({ data: transactionLines });
+      await db.payrollTransactionLine.createMany({ data: transactionLines });
     } catch (dbError: unknown) {
       console.error('PayrollTransactionLine table not available, skipping createMany:', dbError);
     }
@@ -261,7 +262,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // 9. Update payroll run totals and advance status to PROCESSING
     let updatedRun = null;
     try {
-      updatedRun = await prisma.payrollRun.update({
+      updatedRun = await db.payrollRun.update({
         where: { id },
         data: {
           totalEmployees: employees.length,

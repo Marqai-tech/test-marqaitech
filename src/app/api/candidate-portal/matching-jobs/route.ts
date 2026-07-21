@@ -16,7 +16,7 @@
  * — we don't scrape or proxy listings (which would violate their ToS),
  * we just produce a search URL the candidate can open in a new tab.
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { requireCandidate, ok, fail, OPTIONS } from '@/lib/candidate-auth';
 
 export { OPTIONS };
@@ -27,7 +27,7 @@ function slugify(s: string): string {
 
 /** Top N skills by frequency across the candidate's resume parses. */
 async function getCandidateSkills(email: string): Promise<{ skills: string[]; location?: string }> {
-  const applications = await prisma.jobApplication.findMany({
+  const applications = await db.jobApplication.findMany({
     where: { candidateEmail: email },
     select: {
       resumeParses: {
@@ -72,6 +72,7 @@ async function getCandidateSkills(email: string): Promise<{ skills: string[]; lo
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -96,13 +97,13 @@ export async function GET(request: Request) {
 
   if (skills.length > 0) {
     const alreadyAppliedJobIds = (
-      await prisma.jobApplication.findMany({
+      await db.jobApplication.findMany({
         where: { candidateEmail: candidate.email },
         select: { jobPostingId: true },
       })
     ).map((a) => a.jobPostingId);
 
-    const openJobs = await prisma.jobPosting.findMany({
+    const openJobs = await db.jobPosting.findMany({
       where: {
         status: 'open',
         id: { notIn: alreadyAppliedJobIds },

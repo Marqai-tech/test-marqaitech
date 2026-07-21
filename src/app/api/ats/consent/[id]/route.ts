@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -40,6 +40,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
@@ -67,7 +68,7 @@ export async function DELETE(
           { status: 400, headers: corsHeaders() }
         );
       }
-      consent = await prisma.candidateConsent.updateMany({
+      consent = await db.candidateConsent.updateMany({
         where: {
           candidateEmail: email,
           tenantId,
@@ -78,14 +79,14 @@ export async function DELETE(
       });
     } else {
       // Withdraw by row id
-      const existing = await prisma.candidateConsent.findUnique({ where: { id } });
+      const existing = await db.candidateConsent.findUnique({ where: { id } });
       if (!existing) {
         return NextResponse.json(
           { error: 'Consent record not found' },
           { status: 404, headers: corsHeaders() }
         );
       }
-      consent = await prisma.candidateConsent.update({
+      consent = await db.candidateConsent.update({
         where: { id },
         data: { withdrawnAt: now },
       });

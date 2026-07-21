@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -37,7 +37,7 @@ async function fetchOptionalRelations(employeeId: string, companyId?: string | n
   // Resolve company info from companyId (Employee.companyId is a bare String, not a relation)
   if (companyId) {
     try {
-      result.company = await prisma.company.findUnique({
+      result.company = await db.company.findUnique({
         where: { id: companyId },
         select: { id: true, name: true, code: true },
       });
@@ -50,20 +50,20 @@ async function fetchOptionalRelations(employeeId: string, companyId?: string | n
   }
 
   const optionalFetches: [string, () => Promise<unknown>][] = [
-    ['leaveBalances', () => prisma.leaveBalance.findMany({
+    ['leaveBalances', () => db.leaveBalance.findMany({
       where: { employeeId },
       include: { leaveType: true },
     })],
-    ['dependents', () => prisma.dependent.findMany({ where: { employeeId } })],
-    ['qualifications', () => prisma.qualification.findMany({ where: { employeeId } })],
-    ['experiences', () => prisma.experience.findMany({ where: { employeeId } })],
+    ['dependents', () => db.dependent.findMany({ where: { employeeId } })],
+    ['qualifications', () => db.qualification.findMany({ where: { employeeId } })],
+    ['experiences', () => db.experience.findMany({ where: { employeeId } })],
     ['skills', () => (prisma as any).employeeSkill?.findMany?.({ where: { employeeId } }) ?? Promise.resolve([])],
-    ['documents', () => prisma.document.findMany({ where: { employeeId } })],
-    ['assetAssignments', () => prisma.assetAssignment.findMany({
+    ['documents', () => db.document.findMany({ where: { employeeId } })],
+    ['assetAssignments', () => db.assetAssignment.findMany({
       where: { employeeId },
       include: { asset: true },
     })],
-    ['companyMappings', () => prisma.employeeCompanyMapping.findMany({
+    ['companyMappings', () => db.employeeCompanyMapping.findMany({
       where: { employeeId, status: 'active' },
       include: {
         company: { select: { id: true, name: true, code: true } },
@@ -96,7 +96,7 @@ async function fetchOptionalRelations(employeeId: string, companyId?: string | n
 async function findEmployee(id: string) {
   // Strategy 1: by database id (CUID)
   try {
-    const emp = await prisma.employee.findUnique({
+    const emp = await db.employee.findUnique({
       where: { id },
       include: coreInclude,
     });
@@ -107,7 +107,7 @@ async function findEmployee(id: string) {
 
   // Strategy 2: by employeeId (business key like "EMP001")
   try {
-    const emp = await prisma.employee.findUnique({
+    const emp = await db.employee.findUnique({
       where: { employeeId: id },
       include: coreInclude,
     });
@@ -118,7 +118,7 @@ async function findEmployee(id: string) {
 
   // Strategy 3: by email
   try {
-    const emp = await prisma.employee.findFirst({
+    const emp = await db.employee.findFirst({
       where: { email: { equals: id, mode: 'insensitive' } },
       include: coreInclude,
     });
@@ -134,6 +134,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
@@ -181,6 +182,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
@@ -188,9 +190,9 @@ export async function PUT(
 
     try {
       // Try to find employee by id first, then by employeeId
-      let existingEmployee = await prisma.employee.findUnique({ where: { id } });
+      let existingEmployee = await db.employee.findUnique({ where: { id } });
       if (!existingEmployee) {
-        existingEmployee = await prisma.employee.findUnique({ where: { employeeId: id } });
+        existingEmployee = await db.employee.findUnique({ where: { employeeId: id } });
       }
 
       if (!existingEmployee) {
@@ -244,7 +246,7 @@ export async function PUT(
       if (avatar !== undefined) updateData.avatar = avatar || null;
       if (status !== undefined) updateData.status = status;
 
-      const employee = await prisma.employee.update({
+      const employee = await db.employee.update({
         where: { id: actualId },
         data: updateData,
         include: coreInclude,
@@ -255,14 +257,14 @@ export async function PUT(
         try {
           const effectiveRole = role || 'employee';
           console.log(`[Employee PUT] Updating role for user ${employee.userId} to: ${effectiveRole}`);
-          await prisma.user.update({
+          await db.user.update({
             where: { id: employee.userId },
             data: { role: effectiveRole },
           });
 
           // Also update UserRoleAssignment if a Role record exists
           try {
-            const roleRecord = await prisma.role.findFirst({
+            const roleRecord = await db.role.findFirst({
               where: {
                 OR: [
                   { key: effectiveRole },
@@ -271,10 +273,10 @@ export async function PUT(
               },
             });
             if (roleRecord) {
-              await prisma.userRoleAssignment.deleteMany({
+              await db.userRoleAssignment.deleteMany({
                 where: { userId: employee.userId },
               });
-              await prisma.userRoleAssignment.create({
+              await db.userRoleAssignment.create({
                 data: {
                   userId: employee.userId,
                   roleId: roleRecord.id,
@@ -287,7 +289,7 @@ export async function PUT(
           }
 
           // Re-fetch employee with updated user role for the response
-          const updatedEmployee = await prisma.employee.findUnique({
+          const updatedEmployee = await db.employee.findUnique({
             where: { id: actualId },
             include: coreInclude,
           });
@@ -298,7 +300,7 @@ export async function PUT(
               if (token) {
                 const decoded = await verifyToken(token);
                 if (decoded) {
-                  await prisma.auditLog.create({
+                  await db.auditLog.create({
                     data: {
                       userId: decoded.userId as string,
                       action: 'UPDATE_EMPLOYEE',
@@ -323,7 +325,7 @@ export async function PUT(
         if (token) {
           const decoded = await verifyToken(token);
           if (decoded) {
-            await prisma.auditLog.create({
+            await db.auditLog.create({
               data: {
                 userId: decoded.userId as string,
                 action: 'UPDATE_EMPLOYEE',
@@ -359,14 +361,15 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
 
     try {
-      let existingEmployee = await prisma.employee.findUnique({ where: { id } });
+      let existingEmployee = await db.employee.findUnique({ where: { id } });
       if (!existingEmployee) {
-        existingEmployee = await prisma.employee.findUnique({ where: { employeeId: id } });
+        existingEmployee = await db.employee.findUnique({ where: { employeeId: id } });
       }
 
       if (!existingEmployee) {
@@ -378,7 +381,7 @@ export async function DELETE(
 
       const actualId = existingEmployee.id;
 
-      const employee = await prisma.employee.update({
+      const employee = await db.employee.update({
         where: { id: actualId },
         data: { status: 'terminated' },
       });
@@ -388,7 +391,7 @@ export async function DELETE(
         if (token) {
           const decoded = await verifyToken(token);
           if (decoded) {
-            await prisma.auditLog.create({
+            await db.auditLog.create({
               data: {
                 userId: decoded.userId as string,
                 action: 'DELETE_EMPLOYEE',

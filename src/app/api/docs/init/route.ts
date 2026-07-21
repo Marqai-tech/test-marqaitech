@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // GET: Check if docs hub is initialized; auto-initialize if not
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -28,8 +29,8 @@ export async function GET(request: Request) {
     let needsMigration = false;
 
     try {
-      categoryCount = await prisma.docCategory.count();
-      articleCount = await prisma.docArticle.count();
+      categoryCount = await db.docCategory.count();
+      articleCount = await db.docArticle.count();
     } catch (err) {
       // Tables don't exist - need migration
       needsMigration = true;
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
     }
 
     // Only super_admin can auto-initialize
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({
         initialized: false,
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
     // Step 1: Migrate tables if needed
     if (needsMigration) {
       try {
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "DocCategory" (
             "id" TEXT NOT NULL,
             "name" TEXT NOT NULL,
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
           );
         `);
 
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "DocArticle" (
             "id" TEXT NOT NULL,
             "categoryId" TEXT NOT NULL,
@@ -99,20 +100,20 @@ export async function GET(request: Request) {
           );
         `);
 
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocArticle_categoryId_idx" ON "DocArticle"("categoryId");
         `);
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocArticle_docType_idx" ON "DocArticle"("docType");
         `);
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocArticle_moduleKey_idx" ON "DocArticle"("moduleKey");
         `);
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocArticle_status_idx" ON "DocArticle"("status");
         `);
 
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "DocAccessRule" (
             "id" TEXT NOT NULL,
             "articleId" TEXT NOT NULL,
@@ -127,13 +128,13 @@ export async function GET(request: Request) {
           );
         `);
 
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocAccessRule_articleId_idx" ON "DocAccessRule"("articleId");
         `);
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocAccessRule_role_idx" ON "DocAccessRule"("role");
         `);
-        await prisma.$executeRawUnsafe(`
+        await db.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS "DocAccessRule_userId_idx" ON "DocAccessRule"("userId");
         `);
 
@@ -145,12 +146,12 @@ export async function GET(request: Request) {
     }
 
     // Step 2: Check if we need to seed (might already have categories from a previous seed)
-    const existingCount = await prisma.docCategory.count();
+    const existingCount = await db.docCategory.count();
     if (existingCount > 0) {
       return NextResponse.json({
         initialized: true,
-        categories: await prisma.docCategory.count(),
-        articles: await prisma.docArticle.count(),
+        categories: await db.docCategory.count(),
+        articles: await db.docArticle.count(),
         migrated: needsMigration,
       }, { headers: corsHeaders() });
     }
@@ -171,11 +172,11 @@ export async function GET(request: Request) {
 
     const createdCategories: Record<string, string> = {};
     for (const cat of categories) {
-      const existing = await prisma.docCategory.findUnique({ where: { slug: cat.slug } });
+      const existing = await db.docCategory.findUnique({ where: { slug: cat.slug } });
       if (existing) {
         createdCategories[cat.slug] = existing.id;
       } else {
-        const created = await prisma.docCategory.create({ data: cat });
+        const created = await db.docCategory.create({ data: cat });
         createdCategories[cat.slug] = created.id;
       }
     }
@@ -211,7 +212,7 @@ export async function GET(request: Request) {
         title: 'API Authentication & Authorization',
         slug: 'api-auth-technical',
         summary: 'Technical reference for JWT-based authentication, token management, and role-based access control.',
-        content: `# API Authentication & Authorization\n\n## Authentication Flow\n\n3Boxes HRMS uses JWT (JSON Web Tokens) for stateless authentication:\n\n1. **Login**: User submits email/password to /api/auth/login\n2. **Token Generation**: Server validates credentials and returns a JWT\n3. **Token Usage**: Client includes token in Authorization header for all API requests\n4. **Token Verification**: Server middleware verifies token on every request\n5. **Token Expiry**: Tokens expire after 24 hours; client must re-authenticate\n\n## Role-Based Access Control (RBAC)\n\n| Role | Level | Access Scope |\n|------|-------|-------------|\n| super_admin | 5 | Full platform access, all tenants |\n| tenant_admin | 4 | Full tenant access, all companies |\n| hr_admin | 3 | HR module access, company-scoped |\n| manager | 2 | Team-level access, reports |\n| employee | 1 | Self-service, limited views |\n\n## Implementation Pattern\n\nEvery API route follows this pattern:\n\n\`\`\`typescript\nconst token = getTokenFromHeaders(request);\nif (!token) return Response.json({ error: 'Unauthorized' }, { status: 401 });\nconst payload = await verifyToken(token);\nif (!payload) return Response.json({ error: 'Invalid token' }, { status: 401 });\nconst user = await prisma.user.findUnique({ where: { id: payload.userId } });\n\`\`\`\n\n## Security Considerations\n\n- JWT_SECRET must be at least 32 characters\n- Tokens are signed with HS256 algorithm\n- Password hashing uses bcrypt with 12 salt rounds\n- Failed login attempts are logged\n- All sensitive operations create AuditLog entries`,
+        content: `# API Authentication & Authorization\n\n## Authentication Flow\n\n3Boxes HRMS uses JWT (JSON Web Tokens) for stateless authentication:\n\n1. **Login**: User submits email/password to /api/auth/login\n2. **Token Generation**: Server validates credentials and returns a JWT\n3. **Token Usage**: Client includes token in Authorization header for all API requests\n4. **Token Verification**: Server middleware verifies token on every request\n5. **Token Expiry**: Tokens expire after 24 hours; client must re-authenticate\n\n## Role-Based Access Control (RBAC)\n\n| Role | Level | Access Scope |\n|------|-------|-------------|\n| super_admin | 5 | Full platform access, all tenants |\n| tenant_admin | 4 | Full tenant access, all companies |\n| hr_admin | 3 | HR module access, company-scoped |\n| manager | 2 | Team-level access, reports |\n| employee | 1 | Self-service, limited views |\n\n## Implementation Pattern\n\nEvery API route follows this pattern:\n\n\`\`\`typescript\nconst token = getTokenFromHeaders(request);\nif (!token) return Response.json({ error: 'Unauthorized' }, { status: 401 });\nconst payload = await verifyToken(token);\nif (!payload) return Response.json({ error: 'Invalid token' }, { status: 401 });\nconst user = await db.user.findUnique({ where: { id: payload.userId } });\n\`\`\`\n\n## Security Considerations\n\n- JWT_SECRET must be at least 32 characters\n- Tokens are signed with HS256 algorithm\n- Password hashing uses bcrypt with 12 salt rounds\n- Failed login attempts are logged\n- All sensitive operations create AuditLog entries`,
         docType: 'technical',
         moduleKey: 'auth',
         tags: 'authentication,jwt,authorization,rbac,security',
@@ -446,9 +447,9 @@ export async function GET(request: Request) {
     let accessRulesCreated = 0;
 
     for (const article of articles) {
-      const existing = await prisma.docArticle.findUnique({ where: { slug: article.slug } });
+      const existing = await db.docArticle.findUnique({ where: { slug: article.slug } });
       if (!existing) {
-        await prisma.docArticle.create({ data: article });
+        await db.docArticle.create({ data: article });
         articlesCreated++;
       }
     }
@@ -456,14 +457,14 @@ export async function GET(request: Request) {
     // Create some default access rules for restricted docs
     const restrictedArticles = ['security-data-protection', 'rbac-reference', 'data-backup-recovery'];
     for (const slug of restrictedArticles) {
-      const article = await prisma.docArticle.findUnique({ where: { slug } });
+      const article = await db.docArticle.findUnique({ where: { slug } });
       if (article) {
         for (const role of ['tenant_admin', 'super_admin']) {
-          const existingRule = await prisma.docAccessRule.findFirst({
+          const existingRule = await db.docAccessRule.findFirst({
             where: { articleId: article.id, role },
           });
           if (!existingRule) {
-            await prisma.docAccessRule.create({
+            await db.docAccessRule.create({
               data: {
                 articleId: article.id,
                 role,
@@ -477,8 +478,8 @@ export async function GET(request: Request) {
       }
     }
 
-    const finalCategoryCount = await prisma.docCategory.count();
-    const finalArticleCount = await prisma.docArticle.count();
+    const finalCategoryCount = await db.docCategory.count();
+    const finalArticleCount = await db.docArticle.count();
 
     return NextResponse.json({
       initialized: true,
@@ -499,5 +500,6 @@ export async function GET(request: Request) {
 
 // POST: Force re-initialize
 export async function POST(request: Request) {
+  const db = await getDb(request);
   return GET(request);
 }

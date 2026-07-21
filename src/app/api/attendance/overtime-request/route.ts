@@ -7,12 +7,13 @@
  *  PATCH /api/attendance/overtime-request/[id]   — approve/reject + optionally convert to comp-off
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { buildContext, evaluateOvertimeAutoApproval } from '@/lib/auto-approval-engine';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     }
     if (q.status) where.status = q.status;
 
-    const items = await prisma.overtimeRequest.findMany({
+    const items = await db.overtimeRequest.findMany({
       where,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
       orderBy: { date: 'desc' },
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
       ? `AI auto-approved: ${decision.reason} (confidence ${(decision.confidence * 100).toFixed(0)}%)`
       : `AI deferred to human: ${decision.reason}`;
 
-    const record = await prisma.overtimeRequest.create({
+    const record = await db.overtimeRequest.create({
       data: {
         employeeId: emp.id,
         date,
@@ -98,7 +100,7 @@ export async function POST(request: Request) {
     // If auto-approved AND payout preference is comp_off, auto-credit the comp-off
     if (decision.autoApproved && payoutPreference === 'comp_off') {
       try {
-        const compOff = await prisma.compOffLeave.create({
+        const compOff = await db.compOffLeave.create({
           data: {
             employeeId: emp.id,
             earnedDate: date,
@@ -109,7 +111,7 @@ export async function POST(request: Request) {
             status: 'active',
           },
         });
-        await prisma.overtimeRequest.update({
+        await db.overtimeRequest.update({
           where: { id: record.id },
           data: { compOffCreditedId: compOff.id, compOffCreditedAt: new Date() },
         });

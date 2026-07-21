@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     if (projectId) where.projectId = projectId;
     if (vendorId) where.vendorId = vendorId;
     if (status) where.status = status;
-    const requests = await prisma.contractorRequest.findMany({
+    const requests = await db.contractorRequest.findMany({
       where: where as any,
       include: { project: { select: { id: true, name: true } }, vendor: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { projectId, vendorId, role, skillTags, headcount, billRateMax, currency, startDate, durationDays, notes } = body;
     if (!projectId || !role) return NextResponse.json({ error: 'Missing projectId or role' }, { status: 400, headers: corsHeaders() });
-    const cr = await prisma.contractorRequest.create({
+    const cr = await db.contractorRequest.create({
       data: { projectId, vendorId, role, skillTags, headcount: headcount || 1, billRateMax, currency: currency || 'INR', startDate: startDate ? new Date(startDate) : null, durationDays, notes: notes ?? null, requestedById: decoded.userId as string as string },
     });
     return NextResponse.json({ request: cr }, { status: 201, headers: corsHeaders() });

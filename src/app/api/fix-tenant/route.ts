@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * /api/fix-tenant
@@ -18,7 +18,7 @@ import prisma from '@/lib/prisma';
  */
 export async function GET() {
   try {
-    const tenants = await prisma.tenant.findMany({
+    const tenants = await getPlatformDb().tenant.findMany({
       select: {
         id: true,
         name: true,

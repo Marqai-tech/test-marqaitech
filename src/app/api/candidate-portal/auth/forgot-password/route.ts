@@ -20,7 +20,7 @@
  * wire this up to SendGrid/Postmark/SES via the env-configured provider.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 import { getRequestMeta } from '@/lib/candidate-auth';
@@ -38,6 +38,7 @@ export async function OPTIONS() {
 const TOKEN_EXPIRY_MINUTES = 30;
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const body = await request.json().catch(() => ({}));
   const email = String(body.email || '').trim().toLowerCase();
   if (!email) {
@@ -48,18 +49,18 @@ export async function POST(request: Request) {
 
   // Look up the candidate portal user. If they don't exist, we still create one
   // from any JobApplication they may have submitted, so they can recover access.
-  let user = await prisma.candidatePortalUser.findUnique({
+  let user = await db.candidatePortalUser.findUnique({
     where: { candidateEmail: email },
   });
 
   if (!user) {
     // Try to recover from a JobApplication they submitted before signing up
-    const app = await prisma.jobApplication.findFirst({
+    const app = await db.jobApplication.findFirst({
       where: { candidateEmail: email },
       select: { candidateName: true },
     });
     if (app) {
-      user = await prisma.candidatePortalUser.create({
+      user = await db.candidatePortalUser.create({
         data: {
           candidateEmail: email,
           candidateName: app.candidateName,
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 
   if (user) {
     // Expire any previously-issued unused tokens for this email
-    await prisma.candidatePasswordReset.updateMany({
+    await db.candidatePasswordReset.updateMany({
       where: {
         candidateEmail: email,
         usedAt: null,
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
     const tokenHash = await hashPassword(rawToken);
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
-    await prisma.candidatePasswordReset.create({
+    await db.candidatePasswordReset.create({
       data: {
         candidateEmail: email,
         tokenHash,

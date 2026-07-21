@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -16,6 +16,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * (rendered over the document in the browser).
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,10 +27,10 @@ export async function POST(request: NextRequest) {
     const { fileId, accessType = 'view' } = body;
     if (!fileId) return NextResponse.json({ error: 'fileId is required' }, { status: 400 });
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
-    const file = await prisma.fileNode.findUnique({ where: { id: fileId } });
+    const file = await db.fileNode.findUnique({ where: { id: fileId } });
     if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
 
     // Construct the watermark text
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     const watermarkText = `${employee.email} · ${timestamp}`;
 
     // Log the access (REQ-SEC-EMP-04 audit trail)
-    const log = await prisma.watermarkAccessLog.create({
+    const log = await db.watermarkAccessLog.create({
       data: {
         fileId,
         userId: employee.id,

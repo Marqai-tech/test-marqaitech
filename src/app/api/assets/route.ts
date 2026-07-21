@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [assets, total] = await Promise.all([
-      prisma.asset.findMany({
+      db.asset.findMany({
         where,
         include: {
           assignments: {
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.asset.count({ where }),
+      db.asset.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -89,6 +90,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -127,7 +129,7 @@ export async function POST(request: Request) {
     }
 
     // Check for duplicate assetTag
-    const existingAsset = await prisma.asset.findUnique({
+    const existingAsset = await db.asset.findUnique({
       where: { assetTag },
     });
 
@@ -138,7 +140,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const asset = await prisma.asset.create({
+    const asset = await db.asset.create({
       data: {
         name,
         assetTag,
@@ -153,7 +155,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_ASSET',

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview/sets — List interview sets with pagination
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (tenantId) where.tenantId = tenantId;
 
     const [sets, total] = await Promise.all([
-      prisma.interviewSet.findMany({
+      db.interviewSet.findMany({
         where,
         include: {
           questions: { orderBy: { order: 'asc' } },
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.interviewSet.count({ where }),
+      db.interviewSet.count({ where }),
     ]);
 
     return NextResponse.json({ data: sets, total, page, limit, totalPages: Math.ceil(total / limit) });
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/ai-interview/sets — Create interview set
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const {
@@ -103,7 +105,7 @@ Return ONLY the JSON array, no markdown or extra text.`;
       }
     }
 
-    const set = await prisma.interviewSet.create({
+    const set = await db.interviewSet.create({
       data: {
         title,
         roleTitle,

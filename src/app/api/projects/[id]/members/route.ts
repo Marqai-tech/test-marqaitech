@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { resolveProjectAccess } from '@/lib/project-rbac';
@@ -22,6 +22,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -37,7 +38,7 @@ export async function GET(
     }
 
     const members = await withSchemaSync(() =>
-      prisma.projectMember.findMany({
+      db.projectMember.findMany({
         where: { projectId: id },
         include: {
           employee: {
@@ -66,6 +67,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -95,7 +97,7 @@ export async function POST(
 
     // Upsert (in case the employee is already a member, just update their role)
     const member = await withSchemaSync(() =>
-      prisma.projectMember.upsert({
+      db.projectMember.upsert({
         where: {
           projectId_employeeId: { projectId: id, employeeId },
         },
@@ -122,7 +124,7 @@ export async function POST(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'ADD_PROJECT_MEMBER',

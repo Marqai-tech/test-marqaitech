@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -33,34 +34,34 @@ export async function GET(request: Request) {
 
     // Tenant counts by status
     const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([
-      prisma.tenant.count(),
-      prisma.tenant.count({ where: { status: 'active' } }),
-      prisma.tenant.count({ where: { status: 'suspended' } }),
-      prisma.tenant.count({ where: { status: 'inactive' } }),
+      getPlatformDb().tenant.count(),
+      getPlatformDb().tenant.count({ where: { status: 'active' } }),
+      getPlatformDb().tenant.count({ where: { status: 'suspended' } }),
+      getPlatformDb().tenant.count({ where: { status: 'inactive' } }),
     ]);
 
     // Total group companies (a.k.a. parent groups under tenants)
-    const totalGroupCompanies = await prisma.companyGroup.count();
+    const totalGroupCompanies = await db.companyGroup.count();
 
     // Total companies (actual inducted companies — sits under group companies).
-    // BUG FIX: previously this stat called prisma.companyGroup.count() which
+    // BUG FIX: previously this stat called db.companyGroup.count() which
     // returned the GROUP count, not the COMPANY count — so the dashboard
     // showed a misleading "Total Companies" number that was actually the
     // number of group companies.
-    const totalCompanies = await prisma.company.count();
+    const totalCompanies = await db.company.count();
 
     // Total employees across all tenants
-    const totalEmployees = await prisma.employee.count({ where: { status: 'active' } });
+    const totalEmployees = await db.employee.count({ where: { status: 'active' } });
 
     // Total revenue from active subscriptions
-    const activeSubscriptions = await prisma.subscription.findMany({
+    const activeSubscriptions = await getPlatformDb().subscription.findMany({
       where: { status: 'active' },
       select: { amount: true },
     });
     const totalRevenue = activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
 
     // Recent activity (last 5 audit logs)
-    const recentActivity = await prisma.auditLog.findMany({
+    const recentActivity = await db.auditLog.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {

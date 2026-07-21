@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,6 +7,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns all versions of a file (REQ-COL-09).
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     const { id } = await params;
-    const versions = await prisma.fileVersion.findMany({
+    const versions = await db.fileVersion.findMany({
       where: { fileId: id, isActive: true },
       orderBy: { versionNumber: 'desc' },
       include: {
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * REQ-COL-09: Ability to download or roll back to previous versions.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -48,15 +50,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { storagePath, sizeBytes, mimeType, changeLog } = body;
     if (!storagePath) return NextResponse.json({ error: 'storagePath is required' }, { status: 400 });
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
-    const file = await prisma.fileNode.findUnique({ where: { id } });
+    const file = await db.fileNode.findUnique({ where: { id } });
     if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
 
     // Use a transaction: create new version + update file's currentVersion + sizeBytes
-    const [newVersion, updatedFile] = await prisma.$transaction([
-      prisma.fileVersion.create({
+    const [newVersion, updatedFile] = await db.$transaction([
+      db.fileVersion.create({
         data: {
           fileId: id,
           versionNumber: file.currentVersion + 1,
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           isActive: true,
         },
       }),
-      prisma.fileNode.update({
+      db.fileNode.update({
         where: { id },
         data: {
           currentVersion: { increment: 1 },

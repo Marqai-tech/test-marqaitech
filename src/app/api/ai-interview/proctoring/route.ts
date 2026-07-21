@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // POST /api/ai-interview/proctoring — Log proctoring events
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const { sessionId, eventType, severity = 'low', details, screenshotUrl } = body;
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Invalid eventType. Must be one of: ${validEventTypes.join(', ')}` }, { status: 400 });
     }
 
-    const log = await prisma.proctoringLog.create({
+    const log = await db.proctoringLog.create({
       data: {
         sessionId,
         eventType,
@@ -27,12 +28,12 @@ export async function POST(req: NextRequest) {
     });
 
     // Check if we should disqualify (critical events)
-    const criticalCount = await prisma.proctoringLog.count({
+    const criticalCount = await db.proctoringLog.count({
       where: { sessionId, severity: 'critical' },
     });
 
     if (criticalCount >= 3) {
-      await prisma.interviewSession.update({
+      await db.interviewSession.update({
         where: { id: sessionId },
         data: { status: 'disqualified' },
       });
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
 
 // GET /api/ai-interview/proctoring — Get logs for a session
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId');
@@ -55,7 +57,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
     }
 
-    const logs = await prisma.proctoringLog.findMany({
+    const logs = await db.proctoringLog.findMany({
       where: { sessionId },
       orderBy: { timestamp: 'desc' },
     });

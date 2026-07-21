@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -22,6 +22,7 @@ const NEGATIVE_WORDS = ['bad', 'terrible', 'awful', 'hate', 'angry', 'frustrated
 const TOXIC_WORDS = ['stupid', 'idiot', 'incompetent', 'useless', 'shut up', 'fire them', 'lazy'];
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
       roomWhere = { companyId: scopeId };
     }
 
-    const rooms = await prisma.chatRoom.findMany({
+    const rooms = await db.chatRoom.findMany({
       where: roomWhere,
       select: { id: true },
     });
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const messages = await prisma.chatMessage.findMany({
+    const messages = await db.chatMessage.findMany({
       where: {
         roomId: { in: roomIds },
         createdAt: { gte: periodStart, lte: periodEnd },
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => ({ keyword: k, count: v }));
 
     // Persist sentiment analysis record (anonymous — no user IDs)
-    const analysis = await prisma.sentimentAnalysis.create({
+    const analysis = await db.sentimentAnalysis.create({
       data: {
         scope,
         scopeId,

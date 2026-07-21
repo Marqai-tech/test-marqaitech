@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -32,7 +33,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const requisition = await prisma.requisition.findUnique({
+    const requisition = await db.requisition.findUnique({
       where: { id },
       include: {
         department: { select: { id: true, name: true, code: true } },
@@ -56,6 +57,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -71,7 +73,7 @@ export async function PATCH(
     const body = await request.json();
     const { approvalStatus, rejectionReason, departmentId, designationId, positionType, numberOfOpenings, employmentType, skillsRequired, experienceRequired, qualification, salaryBudget, priority, expectedJoiningDate } = body;
 
-    const existing = await prisma.requisition.findUnique({ where: { id } });
+    const existing = await db.requisition.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Requisition not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -113,7 +115,7 @@ export async function PATCH(
     if (priority !== undefined) updateData.priority = priority;
     if (expectedJoiningDate !== undefined) updateData.expectedJoiningDate = expectedJoiningDate ? new Date(expectedJoiningDate) : null;
 
-    const requisition = await prisma.requisition.update({
+    const requisition = await db.requisition.update({
       where: { id },
       data: updateData,
       include: {
@@ -135,7 +137,7 @@ export async function PATCH(
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_REQUISITION',
@@ -155,6 +157,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -168,14 +171,14 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.requisition.findUnique({ where: { id } });
+    const existing = await db.requisition.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Requisition not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.requisition.delete({ where: { id } });
+    await db.requisition.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_REQUISITION',

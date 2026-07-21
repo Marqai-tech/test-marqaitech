@@ -26,7 +26,7 @@
  * Auth: requires employee JWT (super_admin / tenant_admin / hr_admin / recruiter).
  */
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -51,6 +51,7 @@ function dayKey(d: Date): string {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   const token = getTokenFromHeaders(request);
   if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: CORS });
   const decoded = await verifyToken(token);
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
     const sinceDate = new Date(Date.now() - days * 86400000);
 
     // Fetch all applications in the window with related data
-    const applications = await prisma.jobApplication.findMany({
+    const applications = await db.jobApplication.findMany({
       where: { appliedDate: { gte: sinceDate } },
       include: {
         jobPosting: {

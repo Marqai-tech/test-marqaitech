@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { convertCurrency } from '@/lib/fx';
@@ -42,6 +42,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -65,7 +66,7 @@ export async function POST(
       );
     }
 
-    const invoice = await withSchemaSync(() => prisma.invoice.findUnique({ where: { id } }));
+    const invoice = await withSchemaSync(() => db.invoice.findUnique({ where: { id } }));
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -79,7 +80,7 @@ export async function POST(
     // Optionally clear existing timesheet-sourced lines first
     if (overwrite) {
       await withSchemaSync(() =>
-        prisma.invoiceLineItem.deleteMany({
+        db.invoiceLineItem.deleteMany({
           where: { invoiceId: id, sourceType: 'timesheet' },
         })
       );
@@ -97,7 +98,7 @@ export async function POST(
     if (employeeId) timesheetWhere.employeeId = employeeId;
     if (projectId) {
       // Match by projectId FK OR by project text name (for legacy rows)
-      const project = await prisma.project.findUnique({
+      const project = await db.project.findUnique({
         where: { id: projectId },
         select: { id: true, name: true, currency: true, billingRate: true, billingType: true },
       });
@@ -109,7 +110,7 @@ export async function POST(
       }
     }
 
-    const timesheets = await withSchemaSync(() => prisma.timesheet.findMany({ where: timesheetWhere }));
+    const timesheets = await withSchemaSync(() => db.timesheet.findMany({ where: timesheetWhere }));
 
     if (timesheets.length === 0) {
       return NextResponse.json({
@@ -133,11 +134,11 @@ export async function POST(
     // Pre-fetch all employees + allocations to avoid N+1 queries
     const employeeIds = Array.from(new Set(timesheets.map((t) => t.employeeId)));
     const [employees, allocations] = await Promise.all([
-      prisma.employee.findMany({
+      db.employee.findMany({
         where: { id: { in: employeeIds } },
         select: { id: true, firstName: true, lastName: true, employeeId: true },
       }),
-      prisma.projectAllocation.findMany({
+      db.projectAllocation.findMany({
         where: {
           employeeId: { in: employeeIds },
           // Active during the invoice period
@@ -162,7 +163,7 @@ export async function POST(
     let sourceCurrency = invoice.currency;
     let defaultBillingRate = 0;
     if (projectId) {
-      const p = await prisma.project.findUnique({ where: { id: projectId }, select: { currency: true, billingRate: true } });
+      const p = await db.project.findUnique({ where: { id: projectId }, select: { currency: true, billingRate: true } });
       if (p) {
         sourceCurrency = p.currency;
         defaultBillingRate = p.billingRate || 0;
@@ -190,7 +191,7 @@ export async function POST(
       if (effectiveProjectId) {
         // If we haven't already loaded this project's currency/rate, do so now
         if (effectiveProjectId !== projectId) {
-          const p = await prisma.project.findUnique({
+          const p = await db.project.findUnique({
             where: { id: effectiveProjectId },
             select: { currency: true, billingRate: true },
           });
@@ -230,7 +231,7 @@ export async function POST(
       const description = `${emp.firstName} ${emp.lastName} — ${totalHours.toFixed(2)}h on ${dateStr}${dailyTimesheets[0].description ? ` (${dailyTimesheets[0].description.substring(0, 60)})` : ''}`;
 
       const lineItem = await withSchemaSync(() =>
-        prisma.invoiceLineItem.create({
+        db.invoiceLineItem.create({
           data: {
             invoiceId: id,
             sourceType: 'timesheet',
@@ -261,7 +262,7 @@ export async function POST(
     const timesheetIds = timesheets.map((t) => t.id);
     if (timesheetIds.length > 0) {
       await withSchemaSync(() =>
-        prisma.timesheet.updateMany({
+        db.timesheet.updateMany({
           where: { id: { in: timesheetIds } },
           data: {
             invoiced: true,
@@ -274,7 +275,7 @@ export async function POST(
     // Recalc invoice totals
     await recalcInvoiceTotals(id);
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'GENERATE_INVOICE_FROM_TIMESHEETS',
@@ -296,8 +297,8 @@ export async function POST(
 
 async function recalcInvoiceTotals(invoiceId: string): Promise<void> {
   const [invoice, lineItems] = await Promise.all([
-    prisma.invoice.findUnique({ where: { id: invoiceId } }),
-    prisma.invoiceLineItem.findMany({ where: { invoiceId } }),
+    db.invoice.findUnique({ where: { id: invoiceId } }),
+    db.invoiceLineItem.findMany({ where: { invoiceId } }),
   ]);
   if (!invoice) return;
 
@@ -310,7 +311,7 @@ async function recalcInvoiceTotals(invoiceId: string): Promise<void> {
   const subtotalBase = baseCur === invoice.currency ? subtotal : round(subtotal / (invoice.exchangeRate || 1));
   const totalAmountBase = baseCur === invoice.currency ? totalAmount : round(totalAmount / (invoice.exchangeRate || 1));
 
-  await prisma.invoice.update({
+  await db.invoice.update({
     where: { id: invoiceId },
     data: { subtotal, taxAmount, discountAmount, totalAmount, subtotalBase, totalAmountBase },
   });

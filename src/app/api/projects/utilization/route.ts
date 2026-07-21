@@ -11,7 +11,7 @@
  *                          nonBillableHours, totalHours, utilizationPct }] }
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -36,6 +36,7 @@ function getWeekStart(d: Date): Date {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
     if (projectId) where.projectId = projectId;
     if (employeeId) where.employeeId = employeeId;
 
-    const timesheets = await prisma.timesheet.findMany({
+    const timesheets = await db.timesheet.findMany({
       where,
       include: {
         project: { select: { id: true, name: true, code: true } },
@@ -122,7 +123,7 @@ export async function GET(request: Request) {
     if (persist) {
       for (const s of snapshots) {
         try {
-          await prisma.projectUtilizationSnapshot.upsert({
+          await db.projectUtilizationSnapshot.upsert({
             where: {
               projectId_employeeId_weekStart: {
                 projectId: s.projectId,

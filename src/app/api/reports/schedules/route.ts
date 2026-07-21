@@ -10,7 +10,7 @@
  * schedules due in the current window.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -26,13 +26,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
-    const schedules = await prisma.reportSchedule.findMany({
+    const schedules = await db.reportSchedule.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'dayOfMonth (1..31) required for monthly frequency' }, { status: 400, headers: corsHeaders() });
     }
 
-    const schedule = await prisma.reportSchedule.create({
+    const schedule = await db.reportSchedule.create({
       data: {
         name,
         reportType,
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: (decoded as any).userId as string,
         action: 'REPORT_SCHEDULE_CREATED',

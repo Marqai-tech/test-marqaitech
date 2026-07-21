@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -17,6 +17,7 @@ export async function OPTIONS() {
 
 // GET /api/onboarding/templates?isActive=true&category=it_setup
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
     }
 
     const templates = await withSchemaSync(() =>
-      prisma.onboardingTaskTemplate.findMany({
+      db.onboardingTaskTemplate.findMany({
         where,
         orderBy: [{ category: 'asc' }, { createdAt: 'desc' }],
       })
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
 
 // POST /api/onboarding/templates
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
     const tenantId = (decoded.tenantId as string) || 'default-tenant';
 
     const template = await withSchemaSync(() =>
-      prisma.onboardingTaskTemplate.create({
+      db.onboardingTaskTemplate.create({
         data: {
           tenantId,
           name,
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_ONBOARDING_TEMPLATE',

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -31,6 +31,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     // 1. Current month payroll run metrics
     let currentRuns: any[] = [];
     try {
-      currentRuns = await prisma.payrollRun.findMany({
+      currentRuns = await db.payrollRun.findMany({
         where: {
           payrollPeriod: currentPeriod,
           ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     // 2. Pending approvals count
     let pendingApprovals = 0;
     try {
-      pendingApprovals = await prisma.payrollRun.count({
+      pendingApprovals = await db.payrollRun.count({
         where: {
           runStatus: 'REVIEW',
           ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
     // 3. Active payroll holds count
     let activeHolds = 0;
     try {
-      activeHolds = await prisma.payrollHold.count({
+      activeHolds = await db.payrollHold.count({
         where: { status: 'active' },
       });
     } catch {
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     // 4. Recent payroll runs (last 5)
     let recentRuns: any[] = [];
     try {
-      recentRuns = await prisma.payrollRun.findMany({
+      recentRuns = await db.payrollRun.findMany({
         where: { ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}) },
         orderBy: { createdAt: 'desc' },
         take: 5,
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
       const period = `${tYear}-${String(tMonth).padStart(2, '0')}`;
       let runs: any[] = [];
       try {
-        runs = await prisma.payrollRun.findMany({
+        runs = await db.payrollRun.findMany({
           where: { payrollPeriod: period, ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}) },
         });
       } catch {
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
     // 6. Department-wise salary breakdown
     let departments: any[] = [];
     try {
-      departments = await prisma.department.findMany({
+      departments = await db.department.findMany({
         where: { ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}), status: 'active' },
         include: { employees: { where: { status: 'active' }, select: { id: true, salary: true } } },
       });
@@ -152,7 +153,7 @@ export async function GET(request: NextRequest) {
     // 7. Total active employees
     let totalActiveEmployees = 0;
     try {
-      totalActiveEmployees = await prisma.employee.count({
+      totalActiveEmployees = await db.employee.count({
         where: {
           status: 'active',
           ...(effectiveCompanyId ? { department: { companyId: effectiveCompanyId } } : {}),

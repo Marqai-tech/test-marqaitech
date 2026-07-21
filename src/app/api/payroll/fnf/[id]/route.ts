@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const data = await prisma.fNFCalculation.findUnique({
+      const data = await db.fNFCalculation.findUnique({
         where: { id },
         include: {
           employee: {
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       let separation = null;
       if (data.separationId) {
         try {
-          separation = await prisma.separation.findUnique({
+          separation = await db.separation.findUnique({
             where: { id: data.separationId },
           });
         } catch (dbError: unknown) {
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -95,7 +97,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const netAmount = totalEarnings - totalDeductions;
 
     try {
-      const data = await prisma.fNFCalculation.update({
+      const data = await db.fNFCalculation.update({
         where: { id },
         data: {
           ...(body.separationId !== undefined && { separationId: body.separationId || null }),
@@ -129,6 +131,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -156,7 +159,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (remarks) updateData.remarks = remarks;
 
     try {
-      const data = await prisma.fNFCalculation.update({
+      const data = await db.fNFCalculation.update({
         where: { id },
         data: updateData,
       });

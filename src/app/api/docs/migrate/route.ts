@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can migrate' }, { status: 403 });
     }
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     // This is necessary because prisma db push may fail during Vercel build
 
     // DocCategory table
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "DocCategory" (
         "id" TEXT NOT NULL,
         "name" TEXT NOT NULL,
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     `);
 
     // DocArticle table
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "DocArticle" (
         "id" TEXT NOT NULL,
         "categoryId" TEXT NOT NULL,
@@ -61,18 +62,18 @@ export async function POST(request: Request) {
     `);
 
     // Create indexes for DocArticle
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "DocArticle_categoryId_idx" ON "DocArticle"("categoryId");
     `);
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "DocArticle_docType_idx" ON "DocArticle"("docType");
     `);
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "DocArticle_moduleKey_idx" ON "DocArticle"("moduleKey");
     `);
 
     // DocAccessRule table
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "DocAccessRule" (
         "id" TEXT NOT NULL,
         "articleId" TEXT NOT NULL,
@@ -88,13 +89,13 @@ export async function POST(request: Request) {
     `);
 
     // Create indexes for DocAccessRule
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "DocAccessRule_articleId_idx" ON "DocAccessRule"("articleId");
     `);
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "DocAccessRule_role_idx" ON "DocAccessRule"("role");
     `);
-    await prisma.$executeRawUnsafe(`
+    await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "DocAccessRule_userId_idx" ON "DocAccessRule"("userId");
     `);
 

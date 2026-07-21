@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 function corsHeaders() {
   return {
@@ -18,6 +18,7 @@ export async function OPTIONS() {
  * Returns a summary of employee records and tests various lookup strategies.
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const { searchParams } = new URL(request.url);
     const testId = searchParams.get('id');
@@ -27,14 +28,14 @@ export async function GET(request: Request) {
 
     // 1. Total employee count
     try {
-      result.totalCount = await prisma.employee.count();
+      result.totalCount = await db.employee.count();
     } catch {
       result.totalCount = 'ERROR';
     }
 
     // 2. Sample employees (first 5)
     try {
-      const samples = await prisma.employee.findMany({
+      const samples = await db.employee.findMany({
         take: 5,
         select: {
           id: true,
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
     // 3. Test specific ID lookup
     if (testId) {
       try {
-        const byId = await prisma.employee.findUnique({
+        const byId = await db.employee.findUnique({
           where: { id: testId },
           select: { id: true, employeeId: true, firstName: true, lastName: true },
         });
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
     // 4. Test specific employeeId lookup
     if (testEmployeeId) {
       try {
-        const byEmployeeId = await prisma.employee.findUnique({
+        const byEmployeeId = await db.employee.findUnique({
           where: { employeeId: testEmployeeId },
           select: { id: true, employeeId: true, firstName: true, lastName: true },
         });

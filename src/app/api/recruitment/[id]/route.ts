@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -52,6 +52,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -71,7 +72,7 @@ export async function GET(
     const decodedRec = decoded as unknown as Record<string, any>;
 
     const { id } = await params;
-    const jobPosting = await prisma.jobPosting.findFirst({
+    const jobPosting = await db.jobPosting.findFirst({
       where: tenantJobPostingFilter(id, decodedRec),
       include: {
         department: {
@@ -110,6 +111,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -146,7 +148,7 @@ export async function PUT(
     } = body;
 
     // Check if job posting exists AND belongs to caller's tenant
-    const existing = await prisma.jobPosting.findFirst({
+    const existing = await db.jobPosting.findFirst({
       where: tenantJobPostingFilter(id, decodedRec),
     });
     if (!existing) {
@@ -158,7 +160,7 @@ export async function PUT(
 
     // If moving to a new department, verify it's in the same tenant
     if (departmentId && departmentId !== existing.departmentId) {
-      const newDept = await prisma.department.findFirst({
+      const newDept = await db.department.findFirst({
         where: {
           id: departmentId,
           company: {
@@ -188,7 +190,7 @@ export async function PUT(
     if (closingDate !== undefined) updateData.closingDate = closingDate ? new Date(closingDate) : null;
     if (status !== undefined) updateData.status = status;
 
-    const jobPosting = await prisma.jobPosting.update({
+    const jobPosting = await db.jobPosting.update({
       where: { id },
       data: updateData,
       include: {
@@ -198,7 +200,7 @@ export async function PUT(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_JOB_POSTING',
@@ -224,6 +226,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -247,14 +250,14 @@ export async function PATCH(
     const { status, feedback, aiFeedbackDraft } = body;
 
     // Try to update as job posting first (tenant-scoped)
-    const jobPosting = await prisma.jobPosting.findFirst({
+    const jobPosting = await db.jobPosting.findFirst({
       where: tenantJobPostingFilter(id, decodedRec),
     });
     if (jobPosting) {
       const updateData: Record<string, unknown> = {};
       if (status !== undefined) updateData.status = status;
 
-      const updated = await prisma.jobPosting.update({
+      const updated = await db.jobPosting.update({
         where: { id },
         data: updateData,
         include: {
@@ -271,7 +274,7 @@ export async function PATCH(
     }
 
     // Try to update as application (tenant-scoped via jobPosting → department → company → group → tenant)
-    const application = await prisma.jobApplication.findFirst({
+    const application = await db.jobApplication.findFirst({
       where: tenantApplicationFilter(id, decodedRec),
     });
     if (application) {
@@ -297,12 +300,12 @@ export async function PATCH(
         });
       }
 
-      const updated = await prisma.jobApplication.update({
+      const updated = await db.jobApplication.update({
         where: { id },
         data: updateData,
       });
 
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_APPLICATION_STATUS',
@@ -338,6 +341,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -359,7 +363,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if job posting exists AND belongs to caller's tenant
-    const existing = await prisma.jobPosting.findFirst({
+    const existing = await db.jobPosting.findFirst({
       where: tenantJobPostingFilter(id, decodedRec),
       include: { _count: { select: { applications: true } } },
     });
@@ -371,16 +375,16 @@ export async function DELETE(
     }
 
     // Delete associated applications first
-    await prisma.jobApplication.deleteMany({
+    await db.jobApplication.deleteMany({
       where: { jobPostingId: id },
     });
 
     // Delete the job posting
-    await prisma.jobPosting.delete({
+    await db.jobPosting.delete({
       where: { id },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_JOB_POSTING',

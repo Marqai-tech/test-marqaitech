@@ -4,11 +4,12 @@
  *  POST — create a new geofence (admin only)
  */
 import { requireUser, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     if (q.branchId) where.branchId = q.branchId;
     if (q.active === 'true') where.isActive = true;
 
-    const items = await prisma.geofence.findMany({
+    const items = await db.geofence.findMany({
       where,
       include: { branch: { select: { id: true, name: true, city: true } } },
       orderBy: { createdAt: 'desc' },
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
     const centerLng = Number(body.centerLng);
     if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) return fail('Invalid center');
 
-    const record = await prisma.geofence.create({
+    const record = await db.geofence.create({
       data: {
         name,
         branchId: (body.branchId as string) || null,

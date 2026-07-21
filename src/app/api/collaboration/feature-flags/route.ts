@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -10,13 +10,14 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * features for specific tenants to manage server load.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const flags = await prisma.collaborationFeatureFlag.findMany({
+    const flags = await db.collaborationFeatureFlag.findMany({
       where: { tenantId: decoded.tenantId },
     });
 
@@ -30,11 +31,11 @@ export async function GET(request: NextRequest) {
     const missing = defaultFlags.filter((k) => !existingKeys.has(k));
 
     if (missing.length > 0) {
-      await prisma.collaborationFeatureFlag.createMany({
+      await db.collaborationFeatureFlag.createMany({
         data: missing.map((k) => ({ tenantId: decoded.tenantId, featureKey: k, isEnabled: true })),
         skipDuplicates: true,
       });
-      const refreshed = await prisma.collaborationFeatureFlag.findMany({
+      const refreshed = await db.collaborationFeatureFlag.findMany({
         where: { tenantId: decoded.tenantId },
       });
       return NextResponse.json({ flags: refreshed });
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest) {
  * Super Admin / Tenant Admin only.
  */
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -68,7 +70,7 @@ export async function PATCH(request: NextRequest) {
     const { featureKey, isEnabled, maxCallDurationMin, maxFileUploadMB, maxChatAttachments, notes } = body;
     if (!featureKey) return NextResponse.json({ error: 'featureKey is required' }, { status: 400 });
 
-    const flag = await prisma.collaborationFeatureFlag.upsert({
+    const flag = await db.collaborationFeatureFlag.upsert({
       where: { tenantId_featureKey: { tenantId: decoded.tenantId, featureKey } },
       create: {
         tenantId: decoded.tenantId,

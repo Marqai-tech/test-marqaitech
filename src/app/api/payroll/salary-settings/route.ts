@@ -1,6 +1,6 @@
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,13 +14,14 @@ export async function OPTIONS() {
 
 // GET: Fetch salary settings
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     // Get settings from PayrollComponent configs or return defaults
-    const components = await prisma.payrollComponent.findMany({
+    const components = await db.payrollComponent.findMany({
       where: { countryCode: 'IND', isActive: true },
       orderBy: { code: 'asc' },
     });
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
 
 // PUT: Update salary settings
 export async function PUT(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);

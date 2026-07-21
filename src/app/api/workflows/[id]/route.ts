@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const workflow = await prisma.workflowDefinition.findUnique({
+    const workflow = await db.workflowDefinition.findUnique({
       where: { id },
       include: {
         instances: {
@@ -60,6 +61,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -74,7 +76,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.workflowDefinition.findUnique({ where: { id } });
+    const existing = await db.workflowDefinition.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -89,12 +91,12 @@ export async function PUT(
       updateData.version = existing.version + 1;
     }
 
-    const workflow = await prisma.workflowDefinition.update({
+    const workflow = await db.workflowDefinition.update({
       where: { id },
       data: updateData,
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_WORKFLOW',
@@ -114,6 +116,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -128,7 +131,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.workflowDefinition.findUnique({ where: { id } });
+    const existing = await db.workflowDefinition.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -143,12 +146,12 @@ export async function PATCH(
       updateData.version = existing.version + 1;
     }
 
-    const workflow = await prisma.workflowDefinition.update({
+    const workflow = await db.workflowDefinition.update({
       where: { id },
       data: updateData,
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_WORKFLOW',
@@ -168,6 +171,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -181,20 +185,20 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.workflowDefinition.findUnique({ where: { id } });
+    const existing = await db.workflowDefinition.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // Delete related approvals, instances, then the workflow
-    const instances = await prisma.workflowInstance.findMany({ where: { workflowDefinitionId: id }, select: { id: true } });
+    const instances = await db.workflowInstance.findMany({ where: { workflowDefinitionId: id }, select: { id: true } });
     for (const inst of instances) {
-      await prisma.workflowApproval.deleteMany({ where: { workflowInstanceId: inst.id } });
+      await db.workflowApproval.deleteMany({ where: { workflowInstanceId: inst.id } });
     }
-    await prisma.workflowInstance.deleteMany({ where: { workflowDefinitionId: id } });
-    await prisma.workflowDefinition.delete({ where: { id } });
+    await db.workflowInstance.deleteMany({ where: { workflowDefinitionId: id } });
+    await db.workflowDefinition.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_WORKFLOW',

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
@@ -26,6 +26,7 @@ export async function OPTIONS() {
  * Body (optional): { dryRun?: boolean }
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
     }
 
     // Find all postings currently in 'posted' status, with their linked jobPosting
-    const activePostings = await prisma.jobBoardPosting.findMany({
+    const activePostings = await db.jobBoardPosting.findMany({
       where: { status: 'posted' },
       include: {
         jobPosting: { select: { id: true, title: true, status: true } },
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
 
     for (const p of toClose) {
       try {
-        await prisma.jobBoardPosting.update({
+        await db.jobBoardPosting.update({
           where: { id: p.id },
           data: {
             status: 'closed',
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
           jobTitle: p.jobPosting?.title || p.jobPostingId,
         });
 
-        await prisma.auditLog.create({
+        await db.auditLog.create({
           data: {
             userId: decoded.userId as string,
             action: 'AUTO_CLOSE_JOB_BOARD_POSTING',

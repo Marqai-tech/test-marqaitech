@@ -15,7 +15,7 @@
  * Returns 401 for invalid/expired/used tokens.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyPassword, hashPassword, createToken } from '@/lib/auth';
 
 const CORS = {
@@ -29,6 +29,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const body = await request.json().catch(() => ({}));
   const email = String(body.email || '').trim().toLowerCase();
   const token = String(body.token || '').trim();
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   // Find the most recent unused, non-expired token for this email
-  const resetRecord = await prisma.candidatePasswordReset.findFirst({
+  const resetRecord = await db.candidatePasswordReset.findFirst({
     where: {
       candidateEmail: email,
       usedAt: null,
@@ -58,13 +59,13 @@ export async function POST(request: Request) {
   }
 
   // Mark the token as used (one-shot — can never be reused)
-  await prisma.candidatePasswordReset.update({
+  await db.candidatePasswordReset.update({
     where: { id: resetRecord.id },
     data: { usedAt: new Date() },
   });
 
   // Look up the candidate portal user
-  const user = await prisma.candidatePortalUser.findUnique({
+  const user = await db.candidatePortalUser.findUnique({
     where: { candidateEmail: email },
   });
   if (!user) {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
   }
 
   // Update last login
-  await prisma.candidatePortalUser.update({
+  await db.candidatePortalUser.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });

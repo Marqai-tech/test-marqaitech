@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'documentId is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const permissions = await prisma.docHubPermission.findMany({
+    const permissions = await db.docHubPermission.findMany({
       where: { documentId },
       orderBy: { createdAt: 'desc' },
     });
@@ -41,6 +42,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -66,13 +68,13 @@ export async function POST(request: Request) {
     }
 
     // Check if permission already exists
-    const existing = await prisma.docHubPermission.findFirst({
+    const existing = await db.docHubPermission.findFirst({
       where: { documentId, targetType, targetId },
     });
 
     if (existing) {
       // Update existing permission
-      const updated = await prisma.docHubPermission.update({
+      const updated = await db.docHubPermission.update({
         where: { id: existing.id },
         data: {
           canView: canView !== undefined ? canView : existing.canView,
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ permission: updated }, { headers: corsHeaders() });
     }
 
-    const permission = await prisma.docHubPermission.create({
+    const permission = await db.docHubPermission.create({
       data: {
         documentId,
         targetType,
@@ -104,6 +106,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -123,7 +126,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Permission id is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    await prisma.docHubPermission.delete({ where: { id: permissionId } });
+    await db.docHubPermission.delete({ where: { id: permissionId } });
 
     return NextResponse.json({ message: 'Permission removed successfully' }, { headers: corsHeaders() });
   } catch (error) {

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -23,6 +23,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     let data;
     try {
-      data = await prisma.payrollRun.findUnique({
+      data = await db.payrollRun.findUnique({
         where: { id },
         include: {
           transactionLines: true,
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -65,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     let data;
     try {
-      data = await prisma.payrollRun.update({
+      data = await db.payrollRun.update({
         where: { id },
         data: updateData,
       });
@@ -82,6 +84,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -97,7 +100,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     let currentRun;
     try {
-      currentRun = await prisma.payrollRun.findUnique({ where: { id } });
+      currentRun = await db.payrollRun.findUnique({ where: { id } });
     } catch (dbError: unknown) {
       console.error('PayrollRun table not available:', dbError);
       return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
@@ -115,7 +118,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     let data;
     try {
-      data = await prisma.payrollRun.update({
+      data = await db.payrollRun.update({
         where: { id },
         data: { runStatus },
       });
@@ -132,6 +135,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -140,7 +144,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     let run;
     try {
-      run = await prisma.payrollRun.findUnique({ where: { id } });
+      run = await db.payrollRun.findUnique({ where: { id } });
     } catch (dbError: unknown) {
       console.error('PayrollRun table not available:', dbError);
       return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
@@ -153,25 +157,25 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     try {
-      await prisma.payrollTransactionLine.deleteMany({ where: { payrollRunId: id } });
+      await db.payrollTransactionLine.deleteMany({ where: { payrollRunId: id } });
     } catch (dbError: unknown) {
       console.error('PayrollTransactionLine table not available, skipping delete:', dbError);
     }
 
     try {
-      await prisma.payrollInput.deleteMany({ where: { payrollRunId: id } });
+      await db.payrollInput.deleteMany({ where: { payrollRunId: id } });
     } catch (dbError: unknown) {
       console.error('PayrollInput table not available, skipping delete:', dbError);
     }
 
     try {
-      await prisma.complianceFiling.deleteMany({ where: { payrollRunId: id } });
+      await db.complianceFiling.deleteMany({ where: { payrollRunId: id } });
     } catch (dbError: unknown) {
       console.error('ComplianceFiling table not available, skipping delete:', dbError);
     }
 
     try {
-      await prisma.payrollRun.delete({ where: { id } });
+      await db.payrollRun.delete({ where: { id } });
     } catch (dbError: unknown) {
       console.error('PayrollRun table not available:', dbError);
       return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });

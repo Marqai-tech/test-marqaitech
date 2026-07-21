@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
@@ -52,7 +52,7 @@ async function safe<T>(
  */
 async function ensureDefaultGroup(tenantId: string, tenantName: string): Promise<void> {
   await safe('ensureDefaultGroup', async () => {
-    const existing = await prisma.companyGroup.findFirst({
+    const existing = await db.companyGroup.findFirst({
       where: { tenantId, name: { equals: tenantName, mode: 'insensitive' } },
       select: { id: true },
     });
@@ -60,12 +60,12 @@ async function ensureDefaultGroup(tenantId: string, tenantName: string): Promise
     // Also check if the tenant has ANY group at all — if so, don't auto-create
     // (the super admin may have intentionally deleted the default and created
     // custom-named ones).
-    const anyGroup = await prisma.companyGroup.findFirst({
+    const anyGroup = await db.companyGroup.findFirst({
       where: { tenantId },
       select: { id: true },
     });
     if (anyGroup) return;
-    await prisma.companyGroup.create({
+    await db.companyGroup.create({
       data: {
         name: tenantName,
         tenantId,
@@ -83,6 +83,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -102,7 +103,7 @@ export async function GET(
     // so the returned data includes the freshly-created default group.
     const tenantBasic = await safe(
       'tenant.findUnique(basic)',
-      () => prisma.tenant.findUnique({
+      () => getPlatformDb().tenant.findUnique({
         where: { id },
         select: { id: true, name: true },
       }),
@@ -125,7 +126,7 @@ export async function GET(
     let tenant: unknown = null;
     tenant = await safe(
       'tenant.findUnique(rich)',
-      () => prisma.tenant.findUnique({
+      () => getPlatformDb().tenant.findUnique({
         where: { id },
         include: {
           companyGroups: {
@@ -162,7 +163,7 @@ export async function GET(
       // each group (the frontend assumes it is).
       tenant = await safe(
         'tenant.findUnique(fallback)',
-        () => prisma.tenant.findUnique({
+        () => getPlatformDb().tenant.findUnique({
           where: { id },
           include: {
             companyGroups: {
@@ -245,6 +246,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -275,7 +277,7 @@ export async function PATCH(
     const body = await request.json();
     let { status, name, domain, plan, country, currency, timezone, logo, maxCompaniesAllowed } = body;
 
-    const existingTenant = await prisma.tenant.findUnique({ where: { id } });
+    const existingTenant = await getPlatformDb().tenant.findUnique({ where: { id } });
     if (!existingTenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -308,7 +310,7 @@ export async function PATCH(
       }
     }
 
-    const tenant = await prisma.tenant.update({
+    const tenant = await getPlatformDb().tenant.update({
       where: { id },
       data: updateData,
     }).catch(async (err) => {
@@ -316,14 +318,14 @@ export async function PATCH(
       const msg = err && err.message ? err.message : String(err);
       if (/column .* does not exist|does not exist in the current database/i.test(msg)) {
         await ensureSchemaSynced();
-        return prisma.tenant.update({ where: { id }, data: updateData });
+        return getPlatformDb().tenant.update({ where: { id }, data: updateData });
       }
       throw err;
     });
 
     // Notify tenant admin of status changes
     if (status && status !== existingTenant.status) {
-      const tenantAdmins = await prisma.user.findMany({
+      const tenantAdmins = await db.user.findMany({
         where: { tenantId: id, role: 'tenant_admin' },
       });
 
@@ -340,7 +342,7 @@ export async function PATCH(
       }
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_TENANT',
@@ -360,6 +362,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -378,14 +381,14 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existingTenant = await prisma.tenant.findUnique({ where: { id } });
+    const existingTenant = await getPlatformDb().tenant.findUnique({ where: { id } });
     if (!existingTenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await prisma.tenant.delete({ where: { id } });
+    await getPlatformDb().tenant.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_TENANT',

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * POST /api/trial/check-domain
  * Public endpoint — checks if a company code/slug is available.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { companyCode } = body;

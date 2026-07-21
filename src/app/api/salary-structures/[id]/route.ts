@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const salaryStructure = await prisma.salaryStructure.findUnique({
+    const salaryStructure = await db.salaryStructure.findUnique({
       where: { id },
       include: {
         company: { select: { id: true, name: true } },
@@ -54,6 +55,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -68,7 +70,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.salaryStructure.findUnique({ where: { id } });
+    const existing = await db.salaryStructure.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Salary structure not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -79,7 +81,7 @@ export async function PUT(
       if (body[field] !== undefined) updateData[field] = body[field];
     }
 
-    const salaryStructure = await prisma.salaryStructure.update({
+    const salaryStructure = await db.salaryStructure.update({
       where: { id },
       data: updateData,
       include: {
@@ -88,7 +90,7 @@ export async function PUT(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_SALARY_STRUCTURE',
@@ -108,6 +110,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -123,20 +126,20 @@ export async function PATCH(
     const body = await request.json();
     const { action, component } = body;
 
-    const existing = await prisma.salaryStructure.findUnique({ where: { id } });
+    const existing = await db.salaryStructure.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Salary structure not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // action: 'add_component', 'update_component', 'remove_component'
     if (action === 'add_component' && component) {
-      const maxSortOrder = await prisma.salaryComponent.findFirst({
+      const maxSortOrder = await db.salaryComponent.findFirst({
         where: { salaryStructureId: id },
         orderBy: { sortOrder: 'desc' },
         select: { sortOrder: true },
       });
 
-      await prisma.salaryComponent.create({
+      await db.salaryComponent.create({
         data: {
           salaryStructureId: id,
           name: component.name,
@@ -165,12 +168,12 @@ export async function PATCH(
       for (const field of compFields) {
         if (component[field] !== undefined) compUpdateData[field] = component[field];
       }
-      await prisma.salaryComponent.update({
+      await db.salaryComponent.update({
         where: { id: component.id },
         data: compUpdateData,
       });
     } else if (action === 'remove_component' && component?.id) {
-      await prisma.salaryComponent.delete({
+      await db.salaryComponent.delete({
         where: { id: component.id },
       });
     } else {
@@ -182,7 +185,7 @@ export async function PATCH(
       }
 
       if (Object.keys(updateData).length > 0) {
-        await prisma.salaryStructure.update({
+        await db.salaryStructure.update({
           where: { id },
           data: updateData,
         });
@@ -191,10 +194,10 @@ export async function PATCH(
       // Handle components array replacement
       if (body.components && Array.isArray(body.components)) {
         // Delete existing components and recreate
-        await prisma.salaryComponent.deleteMany({ where: { salaryStructureId: id } });
+        await db.salaryComponent.deleteMany({ where: { salaryStructureId: id } });
         for (let i = 0; i < body.components.length; i++) {
           const comp = body.components[i];
-          await prisma.salaryComponent.create({
+          await db.salaryComponent.create({
             data: {
               salaryStructureId: id,
               name: comp.name || '',
@@ -215,7 +218,7 @@ export async function PATCH(
       }
     }
 
-    const salaryStructure = await prisma.salaryStructure.findUnique({
+    const salaryStructure = await db.salaryStructure.findUnique({
       where: { id },
       include: {
         company: { select: { id: true, name: true } },
@@ -223,7 +226,7 @@ export async function PATCH(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_SALARY_STRUCTURE_COMPONENTS',
@@ -243,6 +246,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -251,15 +255,15 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.salaryStructure.findUnique({ where: { id } });
+    const existing = await db.salaryStructure.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Salary structure not found' }, { status: 404, headers: corsHeaders() });
 
     // Delete components first
-    await prisma.salaryComponent.deleteMany({ where: { salaryStructureId: id } });
+    await db.salaryComponent.deleteMany({ where: { salaryStructureId: id } });
     // Delete the structure
-    await prisma.salaryStructure.delete({ where: { id } });
+    await db.salaryStructure.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_SALARY_STRUCTURE',

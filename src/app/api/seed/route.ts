@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
 
 function corsHeaders() {
@@ -36,7 +36,7 @@ export async function GET() {
     const currentMonth = now.getMonth() + 1;
 
     // ============ TENANT ============
-    const tenant = await prisma.tenant.upsert({
+    const tenant = await getPlatformDb().tenant.upsert({
       where: { slug: '3boxes-corp' },
       update: {},
       create: {
@@ -52,7 +52,7 @@ export async function GET() {
     });
 
     // ============ COMPANY GROUPS ============
-    const americasGroup = await prisma.companyGroup.upsert({
+    const americasGroup = await db.companyGroup.upsert({
       where: { id: 'cg-americas' },
       update: {},
       create: {
@@ -62,7 +62,7 @@ export async function GET() {
       },
     });
 
-    const asiaPacificGroup = await prisma.companyGroup.upsert({
+    const asiaPacificGroup = await db.companyGroup.upsert({
       where: { id: 'cg-asia-pacific' },
       update: {},
       create: {
@@ -73,7 +73,7 @@ export async function GET() {
     });
 
     // ============ COMPANIES ============
-    const usaCompany = await prisma.company.upsert({
+    const usaCompany = await db.company.upsert({
       where: { id: 'comp-usa' },
       update: {},
       create: {
@@ -97,7 +97,7 @@ export async function GET() {
       },
     });
 
-    const indiaCompany = await prisma.company.upsert({
+    const indiaCompany = await db.company.upsert({
       where: { id: 'comp-india' },
       update: {},
       create: {
@@ -121,7 +121,7 @@ export async function GET() {
       },
     });
 
-    const ukCompany = await prisma.company.upsert({
+    const ukCompany = await db.company.upsert({
       where: { id: 'comp-uk' },
       update: {},
       create: {
@@ -146,7 +146,7 @@ export async function GET() {
     });
 
     // ============ BRANCHES ============
-    const nyBranch = await prisma.branch.upsert({
+    const nyBranch = await db.branch.upsert({
       where: { id: 'branch-ny' },
       update: {},
       create: {
@@ -165,7 +165,7 @@ export async function GET() {
       },
     });
 
-    const sfBranch = await prisma.branch.upsert({
+    const sfBranch = await db.branch.upsert({
       where: { id: 'branch-sf' },
       update: {},
       create: {
@@ -184,7 +184,7 @@ export async function GET() {
       },
     });
 
-    const blrBranch = await prisma.branch.upsert({
+    const blrBranch = await db.branch.upsert({
       where: { id: 'branch-blr' },
       update: {},
       create: {
@@ -203,7 +203,7 @@ export async function GET() {
       },
     });
 
-    const mumbaiBranch = await prisma.branch.upsert({
+    const mumbaiBranch = await db.branch.upsert({
       where: { id: 'branch-mumbai' },
       update: {},
       create: {
@@ -222,7 +222,7 @@ export async function GET() {
       },
     });
 
-    const londonBranch = await prisma.branch.upsert({
+    const londonBranch = await db.branch.upsert({
       where: { id: 'branch-london' },
       update: {},
       create: {
@@ -256,7 +256,7 @@ export async function GET() {
     ];
 
     for (const dept of departments) {
-      await prisma.department.upsert({
+      await db.department.upsert({
         where: { id: dept.id },
         update: {},
         create: dept,
@@ -284,7 +284,7 @@ export async function GET() {
     ];
 
     for (const des of designations) {
-      await prisma.designation.upsert({
+      await db.designation.upsert({
         where: { id: des.id },
         update: {},
         create: des,
@@ -303,7 +303,7 @@ export async function GET() {
 
     for (const u of demoUsers) {
       const userPassword = pwHashes[u.email] || defaultHashedPassword;
-      await prisma.user.upsert({
+      await db.user.upsert({
         where: { id: u.id },
         update: { password: userPassword }, // Update password in case it was previously wrong
         create: {
@@ -332,7 +332,7 @@ export async function GET() {
     ];
 
     for (const u of additionalUsers) {
-      await prisma.user.upsert({
+      await db.user.upsert({
         where: { id: u.id },
         update: {},
         create: {
@@ -384,7 +384,7 @@ export async function GET() {
     ];
 
     for (const emp of demoEmployees) {
-      await prisma.employee.upsert({
+      await db.employee.upsert({
         where: { id: emp.id },
         update: {},
         create: emp,
@@ -561,7 +561,7 @@ export async function GET() {
     ];
 
     for (const emp of employees) {
-      await prisma.employee.upsert({
+      await db.employee.upsert({
         where: { id: emp.id },
         update: {},
         create: emp,
@@ -578,7 +578,7 @@ export async function GET() {
     ];
 
     for (const lt of leaveTypes) {
-      await prisma.leaveType.upsert({
+      await db.leaveType.upsert({
         where: { id: lt.id },
         update: {},
         create: lt,
@@ -588,7 +588,7 @@ export async function GET() {
     // ============ LEAVE BALANCES ============
     for (const emp of employees) {
       for (const lt of leaveTypes) {
-        await prisma.leaveBalance.upsert({
+        await db.leaveBalance.upsert({
           where: {
             employeeId_leaveTypeId_year: {
               employeeId: emp.id,
@@ -611,9 +611,9 @@ export async function GET() {
     }
 
     // Update remaining based on used
-    const allBalances = await prisma.leaveBalance.findMany();
+    const allBalances = await db.leaveBalance.findMany();
     for (const bal of allBalances) {
-      await prisma.leaveBalance.update({
+      await db.leaveBalance.update({
         where: { id: bal.id },
         data: { remaining: bal.total - bal.used },
       });
@@ -637,7 +637,7 @@ export async function GET() {
 
     for (let i = 0; i < leaveRequests.length; i++) {
       const lr = leaveRequests[i];
-      await prisma.leaveRequest.upsert({
+      await db.leaveRequest.upsert({
         where: { id: `lr-${i + 1}` },
         update: {},
         create: { id: `lr-${i + 1}`, ...lr, halfDay: false },
@@ -665,7 +665,7 @@ export async function GET() {
         const checkOutMin = Math.floor(Math.random() * 30);
 
         attendanceCount++;
-        await prisma.attendance.upsert({
+        await db.attendance.upsert({
           where: {
             employeeId_date: {
               employeeId: empId,
@@ -703,7 +703,7 @@ export async function GET() {
       const totalDeductions = pf + esi + tax + professionalTax + otherDeductions;
       const netSalary = grossSalary - totalDeductions;
 
-      await prisma.payroll.upsert({
+      await db.payroll.upsert({
         where: {
           employeeId_month_year: {
             employeeId: emp.id,
@@ -746,7 +746,7 @@ export async function GET() {
     ];
 
     for (const jp of jobPostings) {
-      await prisma.jobPosting.upsert({
+      await db.jobPosting.upsert({
         where: { id: jp.id },
         update: {},
         create: {
@@ -772,7 +772,7 @@ export async function GET() {
     ];
 
     for (const ja of applications) {
-      await prisma.jobApplication.upsert({
+      await db.jobApplication.upsert({
         where: { id: ja.id },
         update: {},
         create: {
@@ -795,7 +795,7 @@ export async function GET() {
     ];
 
     for (const iv of interviews) {
-      await prisma.interview.upsert({
+      await db.interview.upsert({
         where: { id: iv.id },
         update: {},
         create: iv,
@@ -817,7 +817,7 @@ export async function GET() {
     ];
 
     for (const ot of onboardingTasks) {
-      await prisma.onboardingTask.upsert({
+      await db.onboardingTask.upsert({
         where: { id: ot.id },
         update: {},
         create: ot,
@@ -834,7 +834,7 @@ export async function GET() {
     ];
 
     for (const rev of reviews) {
-      await prisma.performanceReview.upsert({
+      await db.performanceReview.upsert({
         where: { id: rev.id },
         update: {},
         create: rev,
@@ -856,7 +856,7 @@ export async function GET() {
     ];
 
     for (const goal of goals) {
-      await prisma.goal.upsert({
+      await db.goal.upsert({
         where: { id: goal.id },
         update: {},
         create: goal,
@@ -873,7 +873,7 @@ export async function GET() {
     ];
 
     for (const tr of trainings) {
-      await prisma.training.upsert({
+      await db.training.upsert({
         where: { id: tr.id },
         update: {},
         create: tr,
@@ -896,7 +896,7 @@ export async function GET() {
     ];
 
     for (const te of enrollments) {
-      await prisma.trainingEnrollment.upsert({
+      await db.trainingEnrollment.upsert({
         where: { id: te.id },
         update: {},
         create: te,
@@ -918,7 +918,7 @@ export async function GET() {
     ];
 
     for (const as of assets) {
-      await prisma.asset.upsert({
+      await db.asset.upsert({
         where: { id: as.id },
         update: {},
         create: { ...as, status: 'available' },
@@ -940,7 +940,7 @@ export async function GET() {
     ];
 
     for (const aa of assetAssignments) {
-      await prisma.assetAssignment.upsert({
+      await db.assetAssignment.upsert({
         where: { id: aa.id },
         update: {},
         create: aa,
@@ -949,7 +949,7 @@ export async function GET() {
 
     // Update asset statuses for assigned assets
     for (const aa of assetAssignments) {
-      await prisma.asset.update({
+      await db.asset.update({
         where: { id: aa.assetId },
         data: { status: 'assigned' },
       });
@@ -970,7 +970,7 @@ export async function GET() {
     ];
 
     for (const doc of documents) {
-      await prisma.document.upsert({
+      await db.document.upsert({
         where: { id: doc.id },
         update: {},
         create: doc,
@@ -987,7 +987,7 @@ export async function GET() {
     ];
 
     for (const trv of travelRequests) {
-      await prisma.travelRequest.upsert({
+      await db.travelRequest.upsert({
         where: { id: trv.id },
         update: {},
         create: trv,
@@ -1004,7 +1004,7 @@ export async function GET() {
     ];
 
     for (const ec of expenseClaims) {
-      await prisma.expenseClaim.upsert({
+      await db.expenseClaim.upsert({
         where: { id: ec.id },
         update: {},
         create: ec,
@@ -1021,7 +1021,7 @@ export async function GET() {
     ];
 
     for (const ts of timesheets) {
-      await prisma.timesheet.upsert({
+      await db.timesheet.upsert({
         where: { id: ts.id },
         update: {},
         create: ts,
@@ -1043,7 +1043,7 @@ export async function GET() {
     ];
 
     for (const fb of feedbacks) {
-      await prisma.feedback.upsert({
+      await db.feedback.upsert({
         where: { id: fb.id },
         update: {},
         create: fb,
@@ -1058,7 +1058,7 @@ export async function GET() {
     ];
 
     for (const pro of promotions) {
-      await prisma.promotion.upsert({
+      await db.promotion.upsert({
         where: { id: pro.id },
         update: {},
         create: pro,
@@ -1072,7 +1072,7 @@ export async function GET() {
     ];
 
     for (const grv of grievances) {
-      await prisma.grievance.upsert({
+      await db.grievance.upsert({
         where: { id: grv.id },
         update: {},
         create: grv,
@@ -1085,7 +1085,7 @@ export async function GET() {
     ];
 
     for (const sep of separations) {
-      await prisma.separation.upsert({
+      await db.separation.upsert({
         where: { id: sep.id },
         update: {},
         create: sep,
@@ -1109,7 +1109,7 @@ export async function GET() {
     ];
 
     for (const noti of notifications) {
-      await prisma.notification.upsert({
+      await db.notification.upsert({
         where: { id: noti.id },
         update: {},
         create: noti,
@@ -1126,7 +1126,7 @@ export async function GET() {
     ];
 
     for (const pol of policies) {
-      await prisma.policy.upsert({
+      await db.policy.upsert({
         where: { id: pol.id },
         update: {},
         create: pol,
@@ -1148,7 +1148,7 @@ export async function GET() {
     ];
 
     for (const hol of holidays) {
-      await prisma.holiday.upsert({
+      await db.holiday.upsert({
         where: { id: hol.id },
         update: {},
         create: hol,
@@ -1163,7 +1163,7 @@ export async function GET() {
     ];
 
     for (const ann of announcements) {
-      await prisma.announcement.upsert({
+      await db.announcement.upsert({
         where: { id: ann.id },
         update: {},
         create: ann,
@@ -1178,7 +1178,7 @@ export async function GET() {
     ];
 
     for (const sh of shifts) {
-      await prisma.shift.upsert({
+      await db.shift.upsert({
         where: { id: sh.id },
         update: {},
         create: sh,
@@ -1195,7 +1195,7 @@ export async function GET() {
     ];
 
     for (const rmb of reimbursements) {
-      await prisma.reimbursement.upsert({
+      await db.reimbursement.upsert({
         where: { id: rmb.id },
         update: {},
         create: rmb,
@@ -1212,7 +1212,7 @@ export async function GET() {
     ];
 
     for (const ir of incidentReports) {
-      await prisma.incidentReport.upsert({
+      await db.incidentReport.upsert({
         where: { id: ir.id },
         update: {},
         create: ir,
@@ -1227,9 +1227,9 @@ export async function GET() {
       { id: 'plan-global', name: 'Global Enterprise', planType: 'global_enterprise', monthlyPrice: 799, annualPrice: 7670, employeeLimit: 50000, companyLimit: 200, branchLimit: 1000, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, mobileAppEnabled: true, apiAccessEnabled: true, whiteLabelEnabled: true, supportLevel: 'dedicated' },
       { id: 'plan-staffing', name: 'Staffing Suite', planType: 'staffing', monthlyPrice: 299, annualPrice: 2870, employeeLimit: 2000, companyLimit: 20, branchLimit: 100, payrollEnabled: true, recruitmentEnabled: true, clientPortalEnabled: true, vendorPortalEnabled: true, supportLevel: 'priority' },
     ];
-    for (const plan of plans) { await prisma.subscriptionPlan.upsert({ where: { id: plan.id }, update: {}, create: plan }); }
+    for (const plan of plans) { await getPlatformDb().subscriptionPlan.upsert({ where: { id: plan.id }, update: {}, create: plan }); }
 
-    await prisma.subscription.upsert({ where: { id: 'sub-1' }, update: {}, create: { id: 'sub-1', tenantId: tenant.id, planId: 'plan-enterprise', startDate: new Date('2024-01-01'), endDate: new Date('2025-12-31'), billingCycle: 'annual', amount: 3830, currency: 'USD', paymentStatus: 'paid', status: 'active' } });
+    await getPlatformDb().subscription.upsert({ where: { id: 'sub-1' }, update: {}, create: { id: 'sub-1', tenantId: tenant.id, planId: 'plan-enterprise', startDate: new Date('2024-01-01'), endDate: new Date('2025-12-31'), billingCycle: 'annual', amount: 3830, currency: 'USD', paymentStatus: 'paid', status: 'active' } });
 
     // ============ CLIENTS ============
     const clientData = [
@@ -1237,7 +1237,7 @@ export async function GET() {
       { id: 'client-2', name: 'Global Retail Ltd', code: 'GRL', companyId: usaCompany.id, industry: 'Retail', contactName: 'Patricia Jones', contactEmail: 'patricia@globalretail.com', contactPhone: '+44-555-3002', country: 'GB', billingCurrency: 'GBP', paymentTerms: 'net_45', contractValue: 350000 },
       { id: 'client-3', name: 'TechVentures India', code: 'TVI', companyId: indiaCompany.id, industry: 'IT Services', contactName: 'Vikram Reddy', contactEmail: 'vikram@techventures.in', contactPhone: '+91-555-3003', country: 'IN', billingCurrency: 'INR', paymentTerms: 'net_15', contractValue: 20000000 },
     ];
-    for (const cl of clientData) { await prisma.client.upsert({ where: { id: cl.id }, update: {}, create: cl }); }
+    for (const cl of clientData) { await db.client.upsert({ where: { id: cl.id }, update: {}, create: cl }); }
 
     // ============ VENDORS ============
     const vendorData = [
@@ -1246,7 +1246,7 @@ export async function GET() {
       { id: 'vendor-3', name: 'QuickHire India', code: 'QHI', companyId: indiaCompany.id, type: 'vendor', industry: 'Recruitment', contactName: 'Suresh Kumar', contactEmail: 'suresh@quickhire.in', specialization: 'BPO & IT Hiring', rating: 3.8 },
       { id: 'vendor-4', name: 'SubStaff Partners', code: 'SSP', companyId: usaCompany.id, type: 'sub_vendor', parentVendorId: 'vendor-1', industry: 'Recruitment', contactName: 'Amy Wilson', contactEmail: 'amy@substaff.com', specialization: 'Junior Developer Sourcing', rating: 3.5 },
     ];
-    for (const v of vendorData) { await prisma.vendor.upsert({ where: { id: v.id }, update: {}, create: v }); }
+    for (const v of vendorData) { await db.vendor.upsert({ where: { id: v.id }, update: {}, create: v }); }
 
     // ============ PROJECTS ============
     const projectData = [
@@ -1254,7 +1254,7 @@ export async function GET() {
       { id: 'proj-2', name: 'Mobile App Development', code: 'MAD', companyId: usaCompany.id, clientId: 'client-2', departmentId: 'dept-eng', projectType: 'client', billingType: 'fixed', currency: 'GBP', budgetAmount: 200000, estimatedHours: 3000, startDate: new Date('2025-03-01'), endDate: new Date('2025-09-30'), status: 'active', description: 'Cross-platform mobile app', progress: 20 },
       { id: 'proj-3', name: 'Internal HR Portal', code: 'IHRP', companyId: indiaCompany.id, departmentId: 'dept-eng', projectType: 'internal', billingType: 'non_billable', currency: 'INR', budgetAmount: 5000000, estimatedHours: 2000, startDate: new Date('2025-02-01'), status: 'active', description: 'Internal HR portal', progress: 50 },
     ];
-    for (const proj of projectData) { await prisma.project.upsert({ where: { id: proj.id }, update: {}, create: proj }); }
+    for (const proj of projectData) { await db.project.upsert({ where: { id: proj.id }, update: {}, create: proj }); }
 
     // ============ PROJECT TASKS ============
     const projectTasks = [
@@ -1265,7 +1265,7 @@ export async function GET() {
       { id: 'ptask-5', projectId: 'proj-2', name: 'UI/UX Design', estimatedHours: 250, priority: 'high', status: 'done', isBillable: true },
       { id: 'ptask-6', projectId: 'proj-2', name: 'React Native Dev', estimatedHours: 400, priority: 'high', status: 'in_progress', isBillable: true },
     ];
-    for (const pt of projectTasks) { await prisma.projectTask.upsert({ where: { id: pt.id }, update: {}, create: pt }); }
+    for (const pt of projectTasks) { await db.projectTask.upsert({ where: { id: pt.id }, update: {}, create: pt }); }
 
     // ============ PROJECT ALLOCATIONS ============
     const allocationData = [
@@ -1273,7 +1273,7 @@ export async function GET() {
       { id: 'alloc-2', projectId: 'proj-1', employeeId: 'emp-alice', role: 'Tech Lead', allocationPct: 80, startDate: new Date('2025-01-15'), billingStatus: 'billable', billingRate: 150, internalCostRate: 85 },
       { id: 'alloc-3', projectId: 'proj-2', employeeId: 'emp-carol', role: 'Design Lead', allocationPct: 60, startDate: new Date('2025-03-01'), billingStatus: 'billable', billingRate: 140, internalCostRate: 75 },
     ];
-    for (const alloc of allocationData) { await prisma.projectAllocation.upsert({ where: { id: alloc.id }, update: {}, create: alloc }); }
+    for (const alloc of allocationData) { await db.projectAllocation.upsert({ where: { id: alloc.id }, update: {}, create: alloc }); }
 
     // ============ TICKET CATEGORIES & TICKETS ============
     const ticketCategories = [
@@ -1283,7 +1283,7 @@ export async function GET() {
       { id: 'tc-admin', name: 'Admin Request', type: 'admin', slaHours: 48 },
       { id: 'tc-general', name: 'General', type: 'general', slaHours: 96 },
     ];
-    for (const tc of ticketCategories) { await prisma.ticketCategory.upsert({ where: { id: tc.id }, update: {}, create: tc }); }
+    for (const tc of ticketCategories) { await db.ticketCategory.upsert({ where: { id: tc.id }, update: {}, create: tc }); }
 
     const ticketData = [
       { id: 'ticket-1', ticketId: 'TK-0001', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-alice', requesterName: 'Alice Chen', subject: 'Laptop not connecting to VPN', description: 'My laptop cannot connect to the company VPN since Monday.', priority: 'high', status: 'in_progress', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez' },
@@ -1292,25 +1292,25 @@ export async function GET() {
       { id: 'ticket-4', ticketId: 'TK-0004', categoryId: 'tc-it', requesterType: 'employee', requesterId: 'emp-grace', requesterName: 'Grace Liu', subject: 'Access request for Jira project', description: 'Need access to 3BOXES-PROJ Jira project.', priority: 'low', status: 'resolved', assignedAgentId: 'user-frank', assignedAgentName: 'Frank Rodriguez', resolutionNotes: 'Access granted.', resolvedAt: new Date('2025-03-10') },
       { id: 'ticket-5', ticketId: 'TK-0005', categoryId: 'tc-general', requesterType: 'employee', requesterId: 'emp-emma', requesterName: 'Emma Thompson', subject: 'Parking space allocation', description: 'Requesting reserved parking space.', priority: 'low', status: 'closed', resolvedAt: new Date('2025-03-08'), closedAt: new Date('2025-03-09') },
     ];
-    for (const tk of ticketData) { await prisma.ticket.upsert({ where: { id: tk.id }, update: {}, create: tk }); }
+    for (const tk of ticketData) { await db.ticket.upsert({ where: { id: tk.id }, update: {}, create: tk }); }
 
     // ============ REQUISITIONS ============
     const requisitionData = [
       { id: 'req-1', requisitionId: 'REQ-0001', companyId: usaCompany.id, departmentId: 'dept-eng', designationId: 'des-eng', positionType: 'new', numberOfOpenings: 2, employmentType: 'full-time', skillsRequired: 'React, Node.js, TypeScript', experienceRequired: '3-5 years', salaryBudget: '$90,000 - $130,000', priority: 'high', expectedJoiningDate: new Date('2025-05-01'), approvalStatus: 'hr_approved', status: 'approved' },
       { id: 'req-2', requisitionId: 'REQ-0002', companyId: usaCompany.id, departmentId: 'dept-sales', designationId: 'des-sales-exec', positionType: 'new', numberOfOpenings: 3, employmentType: 'full-time', skillsRequired: 'CRM, Lead Generation', experienceRequired: '1-2 years', salaryBudget: '$60,000 - $80,000', priority: 'medium', expectedJoiningDate: new Date('2025-06-01'), approvalStatus: 'pending', status: 'open' },
     ];
-    for (const req of requisitionData) { await prisma.requisition.upsert({ where: { id: req.id }, update: {}, create: req }); }
+    for (const req of requisitionData) { await db.requisition.upsert({ where: { id: req.id }, update: {}, create: req }); }
 
     // ============ OFFERS ============
     const offerData = [
       { id: 'offer-1', candidateId: 'ja-4', candidateName: 'Nina Patel', candidateEmail: 'nina@example.com', position: 'Product Designer', department: 'Design', offeredSalary: 125000, offeredCurrency: 'USD', joiningDate: new Date('2025-04-01'), probationPeriod: 90, status: 'sent' },
       { id: 'offer-2', candidateId: 'ja-1', candidateName: 'Alex Turner', candidateEmail: 'alex@example.com', position: 'Senior Full-Stack Developer', department: 'Engineering', offeredSalary: 155000, offeredCurrency: 'USD', joiningDate: new Date('2025-05-01'), probationPeriod: 90, status: 'pending_approval' },
     ];
-    for (const off of offerData) { await prisma.offer.upsert({ where: { id: off.id }, update: {}, create: off }); }
+    for (const off of offerData) { await db.offer.upsert({ where: { id: off.id }, update: {}, create: off }); }
 
     // ============ SALARY STRUCTURES & COMPONENTS ============
-    await prisma.salaryStructure.upsert({ where: { id: 'ss-usa' }, update: {}, create: { id: 'ss-usa', name: 'USA Standard Structure', companyId: usaCompany.id, country: 'US', currency: 'USD', description: 'Standard salary structure for US employees' } });
-    await prisma.salaryStructure.upsert({ where: { id: 'ss-india' }, update: {}, create: { id: 'ss-india', name: 'India Standard Structure', companyId: indiaCompany.id, country: 'IN', currency: 'INR', description: 'Standard salary structure for India employees' } });
+    await db.salaryStructure.upsert({ where: { id: 'ss-usa' }, update: {}, create: { id: 'ss-usa', name: 'USA Standard Structure', companyId: usaCompany.id, country: 'US', currency: 'USD', description: 'Standard salary structure for US employees' } });
+    await db.salaryStructure.upsert({ where: { id: 'ss-india' }, update: {}, create: { id: 'ss-india', name: 'India Standard Structure', companyId: indiaCompany.id, country: 'IN', currency: 'INR', description: 'Standard salary structure for India employees' } });
 
     const salaryComponentData = [
       { id: 'sc-1', salaryStructureId: 'ss-usa', name: 'Basic Salary', type: 'earning', category: 'basic', calculationType: 'percentage', value: 40, percentageOf: 'CTC', isTaxable: true, sortOrder: 1 },
@@ -1321,17 +1321,17 @@ export async function GET() {
       { id: 'sc-6', salaryStructureId: 'ss-india', name: 'Provident Fund', type: 'deduction', category: 'pf', calculationType: 'percentage', value: 12, percentageOf: 'Basic Salary', isTaxable: true, isStatutory: true, maxLimit: 1800, sortOrder: 10 },
       { id: 'sc-7', salaryStructureId: 'ss-india', name: 'Professional Tax', type: 'deduction', category: 'tax', calculationType: 'fixed', value: 200, isTaxable: true, isStatutory: true, sortOrder: 12 },
     ];
-    for (const sc of salaryComponentData) { await prisma.salaryComponent.upsert({ where: { id: sc.id }, update: {}, create: sc }); }
+    for (const sc of salaryComponentData) { await db.salaryComponent.upsert({ where: { id: sc.id }, update: {}, create: sc }); }
 
     // ============ WORKFLOW DEFINITIONS ============
     const workflowData = [
       { id: 'wf-leave', name: 'Leave Approval', module: 'leave', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'admin', isRequired: true }, { stepNumber: 2, approverRole: 'admin', isRequired: true }]), version: 1 },
       { id: 'wf-requisition', name: 'Requisition Approval', module: 'recruitment', companyId: usaCompany.id, steps: JSON.stringify([{ stepNumber: 1, approverRole: 'admin', isRequired: true }, { stepNumber: 2, approverRole: 'admin', isRequired: true }, { stepNumber: 3, approverRole: 'tenant_admin', isRequired: false }]), version: 1 },
     ];
-    for (const wf of workflowData) { await prisma.workflowDefinition.upsert({ where: { id: wf.id }, update: {}, create: wf }); }
+    for (const wf of workflowData) { await db.workflowDefinition.upsert({ where: { id: wf.id }, update: {}, create: wf }); }
 
     // ============ FNF ============
-    await prisma.fNFCalculation.upsert({ where: { id: 'fnf-1' }, update: {}, create: { id: 'fnf-1', employeeId: 'emp-admin', pendingSalary: 10416.67, leaveEncashment: 3472.22, bonus: 2000, totalEarnings: 15888.89, taxDeduction: 2383.33, totalDeductions: 2383.33, netAmount: 13505.56, currency: 'USD', status: 'pending' } });
+    await db.fNFCalculation.upsert({ where: { id: 'fnf-1' }, update: {}, create: { id: 'fnf-1', employeeId: 'emp-admin', pendingSalary: 10416.67, leaveEncashment: 3472.22, bonus: 2000, totalEarnings: 15888.89, taxDeduction: 2383.33, totalDeductions: 2383.33, netAmount: 13505.56, currency: 'USD', status: 'pending' } });
 
     // ============ RBAC - Modules & Permissions ============
     let rbacModulesCreated = 0;
@@ -1386,12 +1386,12 @@ export async function GET() {
 
       // Create modules and permissions
       for (const mod of RBAC_MODULES) {
-        const existing = await prisma.module.findUnique({ where: { key: mod.key } });
+        const existing = await db.module.findUnique({ where: { key: mod.key } });
         if (!existing) {
-          const created = await prisma.module.create({ data: mod });
+          const created = await db.module.create({ data: mod });
           const actions = RBAC_LIMITED_MODULES.includes(mod.key) ? ['view'] : RBAC_DEFAULT_ACTIONS;
           for (const action of actions) {
-            await prisma.permission.create({ data: { moduleId: created.id, action, description: `${action} ${mod.name.toLowerCase()}` } });
+            await db.permission.create({ data: { moduleId: created.id, action, description: `${action} ${mod.name.toLowerCase()}` } });
             rbacPermissionsCreated++;
           }
           rbacModulesCreated++;
@@ -1408,9 +1408,9 @@ export async function GET() {
       const createdRoleIds: Record<string, string> = {};
       for (const roleDef of RBAC_ROLES) {
         const roleTenantId = roleDef.tenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin' ? tenant.id : roleDef.tenantId ?? null;
-        const existing = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: roleTenantId, companyId: null } });
+        const existing = await db.role.findFirst({ where: { key: roleDef.key, tenantId: roleTenantId, companyId: null } });
         if (!existing) {
-          const role = await prisma.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: 'user-admin' } });
+          const role = await db.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: 'user-admin' } });
           createdRoleIds[roleDef.key] = role.id;
           rbacRolesCreated++;
         } else {
@@ -1419,7 +1419,7 @@ export async function GET() {
       }
 
       // Assign permissions to roles
-      const allMods = await prisma.module.findMany({ include: { permissions: true } });
+      const allMods = await db.module.findMany({ include: { permissions: true } });
       const modMap = new Map(allMods.map(m => [m.key, m]));
 
       const assignPerms = async (roleId: string, modKeys: string[], actions?: string[]) => {
@@ -1429,9 +1429,9 @@ export async function GET() {
           for (const p of m.permissions) {
             if (actions && !actions.includes(p.action)) continue;
             try {
-              const existing = await prisma.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: p.id } } });
+              const existing = await db.rolePermission.findUnique({ where: { roleId_permissionId: { roleId, permissionId: p.id } } });
               if (!existing) {
-                await prisma.rolePermission.create({ data: { roleId, permissionId: p.id, granted: true } });
+                await db.rolePermission.create({ data: { roleId, permissionId: p.id, granted: true } });
                 rbacRolePermissionsCreated++;
               }
             } catch { /* skip duplicates */ }
@@ -1463,7 +1463,7 @@ export async function GET() {
         const rKey = roleMapping[u.role];
         if (!rKey || !createdRoleIds[rKey]) continue;
         try {
-          await prisma.userRoleAssignment.create({ data: { userId: u.id, roleId: createdRoleIds[rKey], companyId: rKey !== 'super_admin' && rKey !== 'tenant_admin' ? usaCompany.id : null, assignedBy: 'user-admin' } });
+          await db.userRoleAssignment.create({ data: { userId: u.id, roleId: createdRoleIds[rKey], companyId: rKey !== 'super_admin' && rKey !== 'tenant_admin' ? usaCompany.id : null, assignedBy: 'user-admin' } });
           rbacUserRoleAssignmentsCreated++;
         } catch { /* skip duplicates */ }
       }

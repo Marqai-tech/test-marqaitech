@@ -48,7 +48,7 @@
  *   }
  */
 import { requireUser, findEmployeeByEmail, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { Prisma } from '@/generated/prisma/client';
 import { localDayStartFor, localMinutesSinceMidnight, resolveTimezone } from '@/lib/timezone-utils';
 
@@ -95,7 +95,7 @@ function isInsidePolygon(lat: number, lng: number, polygon: unknown): boolean {
 }
 
 async function resolveThresholds() {
-  const t = await prisma.attendanceAiThreshold.findFirst({
+  const t = await db.attendanceAiThreshold.findFirst({
     where: { isActive: true },
     orderBy: { updatedAt: 'desc' },
   });
@@ -112,6 +112,7 @@ async function resolveThresholds() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   // 1. Authenticate user (NOT device — this is the mobile app)
   const { user, response } = await requireUser(request);
   if (!user) return response;
@@ -130,8 +131,8 @@ export async function POST(request: Request) {
   let employeeTz = 'UTC';
   try {
     const [branch, company, tenant] = await Promise.all([
-      emp.branchId ? prisma.branch.findUnique({ where: { id: emp.branchId }, select: { timezone: true, name: true } }) : null,
-      emp.companyId ? prisma.company.findUnique({ where: { id: emp.companyId }, select: { timezone: true, name: true } }) : null,
+      emp.branchId ? db.branch.findUnique({ where: { id: emp.branchId }, select: { timezone: true, name: true } }) : null,
+      emp.companyId ? db.company.findUnique({ where: { id: emp.companyId }, select: { timezone: true, name: true } }) : null,
       null, // tenant lookup would go here if Employee had tenantId
     ]);
     employeeTz = resolveTimezone([branch, company]);
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
   //    Find all active geofences. If body.geofenceId is provided, validate
   //    against that one specifically. Otherwise find the nearest one and
   //    check if the punch is inside it.
-  const geofences = await prisma.geofence.findMany({
+  const geofences = await db.geofence.findMany({
     where: { isActive: true },
     include: { branch: { select: { id: true, name: true } } },
   });
@@ -212,7 +213,7 @@ export async function POST(request: Request) {
 
     // Optional: cross-check the provided templateHash against the employee's enrollment
     if (b.templateHash) {
-      const enrollment = await prisma.biometricEnrollment.findFirst({
+      const enrollment = await db.biometricEnrollment.findFirst({
         where: { employeeId: emp.id, isActive: true },
       });
       if (enrollment && enrollment.templateHash !== b.templateHash) {
@@ -243,7 +244,7 @@ export async function POST(request: Request) {
 
   // 6. Persist WfhAttendanceSnapshot (REQ-ATT-06, REQ-SEC-ATT-01)
   //    ONE GPS snapshot per punch — no continuous tracking.
-  const snapshot = await prisma.wfhAttendanceSnapshot.create({
+  const snapshot = await db.wfhAttendanceSnapshot.create({
     data: {
       employeeId: emp.id,
       date: new Date(punchTime.getTime()),
@@ -269,12 +270,12 @@ export async function POST(request: Request) {
   let attendanceId: string | null = null;
   let previousStatus: string | null = null;
   try {
-    const existing = await prisma.attendance.findUnique({
+    const existing = await db.attendance.findUnique({
       where: { employeeId_date: { employeeId: emp.id, date: dayStart } },
     });
     previousStatus = existing?.status || null;
 
-    const attendance = await prisma.attendance.upsert({
+    const attendance = await db.attendance.upsert({
       where: { employeeId_date: { employeeId: emp.id, date: dayStart } },
       create: {
         employeeId: emp.id,
@@ -300,7 +301,7 @@ export async function POST(request: Request) {
 
   // 8. Audit log (REQ-SEC-ATT-04)
   try {
-    await prisma.attendanceAuditLog.create({
+    await db.attendanceAuditLog.create({
       data: {
         employeeId: emp.id,
         attendanceId,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { v4 as uuidv4 } from 'crypto';
 
 // Simple UUID generator (doesn't need crypto import)
@@ -8,6 +8,7 @@ function generateToken(): string {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { secret } = body;
@@ -19,29 +20,29 @@ export async function POST(request: Request) {
     console.log('[AI-Interview-Seed] Starting AI Interview data seeding...');
 
     // Find the tenant (try both slugs)
-    let tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
+    let tenant = await getPlatformDb().tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
     if (!tenant) {
-      tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
+      tenant = await getPlatformDb().tenant.findFirst({ where: { slug: '3boxes-hrms-demo' } });
     }
     if (!tenant) {
-      tenant = await prisma.tenant.findFirst({ where: { slug: '3boxes-corp' } });
+      tenant = await getPlatformDb().tenant.findFirst({ where: { slug: '3boxes-corp' } });
     }
     if (!tenant) {
       // Find any active tenant
-      tenant = await prisma.tenant.findFirst({ where: { status: 'active' } });
+      tenant = await getPlatformDb().tenant.findFirst({ where: { status: 'active' } });
     }
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found. Run reseed first.' }, { status: 400 });
     }
 
     // Find the recruiter user
-    const recruiterUser = await prisma.user.findUnique({ where: { email: 'recruiter@3boxeshrms.com' } });
+    const recruiterUser = await db.user.findUnique({ where: { email: 'recruiter@3boxeshrms.com' } });
     if (!recruiterUser) {
       return NextResponse.json({ error: 'Recruiter user not found. Run reseed first.' }, { status: 400 });
     }
 
     // Find existing interview sets to avoid duplicates
-    const existingSets = await prisma.interviewSet.findMany({
+    const existingSets = await db.interviewSet.findMany({
       where: { tenantId: tenant.id },
     });
     const existingTitles = new Set(existingSets.map(s => s.title));
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
     // ====== Interview Set 1: Senior Full-Stack Developer (Video) ======
     if (!existingTitles.has('Senior Full-Stack Developer - Technical Assessment')) {
-      const set1 = await prisma.interviewSet.create({
+      const set1 = await db.interviewSet.create({
         data: {
           title: 'Senior Full-Stack Developer - Technical Assessment',
           roleTitle: 'Senior Full-Stack Developer',
@@ -92,14 +93,14 @@ export async function POST(request: Request) {
       ];
 
       for (const q of questions1) {
-        await prisma.interviewSetQuestion.create({
+        await db.interviewSetQuestion.create({
           data: { setId: set1.id, ...q },
         });
         results.questions++;
       }
 
       // Create a completed session for this set
-      const session1 = await prisma.interviewSession.create({
+      const session1 = await db.interviewSession.create({
         data: {
           setId: set1.id,
           candidateName: 'Alex Turner',
@@ -137,14 +138,14 @@ export async function POST(request: Request) {
       ];
 
       for (const r of responses1) {
-        await prisma.interviewResponse.create({
+        await db.interviewResponse.create({
           data: { sessionId: session1.id, ...r, isFollowUp: false, isCvBased: r.order === 5 },
         });
         results.responses++;
       }
 
       // Proctoring logs for session 1 (clean session, minor events)
-      await prisma.proctoringLog.create({
+      await db.proctoringLog.create({
         data: {
           sessionId: session1.id,
           eventType: 'tab_switch',
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
       results.proctoringLogs++;
 
       // Invitation for set 1
-      await prisma.interviewInvitation.create({
+      await db.interviewInvitation.create({
         data: {
           setId: set1.id,
           candidateEmail: 'alex.turner@email.com',
@@ -172,7 +173,7 @@ export async function POST(request: Request) {
       results.invitations++;
 
       // Create an in-progress session for set 1 (Maya Singh)
-      await prisma.interviewSession.create({
+      await db.interviewSession.create({
         data: {
           setId: set1.id,
           candidateName: 'Maya Singh',
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
       results.sessions++;
 
       // Pending invitation for set 1
-      await prisma.interviewInvitation.create({
+      await db.interviewInvitation.create({
         data: {
           setId: set1.id,
           candidateEmail: 'john.doe@email.com',
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
 
     // ====== Interview Set 2: UX Research Lead (Voice) ======
     if (!existingTitles.has('UX Research Lead - Behavioral Assessment')) {
-      const set2 = await prisma.interviewSet.create({
+      const set2 = await db.interviewSet.create({
         data: {
           title: 'UX Research Lead - Behavioral Assessment',
           roleTitle: 'UX Research Lead',
@@ -238,14 +239,14 @@ export async function POST(request: Request) {
       ];
 
       for (const q of questions2) {
-        await prisma.interviewSetQuestion.create({
+        await db.interviewSetQuestion.create({
           data: { setId: set2.id, ...q, followUpPrompts: null },
         });
         results.questions++;
       }
 
       // Scheduled session for set 2
-      const session2 = await prisma.interviewSession.create({
+      const session2 = await db.interviewSession.create({
         data: {
           setId: set2.id,
           candidateName: 'Sophie Martin',
@@ -259,7 +260,7 @@ export async function POST(request: Request) {
       });
       results.sessions++;
 
-      await prisma.interviewInvitation.create({
+      await db.interviewInvitation.create({
         data: {
           setId: set2.id,
           candidateEmail: 'sophie.martin@email.com',
@@ -276,7 +277,7 @@ export async function POST(request: Request) {
 
     // ====== Interview Set 3: Data Scientist (Text Chat) ======
     if (!existingTitles.has('Data Scientist - Technical Screening')) {
-      const set3 = await prisma.interviewSet.create({
+      const set3 = await db.interviewSet.create({
         data: {
           title: 'Data Scientist - Technical Screening',
           roleTitle: 'Data Scientist',
@@ -308,14 +309,14 @@ export async function POST(request: Request) {
       ];
 
       for (const q of questions3) {
-        await prisma.interviewSetQuestion.create({
+        await db.interviewSetQuestion.create({
           data: { setId: set3.id, ...q, followUpPrompts: null },
         });
         results.questions++;
       }
 
       // Completed session for Data Scientist
-      const session3 = await prisma.interviewSession.create({
+      const session3 = await db.interviewSession.create({
         data: {
           setId: set3.id,
           candidateName: 'Wei Zhang',
@@ -347,14 +348,14 @@ export async function POST(request: Request) {
       ];
 
       for (const r of responses3) {
-        const response = await prisma.interviewResponse.create({
+        const response = await db.interviewResponse.create({
           data: { sessionId: session3.id, ...r, isFollowUp: false, isCvBased: false },
         });
         results.responses++;
 
         // Add a follow-up question for the first response
         if (r.order === 1) {
-          await prisma.interviewResponse.create({
+          await db.interviewResponse.create({
             data: {
               sessionId: session3.id,
               order: 3,
@@ -380,13 +381,13 @@ export async function POST(request: Request) {
       ];
 
       for (const p of proctoringEvents) {
-        await prisma.proctoringLog.create({
+        await db.proctoringLog.create({
           data: { sessionId: session3.id, ...p, screenshotUrl: null },
         });
         results.proctoringLogs++;
       }
 
-      await prisma.interviewInvitation.create({
+      await db.interviewInvitation.create({
         data: {
           setId: set3.id,
           candidateEmail: 'wei.zhang@email.com',
@@ -404,7 +405,7 @@ export async function POST(request: Request) {
 
     // ====== Interview Set 4: HR Business Partner (MCQ + Text) ======
     if (!existingTitles.has('HR Business Partner - Competency Assessment')) {
-      const set4 = await prisma.interviewSet.create({
+      const set4 = await db.interviewSet.create({
         data: {
           title: 'HR Business Partner - Competency Assessment',
           roleTitle: 'HR Business Partner',
@@ -436,14 +437,14 @@ export async function POST(request: Request) {
       ];
 
       for (const q of questions4) {
-        await prisma.interviewSetQuestion.create({
+        await db.interviewSetQuestion.create({
           data: { setId: set4.id, ...q, followUpPrompts: null },
         });
         results.questions++;
       }
 
       // Completed session with high score for set 4
-      const session4 = await prisma.interviewSession.create({
+      const session4 = await db.interviewSession.create({
         data: {
           setId: set4.id,
           candidateName: 'James Williams',
@@ -468,7 +469,7 @@ export async function POST(request: Request) {
       });
       results.sessions++;
 
-      await prisma.interviewInvitation.create({
+      await db.interviewInvitation.create({
         data: {
           setId: set4.id,
           candidateEmail: 'james.williams@email.com',
@@ -486,7 +487,7 @@ export async function POST(request: Request) {
 
     // ====== Interview Set 5: Multi-language Video Interview (Draft) ======
     if (!existingTitles.has('Global Sales Manager - Multilingual Assessment')) {
-      const set5 = await prisma.interviewSet.create({
+      const set5 = await db.interviewSet.create({
         data: {
           title: 'Global Sales Manager - Multilingual Assessment',
           roleTitle: 'Global Sales Manager',
@@ -518,7 +519,7 @@ export async function POST(request: Request) {
       ];
 
       for (const q of questions5) {
-        await prisma.interviewSetQuestion.create({
+        await db.interviewSetQuestion.create({
           data: { setId: set5.id, ...q, followUpPrompts: null },
         });
         results.questions++;
@@ -527,7 +528,7 @@ export async function POST(request: Request) {
 
     // ====== Interview Set 6: Coding Challenge ======
     if (!existingTitles.has('Backend Engineer - Coding Challenge')) {
-      const set6 = await prisma.interviewSet.create({
+      const set6 = await db.interviewSet.create({
         data: {
           title: 'Backend Engineer - Coding Challenge',
           roleTitle: 'Backend Engineer',
@@ -559,14 +560,14 @@ export async function POST(request: Request) {
       ];
 
       for (const q of questions6) {
-        await prisma.interviewSetQuestion.create({
+        await db.interviewSetQuestion.create({
           data: { setId: set6.id, ...q },
         });
         results.questions++;
       }
 
       // Expired invitation for set 6
-      await prisma.interviewInvitation.create({
+      await db.interviewInvitation.create({
         data: {
           setId: set6.id,
           candidateEmail: 'lisa.park@email.com',
@@ -581,7 +582,7 @@ export async function POST(request: Request) {
       results.invitations++;
 
       // Disqualified session for set 6
-      const session6 = await prisma.interviewSession.create({
+      const session6 = await db.interviewSession.create({
         data: {
           setId: set6.id,
           candidateName: 'Tom Baker',
@@ -606,7 +607,7 @@ export async function POST(request: Request) {
       ];
 
       for (const p of disqualifyLogs) {
-        await prisma.proctoringLog.create({
+        await db.proctoringLog.create({
           data: { sessionId: session6.id, ...p, screenshotUrl: p.screenshotUrl || null },
         });
         results.proctoringLogs++;

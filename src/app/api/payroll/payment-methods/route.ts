@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (isPrimary !== null && isPrimary !== undefined) where.isPrimary = isPrimary === 'true';
 
     try {
-      const data = await prisma.employeePaymentMethod.findMany({
+      const data = await db.employeePaymentMethod.findMany({
         where,
         include: {
           employee: {
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     // If this is set as primary, unset other primary methods for the same employee
     if (body.isPrimary && body.employeeId) {
       try {
-        await prisma.employeePaymentMethod.updateMany({
+        await db.employeePaymentMethod.updateMany({
           where: { employeeId: body.employeeId, isPrimary: true },
           data: { isPrimary: false },
         });
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const data = await prisma.employeePaymentMethod.create({ data: body });
+      const data = await db.employeePaymentMethod.create({ data: body });
 
       return Response.json({ data, message: 'Employee payment method created successfully' }, { headers: corsHeaders });
     } catch (dbError: unknown) {

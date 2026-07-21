@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get('clientId');
 
-    const clients = await prisma.client.findMany({
+    const clients = await db.client.findMany({
       where: clientId ? { id: clientId } : { status: 'active' },
       include: {
         projects: { include: { timesheets: { select: { hours: true } }, allocations: { select: { employeeId: true, allocationPct: true } } } },
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
         costEmployee += hrs * (p.costRate || 0);
       }
       // Vendor cost = sum of vendor invoices linked to client's projects (approximation via PO)
-      const vendorPOs = await prisma.purchaseOrder.findMany({
+      const vendorPOs = await db.purchaseOrder.findMany({
         where: { projectId: { in: c.projects.map(p => p.id) } },
         include: { vendorInvoices: { select: { baseAmount: true, status: true } } },
       });
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
       const grossMargin = revenueBase - costEmployee - costVendor;
       const marginPct = revenueBase > 0 ? (grossMargin / revenueBase) * 100 : 0;
 
-      const snap = await prisma.clientMarginSnapshot.create({
+      const snap = await db.clientMarginSnapshot.create({
         data: { clientId: c.id, revenueBase, costEmployee, costVendor, grossMargin, marginPct, currency: c.billingCurrency || 'INR' },
       });
       results.push({ clientId: c.id, clientName: c.name, revenueBase, costEmployee, costVendor, grossMargin, marginPct: Math.round(marginPct * 100) / 100, snapshotId: snap.id });

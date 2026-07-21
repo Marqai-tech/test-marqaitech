@@ -10,7 +10,7 @@
 // entries (e.g. regionCode='CA' for California) override the default for
 // that region.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -29,6 +29,7 @@ export async function OPTIONS() {
 //   ?regionCode=CA
 //   ?active=true
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     let data: unknown[] = [];
     try {
-      data = await prisma.minimumWageConfig.findMany({
+      data = await db.minimumWageConfig.findMany({
         where,
         orderBy: [{ countryCode: 'asc' }, { regionCode: 'asc' }, { effectiveFrom: 'desc' }],
         take: 200,
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
 //           effectiveFrom?, effectiveTo?, applicability?, sourceName?, sourceUrl?,
 //           companyId? }
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
     if (!body.currencyCode) return Response.json({ error: 'currencyCode required' }, { status: 400, headers: corsHeaders });
 
-    const created = await prisma.minimumWageConfig.create({
+    const created = await db.minimumWageConfig.create({
       data: {
         countryCode: String(body.countryCode).toUpperCase(),
         regionCode: body.regionCode ? String(body.regionCode).toUpperCase() : null,
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
 // PATCH /api/payroll/minimum-wage
 //   body: { id, isActive?, effectiveTo?, minimumAmount?, ... }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -131,7 +134,7 @@ export async function PATCH(request: NextRequest) {
     if (typeof body.sourceName === 'string') updateData.sourceName = body.sourceName;
     if (typeof body.sourceUrl === 'string') updateData.sourceUrl = body.sourceUrl;
 
-    const updated = await prisma.minimumWageConfig.update({
+    const updated = await db.minimumWageConfig.update({
       where: { id: body.id },
       data: updateData,
     });

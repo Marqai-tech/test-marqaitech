@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
@@ -25,6 +25,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -50,7 +51,7 @@ export async function GET(
     }
 
     const project = await withSchemaSync(() =>
-      prisma.project.findUnique({
+      db.project.findUnique({
         where: { id },
         include: {
           client: { select: { id: true, name: true, code: true, contactName: true, contactEmail: true, billingCurrency: true } },
@@ -109,6 +110,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -138,7 +140,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = await db.project.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -167,7 +169,7 @@ export async function PUT(
     if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null;
 
     const project = await withSchemaSync(() =>
-      prisma.project.update({
+      db.project.update({
         where: { id },
         data: updateData,
         include: {
@@ -177,7 +179,7 @@ export async function PUT(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_PROJECT',
@@ -199,6 +201,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -227,7 +230,7 @@ export async function PATCH(
 
     const body = await request.json();
 
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = await db.project.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -255,7 +258,7 @@ export async function PATCH(
     if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null;
 
     const project = await withSchemaSync(() =>
-      prisma.project.update({
+      db.project.update({
         where: { id },
         data: updateData,
         include: {
@@ -267,7 +270,7 @@ export async function PATCH(
 
     // Notify relevant users on status change
     if (body.status && body.status !== existing.status) {
-      const allocations = await prisma.projectAllocation.findMany({
+      const allocations = await db.projectAllocation.findMany({
         where: { projectId: id, status: 'active' },
         include: { employee: { include: { user: true } } },
       });
@@ -287,7 +290,7 @@ export async function PATCH(
       }
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_PROJECT',
@@ -310,6 +313,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -333,21 +337,21 @@ export async function DELETE(
       );
     }
 
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = await db.project.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // Delete related records first (members, tasks, allocations, milestones)
-    await withSchemaSync(() => prisma.projectMember.deleteMany({ where: { projectId: id } }));
-    await prisma.projectTask.deleteMany({ where: { projectId: id } });
-    await prisma.projectAllocation.deleteMany({ where: { projectId: id } });
-    await prisma.projectMilestone.deleteMany({ where: { projectId: id } });
+    await withSchemaSync(() => db.projectMember.deleteMany({ where: { projectId: id } }));
+    await db.projectTask.deleteMany({ where: { projectId: id } });
+    await db.projectAllocation.deleteMany({ where: { projectId: id } });
+    await db.projectMilestone.deleteMany({ where: { projectId: id } });
 
     // Delete the project
-    await prisma.project.delete({ where: { id } });
+    await db.project.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_PROJECT',

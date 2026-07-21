@@ -4,7 +4,7 @@
  *   body: { tier: "manager" | "security", action: "approved" | "rejected", comments? }
  */
 import { requireUser, isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
@@ -12,6 +12,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only managers/security can approve', 403);
@@ -25,7 +26,7 @@ export async function PATCH(
   if (!['approved', 'rejected'].includes(action)) return fail('Invalid action');
 
   try {
-    const existing = await prisma.gatepass.findUnique({ where: { id } });
+    const existing = await db.gatepass.findUnique({ where: { id } });
     if (!existing) return fail('Not found', 404);
 
     const approver = user.id || user.email || 'system';
@@ -53,7 +54,7 @@ export async function PATCH(
       data.status = 'pending';
     }
 
-    const updated = await prisma.gatepass.update({ where: { id }, data });
+    const updated = await db.gatepass.update({ where: { id }, data });
     return ok({ gatepass: updated });
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to update', 500);
@@ -64,6 +65,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   // Mark gatepass as completed (visitor/contractor returned)
   const { user, response } = await requireUser(request);
   if (!user) return response;
@@ -73,7 +75,7 @@ export async function PUT(
   const { id } = await params;
 
   try {
-    const updated = await prisma.gatepass.update({
+    const updated = await db.gatepass.update({
       where: { id },
       data: {
         actualInTime: body.actualInTime ? new Date(body.actualInTime as string) : new Date(),

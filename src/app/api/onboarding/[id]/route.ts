@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -29,7 +30,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (body.status === 'completed') data.completedDate = new Date();
     }
 
-    const task = await prisma.onboardingTask.update({
+    const task = await db.onboardingTask.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
@@ -43,6 +44,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -61,7 +63,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
     if (body.notes !== undefined) data.notes = body.notes;
 
-    const task = await prisma.onboardingTask.update({
+    const task = await db.onboardingTask.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
@@ -75,6 +77,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -83,12 +86,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     // Check if user is admin
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    const user = await db.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user || !['super_admin', 'tenant_admin', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
-    await prisma.onboardingTask.delete({ where: { id } });
+    await db.onboardingTask.delete({ where: { id } });
 
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {

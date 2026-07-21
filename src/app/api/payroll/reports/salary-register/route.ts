@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -21,6 +21,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
     // Fetch payroll records for the given period
     let payrolls: any[] = [];
     try {
-      payrolls = await prisma.payroll.findMany({
+      payrolls = await db.payroll.findMany({
         where: { month: monthNum, year: yearNum },
         include: {
           employee: {
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
     // Also try payroll run transaction lines for richer data
     let payrollRuns: { id: string }[] = [];
     try {
-      payrollRuns = await prisma.payrollRun.findMany({
+      payrollRuns = await db.payrollRun.findMany({
         where: {
           payrollPeriod: periodStr,
           ...(companyId ? { companyId } : {}),
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
           tlWhere.employee = { department: { companyId } };
         }
 
-        transactionLines = await prisma.payrollTransactionLine.findMany({
+        transactionLines = await db.payrollTransactionLine.findMany({
           where: tlWhere,
           include: {
             employee: {

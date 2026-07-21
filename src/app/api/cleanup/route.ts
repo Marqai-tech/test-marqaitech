@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -29,6 +29,7 @@ export async function OPTIONS() {
  * Body: { confirm: boolean }
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     console.log('[CLEANUP] Starting sample data cleanup...');
 
     // Find the tenants to clean up by their domain/slug
-    const tenantsToClean = await prisma.tenant.findMany({
+    const tenantsToClean = await getPlatformDb().tenant.findMany({
       where: {
         OR: [
           { domain: '3boxeshrms.com' },
@@ -80,41 +81,41 @@ export async function POST(request: Request) {
       const deleted: Record<string, number> = {};
 
       // Get all company IDs in this tenant's company groups
-      const companyGroups = await prisma.companyGroup.findMany({
+      const companyGroups = await db.companyGroup.findMany({
         where: { tenantId: tenant.id },
         select: { id: true },
       });
       const groupIds = companyGroups.map(g => g.id);
 
-      const companies = await prisma.company.findMany({
+      const companies = await db.company.findMany({
         where: { companyGroupId: { in: groupIds } },
         select: { id: true },
       });
       const companyIds = companies.map(c => c.id);
 
       // Get all department IDs
-      const departments = await prisma.department.findMany({
+      const departments = await db.department.findMany({
         where: { companyId: { in: companyIds } },
         select: { id: true },
       });
       const deptIds = departments.map(d => d.id);
 
       // Get all branch IDs
-      const branches = await prisma.branch.findMany({
+      const branches = await db.branch.findMany({
         where: { companyId: { in: companyIds } },
         select: { id: true },
       });
       const branchIds = branches.map(b => b.id);
 
       // Get all designation IDs
-      const designations = await prisma.designation.findMany({
+      const designations = await db.designation.findMany({
         where: { departmentId: { in: deptIds } },
         select: { id: true },
       });
       const designationIds = designations.map(d => d.id);
 
       // Get all employee IDs for this tenant's companies
-      const employees = await prisma.employee.findMany({
+      const employees = await db.employee.findMany({
         where: { companyId: { in: companyIds } },
         select: { id: true, userId: true },
       });
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
 
       // 1. EmployeeCompanyMappings
       try {
-        const r = await prisma.employeeCompanyMapping.deleteMany({
+        const r = await db.employeeCompanyMapping.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.employeeCompanyMappings = r.count;
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
 
       // 2. Attendance records
       try {
-        const r = await prisma.attendance.deleteMany({
+        const r = await db.attendance.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.attendance = r.count;
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
 
       // 3. Leave records
       try {
-        const r = await prisma.leave.deleteMany({
+        const r = await db.leave.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.leaves = r.count;
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
 
       // 4. Leave balances
       try {
-        const r = await prisma.leaveBalance.deleteMany({
+        const r = await db.leaveBalance.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.leaveBalances = r.count;
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
 
       // 5. Payroll records
       try {
-        const r = await prisma.payroll.deleteMany({
+        const r = await db.payroll.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.payrolls = r.count;
@@ -165,7 +166,7 @@ export async function POST(request: Request) {
 
       // 6. Expense claims
       try {
-        const r = await prisma.expenseClaim.deleteMany({
+        const r = await db.expenseClaim.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.expenseClaims = r.count;
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
 
       // 7. Travel requests
       try {
-        const r = await prisma.travelRequest.deleteMany({
+        const r = await db.travelRequest.deleteMany({
           where: { employeeId: { in: employeeIds } },
         });
         deleted.travelRequests = r.count;
@@ -181,7 +182,7 @@ export async function POST(request: Request) {
 
       // 8. Notifications
       try {
-        const r = await prisma.notification.deleteMany({
+        const r = await db.notification.deleteMany({
           where: { userId: { in: userIds } },
         });
         deleted.notifications = r.count;
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
 
       // 9. Audit logs
       try {
-        const r = await prisma.auditLog.deleteMany({
+        const r = await db.auditLog.deleteMany({
           where: { userId: { in: userIds } },
         });
         deleted.auditLogs = r.count;
@@ -197,7 +198,7 @@ export async function POST(request: Request) {
 
       // 10. UserRoleAssignments
       try {
-        const r = await prisma.userRoleAssignment.deleteMany({
+        const r = await db.userRoleAssignment.deleteMany({
           where: { userId: { in: userIds } },
         });
         deleted.userRoleAssignments = r.count;
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
 
       // 11. Employees
       try {
-        const r = await prisma.employee.deleteMany({
+        const r = await db.employee.deleteMany({
           where: { id: { in: employeeIds } },
         });
         deleted.employees = r.count;
@@ -214,7 +215,7 @@ export async function POST(request: Request) {
       // 12. Users (non-admin users in this tenant)
       try {
         // Keep tenant_admin and super_admin users — only delete sample employees
-        const r = await prisma.user.deleteMany({
+        const r = await db.user.deleteMany({
           where: {
             tenantId: tenant.id,
             role: 'employee',
@@ -225,7 +226,7 @@ export async function POST(request: Request) {
 
       // 13. Designations
       try {
-        const r = await prisma.designation.deleteMany({
+        const r = await db.designation.deleteMany({
           where: { id: { in: designationIds } },
         });
         deleted.designations = r.count;
@@ -233,7 +234,7 @@ export async function POST(request: Request) {
 
       // 14. Departments
       try {
-        const r = await prisma.department.deleteMany({
+        const r = await db.department.deleteMany({
           where: { id: { in: deptIds } },
         });
         deleted.departments = r.count;
@@ -241,7 +242,7 @@ export async function POST(request: Request) {
 
       // 15. Branches
       try {
-        const r = await prisma.branch.deleteMany({
+        const r = await db.branch.deleteMany({
           where: { id: { in: branchIds } },
         });
         deleted.branches = r.count;
@@ -249,7 +250,7 @@ export async function POST(request: Request) {
 
       // 16. Shifts
       try {
-        const r = await prisma.shift.deleteMany({
+        const r = await db.shift.deleteMany({
           where: { companyId: { in: companyIds } },
         });
         deleted.shifts = r.count;
@@ -257,7 +258,7 @@ export async function POST(request: Request) {
 
       // 17. Holidays
       try {
-        const r = await prisma.holiday.deleteMany({
+        const r = await db.holiday.deleteMany({
           where: { companyId: { in: companyIds } },
         });
         deleted.holidays = r.count;
@@ -265,7 +266,7 @@ export async function POST(request: Request) {
 
       // 18. Leave types
       try {
-        const r = await prisma.leaveType.deleteMany({
+        const r = await db.leaveType.deleteMany({
           where: { companyId: { in: companyIds } },
         });
         deleted.leaveTypes = r.count;
@@ -273,7 +274,7 @@ export async function POST(request: Request) {
 
       // 19. Policies
       try {
-        const r = await prisma.policy.deleteMany({
+        const r = await db.policy.deleteMany({
           where: { companyId: { in: companyIds } },
         });
         deleted.policies = r.count;
@@ -281,7 +282,7 @@ export async function POST(request: Request) {
 
       // 20. Salary structures
       try {
-        const r = await prisma.salaryStructure.deleteMany({
+        const r = await db.salaryStructure.deleteMany({
           where: { companyId: { in: companyIds } },
         });
         deleted.salaryStructures = r.count;

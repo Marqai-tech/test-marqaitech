@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,6 +7,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns call logs for the current user (as initiator or participant).
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ calls: [] });
 
     const where: Record<string, unknown> = {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     };
     if (status) where.status = status;
 
-    const calls = await prisma.callLog.findMany({
+    const calls = await db.callLog.findMany({
       where,
       orderBy: { startedAt: 'desc' },
       take: limit,
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
  * REQ-SEC-EMP-03: E2EE for 1:1 WebRTC calls
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -73,13 +75,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one participant is required' }, { status: 400 });
     }
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // REQ-SEC-EMP-03: Native WebRTC 1:1 calls are E2EE
     const isE2EE = provider === 'native_webrtc' && participantIds.length === 1;
 
-    const call = await prisma.callLog.create({
+    const call = await db.callLog.create({
       data: {
         callType,
         provider,
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
  * Body: { callId, action: 'end'|'answer', endedAt?, durationSec?, status? }
  */
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -136,7 +139,7 @@ export async function PATCH(request: NextRequest) {
       updates.status = 'answered';
     }
 
-    const call = await prisma.callLog.update({
+    const call = await db.callLog.update({
       where: { id: callId },
       data: updates,
     });

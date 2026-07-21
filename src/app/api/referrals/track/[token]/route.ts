@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 /**
@@ -39,7 +39,7 @@ export async function GET(
     // don't get lost (Prisma's update() with {increment: {clickCount: 1}}
     // compiles to `UPDATE ... SET clickCount = clickCount + 1`).
     const referral = await withSchemaSync(() =>
-      prisma.referral.update({
+      db.referral.update({
         where: { trackToken: token },
         data: { clickCount: { increment: 1 } },
         select: { id: true, jobPostingId: true, trackToken: true },

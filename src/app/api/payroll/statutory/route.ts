@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (countryCode) where.countryCode = countryCode;
     if (partyType) where.partyType = partyType;
 
-    const data = await prisma.statutoryComponent.findMany({
+    const data = await db.statutoryComponent.findMany({
       where,
       include: { component: true },
       orderBy: { createdAt: 'desc' },
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
     const componentType = body.partyType === 'EMPLOYER' ? 'EMPLOYER_CONTRIB' : body.partyType === 'BOTH' ? 'EMPLOYER_CONTRIB' : 'EMPLOYEE_CONTRIB';
 
     // Auto-create a PayrollComponent first
-    const payrollComponent = await prisma.payrollComponent.create({
+    const payrollComponent = await db.payrollComponent.create({
       data: {
         code: body.componentCode,
         name: body.componentName,
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create StatutoryComponent linking to the PayrollComponent
-    const data = await prisma.statutoryComponent.create({
+    const data = await db.statutoryComponent.create({
       data: {
         componentId: payrollComponent.id,
         componentCode: body.componentCode,

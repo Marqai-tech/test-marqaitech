@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (filingStatus) where.filingStatus = filingStatus;
     if (filingPeriod) where.filingPeriod = filingPeriod;
 
-    const data = await prisma.complianceFiling.findMany({
+    const data = await db.complianceFiling.findMany({
       where,
       include: { compliance: true },
       orderBy: { createdAt: 'desc' },
@@ -42,13 +43,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     const body = await request.json();
-    const data = await prisma.complianceFiling.create({ data: body });
+    const data = await db.complianceFiling.create({ data: body });
 
     return Response.json({ data, message: 'Compliance filing created successfully' }, { headers: corsHeaders });
   } catch (error: unknown) {

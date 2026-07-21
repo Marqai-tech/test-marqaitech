@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword, createToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { name, email, password, tenantName, tenantSlug, role = 'employee' } = body;
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await db.user.findUnique({
       where: { email },
     });
 
@@ -41,14 +42,14 @@ export async function POST(request: Request) {
     // Create or find tenant
     let tenant;
     if (tenantSlug) {
-      tenant = await prisma.tenant.findUnique({
+      tenant = await getPlatformDb().tenant.findUnique({
         where: { slug: tenantSlug },
       });
     }
 
     if (!tenant) {
       const slug = tenantSlug || email.split('@')[1]?.split('.')[0] || 'default';
-      tenant = await prisma.tenant.create({
+      tenant = await getPlatformDb().tenant.create({
         data: {
           name: tenantName || slug,
           slug: slug === 'default' ? `tenant-${Date.now()}` : slug,
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await hashPassword(password);
 
-    const user = await prisma.user.create({
+    const user = await db.user.create({
       data: {
         name,
         email,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -25,12 +26,13 @@ export async function GET(request: Request) {
     const companyId = searchParams.get('companyId');
     const where: Record<string, unknown> = {};
     if (companyId) where.companyId = companyId;
-    const allocations = await prisma.walletBudgetAllocation.findMany({ where: where as any, include: { company: { select: { id: true, name: true } }, employee: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: 'desc' } });
+    const allocations = await db.walletBudgetAllocation.findMany({ where: where as any, include: { company: { select: { id: true, name: true } }, employee: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json({ allocations }, { headers: corsHeaders() });
   } catch (error) { console.error('Get wallet budgets error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { companyId, departmentId, employeeId, bucketCategory, monthlyAmount, currency, activeFrom, activeUntil } = body;
     if (!companyId || !bucketCategory || !monthlyAmount) return NextResponse.json({ error: 'Missing fields' }, { status: 400, headers: corsHeaders() });
-    const alloc = await prisma.walletBudgetAllocation.create({
+    const alloc = await db.walletBudgetAllocation.create({
       data: { companyId, departmentId, employeeId, bucketCategory, monthlyAmount, currency: currency || 'INR', activeFrom: activeFrom ? new Date(activeFrom) : new Date(), activeUntil: activeUntil ? new Date(activeUntil) : null },
     });
     return NextResponse.json({ allocation: alloc }, { status: 201, headers: corsHeaders() });

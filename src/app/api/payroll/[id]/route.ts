@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -23,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const payroll = await prisma.payroll.update({
+    const payroll = await db.payroll.update({
       where: { id },
       data: {
         ...(body.status && { status: body.status }),
@@ -32,7 +33,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: { userId: decoded.userId as string, action: 'UPDATE_PAYROLL', module: 'payroll', details: `Updated payroll ${id} status to ${body.status}` },
     });
 
@@ -44,6 +45,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -72,13 +74,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       if (body.status === 'paid') data.paidDate = new Date();
     }
 
-    const payroll = await prisma.payroll.update({
+    const payroll = await db.payroll.update({
       where: { id },
       data,
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: { userId: decoded.userId as string, action: 'UPDATE_PAYROLL', module: 'payroll', details: `Updated payroll details for ${id}` },
     });
 
@@ -90,6 +92,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -98,14 +101,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     // Check if user is admin
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    const user = await db.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user || !['super_admin', 'tenant_admin', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403, headers: corsHeaders() });
     }
 
-    await prisma.payroll.delete({ where: { id } });
+    await db.payroll.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: { userId: decoded.userId as string, action: 'DELETE_PAYROLL', module: 'payroll', details: `Deleted payroll ${id}` },
     });
 

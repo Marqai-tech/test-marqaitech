@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -25,12 +26,13 @@ export async function GET(request: Request) {
     const employeeId = searchParams.get('employeeId');
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
-    const listings = await prisma.loanMarketplaceListing.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 });
+    const listings = await db.loanMarketplaceListing.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 });
     return NextResponse.json({ listings }, { headers: corsHeaders() });
   } catch (error) { console.error('Get loan listings error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     // Generate one-time expiring deep link
     const deepLinkSentAt = consentGiven ? new Date() : null;
 
-    const listing = await prisma.loanMarketplaceListing.create({
+    const listing = await db.loanMarketplaceListing.create({
       data: { employeeId, bankName, offerAmount, interestRate: interestRate || 0, tenureMonths: tenureMonths || 12, emiAmount: emiAmount || 0, processingFee: processingFee || 0, currency: 'INR', consentGiven: !!consentGiven, consentAt, deepLinkSentAt, applicationStatus: 'pre_approved' },
     });
     return NextResponse.json({ listing }, { status: 201, headers: corsHeaders() });

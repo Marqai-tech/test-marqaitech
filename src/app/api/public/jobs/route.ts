@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +34,7 @@ export async function OPTIONS() {
  *   - page / limit: pagination (default 1 / 24)
  */
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const url = new URL(req.url);
     // The tenantSlug can come from:

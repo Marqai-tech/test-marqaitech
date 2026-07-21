@@ -8,7 +8,7 @@
  * This endpoint uses Prisma's raw SQL execution to create the missing tables.
  */
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

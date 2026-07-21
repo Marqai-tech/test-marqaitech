@@ -6,7 +6,7 @@
  * Auth: Bearer <client_portal_token>
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -30,10 +30,11 @@ async function getClientContext(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const ctx = await getClientContext(request);
     if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
-    const approvals = await prisma.clientTimesheetApproval.findMany({
+    const approvals = await db.clientTimesheetApproval.findMany({
       where: { clientId: ctx.clientId },
       include: {
         timesheet: {
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const ctx = await getClientContext(request);
     if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
     if (!['approved', 'rejected'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: CORS });
     }
-    const updated = await prisma.clientTimesheetApproval.update({
+    const updated = await db.clientTimesheetApproval.update({
       where: { id: approvalId, clientId: ctx.clientId },
       data: { status, comments, approvedById: ctx.portalUserId, approvedAt: new Date() },
     });

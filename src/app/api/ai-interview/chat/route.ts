@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 interface ChatMessage {
   role: 'system' | 'ai' | 'candidate';
@@ -8,6 +8,7 @@ interface ChatMessage {
 
 // POST /api/ai-interview/chat — AI-powered interview chat
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const {
@@ -55,13 +56,13 @@ export async function POST(req: NextRequest) {
     // Save transcript to interview if ID provided
     if (interviewId) {
       try {
-        const interview = await prisma.interview.findUnique({
+        const interview = await db.interview.findUnique({
           where: { id: interviewId },
         });
         if (interview) {
           const existingFeedback = interview.aiFeedback || '';
           const newEntry = `\n[${new Date().toISOString()}] AI: ${aiResponse}\n[${new Date().toISOString()}] Candidate: ${message}`;
-          await prisma.interview.update({
+          await db.interview.update({
             where: { id: interviewId },
             data: {
               aiFeedback: existingFeedback + newEntry,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -30,7 +30,7 @@ export async function GET(
     await ensureSchemaSynced();
 
     const survey = await withSchemaSync(() =>
-      prisma.offerDeclineSurvey.findUnique({
+      db.offerDeclineSurvey.findUnique({
         where: { token },
         include: { offer: true },
       })
@@ -82,6 +82,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { token } = await params;
     const body = await request.json().catch(() => ({}));
@@ -114,7 +115,7 @@ export async function PATCH(
     await ensureSchemaSynced();
 
     const existing = await withSchemaSync(() =>
-      prisma.offerDeclineSurvey.findUnique({ where: { token } })
+      db.offerDeclineSurvey.findUnique({ where: { token } })
     );
     if (!existing) {
       return NextResponse.json({ error: 'Survey not found' }, { status: 404, headers: corsHeaders() });
@@ -127,7 +128,7 @@ export async function PATCH(
     }
 
     const survey = await withSchemaSync(() =>
-      prisma.offerDeclineSurvey.update({
+      db.offerDeclineSurvey.update({
         where: { token },
         data: {
           primaryReason,
@@ -140,7 +141,7 @@ export async function PATCH(
 
     // Optionally log to audit (no userId since candidate is anonymous)
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: 'candidate',
           action: 'DECLINE_SURVEY_SUBMITTED',

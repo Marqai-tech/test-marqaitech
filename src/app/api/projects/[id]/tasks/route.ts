@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -38,7 +39,7 @@ export async function GET(
     if (status) where.status = status;
     if (priority) where.priority = priority;
 
-    const tasks = await prisma.projectTask.findMany({
+    const tasks = await db.projectTask.findMany({
       where,
       include: {
         milestone: { select: { id: true, name: true } },
@@ -57,6 +58,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -71,7 +73,7 @@ export async function POST(
     const { id } = await params;
 
     // Verify project exists
-    const project = await prisma.project.findUnique({ where: { id } });
+    const project = await db.project.findUnique({ where: { id } });
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -90,7 +92,7 @@ export async function POST(
       );
     }
 
-    const task = await prisma.projectTask.create({
+    const task = await db.projectTask.create({
       data: {
         projectId: id,
         name,
@@ -107,7 +109,7 @@ export async function POST(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_PROJECT_TASK',

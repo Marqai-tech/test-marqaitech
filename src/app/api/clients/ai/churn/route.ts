@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     const clientId = searchParams.get('clientId');
 
     // Pull clients + their invoice payment behavior + project activity
-    const clients = await prisma.client.findMany({
+    const clients = await db.client.findMany({
       where: clientId ? { id: clientId } : { status: 'active' },
       include: {
         invoices: { select: { id: true, status: true, dueDate: true, createdAt: true, totalAmount: true, currency: true }, orderBy: { createdAt: 'desc' }, take: 12 },
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
           ? 'Assign account manager to reconnect. Review recent project deliverables.'
           : 'Healthy client. Continue regular cadence.';
 
-      const risk = await prisma.clientChurnRisk.create({
+      const risk = await db.clientChurnRisk.create({
         data: { clientId: c.id, riskScore: score, riskLevel, factorsJson: factors, recommendations, notifiedManager: riskLevel === 'high' },
       });
       results.push({ clientId: c.id, clientName: c.name, riskLevel, riskScore: Math.round(score * 100) / 100, factors, recommendations, riskId: risk.id });

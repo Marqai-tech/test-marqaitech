@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     let data;
     try {
-      data = await prisma.payrollRun.findMany({
+      data = await db.payrollRun.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       });
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
     };
     let result;
     try {
-      result = await prisma.payrollRun.create({ data });
+      result = await db.payrollRun.create({ data });
     } catch (dbError: unknown) {
       const errMsg = dbError instanceof Error ? dbError.message : String(dbError);
       console.error('PayrollRun create error:', errMsg);

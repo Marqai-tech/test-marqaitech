@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -8,13 +8,14 @@ function corsHeaders() {
 export async function OPTIONS() { return NextResponse.json({}, { headers: corsHeaders() }); }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
-    const course = await prisma.course.findUnique({
+    const course = await db.course.findUnique({
       where: { id },
       include: { modules: { orderBy: { order: 'asc' } }, enrollments: { include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } } } },
     });
@@ -27,6 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -34,7 +36,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
     const body = await request.json();
-    const course = await prisma.course.update({ where: { id }, data: body });
+    const course = await db.course.update({ where: { id }, data: body });
     return NextResponse.json({ course }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Course PUT error:', error);
@@ -43,13 +45,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
-    await prisma.course.delete({ where: { id } });
+    await db.course.delete({ where: { id } });
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Course DELETE error:', error);

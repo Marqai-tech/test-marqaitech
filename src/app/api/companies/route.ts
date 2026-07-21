@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -24,6 +24,7 @@ async function requireAuth(req: NextRequest) {
 
 // GET /api/companies — List companies
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const decoded = await requireAuth(req);
     if (!decoded) {
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest) {
         // NOTE: Company has no `employees` Prisma relation (Employee.companyId
         // is a raw String? without a relation field). Count branches +
         // departments here; per-company employee counts are added below via
-        // a separate prisma.employee.groupBy() call.
+        // a separate db.employee.groupBy() call.
         _count: { select: { departments: true, branches: true } },
       },
       orderBy: { name: 'asc' },
@@ -196,6 +197,7 @@ export async function GET(req: NextRequest) {
 //      tenant_admin can create under this tenant.
 //   4. Enforce group.maxCompanies — the per-group company cap set by super_admin.
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const decoded = await requireAuth(req);
     if (!decoded) {
@@ -389,6 +391,7 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/companies — Update a company (admin only)
 export async function PUT(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // ─── Auth check ───
     const decoded = await requireAuth(req);
@@ -440,6 +443,7 @@ export async function PUT(req: NextRequest) {
 
 // DELETE /api/companies — Delete a company (super_admin or tenant_admin only)
 export async function DELETE(req: NextRequest) {
+  const db = await getDb(req);
   try {
     // ─── Auth check ───
     const decoded = await requireAuth(req);

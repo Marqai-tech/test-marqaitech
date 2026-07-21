@@ -17,7 +17,7 @@
  * feature is hidden and the API endpoint refuses to run.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CORS = {
@@ -43,6 +43,7 @@ async function requireSuperAdmin(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   const auth = await requireSuperAdmin(req);
   if ('error' in auth) return auth.error;
 
@@ -122,6 +123,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   const auth = await requireSuperAdmin(req);
   if ('error' in auth) return auth.error;
 

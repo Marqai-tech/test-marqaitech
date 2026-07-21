@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 function corsHeaders() {
   return {
@@ -16,7 +16,7 @@ export async function OPTIONS() {
 // GET /api/rbac/modules — List all modules with permissions
 export async function GET() {
   try {
-    const modules = await prisma.module.findMany({
+    const modules = await db.module.findMany({
       include: {
         permissions: { orderBy: { action: 'asc' } },
       },

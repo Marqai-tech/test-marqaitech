@@ -10,7 +10,7 @@
  * Future logins can then use the password endpoint instead of OTP.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword, verifyToken } from '@/lib/auth';
 
 const CORS = {
@@ -24,6 +24,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const body = await request.json().catch(() => ({}));
     const token = String(body.token || '').trim();
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
     const email = String(payload.email).toLowerCase();
 
-    const user = await prisma.candidatePortalUser.findUnique({
+    const user = await db.candidatePortalUser.findUnique({
       where: { candidateEmail: email },
     });
     if (!user) {
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hashPassword(newPassword);
-    await prisma.candidatePortalUser.update({
+    await db.candidatePortalUser.update({
       where: { id: user.id },
       data: {
         passwordHash,

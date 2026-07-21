@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -19,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -32,7 +33,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const instance = await prisma.workflowInstance.findUnique({
+    const instance = await db.workflowInstance.findUnique({
       where: { id },
       include: {
         workflowDefinition: { select: { id: true, name: true, module: true, steps: true } },
@@ -55,6 +56,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -85,7 +87,7 @@ export async function PATCH(
       );
     }
 
-    const instance = await prisma.workflowInstance.findUnique({
+    const instance = await db.workflowInstance.findUnique({
       where: { id },
       include: { approvals: { orderBy: { stepNumber: 'asc' } }, workflowDefinition: true },
     });
@@ -109,7 +111,7 @@ export async function PATCH(
     }
 
     // Update the approval
-    await prisma.workflowApproval.update({
+    await db.workflowApproval.update({
       where: { id: approval.id },
       data: {
         action,
@@ -147,7 +149,7 @@ export async function PATCH(
     }
 
     // Update the instance
-    const updatedInstance = await prisma.workflowInstance.update({
+    const updatedInstance = await db.workflowInstance.update({
       where: { id },
       data: {
         status: instanceStatus,
@@ -159,7 +161,7 @@ export async function PATCH(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'WORKFLOW_STEP_ACTION',

@@ -20,7 +20,7 @@
 //
 // Status workflow: OPEN → INVESTIGATING → CONFIRMED_FRAUD / CONFIRMED_BENCH / FALSE_POSITIVE
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -40,6 +40,7 @@ export async function OPTIONS() {
 //   ?minRiskScore=50
 //   ?scan=true  → re-run detection before returning results
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     let flags: unknown[] = [];
     try {
-      flags = await prisma.ghostEmployeeFlag.findMany({
+      flags = await db.ghostEmployeeFlag.findMany({
         where,
         include: {
           employee: {
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest) {
 
 // PATCH /api/payroll/ai/ghost-employees  { id, status, resolutionNotes }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -116,7 +118,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Invalid status' }, { status: 400, headers: corsHeaders });
     }
 
-    const updated = await prisma.ghostEmployeeFlag.update({
+    const updated = await db.ghostEmployeeFlag.update({
       where: { id: body.id },
       data: {
         status: body.status,
@@ -137,7 +139,7 @@ export async function PATCH(request: NextRequest) {
 // runGhostEmployeeScan — the actual detection engine
 // ────────────────────────────────────────────────────────────────────
 async function runGhostEmployeeScan(payrollRunId: string): Promise<{ scanned: number; flagged: number }> {
-  const run = await prisma.payrollRun.findUnique({
+  const run = await db.payrollRun.findUnique({
     where: { id: payrollRunId },
     include: {
       transactionLines: {
@@ -165,7 +167,7 @@ async function runGhostEmployeeScan(payrollRunId: string): Promise<{ scanned: nu
   const timesheetAgg = new Map<string, { hours: number; lastActive: Date | null }>();
 
   try {
-    const timesheets = await prisma.timesheet.findMany({
+    const timesheets = await db.timesheet.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: periodStart, lte: periodEnd } },
       select: { employeeId: true, hours: true, date: true },
     });
@@ -182,7 +184,7 @@ async function runGhostEmployeeScan(payrollRunId: string): Promise<{ scanned: nu
   // Pull project allocations
   const allocationSet = new Set<string>();
   try {
-    const allocations = await prisma.projectAllocation.findMany({
+    const allocations = await db.projectAllocation.findMany({
       where: { employeeId: { in: employeeIds }, status: 'active' },
       select: { employeeId: true },
     });
@@ -196,7 +198,7 @@ async function runGhostEmployeeScan(payrollRunId: string): Promise<{ scanned: nu
   const teamAvg = allEarnings.length > 0 ? allEarnings.reduce((s, v) => s + v, 0) / allEarnings.length : 0;
 
   // Existing OPEN flags to dedupe
-  const existingOpen = await prisma.ghostEmployeeFlag.findMany({
+  const existingOpen = await db.ghostEmployeeFlag.findMany({
     where: { payrollRunId, status: 'OPEN' },
     select: { employeeId: true },
   });
@@ -262,7 +264,7 @@ async function runGhostEmployeeScan(payrollRunId: string): Promise<{ scanned: nu
   let flagged = 0;
   if (toCreate.length > 0) {
     try {
-      const r = await prisma.ghostEmployeeFlag.createMany({ data: toCreate });
+      const r = await db.ghostEmployeeFlag.createMany({ data: toCreate });
       flagged = r.count;
     } catch (err) {
       console.error('Bulk insert ghost flags failed:', err);

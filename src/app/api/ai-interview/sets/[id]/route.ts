@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview/sets/[id] — Get single set with questions
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const set = await prisma.interviewSet.findUnique({
+    const set = await db.interviewSet.findUnique({
       where: { id },
       include: {
         questions: { orderBy: { order: 'asc' } },
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const body = await req.json();
 
-    const set = await prisma.interviewSet.update({
+    const set = await db.interviewSet.update({
       where: { id },
       data: {
         ...(body.title !== undefined && { title: body.title }),
@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const set = await prisma.interviewSet.update({
+    const set = await db.interviewSet.update({
       where: { id },
       data: { status: 'archived' },
     });

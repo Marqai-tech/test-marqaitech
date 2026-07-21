@@ -20,7 +20,7 @@
 //     (proves the check was performed even if roles change later)
 //   • Runtime check — the API refuses to approve if requestedBy == approver
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -40,6 +40,7 @@ export async function OPTIONS() {
 //   ?approverRole=tenant_admin
 //   ?pendingForMe=true  → approvals waiting for the current user's role
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     let approvals: unknown[] = [];
     try {
-      approvals = await prisma.payrollApproval.findMany({
+      approvals = await db.payrollApproval.findMany({
         where,
         include: {
           payrollRun: {
@@ -100,6 +101,7 @@ export async function GET(request: NextRequest) {
 //   body: { payrollRunId, approvalStage, approverRole, approvalNotes? }
 // Creates a PENDING approval request for a payroll run.
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid approvalStage' }, { status: 400, headers: corsHeaders });
     }
 
-    const run = await prisma.payrollRun.findUnique({ where: { id: body.payrollRunId } });
+    const run = await db.payrollRun.findUnique({ where: { id: body.payrollRunId } });
     if (!run) return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
 
     // Allow tenant_admin / super_admin / finance_controller as approver roles
@@ -122,14 +124,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing PENDING approval for the same stage
-    const existing = await prisma.payrollApproval.findFirst({
+    const existing = await db.payrollApproval.findFirst({
       where: { payrollRunId: body.payrollRunId, approvalStage: body.approvalStage, status: 'PENDING' },
     });
     if (existing) {
       return Response.json({ error: 'A PENDING approval already exists for this stage', data: existing }, { status: 409, headers: corsHeaders });
     }
 
-    const created = await prisma.payrollApproval.create({
+    const created = await db.payrollApproval.create({
       data: {
         payrollRunId: body.payrollRunId,
         approvalStage: body.approvalStage,
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     // Advance run status to REVIEW if it was PROCESSING
     if (run.runStatus === 'PROCESSING' || run.runStatus === 'INPUT_COLLECTION') {
-      await prisma.payrollRun.update({
+      await db.payrollRun.update({
         where: { id: body.payrollRunId },
         data: { runStatus: 'REVIEW' },
       });
@@ -159,6 +161,7 @@ export async function POST(request: NextRequest) {
 //   body: { id, action: 'approve' | 'reject', notes? }
 // Performs the SoD check and applies the decision.
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -170,7 +173,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Invalid action (must be approve or reject)' }, { status: 400, headers: corsHeaders });
     }
 
-    const approval = await prisma.payrollApproval.findUnique({ where: { id: body.id } });
+    const approval = await db.payrollApproval.findUnique({ where: { id: body.id } });
     if (!approval) return Response.json({ error: 'Approval not found' }, { status: 404, headers: corsHeaders });
     if (approval.status !== 'PENDING') {
       return Response.json({ error: `Approval already ${approval.status}` }, { status: 409, headers: corsHeaders });
@@ -179,13 +182,13 @@ export async function PATCH(request: NextRequest) {
     // ─── SoD ENFORCEMENT (REQ-SEC-PAY-02) ───
     // The user who REQUESTED the approval cannot APPROVE it.
     // The user who INITIATED the payroll run also cannot approve it.
-    const run = await prisma.payrollRun.findUnique({ where: { id: approval.payrollRunId } });
+    const run = await db.payrollRun.findUnique({ where: { id: approval.payrollRunId } });
     const sodConflict = approval.requestedBy === (decoded.userId as string) ||
       (run?.initiatedBy && run.initiatedBy === (decoded.userId as string));
 
     if (sodConflict && body.action === 'approve') {
       // Mark the conflict and refuse
-      await prisma.payrollApproval.update({
+      await db.payrollApproval.update({
         where: { id: body.id },
         data: {
           sodConflictFlag: true,
@@ -206,7 +209,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const newStatus = body.action === 'approve' ? 'APPROVED' : 'REJECTED';
-    const updated = await prisma.payrollApproval.update({
+    const updated = await db.payrollApproval.update({
       where: { id: body.id },
       data: {
         status: newStatus,
@@ -223,13 +226,13 @@ export async function PATCH(request: NextRequest) {
     if (body.action === 'approve') {
       // APPROVED → next stage is ACCOUNTING / DISBURSED
       const nextStatus = approval.approvalStage === 'DISBURSEMENT_APPROVAL' ? 'ACCOUNTING' : 'APPROVED';
-      await prisma.payrollRun.update({
+      await db.payrollRun.update({
         where: { id: approval.payrollRunId },
         data: { runStatus: nextStatus },
       });
     } else {
       // Rejected → back to PROCESSING for correction
-      await prisma.payrollRun.update({
+      await db.payrollRun.update({
         where: { id: approval.payrollRunId },
         data: { runStatus: 'PROCESSING' },
       });

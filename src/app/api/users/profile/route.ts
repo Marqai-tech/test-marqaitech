@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -31,6 +31,7 @@ function toStr(val: string | null | undefined): string {
 
 // GET - Fetch current user profile
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     }
 
     // Step 1: Fetch user with tenant (lightweight, no deep nested includes)
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       include: {
         tenant: true,
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
     // Step 2: Try to fetch employee data separately (may not exist for all users)
     let employeeData = null;
     try {
-      const employee = await prisma.employee.findUnique({
+      const employee = await db.employee.findUnique({
         where: { userId: user.id },
         include: {
           department: { select: { name: true } },
@@ -158,6 +159,7 @@ export async function GET(request: Request) {
 
 // PATCH - Update current user profile
 export async function PATCH(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -177,7 +179,7 @@ export async function PATCH(request: Request) {
     if (name !== undefined) userUpdateData.name = name;
     if (avatar !== undefined) userUpdateData.avatar = avatar;
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await db.user.update({
       where: { id: decoded.userId as string },
       data: userUpdateData,
       include: { tenant: true, employee: true },
@@ -200,7 +202,7 @@ export async function PATCH(request: Request) {
       if (gender !== undefined) employeeUpdateData.gender = gender;
       if (bloodGroup !== undefined) employeeUpdateData.bloodGroup = bloodGroup;
 
-      await prisma.employee.update({
+      await db.employee.update({
         where: { id: updatedUser.employee.id },
         data: employeeUpdateData,
       });

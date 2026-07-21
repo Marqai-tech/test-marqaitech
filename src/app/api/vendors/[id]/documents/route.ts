@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
 
 function corsHeaders() {
@@ -11,13 +11,14 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     // REQ-SEC-CV-01: IDOR protection — verify caller's tenant owns this vendor
     const guard = await assertEcosystemAccess(request, 'vendor', id);
     if (guard.deny) return guard.response;
 
-    const documents = await prisma.vendorDocument.findMany({ where: { vendorId: id }, orderBy: { createdAt: 'desc' } });
+    const documents = await db.vendorDocument.findMany({ where: { vendorId: id }, orderBy: { createdAt: 'desc' } });
     // Compute current expiry status
     const now = new Date();
     const docs = documents.map(d => {
@@ -35,6 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     // REQ-SEC-CV-01: IDOR protection
@@ -45,10 +47,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = await request.json();
     const { name, type, fileUrl, issuedAt, expiryDate } = body;
     if (!name || !type) return NextResponse.json({ error: 'Missing name or type' }, { status: 400, headers: corsHeaders() });
-    const doc = await prisma.vendorDocument.create({
+    const doc = await db.vendorDocument.create({
       data: { vendorId: id, name, type, fileUrl, issuedAt: issuedAt ? new Date(issuedAt) : null, expiryDate: expiryDate ? new Date(expiryDate) : null, uploadedById: decoded.userId as string },
     });
-    await prisma.auditLog.create({ data: { userId: decoded.userId as string, action: 'UPLOAD_VENDOR_DOC', module: 'vendors', details: `Uploaded ${type} doc for vendor ${id}` } });
+    await db.auditLog.create({ data: { userId: decoded.userId as string, action: 'UPLOAD_VENDOR_DOC', module: 'vendors', details: `Uploaded ${type} doc for vendor ${id}` } });
     return NextResponse.json({ document: doc }, { status: 201, headers: corsHeaders() });
   } catch (error) { console.error('Create vendor doc error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() }); }
 }

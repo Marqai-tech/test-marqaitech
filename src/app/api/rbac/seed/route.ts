@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -163,12 +163,12 @@ async function seedRBACData(userId?: string) {
 
   // Step 1: Create/update modules and permissions
   for (const modDef of MODULE_DEFINITIONS) {
-    const existingModule = await prisma.module.findUnique({ where: { key: modDef.key } });
+    const existingModule = await db.module.findUnique({ where: { key: modDef.key } });
     if (!existingModule) {
-      const createdModule = await prisma.module.create({ data: { key: modDef.key, name: modDef.name, category: modDef.category, icon: modDef.icon, sortOrder: modDef.sortOrder } });
+      const createdModule = await db.module.create({ data: { key: modDef.key, name: modDef.name, category: modDef.category, icon: modDef.icon, sortOrder: modDef.sortOrder } });
       const actions = LIMITED_ACTION_MODULES.includes(modDef.key) ? ['view'] : DEFAULT_ACTIONS;
       for (const action of actions) {
-        await prisma.permission.create({ data: { moduleId: createdModule.id, action, description: `${action} ${modDef.name.toLowerCase()}` } });
+        await db.permission.create({ data: { moduleId: createdModule.id, action, description: `${action} ${modDef.name.toLowerCase()}` } });
         permissionsCreated++;
       }
       modulesCreated++;
@@ -178,38 +178,38 @@ async function seedRBACData(userId?: string) {
   // Step 2: Create standard roles — remove any non-standard roles
   // First, delete all existing roles that are NOT in the standard 8
   const standardKeys = SYSTEM_ROLES.map(r => r.key);
-  const nonStandardRoles = await prisma.role.findMany({
+  const nonStandardRoles = await db.role.findMany({
     where: { key: { notIn: standardKeys } }
   });
   for (const role of nonStandardRoles) {
     // Delete role permissions and user assignments first (cascade should handle this)
-    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
-    await prisma.userRoleAssignment.deleteMany({ where: { roleId: role.id } });
-    await prisma.role.delete({ where: { id: role.id } });
+    await db.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await db.userRoleAssignment.deleteMany({ where: { roleId: role.id } });
+    await db.role.delete({ where: { id: role.id } });
   }
 
   const createdRoles: Record<string, string> = {};
   for (const roleDef of SYSTEM_ROLES) {
     let existingRole;
     if (roleDef.tenantId === null) {
-      existingRole = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: null, companyId: null } });
+      existingRole = await db.role.findFirst({ where: { key: roleDef.key, tenantId: null, companyId: null } });
     } else {
-      const tenants = await prisma.tenant.findMany({ take: 1 });
+      const tenants = await getPlatformDb().tenant.findMany({ take: 1 });
       if (tenants.length === 0) continue;
-      existingRole = await prisma.role.findFirst({ where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null } });
+      existingRole = await db.role.findFirst({ where: { key: roleDef.key, tenantId: tenants[0].id, companyId: null } });
     }
     if (!existingRole) {
       let roleTenantId = roleDef.tenantId;
       if (roleTenantId === null && roleDef.key !== 'super_admin' && roleDef.key !== 'tenant_admin') {
-        const tenants = await prisma.tenant.findMany({ take: 1 });
+        const tenants = await getPlatformDb().tenant.findMany({ take: 1 });
         roleTenantId = tenants.length > 0 ? tenants[0].id : null;
       }
-      const role = await prisma.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: userId || null } });
+      const role = await db.role.create({ data: { name: roleDef.name, key: roleDef.key, description: roleDef.description, isSystem: roleDef.isSystem, level: roleDef.level, tenantId: roleTenantId, status: 'active', createdBy: userId || null } });
       createdRoles[roleDef.key] = role.id;
       rolesCreated++;
     } else {
       // Update existing role with current name/description
-      await prisma.role.update({
+      await db.role.update({
         where: { id: existingRole.id },
         data: { name: roleDef.name, description: roleDef.description, level: roleDef.level, isSystem: roleDef.isSystem }
       });
@@ -218,12 +218,12 @@ async function seedRBACData(userId?: string) {
   }
 
   // Step 3: Assign permissions to roles
-  const allModules = await prisma.module.findMany({ include: { permissions: true } });
+  const allModules = await db.module.findMany({ include: { permissions: true } });
   const moduleMap = new Map(allModules.map((m) => [m.key, m]));
 
   const assignPermissions = async (roleId: string, moduleKeys: string[], allowedActions?: string[]) => {
     // Clear existing permissions first for clean slate
-    await prisma.rolePermission.deleteMany({ where: { roleId } });
+    await db.rolePermission.deleteMany({ where: { roleId } });
     
     for (const moduleKey of moduleKeys) {
       const mod = moduleMap.get(moduleKey);
@@ -231,7 +231,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (allowedActions && !allowedActions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -253,7 +253,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (!actions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.hr_admin, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.hr_admin, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -269,7 +269,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (!actions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.finance_admin, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.finance_admin, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -285,7 +285,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (!actions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.manager, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.manager, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -296,7 +296,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (perm.action !== 'view') continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.manager, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.manager, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -312,7 +312,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (!actions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.travel_admin, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.travel_admin, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -328,7 +328,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (!actions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.crm_admin, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.crm_admin, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -343,7 +343,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (perm.action !== 'view') continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.employee, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.employee, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -354,7 +354,7 @@ async function seedRBACData(userId?: string) {
       for (const perm of mod.permissions) {
         if (!actions.includes(perm.action)) continue;
         try {
-          await prisma.rolePermission.create({ data: { roleId: createdRoles.employee, permissionId: perm.id, granted: true } });
+          await db.rolePermission.create({ data: { roleId: createdRoles.employee, permissionId: perm.id, granted: true } });
           rolePermissionsCreated++;
         } catch { /* skip duplicates */ }
       }
@@ -382,24 +382,24 @@ async function seedRBACData(userId?: string) {
     admin: 'hr_admin',
   };
 
-  const users = await prisma.user.findMany();
+  const users = await db.user.findMany();
   for (const user of users) {
     const newRoleKey = roleKeyMap[user.role];
     if (!newRoleKey || !createdRoles[newRoleKey]) continue;
     
     // Update User.role field to new role
-    await prisma.user.update({
+    await db.user.update({
       where: { id: user.id },
       data: { role: newRoleKey }
     });
 
     // Remove existing role assignments
-    await prisma.userRoleAssignment.deleteMany({ where: { userId: user.id } });
+    await db.userRoleAssignment.deleteMany({ where: { userId: user.id } });
 
     // Create new role assignment
-    const companies = await prisma.company.findMany({ take: 1 });
+    const companies = await db.company.findMany({ take: 1 });
     try {
-      await prisma.userRoleAssignment.create({
+      await db.userRoleAssignment.create({
         data: {
           userId: user.id,
           roleId: createdRoles[newRoleKey],
@@ -437,12 +437,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId as string } });
+    const user = await db.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user || (user.role !== 'super_admin' && user.role !== 'tenant_admin')) return NextResponse.json({ error: 'Only administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
     
     const result = await seedRBACData(user.id);

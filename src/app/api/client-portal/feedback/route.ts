@@ -10,7 +10,7 @@
  * workflows. The client-feedback row keeps the link via feedbackId.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -26,6 +26,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
     if (employeeId) where.employeeId = employeeId;
     if (projectId) where.projectId = projectId;
 
-    const feedbacks = await prisma.clientFeedback.findMany({
+    const feedbacks = await db.clientFeedback.findMany({
       where,
       include: {
         client: { select: { id: true, name: true } },
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the employee exists (don't allow feedback on non-employees)
-    const employee = await prisma.employee.findUnique({
+    const employee = await db.employee.findUnique({
       where: { id: employeeId },
       select: { id: true, firstName: true, lastName: true, email: true },
     });
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
     // employee themselves (self-feedback marker) and store the real source in ClientFeedback.
     let mirroredFeedback: any = null;
     try {
-      mirroredFeedback = await prisma.feedback.create({
+      mirroredFeedback = await db.feedback.create({
         data: {
           fromId: employeeId,  // self-marker (client feedback)
           toId: employeeId,
@@ -110,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Create the ClientFeedback record (canonical store)
-    const feedback = await prisma.clientFeedback.create({
+    const feedback = await db.clientFeedback.create({
       data: {
         clientId,
         clientPortalUserId: clientPortalUserId || null,
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: (decoded as any).userId as string,
         action: 'CLIENT_FEEDBACK_SUBMITTED',

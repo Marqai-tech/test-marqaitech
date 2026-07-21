@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview/sessions/[id] — Get session with responses and evaluation
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await prisma.interviewSession.findUnique({
+    const session = await db.interviewSession.findUnique({
       where: { id },
       include: {
         set: {
@@ -59,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    const session = await prisma.interviewSession.update({
+    const session = await db.interviewSession.update({
       where: { id },
       data: updateData,
       include: {
@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
 
     // Mark session as completed
-    const session = await prisma.interviewSession.update({
+    const session = await db.interviewSession.update({
       where: { id },
       data: {
         status: 'completed',
@@ -108,7 +108,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 async function evaluateSession(sessionId: string) {
   try {
-    const session = await prisma.interviewSession.findUnique({
+    const session = await db.interviewSession.findUnique({
       where: { id: sessionId },
       include: {
         set: { select: { roleTitle: true, jobDescription: true, evaluationConfig: true } },
@@ -158,7 +158,7 @@ Return ONLY the JSON object, no markdown.`;
       const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const evaluation = JSON.parse(cleaned);
 
-      await prisma.interviewSession.update({
+      await db.interviewSession.update({
         where: { id: sessionId },
         data: {
           communicationScore: Math.min(100, Math.max(0, Number(evaluation.communicationScore) || 0)),
@@ -179,7 +179,7 @@ Return ONLY the JSON object, no markdown.`;
       const avgLength = responses.reduce((sum, r) => sum + (r.responseText?.length || 0), 0) / Math.max(responses.length, 1);
       const baseScore = Math.min(90, 50 + Math.floor(avgLength / 10));
 
-      await prisma.interviewSession.update({
+      await db.interviewSession.update({
         where: { id: sessionId },
         data: {
           communicationScore: baseScore,

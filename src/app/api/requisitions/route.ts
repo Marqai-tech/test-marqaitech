@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,7 +16,7 @@ export async function OPTIONS() {
 }
 
 async function generateRequisitionId(): Promise<string> {
-  const lastReq = await prisma.requisition.findFirst({
+  const lastReq = await db.requisition.findFirst({
     orderBy: { createdAt: 'desc' },
     select: { requisitionId: true },
   });
@@ -33,6 +33,7 @@ async function generateRequisitionId(): Promise<string> {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
     if (priority) where.priority = priority;
 
     const [requisitions, total] = await Promise.all([
-      prisma.requisition.findMany({
+      db.requisition.findMany({
         where,
         include: {
           department: { select: { id: true, name: true, code: true } },
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.requisition.count({ where }),
+      db.requisition.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -86,6 +87,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -114,7 +116,7 @@ export async function POST(request: Request) {
 
     const requisitionId = await generateRequisitionId();
 
-    const requisition = await prisma.requisition.create({
+    const requisition = await db.requisition.create({
       data: {
         requisitionId,
         companyId,
@@ -143,7 +145,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_REQUISITION',

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -29,11 +30,11 @@ export async function GET(request: NextRequest) {
     if (baseCurrency) where.baseCurrency = baseCurrency;
 
     const [currencyConfigs, exchangeRates] = await Promise.all([
-      prisma.currencyConfig.findMany({
+      db.currencyConfig.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.exchangeRate.findMany({
+      db.exchangeRate.findMany({
         where: { isActive: true },
         orderBy: { rateDate: 'desc' },
       }),
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -56,11 +58,11 @@ export async function POST(request: NextRequest) {
 
     if (body.type === 'exchange_rate') {
       const { type: _type, ...rateData } = body;
-      const data = await prisma.exchangeRate.create({ data: rateData });
+      const data = await db.exchangeRate.create({ data: rateData });
       return Response.json({ data, message: 'Exchange rate created successfully' }, { headers: corsHeaders });
     } else {
       const { type: _type, ...configData } = body;
-      const data = await prisma.currencyConfig.create({ data: configData });
+      const data = await db.currencyConfig.create({ data: configData });
       return Response.json({ data, message: 'Currency config created successfully' }, { headers: corsHeaders });
     }
   } catch (error: unknown) {

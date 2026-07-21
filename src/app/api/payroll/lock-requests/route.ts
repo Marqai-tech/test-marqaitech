@@ -12,7 +12,7 @@
 //          payroll (PayrollRun.runType=CORRECTION) and finally PATCH again
 //          with action='execute' to mark EXECUTED + lock the run again.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -31,6 +31,7 @@ export async function OPTIONS() {
 //   ?status=PENDING
 //   ?requestedBy=...
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     let requests: unknown[] = [];
     try {
-      requests = await prisma.payrollLockRequest.findMany({
+      requests = await db.payrollLockRequest.findMany({
         where,
         include: {
           payrollRun: {
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
 // POST /api/payroll/lock-requests
 //   body: { payrollRunId, requestType, reasonCategory, reasonText }
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'reasonText is required and must be at least 10 characters' }, { status: 400, headers: corsHeaders });
     }
 
-    const run = await prisma.payrollRun.findUnique({ where: { id: body.payrollRunId } });
+    const run = await db.payrollRun.findUnique({ where: { id: body.payrollRunId } });
     if (!run) return Response.json({ error: 'Payroll run not found' }, { status: 404, headers: corsHeaders });
 
     if (run.runStatus !== 'CLOSED') {
@@ -111,14 +113,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Refuse if there's already a PENDING request for this run
-    const existingPending = await prisma.payrollLockRequest.findFirst({
+    const existingPending = await db.payrollLockRequest.findFirst({
       where: { payrollRunId: body.payrollRunId, status: 'PENDING' },
     });
     if (existingPending) {
       return Response.json({ error: 'A PENDING lock request already exists for this run', data: existingPending }, { status: 409, headers: corsHeaders });
     }
 
-    const created = await prisma.payrollLockRequest.create({
+    const created = await db.payrollLockRequest.create({
       data: {
         payrollRunId: body.payrollRunId,
         requestType: body.requestType,
@@ -139,6 +141,7 @@ export async function POST(request: NextRequest) {
 // PATCH /api/payroll/lock-requests
 //   body: { id, action: 'approve'|'reject'|'execute', reviewComments? }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -150,7 +153,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Invalid action (must be approve, reject, or execute)' }, { status: 400, headers: corsHeaders });
     }
 
-    const lockReq = await prisma.payrollLockRequest.findUnique({ where: { id: body.id } });
+    const lockReq = await db.payrollLockRequest.findUnique({ where: { id: body.id } });
     if (!lockReq) return Response.json({ error: 'Lock request not found' }, { status: 404, headers: corsHeaders });
 
     // Permission check — only super_admin / tenant_admin can approve
@@ -178,7 +181,7 @@ export async function PATCH(request: NextRequest) {
         reviewComments: body.reviewComments || null,
       };
       // Re-open the payroll run for correction
-      await prisma.payrollRun.update({
+      await db.payrollRun.update({
         where: { id: lockReq.payrollRunId },
         data: { runStatus: 'PROCESSING' },
       });
@@ -194,13 +197,13 @@ export async function PATCH(request: NextRequest) {
       newStatus = 'EXECUTED';
       extraData = { executedAt: new Date() };
       // Lock the run again
-      await prisma.payrollRun.update({
+      await db.payrollRun.update({
         where: { id: lockReq.payrollRunId },
         data: { runStatus: 'CLOSED' },
       });
     }
 
-    const updated = await prisma.payrollLockRequest.update({
+    const updated = await db.payrollLockRequest.update({
       where: { id: body.id },
       data: { status: newStatus, ...extraData },
     });

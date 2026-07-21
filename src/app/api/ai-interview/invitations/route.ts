@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { randomBytes } from 'crypto';
 
 // GET /api/ai-interview/invitations — List invitations
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (status) where.status = status;
 
     const [invitations, total] = await Promise.all([
-      prisma.interviewInvitation.findMany({
+      db.interviewInvitation.findMany({
         where,
         include: {
           set: { select: { id: true, title: true, roleTitle: true, interviewMode: true } },
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.interviewInvitation.count({ where }),
+      db.interviewInvitation.count({ where }),
     ]);
 
     return NextResponse.json({ data: invitations, total, page, limit, totalPages: Math.ceil(total / limit) });
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/ai-interview/invitations — Create invitation(s), supports bulk
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const { setId, candidates } = body;
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify set exists and is active
-    const set = await prisma.interviewSet.findUnique({ where: { id: setId } });
+    const set = await db.interviewSet.findUnique({ where: { id: setId } });
     if (!set) {
       return NextResponse.json({ error: 'Interview set not found' }, { status: 404 });
     }
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 day expiry
 
-      const invitation = await prisma.interviewInvitation.create({
+      const invitation = await db.interviewInvitation.create({
         data: {
           setId,
           candidateEmail: candidate.email,

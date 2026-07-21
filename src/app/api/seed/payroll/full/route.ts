@@ -13,7 +13,7 @@
  *   9. Additional Payroll Inputs (attendance, variable pay, one-time bonus)
  */
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 function corsHeaders() {
   return {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -19,6 +19,7 @@ export async function OPTIONS() {
 // Add a key result to an existing OKR.
 // Body: { okrId, title, targetValue?, unit?, currentValue? }
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
 
     await ensureSchemaSynced();
     const kr = await withSchemaSync(() =>
-      prisma.keyResult.create({
+      db.keyResult.create({
         data: {
           okrId,
           title,

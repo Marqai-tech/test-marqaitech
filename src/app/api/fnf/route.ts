@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [fnfCalculations, total] = await Promise.all([
-      prisma.fNFCalculation.findMany({
+      db.fNFCalculation.findMany({
         where,
         include: {
           employee: {
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.fNFCalculation.count({ where }),
+      db.fNFCalculation.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
     }
 
     // Verify employee exists
-    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    const employee = await db.employee.findUnique({ where: { id: employeeId } });
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
     const totalDeductions = (noticeRecovery ?? 0) + (assetRecovery ?? 0) + (loanRecovery ?? 0) + (taxDeduction ?? 0) + (otherRecoveries ?? 0);
     const netAmount = totalEarnings - totalDeductions;
 
-    const fnfCalculation = await prisma.fNFCalculation.create({
+    const fnfCalculation = await db.fNFCalculation.create({
       data: {
         employeeId,
         separationId,
@@ -143,7 +145,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_FNF',

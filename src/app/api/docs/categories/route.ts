@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 
 function corsHeaders() {
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 
 // GET: List all active categories with article counts
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
 
     let categories;
     try {
-      categories = await prisma.docCategory.findMany({
+      categories = await db.docCategory.findMany({
         where: { status: 'active' },
         include: {
           _count: { select: { articles: { where: { status: 'published' } } } },
@@ -61,13 +62,14 @@ export async function GET(request: Request) {
 
 // POST: Create category (super_admin only)
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId as string } });
+    const user = await db.user.findUnique({ where: { id: payload.userId as string } });
     if (!user || user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can create categories' }, { status: 403, headers: corsHeaders() });
     }
@@ -79,12 +81,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name and slug are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await prisma.docCategory.findUnique({ where: { slug } });
+    const existing = await db.docCategory.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json({ error: 'Category with this slug already exists' }, { status: 409, headers: corsHeaders() });
     }
 
-    const category = await prisma.docCategory.create({
+    const category = await db.docCategory.create({
       data: {
         name,
         slug,

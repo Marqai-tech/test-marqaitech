@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -39,13 +40,13 @@ export async function GET(request: Request) {
     if (jobPostingId) where.jobPostingId = jobPostingId;
 
     const [offers, total] = await Promise.all([
-      prisma.offer.findMany({
+      db.offer.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.offer.count({ where }),
+      db.offer.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const offer = await prisma.offer.create({
+    const offer = await db.offer.create({
       data: {
         candidateId,
         jobPostingId,
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_OFFER',

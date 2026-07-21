@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * POST /api/trial/extend
  * Super admin extends the trial period for an approved/active trial.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { registrationId, additionalDays } = body;

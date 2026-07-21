@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -18,6 +18,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -31,7 +32,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const plan = await prisma.subscriptionPlan.findUnique({
+    const plan = await getPlatformDb().subscriptionPlan.findUnique({
       where: { id },
       include: {
         _count: { select: { subscriptions: true } },
@@ -53,6 +54,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -71,7 +73,7 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const existingPlan = await prisma.subscriptionPlan.findUnique({ where: { id } });
+    const existingPlan = await getPlatformDb().subscriptionPlan.findUnique({ where: { id } });
     if (!existingPlan) {
       return NextResponse.json({ error: 'Subscription plan not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -118,7 +120,7 @@ export async function PATCH(
       updateData.status = status;
     }
 
-    const plan = await prisma.subscriptionPlan.update({
+    const plan = await getPlatformDb().subscriptionPlan.update({
       where: { id },
       data: updateData,
       include: {
@@ -126,7 +128,7 @@ export async function PATCH(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_SUBSCRIPTION_PLAN',
@@ -146,6 +148,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -164,7 +167,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existingPlan = await prisma.subscriptionPlan.findUnique({
+    const existingPlan = await getPlatformDb().subscriptionPlan.findUnique({
       where: { id },
       include: {
         _count: { select: { subscriptions: true } },
@@ -176,7 +179,7 @@ export async function DELETE(
     }
 
     // Check for active subscriptions using this plan
-    const activeSubscriptionsCount = await prisma.subscription.count({
+    const activeSubscriptionsCount = await getPlatformDb().subscription.count({
       where: {
         planId: id,
         status: { in: ['active', 'trial'] },
@@ -190,11 +193,11 @@ export async function DELETE(
       );
     }
 
-    await prisma.subscriptionPlan.delete({
+    await getPlatformDb().subscriptionPlan.delete({
       where: { id },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_SUBSCRIPTION_PLAN',

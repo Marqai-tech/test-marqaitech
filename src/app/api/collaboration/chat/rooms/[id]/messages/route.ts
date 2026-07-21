@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { scanContentForPII } from '@/lib/dlp';
 
@@ -8,6 +8,7 @@ import { scanContentForPII } from '@/lib/dlp';
  * Returns paginated messages for a room, newest first (cursor-based).
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,16 +20,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const cursor = searchParams.get('cursor');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // Verify membership
-    const membership = await prisma.chatRoomMember.findUnique({
+    const membership = await db.chatRoomMember.findUnique({
       where: { roomId_userId: { roomId: id, userId: employee.id } },
     });
     if (!membership) return NextResponse.json({ error: 'Not a member of this room' }, { status: 403 });
 
-    const messages = await prisma.chatMessage.findMany({
+    const messages = await db.chatMessage.findMany({
       where: { roomId: id, isDeleted: false },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
     // Update lastReadAt
-    await prisma.chatRoomMember.update({
+    await db.chatRoomMember.update({
       where: { roomId_userId: { roomId: id, userId: employee.id } },
       data: { lastReadAt: new Date() },
     });
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * REQ-SEC-EMP-01: DLP scan — blocks PII in announcement channels
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -87,11 +89,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'body is required' }, { status: 400 });
     }
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // Verify membership
-    const membership = await prisma.chatRoomMember.findUnique({
+    const membership = await db.chatRoomMember.findUnique({
       where: { roomId_userId: { roomId: id, userId: employee.id } },
     });
     if (!membership) return NextResponse.json({ error: 'Not a member of this room' }, { status: 403 });
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const dlpResult = scanContentForPII(messageBody);
     if (dlpResult.action === 'block') {
       // Log the DLP block
-      await prisma.dLPScanLog.create({
+      await db.dLPScanLog.create({
         data: {
           sourceType: 'chat_message',
           sourceId: id,
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const detectedActions = detectInlineActions(messageBody);
 
     // Create message
-    const message = await prisma.chatMessage.create({
+    const message = await db.chatMessage.create({
       data: {
         roomId: id,
         senderId: employee.id,
@@ -140,7 +142,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // If DLP flagged, log it
     if (dlpResult.action === 'flag') {
-      await prisma.dLPScanLog.create({
+      await db.dLPScanLog.create({
         data: {
           sourceType: 'chat_message',
           sourceId: message.id,
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Update room's lastMessageAt
-    await prisma.chatRoom.update({
+    await db.chatRoom.update({
       where: { id },
       data: { lastMessageAt: new Date() },
     });

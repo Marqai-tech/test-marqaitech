@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -41,25 +42,25 @@ export async function GET(request: Request) {
 
     const [configs, promptLogs, configCount, logCount] = await Promise.all([
       withSchemaSync(() =>
-        prisma.aIConfig.findMany({
+        db.aIConfig.findMany({
           where,
           orderBy: { updatedAt: 'desc' },
         })
       ),
       withSchemaSync(() =>
-        prisma.aIPromptLog.findMany({
+        db.aIPromptLog.findMany({
           take: 20,
           orderBy: { createdAt: 'desc' },
         })
       ),
-      withSchemaSync(() => prisma.aIConfig.count({ where })),
-      withSchemaSync(() => prisma.aIPromptLog.count()),
+      withSchemaSync(() => db.aIConfig.count({ where })),
+      withSchemaSync(() => db.aIPromptLog.count()),
     ]);
 
     // Compute monitoring stats
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const recentLogs = await withSchemaSync(() =>
-      prisma.aIPromptLog.findMany({
+      db.aIPromptLog.findMany({
         where: { createdAt: { gte: last24h } },
       })
     );
@@ -104,6 +105,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -127,7 +129,7 @@ export async function POST(request: Request) {
     await ensureSchemaSynced();
 
     const config = await withSchemaSync(() =>
-      prisma.aIConfig.create({
+      db.aIConfig.create({
         data: {
           name,
           type,
@@ -143,7 +145,7 @@ export async function POST(request: Request) {
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_AI_CONFIG',

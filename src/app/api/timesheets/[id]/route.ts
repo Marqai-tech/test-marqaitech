@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -17,6 +17,7 @@ export async function OPTIONS() {
 
 // ─── GET /api/timesheets/[id] ─────────────────────────────────────
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
     const token = getTokenFromHeaders(request);
@@ -26,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const timesheet = await withSchemaSync(() =>
-      prisma.timesheet.findUnique({
+      db.timesheet.findUnique({
         where: { id },
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, avatar: true } },
@@ -49,6 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 // ─── PUT /api/timesheets/[id] ─────────────────────────────────────
 // Full edit. Blocked if the row is locked (unless caller is super_admin).
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
     const { id } = await params;
@@ -58,7 +60,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const userRole = decoded.role as string;
-    const existing = await withSchemaSync(() => prisma.timesheet.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.timesheet.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Timesheet not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -85,16 +87,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     // Hydrate project/task text from FK if FK is set but text isn't
     if (body.projectId && !body.project) {
-      const p = await prisma.project.findUnique({ where: { id: body.projectId }, select: { name: true } });
+      const p = await db.project.findUnique({ where: { id: body.projectId }, select: { name: true } });
       if (p) data.projectText = p.name;
     }
     if (body.projectTaskId && !body.task) {
-      const t = await prisma.projectTask.findUnique({ where: { id: body.projectTaskId }, select: { name: true } });
+      const t = await db.projectTask.findUnique({ where: { id: body.projectTaskId }, select: { name: true } });
       if (t) data.taskText = t.name;
     }
 
     const timesheet = await withSchemaSync(() =>
-      prisma.timesheet.update({
+      db.timesheet.update({
         where: { id },
         data,
         include: {
@@ -122,6 +124,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 //   - Any manager / hr_admin / tenant_admin can LOCK a row.
 //   - Only super_admin can UNLOCK.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
     const { id } = await params;
@@ -131,7 +134,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const userRole = decoded.role as string;
-    const existing = await withSchemaSync(() => prisma.timesheet.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.timesheet.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Timesheet not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -191,7 +194,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const timesheet = await withSchemaSync(() =>
-      prisma.timesheet.update({
+      db.timesheet.update({
         where: { id },
         data,
         include: {
@@ -203,7 +206,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     );
 
     // Audit log
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: body.locked === true ? 'LOCK_TIMESHEET' : body.locked === false ? 'UNLOCK_TIMESHEET' : 'UPDATE_TIMESHEET',
@@ -223,6 +226,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 // Blocked if locked (unless super_admin) or if invoiced (any role — invoiced
 // timesheets are immutable for audit reasons).
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
     const { id } = await params;
@@ -232,7 +236,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const userRole = decoded.role as string;
-    const existing = await withSchemaSync(() => prisma.timesheet.findUnique({ where: { id } }));
+    const existing = await withSchemaSync(() => db.timesheet.findUnique({ where: { id } }));
     if (!existing) {
       return NextResponse.json({ error: 'Timesheet not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -250,9 +254,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       );
     }
 
-    await withSchemaSync(() => prisma.timesheet.delete({ where: { id } }));
+    await withSchemaSync(() => db.timesheet.delete({ where: { id } }));
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_TIMESHEET',

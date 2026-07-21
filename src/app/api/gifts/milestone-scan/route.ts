@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -26,15 +27,15 @@ export async function POST(request: Request) {
     const tomorrow = new Date(today.getTime() + 86400000);
 
     // Birthdays today
-    const birthdayEmployees = await prisma.employee.findMany({ where: { status: 'active', dateOfBirth: { not: null } } });
+    const birthdayEmployees = await db.employee.findMany({ where: { status: 'active', dateOfBirth: { not: null } } });
     const birthdayGifts = [];
     for (const emp of birthdayEmployees) {
       if (!emp.dateOfBirth) continue;
       const dob = new Date(emp.dateOfBirth);
       if (dob.getMonth() === today.getMonth() && dob.getDate() === today.getDate()) {
-        const existing = await prisma.gift.findFirst({ where: { recipientId: emp.id, triggerEvent: 'birthday', createdAt: { gte: today } } });
+        const existing = await db.gift.findFirst({ where: { recipientId: emp.id, triggerEvent: 'birthday', createdAt: { gte: today } } });
         if (!existing) {
-          const g = await prisma.gift.create({ data: { recipientId: emp.id, triggerEvent: 'birthday', message: 'Happy Birthday from the team!', value: 0, currency: 'INR', status: 'sent' } });
+          const g = await db.gift.create({ data: { recipientId: emp.id, triggerEvent: 'birthday', message: 'Happy Birthday from the team!', value: 0, currency: 'INR', status: 'sent' } });
           birthdayGifts.push(g);
         }
       }
@@ -47,9 +48,9 @@ export async function POST(request: Request) {
       const doj = new Date(emp.dateOfJoining);
       if (doj.getMonth() === today.getMonth() && doj.getDate() === today.getDate() && doj.getFullYear() < today.getFullYear()) {
         const years = today.getFullYear() - doj.getFullYear();
-        const existing = await prisma.gift.findFirst({ where: { recipientId: emp.id, triggerEvent: 'work_anniversary', createdAt: { gte: today } } });
+        const existing = await db.gift.findFirst({ where: { recipientId: emp.id, triggerEvent: 'work_anniversary', createdAt: { gte: today } } });
         if (!existing) {
-          const g = await prisma.gift.create({ data: { recipientId: emp.id, triggerEvent: 'work_anniversary', message: `Happy ${years} anniversary!`, value: 0, currency: 'INR', status: 'sent' } });
+          const g = await db.gift.create({ data: { recipientId: emp.id, triggerEvent: 'work_anniversary', message: `Happy ${years} anniversary!`, value: 0, currency: 'INR', status: 'sent' } });
           anniversaryGifts.push(g);
         }
       }

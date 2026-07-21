@@ -17,7 +17,7 @@
 //      No social security treaty — home EPF continues, host country has
 //      no individual income tax. homePayPct=100, hostPayPct=0.
 
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -37,6 +37,7 @@ export async function OPTIONS() {
 //   ?hostCompanyId=...
 //   ?status=ACTIVE
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     let data: unknown[] = [];
     try {
-      data = await prisma.crossBorderSecondment.findMany({
+      data = await db.crossBorderSecondment.findMany({
         where,
         include: {
           employee: {
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
 //           ssCoverageCountry?, homePayPct, hostPayPct, homeCurrency, hostCurrency,
 //           notes? }
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Refuse if there's already an ACTIVE secondment for this employee
-    const existing = await prisma.crossBorderSecondment.findFirst({
+    const existing = await db.crossBorderSecondment.findFirst({
       where: { employeeId: body.employeeId, status: 'ACTIVE' },
     });
     if (existing) {
@@ -132,7 +134,7 @@ export async function POST(request: NextRequest) {
       }, { status: 409, headers: corsHeaders });
     }
 
-    const created = await prisma.crossBorderSecondment.create({
+    const created = await db.crossBorderSecondment.create({
       data: {
         employeeId: body.employeeId,
         homeCompanyId: body.homeCompanyId,
@@ -164,6 +166,7 @@ export async function POST(request: NextRequest) {
 //   body: { id, action: 'complete'|'cancel', endDate?, notes? }
 //   OR    { id, homePayPct, hostPayPct, taxResidencyStatus?, ssCoverageCountry?, notes? }
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -172,7 +175,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     if (!body.id) return Response.json({ error: 'Secondment id required' }, { status: 400, headers: corsHeaders });
 
-    const sec = await prisma.crossBorderSecondment.findUnique({ where: { id: body.id } });
+    const sec = await db.crossBorderSecondment.findUnique({ where: { id: body.id } });
     if (!sec) return Response.json({ error: 'Secondment not found' }, { status: 404, headers: corsHeaders });
     if (sec.status !== 'ACTIVE') {
       return Response.json({ error: `Secondment is already ${sec.status}` }, { status: 409, headers: corsHeaders });
@@ -208,7 +211,7 @@ export async function PATCH(request: NextRequest) {
       if (body.certificateRef) updateData.certificateRef = body.certificateRef;
     }
 
-    const updated = await prisma.crossBorderSecondment.update({
+    const updated = await db.crossBorderSecondment.update({
       where: { id: body.id },
       data: updateData,
     });

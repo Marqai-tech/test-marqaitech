@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,6 +7,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns legal holds. Super Admin sees all; others get 403.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Only Super Admin can manage legal holds' }, { status: 403 });
     }
 
-    const holds = await prisma.legalHold.findMany({
+    const holds = await db.legalHold.findMany({
       where: { status: 'active' },
       orderBy: { startDate: 'desc' },
       take: 200,
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
  * from deletion.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one of targetUserId, targetRoomId, targetFileId is required' }, { status: 400 });
     }
 
-    const hold = await prisma.legalHold.create({
+    const hold = await db.legalHold.create({
       data: {
         tenantId,
         initiatedBy: decoded.id,
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Mark the target resources as under legal hold
     if (targetFileId) {
-      await prisma.fileNode.update({
+      await db.fileNode.update({
         where: { id: targetFileId },
         data: { isUnderLegalHold: true },
       });
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
  * Releases a legal hold.
  */
 export async function PATCH(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -106,10 +109,10 @@ export async function PATCH(request: NextRequest) {
     const { holdId, releaseReason } = body;
     if (!holdId) return NextResponse.json({ error: 'holdId is required' }, { status: 400 });
 
-    const hold = await prisma.legalHold.findUnique({ where: { id: holdId } });
+    const hold = await db.legalHold.findUnique({ where: { id: holdId } });
     if (!hold) return NextResponse.json({ error: 'Hold not found' }, { status: 404 });
 
-    const updated = await prisma.legalHold.update({
+    const updated = await db.legalHold.update({
       where: { id: holdId },
       data: {
         status: 'released',
@@ -122,7 +125,7 @@ export async function PATCH(request: NextRequest) {
 
     // Unfreeze the target file if applicable
     if (hold.targetFileId) {
-      await prisma.fileNode.update({
+      await db.fileNode.update({
         where: { id: hold.targetFileId },
         data: { isUnderLegalHold: false },
       });

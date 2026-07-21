@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,16 +7,17 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns chat rooms the current user is a member of.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const employee = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ rooms: [] });
 
-    const rooms = await prisma.chatRoom.findMany({
+    const rooms = await db.chatRoom.findMany({
       where: {
         isActive: true,
         members: { some: { userId: employee.id } },
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
         const myMembership = room.members.find((m) => m.userId === employee.id);
         const lastReadAt = myMembership?.lastReadAt;
         const unreadCount = lastReadAt
-          ? await prisma.chatMessage.count({
+          ? await db.chatMessage.count({
               where: {
                 roomId: room.id,
                 createdAt: { gt: lastReadAt },
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
  * REQ-SEC-EMP-03: 1:1 direct chats are E2EE by default
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -87,12 +89,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'memberIds is required (at least one other member)' }, { status: 400 });
     }
 
-    const creator = await prisma.employee.findFirst({ where: { userId: decoded.id } });
+    const creator = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!creator) return NextResponse.json({ error: 'Employee profile not found' }, { status: 404 });
 
     // For direct chats: check if a room already exists with exactly these 2 members
     if (roomType === 'direct' && memberIds.length === 1) {
-      const existing = await prisma.chatRoom.findFirst({
+      const existing = await db.chatRoom.findFirst({
         where: {
           roomType: 'direct',
           isActive: true,
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     const allMemberIds = Array.from(new Set([creator.id, ...memberIds]));
 
-    const room = await prisma.chatRoom.create({
+    const room = await db.chatRoom.create({
       data: {
         name: roomType === 'direct' ? null : (name || 'Group Chat'),
         roomType,

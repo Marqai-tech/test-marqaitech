@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 import { convertCurrency } from '@/lib/fx';
@@ -19,6 +19,7 @@ export async function OPTIONS() {
 // ─── GET /api/invoices ────────────────────────────────────────────
 // List invoices with filters. Supports pagination + search.
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
 
     const [invoices, total] = await Promise.all([
       withSchemaSync(() =>
-        prisma.invoice.findMany({
+        db.invoice.findMany({
           where,
           include: {
             client: { select: { id: true, name: true, code: true, billingCurrency: true } },
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
           take: limit,
         })
       ),
-      withSchemaSync(() => prisma.invoice.count({ where })),
+      withSchemaSync(() => db.invoice.count({ where })),
     ]);
 
     return NextResponse.json(
@@ -97,6 +98,7 @@ export async function GET(request: Request) {
 //     baseCurrency?, taxRate?, discountRate?, issueDate?, dueDate?,
 //     periodStart?, periodEnd?, notes?, internalNotes?, exchangeRate?, fxSource? }
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -129,22 +131,22 @@ export async function POST(request: Request) {
     let baseCur = baseCurrency;
     if (!invoiceCurrency || !baseCur) {
       if (clientId && !invoiceCurrency) {
-        const c = await prisma.client.findUnique({ where: { id: clientId }, select: { billingCurrency: true } });
+        const c = await db.client.findUnique({ where: { id: clientId }, select: { billingCurrency: true } });
         if (c) invoiceCurrency = c.billingCurrency;
       }
       if (projectId && !invoiceCurrency) {
-        const p = await prisma.project.findUnique({ where: { id: projectId }, select: { currency: true } });
+        const p = await db.project.findUnique({ where: { id: projectId }, select: { currency: true } });
         if (p) invoiceCurrency = p.currency;
       }
       if (!invoiceCurrency) {
-        const co = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } });
+        const co = await db.company.findUnique({ where: { id: companyId }, select: { currency: true } });
         if (co) invoiceCurrency = co.currency;
       }
       if (!invoiceCurrency) invoiceCurrency = 'INR';
 
       // Base currency defaults to the company's currency
       if (!baseCur) {
-        const co = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } });
+        const co = await db.company.findUnique({ where: { id: companyId }, select: { currency: true } });
         if (co) baseCur = co.currency;
       }
     }
@@ -168,7 +170,7 @@ export async function POST(request: Request) {
     const yyyymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
     const prefix = `INV-${yyyymm}-`;
     const existing = await withSchemaSync(() =>
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: { invoiceNumber: { startsWith: prefix } },
         select: { invoiceNumber: true },
       })
@@ -177,7 +179,7 @@ export async function POST(request: Request) {
     const invoiceNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
 
     const invoice = await withSchemaSync(() =>
-      prisma.invoice.create({
+      db.invoice.create({
         data: {
           invoiceNumber,
           companyId,
@@ -210,7 +212,7 @@ export async function POST(request: Request) {
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_INVOICE',

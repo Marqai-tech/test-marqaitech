@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -33,20 +34,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     await ensureSchemaSynced();
 
     if (type === 'recognition') {
-      const recognition = await withSchemaSync(() => prisma.recognition.findUnique({ where: { id } }));
+      const recognition = await withSchemaSync(() => db.recognition.findUnique({ where: { id } }));
       if (!recognition) {
         return NextResponse.json({ error: 'Recognition not found' }, { status: 404, headers: corsHeaders() });
       }
       const [fromEmp, toEmp] = await Promise.all([
-        prisma.employee.findFirst({ where: { userId: recognition.fromId }, select: { id: true, firstName: true, lastName: true, avatar: true } }),
-        prisma.employee.findUnique({ where: { id: recognition.toId }, select: { id: true, firstName: true, lastName: true, avatar: true } }),
+        db.employee.findFirst({ where: { userId: recognition.fromId }, select: { id: true, firstName: true, lastName: true, avatar: true } }),
+        db.employee.findUnique({ where: { id: recognition.toId }, select: { id: true, firstName: true, lastName: true, avatar: true } }),
       ]);
       return NextResponse.json({ recognition: { ...recognition, fromEmployee: fromEmp, toEmployee: toEmp } }, { headers: corsHeaders() });
     }
 
     // Default: survey
     const survey = await withSchemaSync(() =>
-      prisma.survey.findUnique({
+      db.survey.findUnique({
         where: { id },
         include: {
           responses: true,
@@ -67,6 +68,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -86,7 +88,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     if (type === 'recognition') {
       const recognition = await withSchemaSync(() =>
-        prisma.recognition.update({
+        db.recognition.update({
           where: { id },
           data: {
             ...(body.type && { type: body.type }),
@@ -103,7 +105,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     // Default: survey update (status change, etc.)
     const survey = await withSchemaSync(() =>
-      prisma.survey.update({
+      db.survey.update({
         where: { id },
         data: {
           ...(body.title && { title: body.title }),
@@ -130,6 +132,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -147,12 +150,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     await ensureSchemaSynced();
 
     if (type === 'recognition') {
-      await withSchemaSync(() => prisma.recognition.delete({ where: { id } }));
+      await withSchemaSync(() => db.recognition.delete({ where: { id } }));
       return NextResponse.json({ success: true }, { headers: corsHeaders() });
     }
 
     // Default: delete survey (cascades responses)
-    await withSchemaSync(() => prisma.survey.delete({ where: { id } }));
+    await withSchemaSync(() => db.survey.delete({ where: { id } }));
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Delete engagement error:', error);

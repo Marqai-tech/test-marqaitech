@@ -10,7 +10,7 @@
  * with header `X-Biometric-Token: <raw-token>` (TLS 1.3 in transit — REQ-SEC-ATT-02).
  */
 import { requireUser, parseBody, getQuery, ok, fail, OPTIONS, isAdminRole } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { randomBytes, createHash } from 'crypto';
 
 export { OPTIONS };
@@ -25,6 +25,7 @@ function generateToken() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     if (q.isActive) where.isActive = q.isActive === 'true';
     if (q.vendor) where.vendor = q.vendor;
 
-    const devices = await prisma.biometricDevice.findMany({
+    const devices = await db.biometricDevice.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only admins can register biometric devices', 403);
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   // Check serial uniqueness
-  const existing = await prisma.biometricDevice.findUnique({ where: { serialNumber } });
+  const existing = await db.biometricDevice.findUnique({ where: { serialNumber } });
   if (existing) return fail('A device with this serial number is already registered', 409);
 
   // Generate raw token (returned once) + store hash
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
   const encryptionKeyId = body.encryptionKeyId ? String(body.encryptionKeyId) : null;
 
   try {
-    const device = await prisma.biometricDevice.create({
+    const device = await db.biometricDevice.create({
       data: {
         name,
         serialNumber,

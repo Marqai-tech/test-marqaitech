@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 
@@ -19,6 +19,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const scope = await resolveCompanyScope(request);
     if (!scope) {
@@ -39,7 +40,7 @@ export async function PATCH(
       );
     }
 
-    const existingLeave = await prisma.leaveRequest.findUnique({
+    const existingLeave = await db.leaveRequest.findUnique({
       where: { id },
       include: {
         employee: {
@@ -66,7 +67,7 @@ export async function PATCH(
         );
       }
       // For cancellation, verify it's their own request
-      const employee = await prisma.employee.findFirst({
+      const employee = await db.employee.findFirst({
         where: { userId: scope.userId, status: 'active' },
         select: { id: true },
       });
@@ -94,7 +95,7 @@ export async function PATCH(
       );
     }
 
-    const leaveRequest = await prisma.leaveRequest.update({
+    const leaveRequest = await db.leaveRequest.update({
       where: { id },
       data: {
         status,
@@ -118,7 +119,7 @@ export async function PATCH(
       const daysToDeduct = leaveRequest.halfDay ? 0.5 : daysDiff;
 
       const currentYear = new Date().getFullYear();
-      await prisma.leaveBalance.updateMany({
+      await db.leaveBalance.updateMany({
         where: {
           employeeId: leaveRequest.employeeId,
           leaveTypeId: leaveRequest.leaveTypeId,
@@ -144,7 +145,7 @@ export async function PATCH(
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: scope.userId,
         action: `${status.toUpperCase()}_LEAVE_REQUEST`,

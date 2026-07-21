@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const data = await prisma.employeePaymentMethod.findUnique({
+      const data = await db.employeePaymentMethod.findUnique({
         where: { id },
         include: {
           employee: {
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -60,9 +62,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // If this is set as primary, unset other primary methods for the same employee
     if (body.isPrimary) {
       try {
-        const existing = await prisma.employeePaymentMethod.findUnique({ where: { id } });
+        const existing = await db.employeePaymentMethod.findUnique({ where: { id } });
         if (existing) {
-          await prisma.employeePaymentMethod.updateMany({
+          await db.employeePaymentMethod.updateMany({
             where: { employeeId: existing.employeeId, isPrimary: true, id: { not: id } },
             data: { isPrimary: false },
           });
@@ -74,7 +76,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     try {
-      const data = await prisma.employeePaymentMethod.update({
+      const data = await db.employeePaymentMethod.update({
         where: { id },
         data: body,
       });
@@ -91,6 +93,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -99,7 +102,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     try {
       // Soft delete - set status to inactive
-      const data = await prisma.employeePaymentMethod.update({
+      const data = await db.employeePaymentMethod.update({
         where: { id },
         data: { status: 'inactive' },
       });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
 
@@ -15,6 +15,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
 
@@ -22,7 +23,7 @@ export async function GET(
     const guard = await assertEcosystemAccess(request, 'vendor', id);
     if (guard.deny) return guard.response;
 
-    const vendor = await prisma.vendor.findUnique({
+    const vendor = await db.vendor.findUnique({
       where: { id },
       include: {
         company: { select: { id: true, name: true, code: true } },
@@ -48,6 +49,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
 
@@ -58,7 +60,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const existing = await prisma.vendor.findUnique({ where: { id } });
+    const existing = await db.vendor.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -76,13 +78,13 @@ export async function PUT(
     if (body.type !== undefined) updateData.type = body.type;
     if (body.parentVendorId !== undefined) updateData.parentVendorId = body.parentVendorId;
 
-    const vendor = await prisma.vendor.update({
+    const vendor = await db.vendor.update({
       where: { id },
       data: updateData,
       include: { company: { select: { id: true, name: true } }, parentVendor: { select: { id: true, name: true } } },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_VENDOR',
@@ -102,6 +104,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
 
@@ -113,12 +116,12 @@ export async function DELETE(
     const existing = guard.record;
 
     // Soft delete
-    const vendor = await prisma.vendor.update({
+    const vendor = await db.vendor.update({
       where: { id },
       data: { status: 'inactive' },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_VENDOR',

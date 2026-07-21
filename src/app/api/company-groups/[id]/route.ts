@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -33,6 +33,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -58,7 +59,7 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const existing = await prisma.companyGroup.findUnique({ where: { id } });
+    const existing = await db.companyGroup.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Group company not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -90,7 +91,7 @@ export async function PATCH(
       updateData.notes = notes ? String(notes) : null;
     }
 
-    const group = await prisma.companyGroup.update({
+    const group = await db.companyGroup.update({
       where: { id },
       data: updateData,
       include: {
@@ -99,7 +100,7 @@ export async function PATCH(
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_COMPANY_GROUP',
@@ -125,6 +126,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -148,7 +150,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await prisma.companyGroup.findUnique({
+    const existing = await db.companyGroup.findUnique({
       where: { id },
       include: { _count: { select: { companies: true } } },
     });
@@ -165,9 +167,9 @@ export async function DELETE(
       );
     }
 
-    await prisma.companyGroup.delete({ where: { id } });
+    await db.companyGroup.delete({ where: { id } });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_COMPANY_GROUP',

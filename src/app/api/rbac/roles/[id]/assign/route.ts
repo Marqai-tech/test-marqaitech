@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -19,6 +19,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -36,7 +37,7 @@ export async function POST(
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: decoded.userId as string },
     });
 
@@ -79,7 +80,7 @@ export async function POST(
     }
 
     // Verify the role exists
-    const role = await prisma.role.findUnique({
+    const role = await db.role.findUnique({
       where: { id: roleId },
     });
 
@@ -101,7 +102,7 @@ export async function POST(
     }
 
     // Verify that all users exist and are within the allowed scope
-    const targetUsers = await prisma.user.findMany({
+    const targetUsers = await db.user.findMany({
       where: { id: { in: targetUserIds } },
     });
 
@@ -131,7 +132,7 @@ export async function POST(
 
     for (const userId of targetUserIds) {
       try {
-        await prisma.userRoleAssignment.create({
+        await db.userRoleAssignment.create({
           data: {
             userId,
             roleId,

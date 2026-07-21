@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 
 function corsHeaders() {
@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const scope = await resolveCompanyScope(request);
     if (!scope) {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     // ─── Company-scoped data visibility ───
     if (scope.scope === 'self') {
       // Employees can only see their own attendance records
-      const employee = await prisma.employee.findFirst({
+      const employee = await db.employee.findFirst({
         where: { userId: scope.userId, status: 'active' },
         select: { id: true },
       });
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [attendance, total] = await Promise.all([
-      prisma.attendance.findMany({
+      db.attendance.findMany({
         where,
         include: {
           employee: {
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.attendance.count({ where }),
+      db.attendance.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -103,6 +104,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const scope = await resolveCompanyScope(request);
     if (!scope) {
@@ -124,7 +126,7 @@ export async function POST(request: Request) {
 
     // ─── Company-scoped data visibility for POST ───
     // Verify the target employee belongs to the same company as the user
-    const targetEmployee = await prisma.employee.findUnique({
+    const targetEmployee = await db.employee.findUnique({
       where: { id: employeeId },
       select: { id: true, companyId: true, userId: true },
     });
@@ -158,7 +160,7 @@ export async function POST(request: Request) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const existingRecord = await prisma.attendance.findUnique({
+    const existingRecord = await db.attendance.findUnique({
       where: {
         employeeId_date: {
           employeeId,
@@ -178,7 +180,7 @@ export async function POST(request: Request) {
       const now = new Date();
       const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
 
-      const attendance = await prisma.attendance.upsert({
+      const attendance = await db.attendance.upsert({
         where: {
           employeeId_date: {
             employeeId,
@@ -222,7 +224,7 @@ export async function POST(request: Request) {
       const workHours = (now.getTime() - existingRecord.checkIn.getTime()) / (1000 * 60 * 60);
       const overtime = Math.max(0, workHours - 9);
 
-      const attendance = await prisma.attendance.update({
+      const attendance = await db.attendance.update({
         where: {
           employeeId_date: {
             employeeId,

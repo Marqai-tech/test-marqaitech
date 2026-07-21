@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -13,6 +13,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  *   (e.g., 7 years).
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -27,11 +28,11 @@ export async function POST(request: NextRequest) {
     const { employeeId, reason = 'employee_exit', retentionPeriodYears = 7 } = body;
     if (!employeeId) return NextResponse.json({ error: 'employeeId is required' }, { status: 400 });
 
-    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    const employee = await db.employee.findUnique({ where: { id: employeeId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // Create the anonymization request record
-    const anonymizeReq = await prisma.gDPRAnonymizationRequest.create({
+    const anonymizeReq = await db.gDPRAnonymizationRequest.create({
       data: {
         employeeId,
         requestedBy: decoded.id,
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     const anonymizedFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'state', 'zipCode', 'emergencyContactName', 'emergencyContactPhone', 'panNumber', 'aadhaarNumber', 'taxId', 'bankName', 'bankAccountNo', 'bankIfscCode', 'avatar'];
     const retainedFields = ['salary', 'salaryCurrency', 'dateOfJoining', 'salaryStructureId', 'payrollRecords']; // financial/payroll
 
-    await prisma.employee.update({
+    await db.employee.update({
       where: { id: employeeId },
       data: {
         firstName: 'Deleted',
@@ -72,13 +73,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Mark file nodes owned by employee as anonymized
-    await prisma.fileNode.updateMany({
+    await db.fileNode.updateMany({
       where: { ownerEmployeeId: employeeId },
       data: { isAnonymized: true },
     });
 
     // Update the anonymization request
-    const updated = await prisma.gDPRAnonymizationRequest.update({
+    const updated = await db.gDPRAnonymizationRequest.update({
       where: { id: anonymizeReq.id },
       data: {
         status: 'completed',
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
  * Returns anonymization requests (for audit).
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -121,7 +123,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (employeeId) where.employeeId = employeeId;
 
-    const requests = await prisma.gDPRAnonymizationRequest.findMany({
+    const requests = await db.gDPRAnonymizationRequest.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: 100,

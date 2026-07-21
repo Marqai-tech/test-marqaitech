@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
 
 function corsHeaders() {
@@ -14,6 +14,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
 
@@ -21,7 +22,7 @@ export async function GET(
     const guard = await assertEcosystemAccess(request, 'client', id);
     if (guard.deny) return guard.response;
 
-    const client = await prisma.client.findUnique({
+    const client = await db.client.findUnique({
       where: { id },
       include: {
         company: { select: { id: true, name: true, code: true } },
@@ -50,6 +51,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
 
@@ -73,13 +75,13 @@ export async function PUT(
     if (body.contractEnd !== undefined) updateData.contractEnd = body.contractEnd ? new Date(body.contractEnd) : null;
     if (body.status !== undefined) updateData.status = body.status;
 
-    const client = await prisma.client.update({
+    const client = await db.client.update({
       where: { id },
       data: updateData,
       include: { company: { select: { id: true, name: true } } },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_CLIENT',
@@ -99,6 +101,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
 
@@ -109,12 +112,12 @@ export async function DELETE(
     const existing = guard.record;
 
     // Soft delete
-    const client = await prisma.client.update({
+    const client = await db.client.update({
       where: { id },
       data: { status: 'inactive' },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_CLIENT',

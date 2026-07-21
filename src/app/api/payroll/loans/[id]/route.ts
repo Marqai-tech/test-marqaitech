@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const data = await prisma.loan.findUnique({
+      const data = await db.loan.findUnique({
         where: { id },
         include: {
           employee: {
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -55,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any = null;
     try {
-      existing = await prisma.loan.findUnique({ where: { id } });
+      existing = await db.loan.findUnique({ where: { id } });
     } catch (dbError: unknown) {
       console.error('Database error fetching loan for update:', dbError);
       return Response.json({ error: 'Not found' }, { status: 404, headers: corsHeaders });
@@ -96,7 +98,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     };
 
     try {
-      const data = await prisma.loan.update({
+      const data = await db.loan.update({
         where: { id },
         data: updateData,
       });
@@ -113,6 +115,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -127,7 +130,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     try {
-      const existing = await prisma.loan.findUnique({ where: { id } });
+      const existing = await db.loan.findUnique({ where: { id } });
       if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
 
       const updateData: Record<string, unknown> = {
@@ -140,7 +143,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         ...(remarks && { remarks }),
       };
 
-      const data = await prisma.loan.update({
+      const data = await db.loan.update({
         where: { id },
         data: updateData,
       });
@@ -157,6 +160,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const db = await getDb(request);
   try {
     const { id } = await params;
     const token = getTokenFromHeaders(request);
@@ -164,14 +168,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!decoded) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
 
     try {
-      const existing = await prisma.loan.findUnique({ where: { id } });
+      const existing = await db.loan.findUnique({ where: { id } });
       if (!existing) return Response.json({ error: 'Loan not found' }, { status: 404, headers: corsHeaders });
 
       if (existing.status !== 'pending') {
         return Response.json({ error: 'Only pending loans can be deleted' }, { status: 400, headers: corsHeaders });
       }
 
-      await prisma.loan.delete({ where: { id } });
+      await db.loan.delete({ where: { id } });
 
       return Response.json({ message: 'Loan deleted successfully' }, { headers: corsHeaders });
     } catch (dbError: unknown) {

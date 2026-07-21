@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -53,17 +54,17 @@ export async function GET(request: Request) {
     }
 
     const [candidates, total] = await Promise.all([
-      prisma.preboardingCandidate.findMany({
+      db.preboardingCandidate.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.preboardingCandidate.count({ where }),
+      db.preboardingCandidate.count({ where }),
     ]);
 
     // Compute stats
-    const allCandidates = await prisma.preboardingCandidate.findMany({
+    const allCandidates = await db.preboardingCandidate.findMany({
       select: { status: true },
     });
 
@@ -98,6 +99,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -142,7 +144,7 @@ export async function POST(request: Request) {
     await ensureSchemaSynced();
 
     const candidate = await withSchemaSync(() =>
-      prisma.preboardingCandidate.create({
+      db.preboardingCandidate.create({
         data: {
           candidateName,
           candidateEmail,
@@ -165,7 +167,7 @@ export async function POST(request: Request) {
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_PREBOARDING_CANDIDATE',

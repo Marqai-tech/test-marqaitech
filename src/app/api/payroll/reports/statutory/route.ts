@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     let payrollRuns: { id: string }[] = [];
     try {
-      payrollRuns = await prisma.payrollRun.findMany({
+      payrollRuns = await db.payrollRun.findMany({
         where: runWhere,
         select: { id: true },
       });
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let statutoryComponents: any[] = [];
     try {
-      statutoryComponents = await prisma.statutoryComponent.findMany({
+      statutoryComponents = await db.statutoryComponent.findMany({
         where: {
           componentCode: { in: relevantCodes },
         },
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
           tlWhere.employee = { department: { companyId } };
         }
 
-        transactionLines = await prisma.payrollTransactionLine.findMany({
+        transactionLines = await db.payrollTransactionLine.findMany({
           where: tlWhere,
           include: {
             employee: {

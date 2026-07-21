@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -22,6 +22,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ krId: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -41,7 +42,7 @@ export async function PATCH(
       const pct = (Number(data.currentValue) / Number(data.targetValue)) * 100;
       data.status = pct >= 100 ? 'completed' : pct > 0 ? 'in_progress' : 'not_started';
     } else if (data.currentValue !== undefined) {
-      const kr = await prisma.keyResult.findUnique({ where: { id: krId }, select: { targetValue: true } });
+      const kr = await db.keyResult.findUnique({ where: { id: krId }, select: { targetValue: true } });
       if (kr) {
         const pct = (Number(data.currentValue) / kr.targetValue) * 100;
         data.status = pct >= 100 ? 'completed' : pct > 0 ? 'in_progress' : 'not_started';
@@ -50,7 +51,7 @@ export async function PATCH(
 
     await ensureSchemaSynced();
     const updated = await withSchemaSync(() =>
-      prisma.keyResult.update({ where: { id: krId }, data })
+      db.keyResult.update({ where: { id: krId }, data })
     );
 
     return NextResponse.json({ keyResult: updated }, { headers: corsHeaders() });
@@ -64,6 +65,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ krId: string }> }
 ) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
@@ -72,7 +74,7 @@ export async function DELETE(
 
     const { krId } = await params;
     await ensureSchemaSynced();
-    await withSchemaSync(() => prisma.keyResult.delete({ where: { id: krId } }));
+    await withSchemaSync(() => db.keyResult.delete({ where: { id: krId } }));
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Delete key result error:', error);

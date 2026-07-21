@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (loanType) where.loanType = loanType;
 
     try {
-      const data = await prisma.loan.findMany({
+      const data = await db.loan.findMany({
         where,
         include: {
           employee: {
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const decoded = await verifyToken(token);
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
     emiAmount = Math.round(emiAmount * 100) / 100;
 
     try {
-      const data = await prisma.loan.create({
+      const data = await db.loan.create({
         data: {
           employeeId: body.employeeId,
           loanType: body.loanType,

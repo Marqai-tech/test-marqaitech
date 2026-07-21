@@ -11,7 +11,7 @@
  * DELETE /api/candidate-portal/saved-jobs?jobPostingId=X
  *   Remove a job from the saved list.
  */
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import {
   requireCandidate,
   ok,
@@ -23,10 +23,11 @@ import {
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
-  const savedJobs = await prisma.candidateSavedJob.findMany({
+  const savedJobs = await db.candidateSavedJob.findMany({
     where: { candidateEmail: candidate.email },
     include: {
       jobPosting: {
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -71,14 +73,14 @@ export async function POST(request: Request) {
   if (!jobPostingId) return fail('jobPostingId is required', 400);
 
   // Verify the job posting exists and is open
-  const jobPosting = await prisma.jobPosting.findUnique({
+  const jobPosting = await db.jobPosting.findUnique({
     where: { id: jobPostingId },
     select: { id: true, title: true, status: true },
   });
   if (!jobPosting) return fail('Job posting not found', 404);
 
   // Upsert (idempotent — re-saving is a no-op)
-  const saved = await prisma.candidateSavedJob.upsert({
+  const saved = await db.candidateSavedJob.upsert({
     where: {
       candidateEmail_jobPostingId: {
         candidateEmail: candidate.email,
@@ -98,6 +100,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const db = await getDb(request);
   const { candidate, response } = await requireCandidate(request);
   if (!candidate) return response;
 
@@ -105,7 +108,7 @@ export async function DELETE(request: Request) {
   const jobPostingId = url.searchParams.get('jobPostingId');
   if (!jobPostingId) return fail('jobPostingId query parameter is required', 400);
 
-  await prisma.candidateSavedJob.deleteMany({
+  await db.candidateSavedJob.deleteMany({
     where: {
       candidateEmail: candidate.email,
       jobPostingId,

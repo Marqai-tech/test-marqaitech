@@ -3,7 +3,7 @@
  * credit a CompOffLeave record (REQ-OT-03).
  */
 import { requireUser, isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
@@ -11,6 +11,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Only managers/HR can approve', 403);
@@ -22,7 +23,7 @@ export async function PATCH(
   if (!['approved', 'rejected', 'cancelled'].includes(status)) return fail('Invalid status');
 
   try {
-    const existing = await prisma.overtimeRequest.findUnique({ where: { id } });
+    const existing = await db.overtimeRequest.findUnique({ where: { id } });
     if (!existing) return fail('Not found', 404);
 
     let compOffCreditedId: string | null = null;
@@ -32,7 +33,7 @@ export async function PATCH(
       // Credit a CompOffLeave — expires after 90 days (typical policy)
       const expiry = new Date(existing.date);
       expiry.setDate(expiry.getDate() + 90);
-      const compOff = await prisma.compOffLeave.create({
+      const compOff = await db.compOffLeave.create({
         data: {
           employeeId: existing.employeeId,
           earnedDate: existing.date,
@@ -47,7 +48,7 @@ export async function PATCH(
       compOffCreditedAt = new Date();
     }
 
-    const updated = await prisma.overtimeRequest.update({
+    const updated = await db.overtimeRequest.update({
       where: { id },
       data: {
         status,
@@ -61,7 +62,7 @@ export async function PATCH(
 
     // If approved as payout, also create an OvertimeRecord for payroll processing
     if (status === 'approved' && existing.payoutPreference === 'payout') {
-      await prisma.overtimeRecord.upsert({
+      await db.overtimeRecord.upsert({
         where: { employeeId_date: { employeeId: existing.employeeId, date: existing.date } },
         update: {
           hours: existing.estimatedHours,

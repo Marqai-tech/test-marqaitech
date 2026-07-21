@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -7,13 +7,14 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Returns SSO providers for the current tenant.
  */
 export async function GET(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const providers = await prisma.sSOProvider.findMany({
+    const providers = await db.sSOProvider.findMany({
       where: { tenantId: decoded.tenantId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
     });
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
  * Tenant Admin / Super Admin only.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -62,13 +64,13 @@ export async function POST(request: NextRequest) {
 
     // If marking as default, unset any existing default
     if (isDefault) {
-      await prisma.sSOProvider.updateMany({
+      await db.sSOProvider.updateMany({
         where: { tenantId: decoded.tenantId, isDefault: true },
         data: { isDefault: false },
       });
     }
 
-    const provider = await prisma.sSOProvider.create({
+    const provider = await db.sSOProvider.create({
       data: {
         tenantId: decoded.tenantId,
         name,

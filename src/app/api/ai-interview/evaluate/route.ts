@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // POST /api/ai-interview/evaluate — Evaluate a completed session
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const { sessionId } = body;
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
     }
 
-    const session = await prisma.interviewSession.findUnique({
+    const session = await db.interviewSession.findUnique({
       where: { id: sessionId },
       include: {
         set: { select: { roleTitle: true, jobDescription: true, evaluationConfig: true } },
@@ -76,7 +77,7 @@ Be objective and fair. Return ONLY the JSON.`;
 
       const clamp = (v: number) => Math.min(100, Math.max(0, v));
 
-      const updatedSession = await prisma.interviewSession.update({
+      const updatedSession = await db.interviewSession.update({
         where: { id: sessionId },
         data: {
           communicationScore: clamp(Number(evaluation.communicationScore) || 0),
@@ -102,7 +103,7 @@ Be objective and fair. Return ONLY the JSON.`;
       const base = Math.min(90, 45 + Math.floor(avgLen / 8));
       const rand = (offset: number) => clamp(base + Math.floor(Math.random() * offset) - Math.floor(offset / 2));
 
-      const updatedSession = await prisma.interviewSession.update({
+      const updatedSession = await db.interviewSession.update({
         where: { id: sessionId },
         data: {
           communicationScore: rand(15),

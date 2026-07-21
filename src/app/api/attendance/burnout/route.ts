@@ -7,11 +7,12 @@
  *                                      collaboration activity.
  */
 import { requireUser, isAdminRole, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     if (q.riskLevel) where.riskLevel = q.riskLevel;
     if (q.employeeId) where.employeeId = q.employeeId;
 
-    const items = await prisma.burnoutFlag.findMany({
+    const items = await db.burnoutFlag.findMany({
       where,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } } },
       orderBy: { createdAt: 'desc' },
@@ -43,12 +44,13 @@ export async function GET(request: Request) {
  *  - High collaboration activity in last 7 days (weight: 0.3)
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
 
   try {
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { status: 'active' },
       select: { id: true, firstName: true, lastName: true, employeeId: true, email: true },
     });
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
 
     for (const emp of employees) {
       // 1. Overtime sum (last 30 days)
-      const otRecords = await prisma.overtimeRecord.findMany({
+      const otRecords = await db.overtimeRecord.findMany({
         where: { employeeId: emp.id, date: { gte: thirtyDaysAgo }, status: { in: ['approved', 'processed'] } },
         select: { hours: true },
       });
@@ -71,14 +73,14 @@ export async function POST(request: Request) {
       const otScore = Math.min(1, otHours / 30);
 
       // 2. Low leave usage (last 90 days)
-      const leaveCount = await prisma.leaveRequest.count({
+      const leaveCount = await db.leaveRequest.count({
         where: { employeeId: emp.id, status: 'approved', startDate: { gte: ninetyDaysAgo } },
       });
       // 0 leaves → 1 (high risk), 5+ leaves → 0 (low risk)
       const leaveScore = Math.max(0, 1 - leaveCount / 5);
 
       // 3. High activity (proxy: timesheet entries in last 7 days)
-      const tsCount = await prisma.timesheet.count({
+      const tsCount = await db.timesheet.count({
         where: { employeeId: emp.id, date: { gte: sevenDaysAgo } },
       });
       // 0 entries → 0 (no risk), 35+ → 1 (high risk — overworked)
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
       if (leaveScore > 0.5) recommendations += 'Encourage employee to take accrued leave. ';
       if (activityScore > 0.7) recommendations += 'Re-balance workload across team members. ';
 
-      const flag = await prisma.burnoutFlag.create({
+      const flag = await db.burnoutFlag.create({
         data: {
           employeeId: emp.id,
           riskScore: Math.round(riskScore * 100) / 100,

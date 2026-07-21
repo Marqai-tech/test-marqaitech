@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -9,6 +9,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * Shows which tenants have dedicated databases and which use shared DB.
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     const payload = token ? await verifyToken(token) : null;
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     }
 
     // Get all tenants with their database status
-    const tenants = await prisma.tenant.findMany({
+    const tenants = await getPlatformDb().tenant.findMany({
       select: {
         id: true,
         name: true,

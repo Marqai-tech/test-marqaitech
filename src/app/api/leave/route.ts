@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 import { buildContext, evaluateLeaveAutoApproval } from '@/lib/auto-approval-engine';
@@ -17,6 +17,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const scope = await resolveCompanyScope(request);
     if (!scope) {
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     // ─── Company-scoped data visibility ───
     if (scope.scope === 'self') {
       // Employees can only see their own leave requests
-      const employee = await prisma.employee.findFirst({
+      const employee = await db.employee.findFirst({
         where: { userId: scope.userId, status: 'active' },
         select: { id: true },
       });
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
     if (employeeId) where.employeeId = employeeId;
 
     const [leaveRequests, total] = await Promise.all([
-      prisma.leaveRequest.findMany({
+      db.leaveRequest.findMany({
         where,
         include: {
           employee: {
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.leaveRequest.count({ where }),
+      db.leaveRequest.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -104,6 +105,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const scope = await resolveCompanyScope(request);
     if (!scope) {
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
 
     // ─── Company-scoped data visibility for POST ───
     // Verify the target employee belongs to the same company as the user
-    const targetEmployee = await prisma.employee.findUnique({
+    const targetEmployee = await db.employee.findUnique({
       where: { id: employeeId },
       select: { id: true, companyId: true, userId: true },
     });
@@ -159,17 +161,17 @@ export async function POST(request: Request) {
     // REQ-LVE-04: AI Collaborative Leave Check — compute warning before persisting
     let aiCollaborativeWarning: string | null = null;
     try {
-      const team = await prisma.employee.findUnique({
+      const team = await db.employee.findUnique({
         where: { id: employeeId },
         select: { id: true, departmentId: true },
       });
       if (team?.departmentId) {
-        const teamMembers = await prisma.employee.findMany({
+        const teamMembers = await db.employee.findMany({
           where: { departmentId: team.departmentId, id: { not: employeeId }, status: 'active' },
           select: { id: true },
         });
         if (teamMembers.length > 0) {
-          const overlapping = await prisma.leaveRequest.findMany({
+          const overlapping = await db.leaveRequest.findMany({
             where: {
               employeeId: { in: teamMembers.map(m => m.id) },
               status: { in: ['approved', 'pending'] },
@@ -195,7 +197,7 @@ export async function POST(request: Request) {
       // Non-fatal — leave request can still proceed without the AI warning
     }
 
-    const leaveRequest = await prisma.leaveRequest.create({
+    const leaveRequest = await db.leaveRequest.create({
       data: {
         employeeId,
         leaveTypeId,
@@ -231,7 +233,7 @@ export async function POST(request: Request) {
         isMedical: /sick|medical/i.test(leaveRequest.leaveType?.name || ''),
       });
       if (decision.autoApproved) {
-        await prisma.leaveRequest.update({
+        await db.leaveRequest.update({
           where: { id: leaveRequest.id },
           data: {
             status: 'approved',
@@ -244,7 +246,7 @@ export async function POST(request: Request) {
         autoApprovalReason = decision.reason;
 
         // Audit log for the auto-approval
-        await prisma.auditLog.create({
+        await db.auditLog.create({
           data: {
             userId: scope.userId,
             action: 'AI_AUTO_APPROVE_LEAVE',
@@ -292,7 +294,7 @@ export async function POST(request: Request) {
     }
 
     // Notify HR admins about the leave request
-    const hrAdmins = await prisma.user.findMany({
+    const hrAdmins = await db.user.findMany({
       where: {
         tenantId: scope.tenantId,
         role: { in: ['super_admin', 'tenant_admin', 'admin'] },
@@ -311,7 +313,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: scope.userId,
         action: 'CREATE_LEAVE_REQUEST',

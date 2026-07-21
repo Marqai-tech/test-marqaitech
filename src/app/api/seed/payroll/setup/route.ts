@@ -5,9 +5,10 @@
  */
 import { NextResponse } from 'next/server';
 import { execSync } from 'child_process';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const url = new URL(request.url);
     const force = url.searchParams.get('force') === 'true';

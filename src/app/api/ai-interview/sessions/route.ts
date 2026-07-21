@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 // GET /api/ai-interview/sessions — List sessions with filters
 export async function GET(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (setId) where.setId = setId;
 
     const [sessions, total] = await Promise.all([
-      prisma.interviewSession.findMany({
+      db.interviewSession.findMany({
         where,
         include: {
           set: { select: { id: true, title: true, roleTitle: true, interviewMode: true } },
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.interviewSession.count({ where }),
+      db.interviewSession.count({ where }),
     ]);
 
     return NextResponse.json({ data: sessions, total, page, limit, totalPages: Math.ceil(total / limit) });
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/ai-interview/sessions — Create session
 export async function POST(req: NextRequest) {
+  const db = await getDb(req);
   try {
     const body = await req.json();
     const {
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify set exists and is active
-    const set = await prisma.interviewSet.findUnique({ where: { id: setId } });
+    const set = await db.interviewSet.findUnique({ where: { id: setId } });
     if (!set) {
       return NextResponse.json({ error: 'Interview set not found' }, { status: 404 });
     }
@@ -71,22 +73,22 @@ export async function POST(req: NextRequest) {
 
     // If from invitation, link it
     if (invitationId) {
-      const invitation = await prisma.interviewInvitation.findUnique({ where: { id: invitationId } });
+      const invitation = await db.interviewInvitation.findUnique({ where: { id: invitationId } });
       if (invitation) {
         sessionData.candidateName = invitation.candidateName;
         sessionData.candidateEmail = invitation.candidateEmail;
         sessionData.status = set.enablePreScreening ? 'pre_screen' : 'in_progress';
         sessionData.startedAt = new Date();
 
-        await prisma.interviewInvitation.update({
+        await db.interviewInvitation.update({
           where: { id: invitationId },
           data: { status: 'started', openedAt: new Date() },
         });
       }
     }
 
-    const session = await prisma.interviewSession.create({
-      data: sessionData as Parameters<typeof prisma.interviewSession.create>[0]['data'],
+    const session = await db.interviewSession.create({
+      data: sessionData as Parameters<typeof db.interviewSession.create>[0]['data'],
       include: {
         set: { select: { id: true, title: true, roleTitle: true, interviewMode: true, questions: { orderBy: { order: 'asc' } } } },
       },

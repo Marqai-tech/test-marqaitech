@@ -6,11 +6,12 @@
  *  PATCH /api/attendance/regularize/[id]    — approve / reject (manager or HR)
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     }
     if (q.status) where.status = q.status;
 
-    const items = await prisma.attendanceRegularization.findMany({
+    const items = await db.attendanceRegularization.findMany({
       where,
       include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
       orderBy: { createdAt: 'desc' },
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
     // REQ-REG-03: detect weekend/holiday
     const day = date.getDay();
     const isWeekend = day === 0 || day === 6;
-    const holiday = await prisma.holiday.findFirst({
+    const holiday = await db.holiday.findFirst({
       where: { date, type: { in: ['public', 'company'] } },
     });
     const isHoliday = !!holiday;
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     // REQ-REG-02: AI suggestion based on historical data — find median check-in time
     let aiSuggestedTime: Date | null = null;
     let aiConfidence = 0;
-    const historical = await prisma.attendance.findMany({
+    const historical = await db.attendance.findMany({
       where: { employeeId: emp.id, status: { in: ['present', 'late'] }, checkIn: { not: null } },
       orderBy: { date: 'desc' },
       take: 30,
@@ -82,7 +84,7 @@ export async function POST(request: Request) {
       aiConfidence = Math.min(1, historical.length / 30);
     }
 
-    const record = await prisma.attendanceRegularization.create({
+    const record = await db.attendanceRegularization.create({
       data: {
         employeeId: emp.id,
         date,

@@ -12,7 +12,7 @@
  * with the public auto-seed endpoint (/api/auto-seed-demo).
  */
 import { requireUser, isAdminRole, ok, fail, OPTIONS, parseBody } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import {
   seedClients,
   seedVendors,
@@ -25,6 +25,7 @@ import {
 export { OPTIONS };
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
@@ -36,12 +37,12 @@ export async function POST(request: Request) {
 
   try {
     // Pick a stable anchor company (first company in the tenant)
-    const company = await prisma.company.findFirst({
+    const company = await db.company.findFirst({
       orderBy: { createdAt: 'asc' },
     });
     if (!company) return fail('No companies found — run the base seed first.', 400);
 
-    const employees = await prisma.employee.findMany({
+    const employees = await db.employee.findMany({
       where: { status: 'active' },
       take: 20,
       orderBy: { createdAt: 'asc' },
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     if (employees.length === 0) return fail('No active employees found — run the base seed first.', 400);
 
     // Pre-fetch projects that SOWs/POs/margins can reference
-    const projects = await prisma.project.findMany({
+    const projects = await db.project.findMany({
       where: { companyId: company.id },
       take: 10,
       orderBy: { createdAt: 'asc' },

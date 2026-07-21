@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 /**
@@ -33,6 +33,7 @@ function detectIntent(query: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     const { query } = body;
     if (!query) return NextResponse.json({ error: 'query is required' }, { status: 400 });
 
-    const employee = await prisma.employee.findFirst({
+    const employee = await db.employee.findFirst({
       where: { userId: decoded.id },
       select: { id: true, firstName: true, lastName: true, email: true, department: { select: { name: true } } },
     });
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     let contextData = '';
     if (intent === 'leave_balance' && employee) {
-      const balances = await prisma.leaveBalance.findMany({
+      const balances = await db.leaveBalance.findMany({
         where: { employeeId: employee.id },
         include: { leaveType: true },
       });
@@ -106,7 +107,7 @@ Common topics: leave balance, payslips, attendance, policies, benefits, employee
     }
 
     // Persist the query + response for audit + improvement
-    const knowledgeQuery = await prisma.aIKnowledgeQuery.create({
+    const knowledgeQuery = await db.aIKnowledgeQuery.create({
       data: {
         userId: decoded.id,
         query,

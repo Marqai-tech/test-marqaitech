@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -11,7 +11,7 @@ function corsHeaders() {
 }
 
 async function generateTicketId(): Promise<string> {
-  const lastTicket = await prisma.ticket.findFirst({
+  const lastTicket = await db.ticket.findFirst({
     orderBy: { createdAt: 'desc' },
     select: { ticketId: true },
   });
@@ -32,6 +32,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
     let total = 0;
     try {
       [tickets, total] = await Promise.all([
-        prisma.ticket.findMany({
+        db.ticket.findMany({
           where,
           include: {
             category: { select: { id: true, name: true, type: true, slaHours: true } },
@@ -82,20 +83,20 @@ export async function GET(request: Request) {
           skip: (page - 1) * limit,
           take: limit,
         }),
-        prisma.ticket.count({ where }),
+        db.ticket.count({ where }),
       ]);
     } catch (dbError) {
       console.error('Ticket DB query error:', dbError);
       // Try again without the category include (might be a relation issue)
       try {
         [tickets, total] = await Promise.all([
-          prisma.ticket.findMany({
+          db.ticket.findMany({
             where,
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
           }),
-          prisma.ticket.count({ where }),
+          db.ticket.count({ where }),
         ]);
       } catch (fallbackError) {
         console.error('Ticket fallback query error:', fallbackError);
@@ -132,6 +133,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -168,7 +170,7 @@ export async function POST(request: Request) {
       slaDeadlineDate = new Date(slaDeadline);
     } else if (categoryId) {
       try {
-        const category = await prisma.ticketCategory.findUnique({ where: { id: categoryId } });
+        const category = await db.ticketCategory.findUnique({ where: { id: categoryId } });
         if (category) {
           slaDeadlineDate = new Date(Date.now() + category.slaHours * 60 * 60 * 1000);
         }
@@ -177,7 +179,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const ticket = await prisma.ticket.create({
+    const ticket = await db.ticket.create({
       data: {
         ticketId,
         categoryId: categoryId || null,
@@ -200,7 +202,7 @@ export async function POST(request: Request) {
     });
 
     try {
-      await prisma.auditLog.create({
+      await db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'CREATE_TICKET',

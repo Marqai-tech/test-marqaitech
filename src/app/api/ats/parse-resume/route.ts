@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { parseResumeFromDataUrl } from '@/lib/resume-parser';
 
@@ -25,6 +25,7 @@ export async function OPTIONS() {
  * ResumeParse row.
  */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
  * Returns the latest ResumeParse row for a given application.
  */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {

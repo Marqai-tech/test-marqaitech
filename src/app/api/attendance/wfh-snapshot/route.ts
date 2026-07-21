@@ -5,11 +5,12 @@
  * Optionally accepts an AI activity summary (REQ-ATT-07).
  */
 import { requireUser, findEmployeeByEmail, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   try {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
       if (q.to) (where.date as Record<string, unknown>).lte = new Date(q.to);
     }
 
-    const items = await prisma.wfhAttendanceSnapshot.findMany({
+    const items = await db.wfhAttendanceSnapshot.findMany({
       where,
       orderBy: { punchTime: 'desc' },
       take: 200,
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;
   const body = await parseBody(request);
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
     const longitude = Number(body.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return fail('Invalid coordinates');
 
-    const record = await prisma.wfhAttendanceSnapshot.create({
+    const record = await db.wfhAttendanceSnapshot.create({
       data: {
         employeeId: emp.id,
         date: new Date(body.date as string),

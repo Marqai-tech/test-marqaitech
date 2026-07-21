@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [instances, total] = await Promise.all([
-      prisma.workflowInstance.findMany({
+      db.workflowInstance.findMany({
         where,
         include: {
           workflowDefinition: { select: { id: true, name: true, module: true, steps: true } },
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.workflowInstance.count({ where }),
+      db.workflowInstance.count({ where }),
     ]);
 
     return NextResponse.json(
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     // Verify workflow definition exists
-    const workflowDef = await prisma.workflowDefinition.findUnique({
+    const workflowDef = await db.workflowDefinition.findUnique({
       where: { id: workflowDefinitionId },
     });
     if (!workflowDef) {
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
       ? JSON.parse(workflowDef.steps)
       : workflowDef.steps;
 
-    const instance = await prisma.workflowInstance.create({
+    const instance = await db.workflowInstance.create({
       data: {
         workflowDefinitionId,
         entityType,
@@ -139,7 +141,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'START_WORKFLOW',

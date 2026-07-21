@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
@@ -23,6 +23,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const db = await getDb(request);
   try {
     await ensureSchemaSynced();
 
@@ -36,7 +37,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const invoice = await withSchemaSync(() => prisma.invoice.findUnique({ where: { id } }));
+    const invoice = await withSchemaSync(() => db.invoice.findUnique({ where: { id } }));
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -48,7 +49,7 @@ export async function POST(
     }
 
     // Final totals recalc
-    const lineItems = await withSchemaSync(() => prisma.invoiceLineItem.findMany({ where: { invoiceId: id } }));
+    const lineItems = await withSchemaSync(() => db.invoiceLineItem.findMany({ where: { invoiceId: id } }));
     const subtotal = lineItems.reduce((s, l) => s + l.amount, 0);
     const taxableSubtotal = lineItems.filter((l) => l.taxable).reduce((s, l) => s + l.amount, 0);
     const taxAmount = round(taxableSubtotal * (invoice.taxRate / 100));
@@ -59,7 +60,7 @@ export async function POST(
     const totalAmountBase = baseCur === invoice.currency ? totalAmount : round(totalAmount / (invoice.exchangeRate || 1));
 
     const finalized = await withSchemaSync(() =>
-      prisma.invoice.update({
+      db.invoice.update({
         where: { id },
         data: {
           status: 'issued',
@@ -81,7 +82,7 @@ export async function POST(
       })
     );
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'FINALIZE_INVOICE',

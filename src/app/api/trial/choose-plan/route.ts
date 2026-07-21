@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 
 /**
  * POST /api/trial/choose-plan
@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
  * Updates tenant plan and TrialRegistration.planConfirmed.
  */
 export async function POST(request: NextRequest) {
+  const db = await getDb(request);
   try {
     const body = await request.json();
     const { plan, tenantSlug, email } = body;

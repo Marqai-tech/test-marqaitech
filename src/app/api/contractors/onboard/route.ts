@@ -16,7 +16,7 @@
  * PII.
  */
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { assertEcosystemAccess, CORS } from '@/lib/ecosystem-access';
 
@@ -29,6 +29,7 @@ export async function OPTIONS() {
 const DEFAULT_CONTRACTOR_PASSWORD = 'Contractor@2026'; // force password reset on first login
 
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
     if (projectId) where.projectId = projectId;
     if (status) where.status = status;
 
-    const contractors = await prisma.contractor.findMany({
+    const contractors = await db.contractor.findMany({
       where,
       include: {
         vendor: { select: { id: true, name: true, code: true } },
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -87,11 +89,11 @@ export async function POST(request: Request) {
     }
 
     // 1. Create scoped User account (role='contractor')
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await db.user.findUnique({ where: { email } });
     let user = existingUser;
     if (!existingUser) {
       const passwordHash = await hashPassword(DEFAULT_CONTRACTOR_PASSWORD);
-      user = await prisma.user.create({
+      user = await db.user.create({
         data: {
           email,
           name,
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Create the Contractor record
-    const contractor = await prisma.contractor.create({
+    const contractor = await db.contractor.create({
       data: {
         userId: user!.id,
         vendorId,
@@ -128,7 +130,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         userId: (decoded as any).userId as string,
         action: 'CONTRACTOR_ONBOARDED',
