@@ -47,3 +47,29 @@ Stage Summary:
 - Tenant Configuration page is live at /tenant-admin/tenant-configuration
 - API endpoint is live at /api/tenant-configuration
 - Navigation links will appear in sidebar when super_admin or tenant_admin logs in
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix Leave/Attendance Prisma errors, Add Excel import + role assignment, Move settings to modules, Fix duplicate dropdowns
+
+Work Log:
+- Fixed Leave Module - Restricted Holiday error: Added companyId column to Holiday table in both schema-sync.js and schema-sync.ts with FK constraints and indexes. Wrapped holiday API calls with withSchemaSync() for auto-retry on missing column errors
+- Fixed Attendance Module - Attendance Policies error: Added companyId column to AttendancePolicyConfig table in both sync scripts. Wrapped API calls with withSchemaSync()
+- Added Excel import for employees: Integrated BulkImportTab component into employees page with "Import from Excel" button. Updated bulk import API to create User accounts, EmployeeCompanyMappings, and UserRoleAssignments based on role column
+- Added role column to Excel import template and bulk import processor
+- Assign Role in Add Employee: Already exists with 6 role options (hr_admin, finance_admin, manager, travel_admin, crm_admin, employee) with auto access rights assignment via User account + UserRoleAssignment creation
+- Moved Leave Policy Defaults from Company Settings to Leave Settings page (/leave/settings) - includes casual/sick/earned leave per year, encashment, probation quota
+- Moved Attendance Settings from Company Settings to new Attendance Settings page (/attendance/settings) - combines tracking settings + policy config
+- Removed Leave and Attendance sections from Company Settings page
+- Fixed duplicate departments/designations in dropdowns: Added deduplication by name+company in filter dropdowns, scoped initial dropdown fetch to selected company
+- Added Attendance Settings link to navData.tsx
+- Build verified passing (next build succeeds)
+- Committed locally as 5ee9ad5 but could NOT push to GitHub due to missing authentication credentials
+
+Stage Summary:
+- Leave Module error fixed (companyId column added)
+- Attendance Module error fixed (companyId column added) 
+- Excel import with role assignment working
+- Leave/Attendance settings moved to respective modules
+- Duplicate dropdown entries fixed
+- CHANGES NEED TO BE PUSHED TO GITHUB BY USER (git push origin main)
