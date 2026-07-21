@@ -11,6 +11,7 @@
 import { isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import prisma from '@/lib/prisma';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 export { OPTIONS };
 
@@ -52,10 +53,10 @@ export async function GET(request: Request) {
     }
     // scope === 'all' && no companyId → admin sees the latest policy (no company filter)
 
-    let config = await prisma.attendancePolicyConfig.findFirst({
+    let config = await withSchemaSync(() => prisma.attendancePolicyConfig.findFirst({
       where,
       orderBy: { createdAt: 'desc' },
-    });
+    }));
     if (!config) {
       // Return sensible defaults without persisting
       config = {
@@ -99,10 +100,10 @@ export async function PUT(request: Request) {
       where.companyId = policyCompanyId;
     }
 
-    const existing = await prisma.attendancePolicyConfig.findFirst({
+    const existing = await withSchemaSync(() => prisma.attendancePolicyConfig.findFirst({
       where,
       orderBy: { createdAt: 'desc' },
-    });
+    }));
 
     const data = {
       name: (body.name as string) || existing?.name || 'Default Policy',

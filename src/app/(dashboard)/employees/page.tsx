@@ -32,6 +32,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import BulkImportTab from '@/components/BulkImportTab';
 
 
 /* ── Employee Tips ── */
@@ -446,8 +447,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   }, [fetchEmployees]);
 
   useEffect(() => {
-    queueMicrotask(() => fetchDropdowns());
-  }, [fetchDropdowns]);
+    queueMicrotask(() => fetchDropdowns(scopeCompanyId || undefined));
+  }, [fetchDropdowns, scopeCompanyId]);
 
   /* Re-fetch dropdowns when form.companyId changes */
   useEffect(() => {
@@ -865,6 +866,18 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 Add Employee
               </button>
             )}
+            {isAdmin && (
+              <button onClick={() => { setActiveMainTab('import'); setShowForm(false); }} className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm shadow-sm transition-colors ${activeMainTab === 'import' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                <FiDownload className="w-4 h-4" />
+                Import from Excel
+              </button>
+            )}
+            {activeMainTab === 'import' && (
+              <button onClick={() => setActiveMainTab('list')} className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm transition-colors">
+                <FiUsers className="w-4 h-4" />
+                Back to List
+              </button>
+            )}
             <button onClick={() => router.push('/employees/settings')} className="inline-flex items-center gap-2 px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-lg hover:bg-slate-50 font-medium text-sm transition-colors">
               <FiSettings className="w-4 h-4" />
               Settings
@@ -1010,7 +1023,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               >
                 <option value="">All Departments</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {(() => {
+                  const seen = new Set<string>();
+                  return departments.filter(d => {
+                    const key = `${d.name}__${d.company?.name || ''}`;
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  }).map(d => <option key={d.id} value={d.id}>{d.name}{d.company ? ` (${d.company.name})` : ''}</option>);
+                })()}
               </select>
 
               {/* Designation Filter */}
@@ -1020,7 +1041,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 hidden sm:block"
               >
                 <option value="">Designation</option>
-                {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                {(() => {
+                  const seen = new Set<string>();
+                  return designations.filter(d => {
+                    const key = `${d.title}__${d.department?.name || ''}`;
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  }).map(d => <option key={d.id} value={d.id}>{d.title}{d.department ? ` — ${d.department.name}` : ''}</option>);
+                })()}
               </select>
 
               {/* Status Filter */}
@@ -1075,6 +1104,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           )}
         </div>
       </div>
+      )}
+
+      {/* ── Bulk Import Tab ── */}
+      {!formOnly && activeMainTab === 'import' && (
+        <div className="thb-card">
+          <div className="p-6">
+            <BulkImportTab module="employees" />
+          </div>
+        </div>
       )}
 
       {(formOnly || activeMainTab === 'list') && (<>

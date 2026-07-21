@@ -289,6 +289,7 @@ export const navSections: NavSection[] = [
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
+      { label: 'Attendance Settings', href: '/attendance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Attendance Policies', href: '/attendance/policy-config', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
 
       // ── Reports ──

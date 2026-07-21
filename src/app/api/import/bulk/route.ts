@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as xlsx from 'xlsx';
 import { db } from '@/lib/db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 
 function corsHeaders() {
   return {
@@ -50,6 +50,7 @@ const MODULE_COLUMNS: Record<string, ColumnDef[]> = {
     { key: 'salaryCurrency', required: false },
     { key: 'departmentName', required: false },
     { key: 'designationTitle', required: false },
+    { key: 'role', required: false },
   ],
   departments: [
     { key: 'name', required: true },
@@ -258,6 +259,7 @@ async function processEmployeeRow(
     aadhaarNumber: getStringVal(row, 'aadhaarNumber') ?? null,
     salary: salary ?? null,
     salaryCurrency: getStringVal(row, 'salaryCurrency') ?? 'INR',
+    role: getStringVal(row, 'role') || 'employee',
     status: 'active',
   };
 
@@ -582,9 +584,78 @@ export async function POST(req: NextRequest) {
 
         // Create record
         switch (importModule) {
-          case 'employees':
-            await db.employee.create({ data: result.data as Parameters<typeof db.employee.create>[0]['data'] });
+          case 'employees': {
+            const empRole = (result.data as Record<string, unknown>).role as string || 'employee';
+            const empEmail = result.data.email as string;
+            const empFirstName = result.data.firstName as string;
+            const empLastName = result.data.lastName as string;
+            // Remove 'role' from data since Employee model doesn't have a 'role' field
+            const cleanedData = { ...result.data };
+            delete cleanedData.role;
+            const emp = await db.employee.create({ data: cleanedData as Parameters<typeof db.employee.create>[0]['data'] });
+            // Create User account with role
+            try {
+              const existingUser = await db.user.findUnique({ where: { email: empEmail } });
+              let userIdForEmployee: string;
+              if (existingUser) {
+                await db.user.update({ where: { id: existingUser.id }, data: { role: empRole } });
+                userIdForEmployee = existingUser.id;
+              } else {
+                const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase() + '!1';
+                const hashedPwd = await hashPassword(randomPassword);
+                const newUser = await db.user.create({
+                  data: {
+                    email: empEmail,
+                    name: `${empFirstName} ${empLastName}`,
+                    role: empRole,
+                    tenantId,
+                    password: hashedPwd,
+                    status: 'active',
+                  },
+                });
+                userIdForEmployee = newUser.id;
+              }
+              // Link User to Employee
+              await db.employee.update({ where: { id: emp.id }, data: { userId: userIdForEmployee } });
+              // Create EmployeeCompanyMapping
+              const empCompanyId = cleanedData.companyId as string | null;
+              if (empCompanyId) {
+                try {
+                  await db.employeeCompanyMapping.create({
+                    data: {
+                      employeeId: emp.id,
+                      companyId: empCompanyId,
+                      employeeCode: cleanedData.employeeId as string,
+                      departmentId: (cleanedData.departmentId as string) || null,
+                      designationId: (cleanedData.designationId as string) || null,
+                      isPrimary: true,
+                      status: 'active',
+                      dateOfJoining: (cleanedData.dateOfJoining as Date) || new Date(),
+                    },
+                  });
+                } catch { /* non-critical */ }
+              }
+              // Create UserRoleAssignment
+              try {
+                const roleRecord = await db.role.findFirst({
+                  where: { OR: [{ key: empRole }, { name: { equals: empRole, mode: 'insensitive' } }] },
+                });
+                if (roleRecord) {
+                  const existingAssignment = await db.userRoleAssignment.findFirst({
+                    where: { userId: userIdForEmployee, roleId: roleRecord.id, companyId: empCompanyId || null },
+                  });
+                  if (!existingAssignment) {
+                    await db.userRoleAssignment.create({
+                      data: { userId: userIdForEmployee, roleId: roleRecord.id, companyId: empCompanyId || null, assignedBy: userId || null },
+                    });
+                  }
+                }
+              } catch { /* non-critical */ }
+            } catch (userErr) {
+              console.error('[Bulk Import] Failed to create User account (non-critical):', userErr);
+            }
             break;
+          }
           case 'departments':
             await db.department.create({ data: result.data as Parameters<typeof db.department.create>[0]['data'] });
             break;

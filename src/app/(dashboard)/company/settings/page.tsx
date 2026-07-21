@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FiSettings, FiClock, FiCalendar, FiBell, FiDollarSign, FiSave, FiCheck, FiGlobe, FiMonitor } from 'react-icons/fi'
+import { FiSettings, FiClock, FiBell, FiDollarSign, FiSave, FiCheck, FiGlobe } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData } from '@/components/company/useCompanyData'
 
@@ -41,20 +41,6 @@ export default function SettingsPage() {
     workDaysPerWeek: '5',
     enableFlexibleHours: false,
     enableWorkFromHome: true,
-    // Leave Policy Defaults
-    casualLeavePerYear: '12',
-    sickLeavePerYear: '10',
-    earnedLeavePerYear: '15',
-    carryForwardLeaves: true,
-    leaveEncashment: true,
-    probationLeaveQuota: '5',
-    // Attendance Settings
-    enableBiometric: false,
-    enableGeoFencing: true,
-    lateGraceMinutes: '15',
-    halfDayThreshold: '4',
-    markAbsentAfter: '2',
-    enableSelfieAttendance: false,
     // Fiscal Year Settings
     fiscalYearStart: 'April',
     fiscalYearEnd: 'March',
@@ -117,36 +103,6 @@ export default function SettingsPage() {
         { id: 'workDaysPerWeek', label: 'Working Days/Week', description: 'Number of working days in a week', type: 'select', value: settings.workDaysPerWeek as string, options: [{ label: '5 Days (Mon-Fri)', value: '5' }, { label: '5.5 Days (Mon-Sat half)', value: '5.5' }, { label: '6 Days (Mon-Sat)', value: '6' }] },
         { id: 'enableFlexibleHours', label: 'Enable Flexible Hours', description: 'Allow employees to choose their work hours within limits', type: 'toggle', value: settings.enableFlexibleHours as boolean },
         { id: 'enableWorkFromHome', label: 'Enable Work From Home', description: 'Allow employees to work from home', type: 'toggle', value: settings.enableWorkFromHome as boolean },
-      ],
-    },
-    {
-      id: 'leave-policy',
-      title: 'Leave Policy Defaults',
-      description: 'Default leave allocation and carry-forward rules',
-      icon: <FiCalendar className="w-5 h-5" />,
-      gradient: 'from-emerald-500 to-teal-600',
-      settings: [
-        { id: 'casualLeavePerYear', label: 'Casual Leave / Year', description: 'Number of casual leaves per year', type: 'input', value: settings.casualLeavePerYear as string, placeholder: '12' },
-        { id: 'sickLeavePerYear', label: 'Sick Leave / Year', description: 'Number of sick leaves per year', type: 'input', value: settings.sickLeavePerYear as string, placeholder: '10' },
-        { id: 'earnedLeavePerYear', label: 'Earned Leave / Year', description: 'Number of earned/privilege leaves per year', type: 'input', value: settings.earnedLeavePerYear as string, placeholder: '15' },
-        { id: 'carryForwardLeaves', label: 'Allow Carry Forward', description: 'Allow unused leaves to carry forward to next year', type: 'toggle', value: settings.carryForwardLeaves as boolean },
-        { id: 'leaveEncashment', label: 'Leave Encashment', description: 'Allow employees to encash unused leaves', type: 'toggle', value: settings.leaveEncashment as boolean },
-        { id: 'probationLeaveQuota', label: 'Probation Leave Quota', description: 'Leave quota during probation period', type: 'input', value: settings.probationLeaveQuota as string, placeholder: '5' },
-      ],
-    },
-    {
-      id: 'attendance',
-      title: 'Attendance Settings',
-      description: 'Attendance tracking, grace periods, and check-in rules',
-      icon: <FiMonitor className="w-5 h-5" />,
-      gradient: 'from-violet-500 to-purple-600',
-      settings: [
-        { id: 'enableBiometric', label: 'Enable Biometric Attendance', description: 'Use biometric devices for attendance', type: 'toggle', value: settings.enableBiometric as boolean },
-        { id: 'enableGeoFencing', label: 'Enable Geo-Fencing', description: 'Restrict check-in to office location radius', type: 'toggle', value: settings.enableGeoFencing as boolean },
-        { id: 'lateGraceMinutes', label: 'Late Grace Period (min)', description: 'Grace period after start time before marking late', type: 'input', value: settings.lateGraceMinutes as string, placeholder: '15' },
-        { id: 'halfDayThreshold', label: 'Half Day Threshold (hrs)', description: 'Minimum hours required for half-day attendance', type: 'input', value: settings.halfDayThreshold as string, placeholder: '4' },
-        { id: 'markAbsentAfter', label: 'Mark Absent After (late days)', description: 'Number of late days before marking as absent', type: 'input', value: settings.markAbsentAfter as string, placeholder: '2' },
-        { id: 'enableSelfieAttendance', label: 'Enable Selfie Attendance', description: 'Require selfie during check-in/check-out', type: 'toggle', value: settings.enableSelfieAttendance as boolean },
       ],
     },
     {

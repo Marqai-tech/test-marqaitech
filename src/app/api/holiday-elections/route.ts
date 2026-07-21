@@ -7,6 +7,7 @@
  */
 import { requireUser, findEmployeeByEmail, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import prisma from '@/lib/prisma';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 export { OPTIONS };
 
@@ -20,10 +21,10 @@ export async function GET(request: Request) {
     if (!emp) {
       // Admin users without an employee record still need the full payload shape
       // so the frontend doesn't crash on undefined.optionalHolidays.length
-      const optionalHolidays = await prisma.holiday.findMany({
+      const optionalHolidays = await withSchemaSync(() => prisma.holiday.findMany({
         where: { isOptional: true, date: { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) } },
         orderBy: { date: 'asc' },
-      });
+      }));
       const quota = optionalHolidays.length > 0
         ? Math.min(...optionalHolidays.map(h => h.optionalQuota || 2))
         : 0;
@@ -37,10 +38,10 @@ export async function GET(request: Request) {
     }
 
     // List all optional holidays for the year
-    const optionalHolidays = await prisma.holiday.findMany({
+    const optionalHolidays = await withSchemaSync(() => prisma.holiday.findMany({
       where: { isOptional: true, date: { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) } },
       orderBy: { date: 'asc' },
-    });
+    }));
     const elections = await prisma.optionalHolidayElection.findMany({
       where: { employeeId: emp.id, year },
       include: { holiday: true },
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     const emp = await findEmployeeByEmail(user.email);
     if (!emp) return fail('Employee record not found', 404);
 
-    const holiday = await prisma.holiday.findUnique({ where: { id: holidayId } });
+    const holiday = await withSchemaSync(() => prisma.holiday.findUnique({ where: { id: holidayId } }));
     if (!holiday || !holiday.isOptional) return fail('Holiday not found or not optional', 404);
 
     const year = new Date(holiday.date).getFullYear();

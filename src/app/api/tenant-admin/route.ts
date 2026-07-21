@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
-import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -92,10 +92,10 @@ export async function GET(request: Request) {
     });
 
     // Get holidays
-    const holidays = await prisma.holiday.findMany({
+    const holidays = await withSchemaSync(() => prisma.holiday.findMany({
       orderBy: { date: 'asc' },
       take: 20,
-    });
+    }));
 
     if (section === 'overview') {
       // Current active subscription

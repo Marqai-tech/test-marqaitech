@@ -921,6 +921,14 @@ const SYNC_STATEMENTS: string[] = [
   )`,
   `CREATE INDEX IF NOT EXISTS "CandidateJobAlert_candidateEmail_idx" ON "CandidateJobAlert"("candidateEmail")`,
   `CREATE INDEX IF NOT EXISTS "CandidateJobAlert_jobPostingId_idx" ON "CandidateJobAlert"("jobPostingId")`,
+
+  // ─── Holiday: add companyId column (multi-tenant scoping) ───
+  `ALTER TABLE "Holiday" ADD COLUMN IF NOT EXISTS "companyId" TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS "Holiday_companyId_idx" ON "Holiday"("companyId")`,
+
+  // ─── AttendancePolicyConfig: add companyId column (multi-tenant scoping) ───
+  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  `CREATE INDEX IF NOT EXISTS "AttendancePolicyConfig_companyId_idx" ON "AttendancePolicyConfig"("companyId")`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.
@@ -990,6 +998,14 @@ const FK_STATEMENTS: string[] = [
 
   `ALTER TABLE "OKR" DROP CONSTRAINT IF EXISTS "OKR_projectId_fkey"`,
   `ALTER TABLE "OKR" ADD CONSTRAINT "OKR_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+  // ─── Holiday FK (companyId → Company) ───
+  `ALTER TABLE "Holiday" DROP CONSTRAINT IF EXISTS "Holiday_companyId_fkey"`,
+  `ALTER TABLE "Holiday" ADD CONSTRAINT "Holiday_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+  // ─── AttendancePolicyConfig FK (companyId → Company) ───
+  `ALTER TABLE "AttendancePolicyConfig" DROP CONSTRAINT IF EXISTS "AttendancePolicyConfig_companyId_fkey"`,
+  `ALTER TABLE "AttendancePolicyConfig" ADD CONSTRAINT "AttendancePolicyConfig_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
 ];
 
 export async function ensureSchemaSynced(): Promise<void> {

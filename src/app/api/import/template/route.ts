@@ -51,6 +51,7 @@ const MODULE_TEMPLATES: Record<string, TemplateColumn[]> = {
     { header: 'Salary Currency', key: 'salaryCurrency', required: false, type: 'Text', description: 'Currency code (INR, USD, etc.)', example: 'INR' },
     { header: 'Department Name', key: 'departmentName', required: false, type: 'Lookup', description: 'Existing department name to link to', example: 'Engineering' },
     { header: 'Designation Title', key: 'designationTitle', required: false, type: 'Lookup', description: 'Existing designation title to link to', example: 'Software Engineer' },
+    { header: 'Role', key: 'role', required: false, type: 'Text', description: 'System role: employee, manager, hr_admin, finance_admin, travel_admin, crm_admin', example: 'employee' },
   ],
   departments: [
     { header: 'Name', key: 'name', required: true, type: 'Text', description: 'Department name', example: 'Engineering' },

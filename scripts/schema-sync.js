@@ -873,6 +873,11 @@ async function main() {
     `CREATE INDEX IF NOT EXISTS "Holiday_date_idx" ON "Holiday"("date")`,
     `CREATE INDEX IF NOT EXISTS "Holiday_type_idx" ON "Holiday"("type")`,
     `CREATE INDEX IF NOT EXISTS "Holiday_country_idx" ON "Holiday"("country")`,
+    // Add companyId column to Holiday (multi-tenant scoping)
+    `ALTER TABLE "Holiday" ADD COLUMN IF NOT EXISTS "companyId" TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE "Holiday" DROP CONSTRAINT IF EXISTS "Holiday_companyId_fkey"`,
+    `ALTER TABLE "Holiday" ADD CONSTRAINT "Holiday_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `CREATE INDEX IF NOT EXISTS "Holiday_companyId_idx" ON "Holiday"("companyId")`,
 
     // ─── Geofence (REQ-ATT-04) — dynamic polygon/circle geofences ───
     `CREATE TABLE IF NOT EXISTS "Geofence" (
@@ -1178,6 +1183,11 @@ async function main() {
     `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "autoApproveLeaveTypes" TEXT NOT NULL DEFAULT '[]'`,
     `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "autoApproveOvertimeHours" DOUBLE PRECISION NOT NULL DEFAULT 0`,
     `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "autoApproveGatepassMinutes" INTEGER NOT NULL DEFAULT 0`,
+    // Add companyId column to AttendancePolicyConfig (multi-tenant scoping)
+    `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+    `ALTER TABLE "AttendancePolicyConfig" DROP CONSTRAINT IF EXISTS "AttendancePolicyConfig_companyId_fkey"`,
+    `ALTER TABLE "AttendancePolicyConfig" ADD CONSTRAINT "AttendancePolicyConfig_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    `CREATE INDEX IF NOT EXISTS "AttendancePolicyConfig_companyId_idx" ON "AttendancePolicyConfig"("companyId")`,
 
     // ─── Leave Encashment Request (REQ-LVE-07) ───
     `CREATE TABLE IF NOT EXISTS "LeaveEncashmentRequest" (
