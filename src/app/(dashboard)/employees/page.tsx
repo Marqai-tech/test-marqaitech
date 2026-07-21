@@ -110,8 +110,8 @@ interface Employee {
   user?: { id: string; email: string; role: string; avatar: string | null } | null;
 }
 
-interface Department { id: string; name: string }
-interface Designation { id: string; title: string }
+interface Department { id: string; name: string; company?: { name: string } | null }
+interface Designation { id: string; title: string; department?: { name: string } | null }
 interface Branch { id: string; name: string }
 
 /* ── Helpers ── */
@@ -257,6 +257,7 @@ const initialForm = {
   attendancePolicyId: '',
   travelPolicyId: '',
   salaryStructureId: '',
+  avatar: '',
 };
 
 /* ── Component ── */
@@ -284,6 +285,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
@@ -400,15 +402,16 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   }, [scopeCompanyId, scopeTenantId]);
 
   /* Fetch dropdown data */
-  const fetchDropdowns = useCallback(async () => {
+  const fetchDropdowns = useCallback(async (companyId?: string) => {
     try {
       const headers = getAuthHeaders();
+      const companyParam = companyId ? `&companyId=${companyId}` : '';
 
       // Fetch departments, designations, and branches from their own APIs
       const [deptRes, desigRes, branchRes] = await Promise.allSettled([
-        fetch('/api/departments?limit=100', { headers }),
-        fetch('/api/designations?limit=100', { headers }),
-        fetch('/api/branches?limit=100', { headers }),
+        fetch(`/api/departments?limit=100${companyParam}`, { headers }),
+        fetch(`/api/designations?limit=100${companyParam}`, { headers }),
+        fetch(`/api/branches?limit=100${companyParam}`, { headers }),
       ]);
       if (deptRes.status === 'fulfilled' && deptRes.value.ok) {
         const d = await deptRes.value.json();
@@ -445,6 +448,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   useEffect(() => {
     queueMicrotask(() => fetchDropdowns());
   }, [fetchDropdowns]);
+
+  /* Re-fetch dropdowns when form.companyId changes */
+  useEffect(() => {
+    if (form.companyId) {
+      queueMicrotask(() => fetchDropdowns(form.companyId));
+    }
+  }, [form.companyId, fetchDropdowns]);
 
   useEffect(() => {
     queueMicrotask(() => fetchAllEmployees());
@@ -554,9 +564,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           previousReason3: (emp as Record<string, unknown>).previousReason3 as string || '',
           totalExperience: (emp as Record<string, unknown>).totalExperience as string || '',
           role: emp.user?.role || 'employee',
+          avatar: emp.avatar || '',
         });
         setShowForm(true);
         setFormTab('personal');
+        setPhotoPreview(emp.avatar || null);
         setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       } catch (err) {
         console.error('Failed to load employee for editing:', err);
@@ -568,7 +580,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Handle showAddForm from URL (navigated from /employees/add redirect) */
   useEffect(() => {
     if (searchParams.get('showAddForm') === 'true') {
-      setShowForm(true);
+      queueMicrotask(() => setShowForm(true));
     }
   }, [searchParams]);
 
@@ -601,11 +613,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   useEffect(() => {
     if (formOnly && !editingId) {
       const settings = getEmployeeCodeSettings();
-      setForm(prev => ({
+      queueMicrotask(() => setForm(prev => ({
         ...prev,
         employeeId: prev.employeeId || (settings.autoGeneration ? generateNextEmployeeCode() : ''),
         companyId: prev.companyId || scopeCompanyId || '',
-      }));
+      })));
     }
   }, [formOnly, scopeCompanyId, getEmployeeCodeSettings, generateNextEmployeeCode, editingId]);
 
@@ -677,9 +689,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       travelPolicyId: emp.travelPolicyId || '',
       salaryStructureId: emp.salaryStructureId || '',
       role: emp.user?.role || 'employee',
+      avatar: emp.avatar || '',
     });
     setShowForm(true);
     setFormTab('personal');
+    setPhotoPreview(emp.avatar || null);
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -694,6 +708,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setEditingId(null);
     setForm(initialForm);
     setFormTab('personal');
+    setPhotoPreview(null);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -775,6 +790,26 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
+
+  /* Photo upload handler */
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Photo must be under 5MB');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+      updateForm('avatar', reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   /* Bulk selection */
   const toggleSelectAll = () => {
@@ -1094,6 +1129,30 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               {/* Personal Information */}
               {formTab === 'personal' && (
                 <div className="space-y-4">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative">
+                      <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800">
+                        {photoPreview ? (
+                          <img src={photoPreview} alt="Employee" className="w-full h-full object-cover" />
+                        ) : (
+                          <FiUsers className="w-8 h-8 text-gray-400" />
+                        )}
+                      </div>
+                      <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-sm transition-colors">
+                        <FiPlus className="w-3.5 h-3.5" />
+                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                      </label>
+                      {photoPreview && (
+                        <button type="button" onClick={() => { setPhotoPreview(null); updateForm('avatar', ''); }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
+                          <FiX className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Employee Photo</p>
+                      <p className="text-xs text-gray-500">JPG, PNG or GIF. Max 5MB.</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">First Name *</label>
@@ -1216,7 +1275,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </label>
                       <select
                         value={form.companyId}
-                        onChange={e => updateForm('companyId', e.target.value)}
+                        onChange={e => {
+                          updateForm('companyId', e.target.value);
+                          updateForm('departmentId', '');
+                          updateForm('designationId', '');
+                          updateForm('branchId', '');
+                        }}
                         className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                       >
                         <option value="">Select Company</option>
@@ -1230,14 +1294,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
                       <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select Department</option>
-                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.company ? ` (${d.company.name})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation *</label>
                       <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select Designation</option>
-                        {designations.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                        {designations.map(d => <option key={d.id} value={d.id}>{d.title}{d.department ? ` — ${d.department.name}` : ''}</option>)}
                       </select>
                     </div>
                     <div>
@@ -1254,38 +1318,47 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </label>
                       <select value={form.role} onChange={e => updateForm('role', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
                         <option value="">Select Role</option>
-                        <option value="tenant_admin">Tenant Admin (Full Tenant Access)</option>
-                        <option value="admin">Admin (Company Full Access)</option>
+                        <option value="hr_admin">HR Manager / HR Admin</option>
+                        <option value="finance_admin">Finance Manager / Finance Admin</option>
+                        <option value="manager">Manager</option>
+                        <option value="travel_admin">Travel Admin</option>
+                        <option value="crm_admin">CRM Admin</option>
                         <option value="employee">Employee (Self-Service)</option>
                       </select>
                       <p className="text-[10px] text-thb-text-muted mt-1">This role determines which menus and modules the employee can access after login</p>
                       {/* Dynamic role info box */}
                       {form.role && (
                         <div className={`mt-2 p-2.5 rounded-lg border text-xs leading-relaxed ${
-                          form.role === 'tenant_admin'
-                            ? 'bg-amber-50 border-amber-200 text-amber-800'
-                            : form.role === 'admin'
+                          ['hr_admin', 'finance_admin'].includes(form.role)
                             ? 'bg-blue-50 border-blue-200 text-blue-800'
+                            : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
+                            ? 'bg-amber-50 border-amber-200 text-amber-800'
                             : 'bg-emerald-50 border-emerald-200 text-emerald-800'
                         }`}>
                           <div className="flex items-start gap-1.5">
                             <FiShield className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                              form.role === 'tenant_admin'
-                                ? 'text-amber-500'
-                                : form.role === 'admin'
+                              ['hr_admin', 'finance_admin'].includes(form.role)
                                 ? 'text-blue-500'
+                                : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
+                                ? 'text-amber-500'
                                 : 'text-emerald-500'
                             }`} />
                             <div>
                               <span className="font-semibold">
-                                {form.role === 'tenant_admin' && 'Tenant Admin Access'}
-                                {form.role === 'admin' && 'Admin Access'}
+                                {form.role === 'hr_admin' && 'HR Admin Access'}
+                                {form.role === 'finance_admin' && 'Finance Admin Access'}
+                                {form.role === 'manager' && 'Manager Access'}
+                                {form.role === 'travel_admin' && 'Travel Admin Access'}
+                                {form.role === 'crm_admin' && 'CRM Admin Access'}
                                 {form.role === 'employee' && 'Employee Access'}
                               </span>
                               <p className="mt-0.5 opacity-90">
-                                {form.role === 'tenant_admin' && 'This employee will have full access to all modules across all companies in the tenant.'}
-                                {form.role === 'admin' && 'This employee will have access to: Employee Management, Leave, Attendance, Payroll, Recruitment, Company Masters, Reports, Settings, and all HR modules.'}
-                                {form.role === 'employee' && 'This employee will have access to: Self-Service Dashboard, My Profile, Leave Application, Attendance Punch-in/out, Documents, and Helpdesk.'}
+                                {form.role === 'hr_admin' && 'Full access to HR modules: Employees, Recruitment, Onboarding, Leave, Attendance, Performance, Training, and HR policies.'}
+                                {form.role === 'finance_admin' && 'Full access to Finance modules: Payroll, Salary Structures, Expenses, Invoices, Accounts, Loans, and Claims.'}
+                                {form.role === 'manager' && 'Access to team operations: View employees, approve leaves/expenses/travel, manage performance reviews, and assign tasks.'}
+                                {form.role === 'travel_admin' && 'Full access to Travel management: Travel requests, approvals, policies, and expense settlements.'}
+                                {form.role === 'crm_admin' && 'Full access to CRM: Clients, vendors, CRM operations, and external relationship management.'}
+                                {form.role === 'employee' && 'Self-service access: My Profile, Leave Application, Attendance, Documents, and Helpdesk.'}
                               </p>
                             </div>
                           </div>

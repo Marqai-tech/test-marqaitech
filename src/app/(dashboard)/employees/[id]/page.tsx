@@ -1067,10 +1067,10 @@ export default function EmployeeDetailPage() {
                     </h3>
                     <div className="flex items-center gap-3 mt-1.5">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
-                        {companyMappings.length + 1} Total Compan{companyMappings.length + 1 === 1 ? 'y' : 'ies'}
+                        {companyMappings.filter(m => !m.isPrimary).length + 1} Total Compan{companyMappings.filter(m => !m.isPrimary).length + 1 === 1 ? 'y' : 'ies'}
                       </span>
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                        {companyMappings.filter(m => m.isPrimary).length + 1} Primary
+                        {companyMappings.filter(m => !m.isPrimary).length + 1} Primary
                       </span>
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
                         {companyMappings.filter(m => !m.isPrimary).length} Secondary
@@ -1106,8 +1106,8 @@ export default function EmployeeDetailPage() {
                     </div>
                   </div>
 
-                  {/* Additional Company Mappings */}
-                  {companyMappings.length === 0 ? (
+                  {/* Additional Company Mappings (excluding primary which is shown above) */}
+                  {companyMappings.filter(m => !m.isPrimary).length === 0 ? (
                     <div className="px-5 py-6 text-center">
                       <FiGlobe className="w-6 h-6 text-thb-text-muted mx-auto mb-2" />
                       <p className="text-sm text-thb-text-muted">No additional company mappings</p>
@@ -1116,7 +1116,7 @@ export default function EmployeeDetailPage() {
                       </p>
                     </div>
                   ) : (
-                    companyMappings.map(mapping => (
+                    companyMappings.filter(m => !m.isPrimary).map(mapping => (
                       <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-blue-50/20' : ''}`}>
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                           <FiGlobe className="w-5 h-5" />
@@ -1146,10 +1146,10 @@ export default function EmployeeDetailPage() {
                 <div className="px-5 py-3 bg-slate-50 border-t border-thb-border">
                   <div className="flex items-center gap-4 text-xs text-thb-text-muted flex-wrap">
                     <span className="font-medium">Summary:</span>
-                    <span>{companyMappings.length + 1} compan{(companyMappings.length + 1) === 1 ? 'y' : 'ies'} mapped</span>
-                    <span className="text-indigo-600 font-semibold">{companyMappings.filter(m => m.isPrimary).length + 1} primary</span>
+                    <span>{companyMappings.filter(m => !m.isPrimary).length + 1} compan{(companyMappings.filter(m => !m.isPrimary).length + 1) === 1 ? 'y' : 'ies'} mapped</span>
+                    <span className="text-indigo-600 font-semibold">1 primary</span>
                     <span className="text-slate-500">{companyMappings.filter(m => !m.isPrimary).length} secondary</span>
-                    <span className="ml-auto font-medium">Employee IDs: {[employee.employeeId, ...companyMappings.map(m => m.employeeCode)].join(', ')}</span>
+                    <span className="ml-auto font-medium">Employee IDs: {[employee.employeeId, ...companyMappings.filter(m => !m.isPrimary).map(m => m.employeeCode)].join(', ')}</span>
                   </div>
                 </div>
               </div>

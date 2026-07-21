@@ -588,6 +588,163 @@ async function main() {
   ]);
   console.log(`  ✓ Created 3 leave types`);
 
+  // ==================== DEFAULT POLICIES ====================
+  console.log('\n📋 Creating Default Policies for each company...');
+
+  const defaultPoliciesByCategory: Record<string, Array<{ title: string; category: string; description: string; content: string }>> = {
+    leave: [
+      {
+        title: 'India Leave Policy',
+        category: 'leave',
+        description: 'Default leave policy for India-based employees per Shops & Establishments Act',
+        content: JSON.stringify({
+          annualLeave: 15, sickLeave: 7, casualLeave: 7, maternityLeave: 182, paternityLeave: 15,
+          carryForward: true, maxCarryForward: 5, encashmentAllowed: true, encashmentRate: 1.0,
+          probationLeaveCap: 2, leaveAccrual: 'monthly', weekendBetweenLeave: 'exclude',
+          publicHolidayBetweenLeave: 'exclude',
+        }),
+      },
+      {
+        title: 'US Leave Policy',
+        category: 'leave',
+        description: 'Default leave policy for US-based employees per FLSA',
+        content: JSON.stringify({
+          annualLeave: 10, sickLeave: 10, casualLeave: 0, maternityLeave: 0, paternityLeave: 5,
+          carryForward: true, maxCarryForward: 5, encashmentAllowed: true, encashmentRate: 1.0,
+          probationLeaveCap: 0, leaveAccrual: 'biweekly', fmlaEligible: true, fmlaWeeks: 12,
+        }),
+      },
+      {
+        title: 'UK Leave Policy',
+        category: 'leave',
+        description: 'Default leave policy for UK-based employees per Employment Rights Act 1996',
+        content: JSON.stringify({
+          annualLeave: 20, sickLeave: 10, casualLeave: 0, maternityLeave: 52, paternityLeave: 2,
+          carryForward: true, maxCarryForward: 5, encashmentAllowed: false,
+          bankHolidays: 8, statutorySickPayWeeks: 28,
+        }),
+      },
+    ],
+    travel: [
+      {
+        title: 'Domestic Travel Policy',
+        category: 'travel',
+        description: 'Default domestic travel policy for all employees',
+        content: JSON.stringify({
+          travelClass: { junior: 'economy', mid: 'economy', senior: 'business' },
+          accommodation: { junior: 3000, mid: 5000, senior: 8000 },
+          dailyAllowance: { junior: 800, mid: 1200, senior: 2000 },
+          conveyanceAllowance: 300, mealAllowance: 500,
+          advanceDays: 7, settlementDays: 5, approvalRequired: true,
+          documentationRequired: true, gstMandatory: true,
+        }),
+      },
+      {
+        title: 'International Travel Policy',
+        category: 'travel',
+        description: 'Default international travel policy for all employees',
+        content: JSON.stringify({
+          travelClass: { junior: 'economy', mid: 'economy', senior: 'business' },
+          accommodation: { junior: 150, mid: 200, senior: 350, currency: 'USD' },
+          dailyAllowance: { junior: 75, mid: 100, senior: 150, currency: 'USD' },
+          visaFeeReimbursement: true, travelInsurance: true, airportTransfer: true,
+          advanceDays: 10, settlementDays: 7, multiCurrencySettlement: true,
+          forexAdvanceAllowed: true, maxForexAdvance: 5000,
+        }),
+      },
+    ],
+    attendance: [
+      {
+        title: 'India Attendance Policy',
+        category: 'attendance',
+        description: 'Default attendance policy for India — 9 hours / 48 hours per week',
+        content: JSON.stringify({
+          workingHoursPerDay: 9, workingDaysPerWeek: 6, workingHoursPerWeek: 48,
+          shiftTiming: { start: '09:00', end: '18:00', gracePeriod: 15 },
+          halfDayThreshold: 4, lateMarkAfter: 15, earlyLeaveBefore: 15,
+          overtimeMultiplier: 2.0, maxOvertimePerWeek: 12, compOffEnabled: true, compOffExpiryDays: 30,
+          attendanceMode: 'biometric', weekendPolicy: 'alternate_saturday',
+        }),
+      },
+      {
+        title: 'US/International Attendance Policy',
+        category: 'attendance',
+        description: 'Default attendance policy for US and international offices — 8 hours / 40 hours per week',
+        content: JSON.stringify({
+          workingHoursPerDay: 8, workingDaysPerWeek: 5, workingHoursPerWeek: 40,
+          shiftTiming: { start: '09:00', end: '17:00', gracePeriod: 10 },
+          halfDayThreshold: 4, lateMarkAfter: 10, earlyLeaveBefore: 10,
+          overtimeMultiplier: 1.5, maxOvertimePerWeek: 12, compOffEnabled: false,
+          attendanceMode: 'web', weekendPolicy: 'saturday_sunday_off',
+        }),
+      },
+    ],
+    payroll: [
+      {
+        title: 'India Payroll Policy',
+        category: 'payroll',
+        description: 'Indian payroll policy with PF, ESI, PT, TDS, Gratuity compliance',
+        content: JSON.stringify({
+          frequency: 'monthly', processingDay: 25, paymentDay: 1, cutOffDay: 20,
+          currency: 'INR', taxRegime: 'new',
+          statutoryComponents: {
+            pf: { employeeRate: 12, employerRate: 12, wageCap: 15000 },
+            esi: { employeeRate: 0.75, employerRate: 3.25, wageCap: 21000 },
+            professionalTax: { slabs: [{ range: '0-10000', amount: 0 }, { range: '10001-15000', amount: 150 }, { range: '15001+', amount: 200 }] },
+            labourWelfareFund: { employeeRate: 25, employerRate: 75 },
+            tds: { applicable: true, regime: 'new', deductions: ['standard_deduction_50000'] },
+          },
+          gratuity: { eligibleAfterYears: 5, rate: 15, baseDays: 26, maxCap: 2000000 },
+          minWage: { national: 17800, stateSpecific: true },
+          ltc: { applicable: true, frequency: 'biennial', carryForward: true },
+        }),
+      },
+    ],
+  };
+
+  let totalPolicies = 0;
+  for (const company of [tcg, mpi, hfs]) {
+    const countryCode = company.country;
+    for (const [category, policies] of Object.entries(defaultPoliciesByCategory)) {
+      for (const p of policies) {
+        // For leave/attendance/payroll, create the appropriate country-specific policy
+        // For travel, create both policies for all companies
+        const isCountrySpecific = ['leave', 'attendance'].includes(category);
+        const matchesCountry = isCountrySpecific
+          ? p.title.includes(countryCode === 'IN' ? 'India' : countryCode === 'US' ? 'US' : countryCode === 'GB' ? 'UK' : 'International')
+          : true;
+
+        // Always include payroll for India company, travel for all
+        if (category === 'payroll' && countryCode !== 'IN') continue;
+        if (isCountrySpecific && !matchesCountry) {
+          // If no exact match, use the International/default version
+          if (!p.title.includes('International') && !p.title.includes('US/') && countryCode !== 'IN' && countryCode !== 'US' && countryCode !== 'GB') {
+            continue; // Skip country-specific for non-matching countries
+          }
+        }
+
+        try {
+          await prisma.policy.create({
+            data: {
+              title: p.title,
+              category: p.category,
+              description: p.description,
+              content: p.content,
+              version: '1.0',
+              status: 'active',
+              effectiveDate: new Date(),
+              companyId: company.id,
+            },
+          });
+          totalPolicies++;
+        } catch {
+          // Skip if already exists
+        }
+      }
+    }
+  }
+  console.log(`  ✓ Created ${totalPolicies} default policies across companies`);
+
   // ==================== LEAVE BALANCES ====================
   console.log('\n📋 Creating Leave Balances...');
   const currentYear = new Date().getFullYear();
@@ -713,6 +870,26 @@ async function main() {
     { key: 'super_admin', name: 'Super Admin', category: 'Admin', icon: 'Shield', sortOrder: 35 },
     { key: 'tenant_admin', name: 'Tenant Admin', category: 'Admin', icon: 'ShieldCheck', sortOrder: 36 },
     { key: 'ai_admin', name: 'AI Admin', category: 'Admin', icon: 'Brain', sortOrder: 37 },
+    { key: 'tenant_configuration', name: 'Tenant Configuration', category: 'Admin', icon: 'Settings', sortOrder: 38 },
+    { key: 'subscriptions', name: 'Subscriptions', category: 'Admin', icon: 'CreditCard', sortOrder: 39 },
+    { key: 'packages', name: 'Packages', category: 'Admin', icon: 'Package', sortOrder: 40 },
+    { key: 'domain_management', name: 'Domain Management', category: 'Admin', icon: 'Globe', sortOrder: 41 },
+    { key: 'purchase_transactions', name: 'Purchase Transactions', category: 'Admin', icon: 'DollarSign', sortOrder: 42 },
+    { key: 'tenant_usage', name: 'Tenant Usage Metrics', category: 'Admin', icon: 'BarChart2', sortOrder: 43 },
+    { key: 'tenant_tickets', name: 'Tenant Support Tickets', category: 'Admin', icon: 'HelpCircle', sortOrder: 44 },
+    { key: 'storage_quotas', name: 'Storage Quotas', category: 'Admin', icon: 'HardDrive', sortOrder: 45 },
+    { key: 'sso_providers', name: 'SSO Providers', category: 'Admin', icon: 'Lock', sortOrder: 46 },
+    { key: 'trial_requests', name: 'Trial Requests', category: 'Admin', icon: 'Briefcase', sortOrder: 47 },
+    { key: 'rbac', name: 'RBAC Management', category: 'Admin', icon: 'Shield', sortOrder: 48 },
+    { key: 'storage_analytics', name: 'Storage Analytics', category: 'Admin', icon: 'Database', sortOrder: 49 },
+    { key: 'comm_governance', name: 'Communication Governance', category: 'Admin', icon: 'MessageCircle', sortOrder: 50 },
+    { key: 'invoices', name: 'Invoices', category: 'Finance', icon: 'FileText', sortOrder: 51 },
+    { key: 'accounts', name: 'Accounts', category: 'Finance', icon: 'Wallet', sortOrder: 52 },
+    { key: 'crm', name: 'CRM', category: 'External', icon: 'Users', sortOrder: 53 },
+    { key: 'separation', name: 'Separation', category: 'Lifecycle', icon: 'UserMinus', sortOrder: 54 },
+    { key: 'insurance', name: 'Insurance', category: 'Benefits', icon: 'HeartShield', sortOrder: 55 },
+    { key: 'loans', name: 'Loans', category: 'Compensation', icon: 'Banknote', sortOrder: 56 },
+    { key: 'claims', name: 'Claims', category: 'Compensation', icon: 'FileCheck', sortOrder: 57 },
   ];
 
   const LIMITED_ACTION_MODULES = ['dashboard', 'notifications', 'docs'];
@@ -766,13 +943,14 @@ async function main() {
   console.log('\n📋 Creating RBAC System Roles...');
 
   const SYSTEM_ROLES = [
-    { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants', level: 0, isSystem: true, tenantId: null as string | null },
-    { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant', level: 1, isSystem: true, tenantId: null as string | null },
-    { key: 'hr_admin', name: 'HR Administrator', description: 'HR management access within their tenant', level: 2, isSystem: true, tenantId: tenant.id },
-    { key: 'manager', name: 'Manager', description: 'Team management access', level: 3, isSystem: true, tenantId: tenant.id },
-    { key: 'employee', name: 'Employee', description: 'Basic employee self-service access', level: 4, isSystem: true, tenantId: tenant.id },
-    { key: 'recruiter', name: 'Recruiter', description: 'Recruitment module access', level: 2, isSystem: true, tenantId: tenant.id },
-    { key: 'candidate', name: 'Candidate', description: 'Job portal and interview access', level: 5, isSystem: true, tenantId: tenant.id },
+    { key: 'super_admin', name: 'Super Administrator', description: 'Full system access across all tenants — manages platform configuration, RBAC, audit logs, and all tenant operations', level: 0, isSystem: true, tenantId: null as string | null },
+    { key: 'tenant_admin', name: 'Tenant Administrator', description: 'Full access within their tenant — manages company RBAC, organization settings, and all HR operations', level: 1, isSystem: true, tenantId: null as string | null },
+    { key: 'hr_admin', name: 'HR Manager / HR Admin', description: 'Manages all HR operations including recruitment, onboarding, employee lifecycle, leave, attendance, performance, training, and HR policies', level: 2, isSystem: true, tenantId: tenant.id },
+    { key: 'finance_admin', name: 'Finance Manager / Finance Admin', description: 'Manages payroll, salary structures, expenses, invoices, accounts, loans, claims, and financial reporting', level: 2, isSystem: true, tenantId: tenant.id },
+    { key: 'manager', name: 'Manager', description: 'Manages team operations — view employees, approve leaves/expenses/travel, manage performance reviews, and assign tasks', level: 3, isSystem: true, tenantId: tenant.id },
+    { key: 'travel_admin', name: 'Travel Admin', description: 'Manages travel requests, approvals, policies, and travel expense settlements', level: 3, isSystem: true, tenantId: tenant.id },
+    { key: 'crm_admin', name: 'CRM Admin', description: 'Manages clients, vendors, CRM operations, and external relationship management', level: 3, isSystem: true, tenantId: tenant.id },
+    { key: 'employee', name: 'Employee', description: 'Self-service access — view own profile, apply leave/expenses/travel, submit timesheets, access helpdesk and documents', level: 4, isSystem: true, tenantId: tenant.id },
   ];
 
   const roleMap = new Map<string, string>(); // key -> id
@@ -812,29 +990,31 @@ async function main() {
   // ==================== RBAC - ROLE PERMISSIONS ====================
   console.log('\n📋 Assigning Role Permissions...');
 
-  const ADMIN_ONLY_MODULES = ['super_admin', 'tenant_admin', 'ai_admin'];
-  const HR_ADMIN_MODULES = [
+  const ADMIN_ONLY_MODULES = ['super_admin', 'ai_admin'];
+  const HR_ADMIN_FULL_MODULES = [
     'dashboard', 'employees', 'company', 'recruitment', 'requisitions', 'offers',
     'job_portal', 'ai_interview', 'onboarding', 'preboarding', 'attendance',
-    'leave', 'timesheets', 'payroll', 'salary_structures', 'performance',
-    'training', 'engagement', 'documents', 'helpdesk', 'grievances',
-    'ai_assistant', 'docs', 'workflows', 'reports', 'notifications',
+    'leave', 'performance', 'training', 'engagement', 'succession', 'separation',
+    'documents', 'helpdesk', 'grievances', 'settings', 'reports', 'notifications',
+    'workflows', 'insurance',
   ];
-  const MANAGER_MODULES = [
-    'dashboard', 'employees', 'recruitment', 'onboarding', 'attendance',
-    'leave', 'timesheets', 'performance', 'training', 'engagement',
-    'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications', 'projects',
+  const HR_ADMIN_LIMITED_MODULES = ['timesheets', 'payroll', 'salary_structures', 'assets', 'ai_assistant', 'docs'];
+  const FINANCE_ADMIN_FULL_MODULES = [
+    'dashboard', 'payroll', 'salary_structures', 'expenses', 'invoices', 'accounts',
+    'loans', 'claims', 'timesheets', 'reports', 'settings',
   ];
-  const EMPLOYEE_MODULES = [
-    'dashboard', 'employees', 'leave', 'attendance', 'timesheets',
-    'documents', 'helpdesk', 'ai_assistant', 'docs', 'notifications',
-    'expenses', 'travel', 'training',
+  const FINANCE_ADMIN_LIMITED_MODULES = ['employees', 'company', 'attendance', 'leave', 'documents', 'notifications', 'travel'];
+  const MANAGER_FULL_MODULES = [
+    'dashboard', 'employees', 'attendance', 'leave', 'timesheets', 'performance',
+    'training', 'engagement', 'succession', 'expenses', 'travel', 'projects', 'reports',
   ];
-  const RECRUITER_MODULES = [
-    'dashboard', 'recruitment', 'requisitions', 'offers', 'job_portal',
-    'ai_interview', 'employees', 'docs', 'notifications', 'ai_assistant',
-  ];
-  const CANDIDATE_MODULES = ['job_portal', 'ai_interview', 'docs', 'notifications'];
+  const MANAGER_VIEW_MODULES = ['payroll', 'salary_structures', 'company', 'recruitment', 'onboarding', 'documents', 'notifications', 'helpdesk'];
+  const TRAVEL_ADMIN_FULL_MODULES = ['dashboard', 'travel', 'expenses', 'reports', 'settings', 'docs', 'notifications'];
+  const TRAVEL_ADMIN_LIMITED_MODULES = ['employees', 'company', 'documents'];
+  const CRM_ADMIN_FULL_MODULES = ['dashboard', 'clients', 'vendors', 'reports', 'settings', 'docs', 'notifications'];
+  const CRM_ADMIN_LIMITED_MODULES = ['employees', 'expenses', 'invoices', 'accounts', 'documents'];
+  const EMPLOYEE_VIEW_MODULES = ['dashboard', 'company', 'insurance', 'helpdesk', 'grievances', 'documents', 'notifications', 'docs'];
+  const EMPLOYEE_SELFSERVICE_MODULES = ['leave', 'attendance', 'timesheets', 'expenses', 'travel', 'training', 'assets', 'performance'];
 
   let rolePermissionsCreated = 0;
 
@@ -866,22 +1046,29 @@ async function main() {
   const tenantAdminModules = MODULE_DEFINITIONS.filter((m) => !ADMIN_ONLY_MODULES.includes(m.key)).map((m) => m.key);
   await assignPermissions('tenant_admin', tenantAdminModules);
 
-  // hr_admin gets HR-relevant permissions
-  await assignPermissions('hr_admin', HR_ADMIN_MODULES);
+  // hr_admin gets full actions on HR modules + limited on secondary
+  await assignPermissions('hr_admin', HR_ADMIN_FULL_MODULES);
+  await assignPermissions('hr_admin', HR_ADMIN_LIMITED_MODULES, ['view', 'create', 'edit', 'export']);
 
-  // manager gets view, create, edit, approve
-  await assignPermissions('manager', MANAGER_MODULES, ['view', 'create', 'edit', 'approve']);
+  // finance_admin gets full actions on finance modules + limited on related
+  await assignPermissions('finance_admin', FINANCE_ADMIN_FULL_MODULES);
+  await assignPermissions('finance_admin', FINANCE_ADMIN_LIMITED_MODULES, ['view', 'create', 'edit', 'export']);
 
-  // employee: view-only for most, self-service for some
-  const viewOnlyModules = EMPLOYEE_MODULES.filter((m) => !['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'].includes(m));
-  await assignPermissions('employee', viewOnlyModules, ['view']);
-  await assignPermissions('employee', ['leave', 'expenses', 'travel', 'timesheets', 'helpdesk', 'training'], ['view', 'create', 'edit']);
+  // manager gets view+create+edit+approve on team modules + view-only on others
+  await assignPermissions('manager', MANAGER_FULL_MODULES, ['view', 'create', 'edit', 'approve']);
+  await assignPermissions('manager', MANAGER_VIEW_MODULES, ['view']);
 
-  // recruiter gets recruitment permissions
-  await assignPermissions('recruiter', RECRUITER_MODULES, ['view', 'create', 'edit', 'export']);
+  // travel_admin gets full actions on travel modules + limited on related
+  await assignPermissions('travel_admin', TRAVEL_ADMIN_FULL_MODULES);
+  await assignPermissions('travel_admin', TRAVEL_ADMIN_LIMITED_MODULES, ['view', 'create', 'edit']);
 
-  // candidate gets basic access
-  await assignPermissions('candidate', CANDIDATE_MODULES, ['view', 'create']);
+  // crm_admin gets full actions on CRM modules + limited on related
+  await assignPermissions('crm_admin', CRM_ADMIN_FULL_MODULES);
+  await assignPermissions('crm_admin', CRM_ADMIN_LIMITED_MODULES, ['view', 'create', 'edit']);
+
+  // employee: view-only on base modules, self-service (view+create) on applicable modules
+  await assignPermissions('employee', EMPLOYEE_VIEW_MODULES, ['view']);
+  await assignPermissions('employee', EMPLOYEE_SELFSERVICE_MODULES, ['view', 'create']);
 
   console.log(`  ✓ Created ${rolePermissionsCreated} role-permission assignments`);
 
@@ -893,8 +1080,8 @@ async function main() {
     { userId: hrUser.id, roleKey: 'hr_admin', companyId: tcg.id },
     { userId: managerUser.id, roleKey: 'manager', companyId: tcg.id },
     { userId: employeeUser.id, roleKey: 'employee', companyId: tcg.id },
-    { userId: recruiterUser.id, roleKey: 'recruiter', companyId: tcg.id },
-    { userId: candidateUser.id, roleKey: 'candidate' },
+    { userId: recruiterUser.id, roleKey: 'hr_admin', companyId: mpi.id },
+    { userId: candidateUser.id, roleKey: 'employee' },
   ];
 
   let userRolesAssigned = 0;

@@ -5,7 +5,7 @@ import {
   FiGlobe, FiDollarSign, FiMessageSquare, FiFileText,
   FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiSearch,
   FiRefreshCw, FiSettings, FiShield, FiInfo, FiChevronDown,
-  FiChevronRight, FiCopy, FiSave, FiAlertTriangle,
+  FiChevronRight, FiCopy, FiSave, FiAlertTriangle, FiUsers, FiTrendingUp,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -402,7 +402,7 @@ export default function TenantConfigurationPage() {
         <StatCard icon={<FiDollarSign />} label="Currencies" value={config.activeCurrencyCount} color="green" />
         <StatCard icon={<FiMessageSquare />} label="Languages" value={config.activeLanguageCount} color="purple" />
         <StatCard icon={<FiFileText />} label="Policies" value={config.policies.filter(p => p.status === 'active').length} color="orange" />
-        <StatCard icon={<FiDollarSign />} label="Monthly Cost" value={`$${config.estimatedMonthlyCost.toLocaleString()}`} color="emerald" />
+        <StatCard icon={<FiDollarSign />} label="Monthly Cost" value={`$${(config.estimatedMonthlyCost || 0).toLocaleString()}`} color="emerald" />
         <StatCard icon={<FiShield />} label="Tier" value={config.customisationTier.charAt(0).toUpperCase() + config.customisationTier.slice(1)} color="indigo" />
       </div>
 
@@ -873,11 +873,11 @@ export default function TenantConfigurationPage() {
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <span className="text-lg font-bold text-gray-900 dark:text-white">Estimated Monthly Cost</span>
-                <span className="text-2xl font-bold text-emerald-600">${config.estimatedMonthlyCost.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-emerald-600">${(config.estimatedMonthlyCost || 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-sm text-gray-500">Estimated Annual Cost</span>
-                <span className="text-lg font-semibold text-emerald-500">${config.estimatedAnnualCost.toLocaleString()}</span>
+                <span className="text-lg font-semibold text-emerald-500">${(config.estimatedAnnualCost || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>

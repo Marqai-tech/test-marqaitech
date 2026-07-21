@@ -98,8 +98,8 @@ const levelBadgeCls: Record<number, string> = {
 const levelLabel: Record<number, string> = {
   0: 'Super Admin',
   1: 'Tenant Admin',
-  2: 'HR Admin',
-  3: 'Manager',
+  2: 'HR/Finance Admin',
+  3: 'Manager/Admin',
   4: 'Employee',
   5: 'Custom',
 };
@@ -441,7 +441,10 @@ export default function TenantAdminRBACPage() {
     );
   }
 
-  const categories = [...new Set(modules.map((m) => m.category))];
+  // Filter modules and categories based on user role — hide Admin-category modules for tenant_admin
+  const isTenantAdmin = user?.role === 'tenant_admin';
+  const filteredModules = isTenantAdmin ? modules.filter((m) => m.category !== 'Admin') : modules;
+  const categories = [...new Set(filteredModules.map((m) => m.category))];
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
 
   // ═════════════════════════════════════════════════════════
@@ -685,11 +688,11 @@ export default function TenantAdminRBACPage() {
               </div>
               <select value={selectedRoleId || ''} onChange={(e) => handleSelectRole(e.target.value)} className={selectCls + ' sm:w-64'}>
                 <option value="">— Choose a role —</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} {r.company ? `(${r.company.name})` : ''} {r.isSystem ? '★' : ''}
-                  </option>
-                ))}
+                                {roles.filter((r) => !(isTenantAdmin && r.key === 'super_admin')).map((r) => (
+                                  <option key={r.id} value={r.id}>
+                                    {r.name} {r.company ? `(${r.company.name})` : ''} {r.isSystem ? '★' : ''}
+                                  </option>
+                                ))}
               </select>
               {selectedRoleId && selectedRole?.key !== 'super_admin' && (
                 <button onClick={handleSavePermissions} disabled={savingPermissions} className={btnPrimary}>
@@ -735,7 +738,7 @@ export default function TenantAdminRBACPage() {
                         <PermissionCategoryRow
                           key={cat}
                           category={cat}
-                          modules={modules.filter((m) => m.category === cat)}
+                          modules={filteredModules.filter((m) => m.category === cat)}
                           expanded={expandedCategories[cat] !== false}
                           onToggle={() => handleToggleCategory(cat)}
                           permissionOverrides={permissionOverrides}
@@ -842,7 +845,7 @@ export default function TenantAdminRBACPage() {
                               <div className="flex items-center gap-2">
                                 <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)} className="text-xs px-2 py-1.5 rounded border border-thb-border bg-white">
                                   <option value="">Select role</option>
-                                  {roles.filter((r) => !r.isSystem || r.key === 'admin' || r.key === 'manager' || r.key === 'employee').map((r) => (
+                                    {roles.filter((r) => !(isTenantAdmin && (r.key === 'super_admin' || r.key === 'tenant_admin'))).filter((r) => !r.isSystem || r.key === 'hr_admin' || r.key === 'finance_admin' || r.key === 'manager' || r.key === 'travel_admin' || r.key === 'crm_admin' || r.key === 'employee').map((r) => (
                                     <option key={r.id} value={r.id}>{r.name}{r.company ? ` (${r.company.name})` : ''}</option>
                                   ))}
                                 </select>
