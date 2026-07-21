@@ -299,27 +299,47 @@ export async function GET(request: Request) {
       },
     });
 
-    if (!config) {
+    if (!config || (config.countries.length === 0 && config.currencies.length === 0 && config.languages.length === 0)) {
       // Auto-create with demo-friendly defaults and seed sample data
-      config = await prisma.tenantConfiguration.create({
-        data: {
-          tenantId: targetTenantId,
-          autoProvisionPayroll: true,
-          autoProvisionCompliance: true,
-          autoProvisionTaxSlabs: true,
-          autoProvisionMinWage: true,
-          customisationTier: 'full',
-          maxUsers: 500,
-          maxCompanies: 10,
-          maxEmployees: 5000,
-        },
-        include: {
-          countries: true,
-          currencies: true,
-          languages: true,
-          policies: true,
-        },
-      });
+      // This also handles the case where config exists but is empty (e.g., created before seed feature was added)
+      if (!config) {
+        config = await prisma.tenantConfiguration.create({
+          data: {
+            tenantId: targetTenantId,
+            autoProvisionPayroll: true,
+            autoProvisionCompliance: true,
+            autoProvisionTaxSlabs: true,
+            autoProvisionMinWage: true,
+            customisationTier: 'full',
+            maxUsers: 500,
+            maxCompanies: 10,
+            maxEmployees: 5000,
+          },
+          include: {
+            countries: true,
+            currencies: true,
+            languages: true,
+            policies: true,
+          },
+        });
+      }
+
+      // Update existing config with demo-friendly defaults if needed
+      if (config.customisationTier === 'standard' || config.maxUsers === 50) {
+        await prisma.tenantConfiguration.update({
+          where: { id: config.id },
+          data: {
+            autoProvisionPayroll: true,
+            autoProvisionCompliance: true,
+            autoProvisionTaxSlabs: true,
+            autoProvisionMinWage: true,
+            customisationTier: 'full',
+            maxUsers: 500,
+            maxCompanies: 10,
+            maxEmployees: 5000,
+          },
+        });
+      }
 
       // ─── Auto-seed sample data for demo ───
       const SAMPLE_COUNTRY_CODES = ['IN', 'US', 'GB', 'AE', 'SG', 'AU', 'CA', 'DE'];
