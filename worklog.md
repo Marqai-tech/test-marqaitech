@@ -73,3 +73,56 @@ Stage Summary:
 - Leave/Attendance settings moved to respective modules
 - Duplicate dropdown entries fixed
 - CHANGES NEED TO BE PUSHED TO GITHUB BY USER (git push origin main)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Continue seeding tenant databases (fill all empty tables in both tenant_demo and tenant_marqaitechgroup)
+
+Work Log:
+- Checked current state of both tenant databases using check-tenant-seed-status.py script
+- Demo DB had 25 empty tables + 1 missing TenantConfiguration
+- MarqAI DB had 25 empty tables
+- Both DBs had zero cross-tenant contamination (clean isolation)
+- Built comprehensive seed-tenant-dbs-v3.py script covering all 25+ tables
+- First attempt used individual INSERT statements but was too slow over remote DB connection
+- Switched to psycopg2.extras.execute_values for batch inserts (10-50x faster)
+- Fixed issues: ON CONFLICT unique constraints, missing createdAt/updatedAt columns, SalaryComponent column name mismatch (defaultValue vs value, percentageBase vs percentageOf), PayrollComponent duplicate key on code+countryCode
+- Created seed-marqai-only.py for fast MarqAI-only seeding
+- Successfully seeded all empty tables in both databases
+
+Seeded tables in both Demo and MarqAI DBs:
+  - EmployeeCompanyMapping (25/25)
+  - LeaveBalance (160/180)
+  - AttendancePolicyConfig (6/4)
+  - Attendance (400/46)
+  - Shift (24/16)
+  - SalaryStructure (6/4) + SalaryComponent (36/32)
+  - PayrollComponent (15/13)
+  - PayrollRun (9/12)
+  - PerformanceReview (40/40)
+  - Goal (60/60)
+  - Training (8/5) + TrainingEnrollment (40/15)
+  - TravelRequest (16/16)
+  - ExpenseClaim (20/20)
+  - Asset (10/8) + AssetAssignment (10/8)
+  - Document (60/60)
+  - Notification (45/16)
+  - Announcement (5/4)
+  - OnboardingTask (48/40)
+  - Project (6/5) + ProjectMember (24/15)
+  - Loan (6/8)
+  - Reimbursement (8/10)
+  - WorkflowDefinition (5/5) + WorkflowInstance (15/15)
+  - TenantConfiguration (1/1)
+
+Context-specific data:
+  - Demo DB: USD currency, US holidays, American employee names, Western locations
+  - MarqAI DB: INR currency, Indian holidays (Republic Day, Holi, Diwali), Indian employee names, Indian cities
+
+Stage Summary:
+- Both tenant databases fully seeded with ZERO empty tables
+- 45 tables populated in each database
+- 11 "missing" tables (Job, Candidate, etc.) don't exist in Prisma schema - not actual models
+- Zero cross-tenant contamination confirmed in both databases
+- Scripts saved: scripts/seed-tenant-dbs-v3.py, scripts/seed-marqai-only.py, scripts/check-tenant-seed-status.py
