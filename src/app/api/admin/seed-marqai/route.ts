@@ -46,32 +46,160 @@ export async function POST(request: Request) {
     // If force=true and tenant exists, clean up existing data
     if (existing) {
       console.log('[seed-marqai] Force re-seed: cleaning up existing data...');
-      // Delete in reverse dependency order
+      const tenantId = existing.id;
+
+      // 1. Delete all dependent records in correct order (reverse FK dependency)
+      // Deep dependencies first: records that reference Employee/User/Company/etc.
+
+      // Get all company IDs for this tenant
       const existingGroup = await db.companyGroup.findFirst({
-        where: { tenantId: existing.id },
+        where: { tenantId },
       });
+      const companyIds: string[] = [];
       if (existingGroup) {
         const existingCompanies = await db.company.findMany({
           where: { companyGroupId: existingGroup.id },
           select: { id: true },
         });
-        const companyIds = existingCompanies.map(c => c.id);
-
-        // Delete employees, branches, departments for each company
-        for (const companyId of companyIds) {
-          await db.employee.deleteMany({ where: { companyId } });
-          await db.department.deleteMany({ where: { companyId } });
-          await db.branch.deleteMany({ where: { companyId } });
-        }
-        await db.company.deleteMany({ where: { companyGroupId: existingGroup.id } });
-        await db.companyGroup.deleteMany({ where: { id: existingGroup.id } });
+        companyIds.push(...existingCompanies.map(c => c.id));
       }
-      // Delete users for this tenant (except super_admin from different tenant)
-      await db.user.deleteMany({
-        where: { tenantId: existing.id },
+
+      // Get all employee IDs for this tenant
+      const employeeIds: string[] = [];
+      for (const companyId of companyIds) {
+        const emps = await db.employee.findMany({
+          where: { companyId },
+          select: { id: true },
+        });
+        employeeIds.push(...emps.map(e => e.id));
+      }
+
+      // Get all user IDs for this tenant
+      const existingUsers = await db.user.findMany({
+        where: { tenantId },
+        select: { id: true },
       });
+      const userIds = existingUsers.map(u => u.id);
+
+      // Get all designation IDs for this tenant
+      const existingDesignations = await db.designation.findMany({
+        where: { tenantId },
+        select: { id: true },
+      });
+      const designationIds = existingDesignations.map(d => d.id);
+
+      // Delete employee-dependent records first
+      for (const empId of employeeIds) {
+        await db.employeeSkill.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.employeePaymentMethod.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.employeeCustomFieldValue.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.employeeRosterAssignment.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.employeeCompanyMapping.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.employeeDimensionAllocation.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.dependent.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.qualification.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.experience.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.assetAssignment.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.bankAccount.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+        await db.gratuityLedger.deleteMany({ where: { employeeId: empId } }).catch(() => {});
+      }
+
+      // Delete company-dependent records
+      for (const companyId of companyIds) {
+        // Job postings → job applications → interviews
+        const jobPostings = await db.jobPosting.findMany({
+          where: { companyId },
+          select: { id: true },
+        });
+        for (const jpId of jobPostings.map(j => j.id)) {
+          const jobApps = await db.jobApplication.findMany({
+            where: { jobPostingId: jpId },
+            select: { id: true },
+          });
+          for (const jaId of jobApps.map(j => j.id)) {
+            await db.interview.deleteMany({ where: { jobApplicationId: jaId } }).catch(() => {});
+            await db.candidateAiFeedback.deleteMany({ where: { jobApplicationId: jaId } }).catch(() => {});
+          }
+          await db.jobApplication.deleteMany({ where: { jobPostingId: jpId } }).catch(() => {});
+        }
+        await db.jobPosting.deleteMany({ where: { companyId } }).catch(() => {});
+
+        await db.leaveRequest.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.leaveBalance.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.attendance.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.payroll.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.performanceReview.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.goal.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.training.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.trainingEnrollment.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.asset.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.document.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.incidentReport.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.travelRequest.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.expenseClaim.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.timesheet.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.feedback.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.promotion.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.grievance.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.separation.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.shift.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.holiday.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.announcement.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.companyPolicy.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.reimbursement.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.onboardingTask.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.leaveType.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.candidateTalentPool.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.client.deleteMany({ where: { companyId } }).catch(() => {});
+      }
+
+      // Delete designation-dependent records
+      for (const desId of designationIds) {
+        await db.employeeDimensionAllocation.deleteMany({ where: { dimensionId: desId } }).catch(() => {});
+      }
+
+      // Delete employees (after all employee-dependent records are gone)
+      for (const companyId of companyIds) {
+        await db.employee.deleteMany({ where: { companyId } }).catch(() => {});
+      }
+
+      // Delete departments and branches (after employees)
+      for (const companyId of companyIds) {
+        await db.department.deleteMany({ where: { companyId } }).catch(() => {});
+        await db.branch.deleteMany({ where: { companyId } }).catch(() => {});
+      }
+
+      // Delete designations (tenant-level)
+      await db.designation.deleteMany({ where: { tenantId } }).catch(() => {});
+
+      // Delete companies
+      if (existingGroup) {
+        await db.company.deleteMany({ where: { companyGroupId: existingGroup.id } }).catch(() => {});
+        await db.companyGroup.deleteMany({ where: { id: existingGroup.id } }).catch(() => {});
+      }
+
+      // Delete user-dependent records
+      for (const userId of userIds) {
+        await db.loginActivity.deleteMany({ where: { userId } }).catch(() => {});
+        await db.notification.deleteMany({ where: { userId } }).catch(() => {});
+        await db.auditLog.deleteMany({ where: { userId } }).catch(() => {});
+      }
+
+      // Delete users
+      await db.user.deleteMany({ where: { tenantId } }).catch(() => {});
+
+      // Delete tenant-dependent records on platform DB
+      await getPlatformDb().tenantConfiguration.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().tenantCountryAccess.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().tenantCurrencyAccess.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().tenantLanguageAccess.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().tenantPayrollPolicy.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().tenantDatabase.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().subscription.deleteMany({ where: { tenantId } }).catch(() => {});
+      await getPlatformDb().featureFlag.deleteMany({ where: { tenantId } }).catch(() => {});
+
       // Delete the tenant itself
-      await getPlatformDb().tenant.delete({ where: { id: existing.id } });
+      await getPlatformDb().tenant.delete({ where: { id: tenantId } }).catch(() => {});
       console.log('[seed-marqai] Cleanup complete, re-seeding...');
     }
 
