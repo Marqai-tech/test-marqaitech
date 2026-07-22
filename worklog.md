@@ -176,3 +176,24 @@ Stage Summary:
 - Both tenant databases: 60 tables populated, 0 empty, 0 missing
 - Prisma schema validated and client regenerated
 - Scripts saved: scripts/add-new-models.py, scripts/seed-new-models.py, scripts/seed-remaining-tables.py
+---
+Task ID: 1
+Agent: Main Agent
+Task: Push code to Vercel, verify deployment, seed tenant DBs, set up DB isolation
+
+Work Log:
+- Pushed all commits (seed fix + full-reseed script + copy script) to GitHub origin/main
+- Vercel auto-deploy triggered and completed - both nexus-hrms-mu.vercel.app and 3boxeshrms.com returning 200
+- Ran comprehensive MarqAI tenant reseed via scripts/full-reseed-marqai.js (direct DB connection)
+- Created 5-company MarqAI structure: Tenant, 5 Companies, 5 Branches, 25 Departments, 40 Designations, 12 Users, 10 Employees
+- Registered TenantDatabase record linking MarqAI tenant to tenant_marqaitechgroup DB
+- Copied all MarqAI data from shared platform DB (neondb) to separate tenant DB (tenant_marqaitechgroup)
+- Verified login works on live deployment: admin@marqaitechgroup.com / MarqAI@2026 → tenant_admin role
+
+Stage Summary:
+- Vercel deployment is live and updated
+- MarqAI tenant data is now in its OWN separate database (tenant_marqaitechgroup)
+- Platform DB (neondb) has the Tenant record and TenantDatabase pointer
+- Tenant DB (tenant_marqaitechgroup) has all operational data (companies, users, employees, etc.)
+- Database isolation is now properly set up for MarqAI tenant
+- All code pushed to GitHub, Vercel will rebuild on next push
