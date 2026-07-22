@@ -2467,6 +2467,23 @@ async function main() {
     `ALTER TABLE "ProjectUtilizationSnapshot" ADD CONSTRAINT "ProjectUtilizationSnapshot_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
     `ALTER TABLE "ProjectUtilizationSnapshot" DROP CONSTRAINT IF EXISTS "ProjectUtilizationSnapshot_employeeId_fkey"`,
     `ALTER TABLE "ProjectUtilizationSnapshot" ADD CONSTRAINT "ProjectUtilizationSnapshot_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── New model FK constraints (2026-07-22): BankAccount, GratuityLedger, Setting, CompanyPolicy ───
+    `ALTER TABLE "BankAccount" DROP CONSTRAINT IF EXISTS "BankAccount_employeeId_fkey"`,
+    `ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "GratuityLedger" DROP CONSTRAINT IF EXISTS "GratuityLedger_employeeId_fkey"`,
+    `ALTER TABLE "GratuityLedger" ADD CONSTRAINT "GratuityLedger_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "GratuityLedger" DROP CONSTRAINT IF EXISTS "GratuityLedger_companyId_fkey"`,
+    `ALTER TABLE "GratuityLedger" ADD CONSTRAINT "GratuityLedger_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "Setting" DROP CONSTRAINT IF EXISTS "Setting_tenantId_fkey"`,
+    `ALTER TABLE "Setting" ADD CONSTRAINT "Setting_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    `ALTER TABLE "Setting" DROP CONSTRAINT IF EXISTS "Setting_companyId_fkey"`,
+    `ALTER TABLE "Setting" ADD CONSTRAINT "Setting_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    `ALTER TABLE "CompanyPolicy" DROP CONSTRAINT IF EXISTS "CompanyPolicy_companyId_fkey"`,
+    `ALTER TABLE "CompanyPolicy" ADD CONSTRAINT "CompanyPolicy_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   ];
 
   let applied = 0;

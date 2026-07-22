@@ -74,6 +74,8 @@ model Tenant {
   notifications       Notification[]
   subscriptions       Subscription[]
   roles               Role[]
+  settings         Setting[]
+  candidates       Candidate[]
   featureFlags        FeatureFlag[]
   trialRegistrations  TrialRegistration[]
   tenantDatabase      TenantDatabase?
@@ -223,6 +225,10 @@ model Company {
   clients         Client[]
   vendors         Vendor[]
   projects        Project[]
+  candidates           Candidate[]
+  settings             Setting[]
+  companyPolicies      CompanyPolicy[]
+  gratuityLedgers      GratuityLedger[]
   salaryStructures SalaryStructure[]
   requisitions    Requisition[]
   roles           Role[]
@@ -533,6 +539,9 @@ model Employee {
   recognitionsReceived Recognition[]
   companyMappings      EmployeeCompanyMapping[]
 
+  bankAccounts           BankAccount[]
+  gratuityLedgers        GratuityLedger[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -646,6 +655,9 @@ model JobApplication {
   jobPostingId String
   jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
 
+  candidateId  String?
+  candidate    Candidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
   candidateName  String
   candidateEmail String
   candidatePhone String?
@@ -670,6 +682,7 @@ model JobApplication {
   updatedAt DateTime @updatedAt
 
   @@index([jobPostingId])
+  @@index([candidateId])
   @@index([status])
 }
 
@@ -6670,4 +6683,313 @@ model TenantPayrollPolicy {
   @@index([policyType])
   @@index([status])
   @@index([source])
+}
+
+// ============ ADDITIONAL MODELS (Seeding gap fills) ============
+// These models bridge the gap between the check-tenant-seed-status.py
+// monitoring script and the Prisma schema. They represent business entities
+// that are commonly expected in a full HRMS deployment but were previously
+// referenced only implicitly or through other models.
+
+// ─── BankAccount ───
+// Stores employee bank account details for payroll processing.
+// Distinct from EmployeePaymentMethod (which handles payment routing and split
+// configurations). BankAccount is the authoritative record of an employee's
+// actual bank accounts, used for verification, compliance, and direct deposit.
+model BankAccount {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Account holder information
+  accountHolderName  String
+  bankName           String
+  accountNumber      String
+  confirmAccountNumber String?
+  ifscCode           String?
+  micrCode           String?
+  branchName         String?
+  branchAddress      String?
+
+  // Account classification
+  accountType        String   @default("savings") // savings, current, salary, nre, nro
+  currency           String   @default("INR")
+
+  // Verification & compliance
+  isVerified         Boolean  @default(false)
+  verifiedBy         String?  // userId of who verified
+  verifiedAt         DateTime?
+  verificationDoc    String?  // URL to cancelled cheque / bank statement
+
+  // Status & priority
+  status             String   @default("active") // active, inactive, closed, pending_verification
+  isPrimary          Boolean  @default(false)
+
+  // Effective dates for account changes
+  effectiveFrom      DateTime @default(now())
+  effectiveTo        DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, accountNumber, ifscCode])
+  @@index([employeeId])
+  @@index([isPrimary])
+  @@index([status])
+}
+
+// ─── GratuityLedger ───
+// Tracks gratuity accumulation for each employee per financial year.
+// Required for Indian payroll compliance under the Payment of Gratuity Act, 1972.
+// Each ledger entry records the annual gratuity provision, employer contributions,
+// and any withdrawals or adjustments.
+model GratuityLedger {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Financial period
+  financialYear   String   // e.g., "2025-26", "2026-27"
+  month           Int      @default(1)  // Month within the financial year (1-12)
+
+  // Gratuity calculation inputs
+  lastDrawnBasicSalary   Float @default(0)
+  lastDrawnDA            Float @default(0)  // Dearness Allowance
+  yearsOfService         Float @default(0)  // Total completed years (can be fractional)
+  completedYears         Int   @default(0)  // Rounded down completed years for eligibility
+
+  // Gratuity amount computation
+  // Formula: Last Drawn (Basic + DA) × 15/26 × Years of Service
+  monthlyProvision       Float @default(0)  // Monthly provision amount
+  accumulatedProvision   Float @default(0)  // Cumulative provision for the FY
+  gratuityEarned         Float @default(0)  // Total gratuity earned till date
+  employerContribution   Float @default(0)  // Employer's actual contribution (may differ from provision)
+
+  // Adjustments & withdrawals
+  adjustments            Float @default(0)  // Any adjustments (positive or negative)
+  withdrawalAmount       Float @default(0)  // Amount withdrawn (on exit/claim)
+  balanceAfterWithdrawal Float @default(0)  // Remaining balance after withdrawal
+
+  // Eligibility & compliance
+  isEligible             Boolean @default(false) // 5+ years completed
+  eligibilityDate        DateTime?              // Date when 5-year eligibility kicks in
+  lastDrawnSalaryDate    DateTime?              // Date of last salary used for calculation
+
+  // Status
+  status                 String @default("provisioned") // provisioned, claimed, partially_claimed, lapsed
+  processedAt            DateTime?
+  processedBy            String?  // userId
+
+  currency               String @default("INR")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, financialYear, month])
+  @@index([employeeId])
+  @@index([companyId])
+  @@index([financialYear])
+  @@index([status])
+}
+
+// ─── Setting ───
+// General-purpose key-value settings store for tenant and company-level
+// configurations. Covers settings that don't warrant their own dedicated
+// model — e.g., UI preferences, feature toggles, integration configs,
+// notification preferences, approval thresholds, etc.
+// Supports hierarchical lookup: tenant > company scope.
+model Setting {
+  id          String   @id @default(cuid())
+
+  // Scope: either tenant-level or company-level
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String?  // null = tenant-wide setting
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Setting identification
+  category    String   // e.g., "general", "leave", "attendance", "payroll", "recruitment",
+                       // "notification", "approval", "integration", "ui", "security"
+  key         String   // e.g., "default_leave_carry_forward", "auto_approve_leave_days"
+  value       String   // JSON-serialized value (string, number, boolean, object, array)
+  dataType    String   @default("string") // string, number, boolean, json, array
+
+  // Metadata
+  description String?
+  isEditable  Boolean  @default(true)  // Whether tenant/company admin can modify
+  isSecret    Boolean  @default(false) // Whether value is encrypted/sensitive (API keys, etc.)
+  defaultValue String? // Fallback value if current value is removed
+
+  // Versioning
+  version     Int      @default(1)
+  previousValue String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, companyId, category, key])
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([category])
+  @@index([key])
+}
+
+// ─── Candidate ───
+// Standalone candidate profile for the recruitment pipeline.
+// Represents a person who has applied or been sourced, independent of any
+// specific job application. A Candidate can have multiple JobApplications
+// across different JobPostings. This model centralizes candidate PII,
+// skills, and status so that recruitment teams can manage a talent pool.
+model Candidate {
+  id          String   @id @default(cuid())
+
+  // Ownership
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String?  // Primary company sourcing this candidate
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  // Personal information
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  avatar      String?
+
+  // Professional profile
+  currentJobTitle    String?
+  currentCompany     String?
+  currentLocation    String?
+  totalExperience    Float?   // In years
+  noticePeriod       Int?     // In days
+  currentCTC         Float?
+  expectedCTC        Float?
+  currency           String   @default("INR")
+
+  // Skills & education
+  skills             String?  // Comma-separated or JSON array
+  highestQualification String?
+  university         String?
+  graduationYear     Int?
+
+  // Sourcing
+  source             String   @default("direct") // direct, referral, job_board, linkedin, naukri, indeed, internal, campus, agency
+  sourceDetails      String?  // Additional source metadata (e.g., referral employee ID)
+  recruiterId        String?  // Employee ID of recruiter who sourced
+
+  // Resume & documents
+  resumeUrl          String?
+  coverLetterUrl     String?
+  linkedinUrl        String?
+  portfolioUrl       String?
+
+  // Status in pipeline
+  status             String   @default("new") // new, screening, shortlisted, interviewing,
+                                               // offered, hired, rejected, on_hold, warm_pool, talent_pool
+  subStatus          String?  // More granular status within a stage
+
+  // AI-driven fields
+  aiMatchScore       Float?   // 0-100, computed by AI resume matching
+  aiSentimentScore   Float?   // Sentiment from interactions
+  aiRecommendedRole  String?  // AI-suggested role based on profile
+
+  // Communication tracking
+  lastContactedAt    DateTime?
+  nextFollowUpAt     DateTime?
+  communicationCount Int      @default(0)
+
+  // Tags & categorization
+  tags               String?  // JSON array of tags
+  category           String?  // e.g., "engineering", "sales", "leadership"
+  pool               String?  // Talent pool assignment
+
+  // Important dates
+  appliedAt          DateTime?
+  hiredAt            DateTime?
+  rejectedAt         DateTime?
+
+  // GDPR & consent
+  consentGiven       Boolean  @default(false)
+  consentDate        DateTime?
+  dataRetentionDays  Int      @default(730) // Default 2 years
+  anonymized         Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  jobApplications    JobApplication[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([status])
+  @@index([source])
+  @@index([aiMatchScore])
+}
+
+// ─── CompanyPolicy ───
+// Company-specific policy documents that extend the base Policy model.
+// While Policy is generic and company-scoped, CompanyPolicy adds document
+// management, acknowledgement tracking, and compliance features required
+// for HR policy distribution and employee attestation.
+model CompanyPolicy {
+  id          String   @id @default(cuid())
+
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Policy identification
+  title       String
+  policyCode  String?  // Unique code for reference (e.g., "HR-LEAVE-001")
+  category    String   // hr, it, safety, leave, travel, code_of_conduct, anti_harassment,
+                        // data_security, remote_work, dress_code, disciplinary, compensation
+
+  // Content
+  description String?
+  content     String?  // Full policy content (markdown or rich text)
+  documentUrl String?  // Link to uploaded policy document (PDF, DOCX)
+
+  // Versioning & lifecycle
+  version     String   @default("1.0")
+  previousVersionId String? // Link to previous version for audit trail
+  status      String   @default("draft") // draft, active, under_review, archived, superseded
+  effectiveDate   DateTime?
+  reviewDate      DateTime?  // Scheduled review date
+  expiryDate      DateTime?
+
+  // Authorship & ownership
+  authoredBy  String?  // Employee ID of policy author
+  ownedBy     String?  // Employee ID of policy owner (responsible for updates)
+  approvedBy  String?  // Employee ID of approver
+  approvedAt  DateTime?
+
+  // Acknowledgement & compliance
+  requiresAcknowledgement Boolean @default(true)
+  acknowledgementDeadlineDays Int? // Days within which employees must acknowledge
+  totalAcknowledged       Int     @default(0)  // Count of employees who acknowledged
+  totalPending            Int     @default(0)  // Count of employees yet to acknowledge
+
+  // Distribution
+  applicableTo  String @default("all_employees") // all_employees, specific_department, specific_designation, specific_location, new_hires
+  departmentIds String? // JSON array of department IDs (if applicableTo is specific_department)
+  designationIds String? // JSON array of designation IDs
+  locationIds   String? // JSON array of branch IDs
+
+  // Compliance flags
+  isRegulatory  Boolean @default(false) // Whether this is mandated by law/regulation
+  regulationRef String? // Reference to the regulation (e.g., "POSH Act 2013", "GDPR Article 22")
+  penaltyForNonCompliance String? // Description of penalties
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, policyCode])
+  @@index([companyId])
+  @@index([category])
+  @@index([status])
+  @@index([effectiveDate])
 }

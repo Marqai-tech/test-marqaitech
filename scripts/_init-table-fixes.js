@@ -154,4 +154,66 @@ module.exports = [
   `ALTER TABLE "SurveyResponse" ADD COLUMN IF NOT EXISTS "surveyId" TEXT`,
   `ALTER TABLE "SurveyResponse" ADD COLUMN IF NOT EXISTS "answers" TEXT`,
   `ALTER TABLE "SurveyResponse" ADD COLUMN IF NOT EXISTS "sentiment" TEXT`,
+
+  // ─── Candidate table new columns (2026-07-22) ───
+  // The 0_init migration created a minimal Candidate table. The Prisma schema
+  // now has many more columns for the standalone candidate profile model.
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "currentJobTitle" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "currentLocation" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "totalExperience" DOUBLE PRECISION`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "currentCTC" DOUBLE PRECISION`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "expectedCTC" DOUBLE PRECISION`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'INR'`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "skills" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "highestQualification" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "university" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "graduationYear" INTEGER`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "sourceDetails" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "recruiterId" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "resumeUrl" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "coverLetterUrl" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "linkedinUrl" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "portfolioUrl" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "subStatus" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "aiMatchScore" DOUBLE PRECISION`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "aiSentimentScore" DOUBLE PRECISION`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "aiRecommendedRole" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "lastContactedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "nextFollowUpAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "communicationCount" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "tags" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "category" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "pool" TEXT`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "hiredAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "rejectedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "consentGiven" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "consentDate" TIMESTAMP(3)`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "dataRetentionDays" INTEGER NOT NULL DEFAULT 730`,
+  `ALTER TABLE "Candidate" ADD COLUMN IF NOT EXISTS "anonymized" BOOLEAN NOT NULL DEFAULT false`,
+  // Rename old columns to match new schema (experience → totalExperience handled above; currentTitle → currentJobTitle)
+  // Note: old columns (resume, jobId, aiScore, skillMatch, cultureFitScore, notes) remain for backward compat
+
+  // ─── JobApplication table new columns (2026-07-22) ───
+  `ALTER TABLE "JobApplication" ADD COLUMN IF NOT EXISTS "candidateId" TEXT`,
+
+  // ─── Create indexes for new Candidate columns ───
+  `CREATE INDEX IF NOT EXISTS "Candidate_tenantId_idx" ON "Candidate"("tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "Candidate_companyId_idx" ON "Candidate"("companyId")`,
+  `CREATE INDEX IF NOT EXISTS "Candidate_status_idx" ON "Candidate"("status")`,
+  `CREATE INDEX IF NOT EXISTS "Candidate_source_idx" ON "Candidate"("source")`,
+  `CREATE INDEX IF NOT EXISTS "Candidate_aiMatchScore_idx" ON "Candidate"("aiMatchScore")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Candidate_tenantId_email_key" ON "Candidate"("tenantId", "email")`,
+  `CREATE INDEX IF NOT EXISTS "JobApplication_candidateId_idx" ON "JobApplication"("candidateId")`,
+
+  // ─── Candidate FK constraints ───
+  `ALTER TABLE "Candidate" DROP CONSTRAINT IF EXISTS "Candidate_tenantId_fkey"`,
+  `ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "Candidate" DROP CONSTRAINT IF EXISTS "Candidate_companyId_fkey"`,
+  `ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "JobApplication" DROP CONSTRAINT IF EXISTS "JobApplication_candidateId_fkey"`,
+  `ALTER TABLE "JobApplication" ADD CONSTRAINT "JobApplication_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
 ];

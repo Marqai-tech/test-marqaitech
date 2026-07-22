@@ -126,3 +126,53 @@ Stage Summary:
 - 11 "missing" tables (Job, Candidate, etc.) don't exist in Prisma schema - not actual models
 - Zero cross-tenant contamination confirmed in both databases
 - Scripts saved: scripts/seed-tenant-dbs-v3.py, scripts/seed-marqai-only.py, scripts/check-tenant-seed-status.py
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Add missing models to Prisma schema and seed new tables in tenant databases
+
+Work Log:
+- Analyzed 11 "missing" tables from check-tenant-seed-status.py against Prisma schema
+- Identified 5 genuinely missing models: BankAccount, GratuityLedger, Setting, Candidate, CompanyPolicy
+- Identified 6 naming mismatches: Job→JobPosting, Application→JobApplication, AssetAllocation→AssetAssignment, HelpdeskTicket→Ticket, CompanyPolicy(Prisma Policy)→exists, TaxSlab→TaxSlabTable+TaxSlabRateLine
+- Added 5 new Prisma models to schema.prisma (~310 lines):
+  - BankAccount: Employee bank account details with verification, IFSC, MICR support
+  - GratuityLedger: Indian payroll gratuity tracking per FY/month (Payment of Gratuity Act 1972)
+  - Setting: Key-value settings store with tenant/company scope, versioning, secret support
+  - Candidate: Standalone candidate profile with AI scoring, GDPR consent, sourcing tracking
+  - CompanyPolicy: Policy documents with acknowledgement tracking, distribution, compliance flags
+- Added back-references: Employee→BankAccount[], GratuityLedger[]; Company→Candidate[], Setting[], CompanyPolicy[], GratuityLedger[]; Tenant→Setting[], Candidate[]
+- Added candidateId to JobApplication model with Candidate FK
+- Updated gen-missing-tables.py and regenerated _generated-tables.js (4 new models detected)
+- Added ALTER TABLE for Candidate (0_init table needs new columns) to _init-table-fixes.js
+- Added FK constraints for all new models to schema-sync.js
+- Created add-new-models.py script to CREATE TABLE directly in both tenant DBs
+- Created seed-new-models.py to seed BankAccount, GratuityLedger, Setting, Candidate, CompanyPolicy
+- Created seed-remaining-tables.py to fill 8 previously empty tables: JobPosting, JobApplication, Interview, Offer, OfferTemplate, Policy, Ticket, TicketCategory
+- Fixed column name mismatches (Ticket uses requesterId not employeeId, etc.)
+- Updated check-tenant-seed-status.py with correct Prisma model names
+- Validated Prisma schema (valid), regenerated Prisma client
+
+New model seed counts (Demo / MarqAI):
+  - BankAccount: 20 / 20
+  - GratuityLedger: 240 / 240
+  - Setting: 36 / 36
+  - Candidate: 25 / 30
+  - CompanyPolicy: 100 / 40
+
+Remaining tables seeded (Demo / MarqAI):
+  - JobPosting: 12 / 12
+  - JobApplication: 40 / 43
+  - Interview: 20 / 20
+  - Offer: 8 / 8
+  - OfferTemplate: 4 / 4
+  - Policy: 50 / 20
+  - Ticket: 15 / 15
+  - TicketCategory: 100 / 40
+
+Stage Summary:
+- 5 new Prisma models added to schema (BankAccount, GratuityLedger, Setting, Candidate, CompanyPolicy)
+- Both tenant databases: 60 tables populated, 0 empty, 0 missing
+- Prisma schema validated and client regenerated
+- Scripts saved: scripts/add-new-models.py, scripts/seed-new-models.py, scripts/seed-remaining-tables.py
