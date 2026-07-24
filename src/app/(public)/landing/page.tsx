@@ -30,6 +30,12 @@ import {
   FiPhoneCall,
   FiPackage,
   FiLayers,
+  FiSearch,
+  FiUserPlus,
+  FiCalendar,
+  FiFile,
+  FiSend,
+  FiTrendingUp,
 } from 'react-icons/fi';
 
 /* ───────────────────── Data ───────────────────── */
@@ -39,43 +45,43 @@ const features = [
     icon: FiLayers,
     title: 'Multi-Company Management',
     description: 'Manage multiple group companies, branches, and entities from a single dashboard with unified control and reporting.',
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-green-500 to-emerald-600',
   },
   {
     icon: FiUsers,
     title: 'Employee Lifecycle',
     description: 'Complete hire-to-retire management — onboarding, transfers, promotions, resignations, and alumni tracking.',
-    color: 'from-violet-500 to-purple-500',
+    color: 'from-emerald-500 to-teal-500',
   },
   {
     icon: FiClock,
     title: 'Attendance & Leave',
     description: 'Biometric, GPS, and shift-based attendance with geofencing, overtime, WFH snapshots, and smart leave workflows.',
-    color: 'from-emerald-500 to-teal-500',
+    color: 'from-teal-500 to-green-500',
   },
   {
     icon: FiDollarSign,
     title: 'Payroll & Compliance',
     description: 'Flexible salary structures, statutory compliance, bank files, payslips, and multi-country payroll processing.',
-    color: 'from-amber-500 to-orange-500',
+    color: 'from-green-600 to-emerald-500',
   },
   {
     icon: FiBriefcase,
     title: 'Recruitment ATS',
     description: 'Post jobs, track candidates through a visual pipeline, AI resume screening, interview scheduling, and offer management.',
-    color: 'from-pink-500 to-rose-500',
+    color: 'from-emerald-600 to-teal-400',
   },
   {
     icon: FiTarget,
     title: 'Performance Management',
     description: '360° reviews, goal setting, OKRs, continuous feedback, calibration, and performance analytics dashboards.',
-    color: 'from-indigo-500 to-blue-500',
+    color: 'from-green-500 to-lime-500',
   },
   {
     icon: FiCpu,
     title: 'AI-Powered',
     description: 'AI chatbot for HR queries, resume screening, predictive analytics, burnout detection, and anomaly insights.',
-    color: 'from-fuchsia-500 to-pink-500',
+    color: 'from-teal-600 to-emerald-400',
   },
 ];
 
@@ -166,9 +172,63 @@ const pricingPlans = [
 
 const navLinks = [
   { label: 'Features', href: '#features' },
+  { label: 'Workflows', href: '#workflows' },
   { label: 'Modules', href: '#modules' },
   { label: 'Trial', href: '#trial' },
   { label: 'Pricing', href: '#pricing' },
+];
+
+/* ── Workflow Infographic Data ── */
+
+const workflows = [
+  {
+    title: 'Employee Onboarding',
+    subtitle: 'From hire to productive team member in days, not weeks',
+    steps: [
+      { icon: FiUserPlus, label: 'Create Employee', desc: 'Add new hire with personal & job details' },
+      { icon: FiFile, label: 'Document Collection', desc: 'Auto-request ID proofs, certificates & bank info' },
+      { icon: FiClipboard, label: 'Task Assignment', desc: 'Assign onboarding checklist to stakeholders' },
+      { icon: FiCpu, label: 'AI Welcome Bot', desc: 'Automated introductions, policies & FAQ answers' },
+      { icon: FiCheck, label: 'Go Live', desc: 'Employee activated with access to all modules' },
+    ],
+    accent: 'emerald',
+  },
+  {
+    title: 'Recruitment Pipeline',
+    subtitle: 'End-to-end hiring — from job posting to sealed offer letter',
+    steps: [
+      { icon: FiSearch, label: 'Post Job', desc: 'Publish requisitions across portals & social' },
+      { icon: FiCpu, label: 'AI Screening', desc: 'Auto-rank resumes, flag top-fit candidates' },
+      { icon: FiCalendar, label: 'Interview Schedule', desc: 'Panel scheduling, AI proctored assessments' },
+      { icon: FiStar, label: 'Evaluate & Score', desc: 'Structured feedback, scorecards & calibration' },
+      { icon: FiSend, label: 'Offer & Hire', desc: 'Generate offer letter, track acceptance & onboard' },
+    ],
+    accent: 'teal',
+  },
+  {
+    title: 'Payroll Processing',
+    subtitle: 'Accurate, compliant salary runs every month — automatically',
+    steps: [
+      { icon: FiUsers, label: 'Attendance Sync', desc: 'Pull leave, OT & shift data into payroll' },
+      { icon: FiDollarSign, label: 'Salary Compute', desc: 'Auto-calculate tax, PF, ESI & deductions' },
+      { icon: FiShield, label: 'Compliance Check', desc: 'Statutory validation & audit trail logging' },
+      { icon: FiFileText, label: 'Payslip & Bank File', desc: 'Generate payslips & bank upload formats' },
+      { icon: FiTrendingUp, label: 'Analytics', desc: 'Cost breakdown reports & payroll dashboards' },
+    ],
+    accent: 'green',
+  },
+  {
+    title: 'Leave Management',
+    subtitle: 'Smart leave workflows with policy-driven auto-balances',
+    steps: [
+      { icon: FiCalendar, label: 'Apply Leave', desc: 'Employee submits request via app or chatbot' },
+      { icon: FiTarget, label: 'Policy Check', desc: 'Auto-validate against balance & blackout rules' },
+      { icon: FiUsers, label: 'Approval Chain', desc: 'Multi-level manager routing & delegation' },
+      { icon: FiClock, label: 'Balance Update', desc: 'Real-time accrual & deduction tracking' },
+      { icon: FiBarChart2, label: 'Team Calendar', desc: 'Visibility of team availability & conflicts' },
+    ],
+    accent: 'lime',
+  },
 ];
 
 /* ───────────────────── Animated Counter ───────────────────── */
@@ -194,6 +254,55 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
   }, [target]);
 
   return <span>{count.toLocaleString()}{suffix}</span>;
+}
+
+/* ───────────────────── Workflow Diagram ───────────────────── */
+
+function WorkflowDiagram({ workflow }: { workflow: typeof workflows[number] }) {
+  const accentMap: Record<string, { bg: string; iconBg: string; iconText: string; ring: string; line: string; glow: string }> = {
+    emerald: { bg: 'bg-emerald-50', iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600', iconText: 'text-white', ring: 'ring-emerald-200', line: 'border-emerald-300', glow: 'shadow-emerald-500/20' },
+    teal:    { bg: 'bg-teal-50', iconBg: 'bg-gradient-to-br from-teal-500 to-emerald-600', iconText: 'text-white', ring: 'ring-teal-200', line: 'border-teal-300', glow: 'shadow-teal-500/20' },
+    green:   { bg: 'bg-green-50', iconBg: 'bg-gradient-to-br from-green-500 to-emerald-600', iconText: 'text-white', ring: 'ring-green-200', line: 'border-green-300', glow: 'shadow-green-500/20' },
+    lime:    { bg: 'bg-lime-50', iconBg: 'bg-gradient-to-br from-lime-500 to-green-600', iconText: 'text-white', ring: 'ring-lime-200', line: 'border-lime-300', glow: 'shadow-lime-500/20' },
+  };
+  const a = accentMap[workflow.accent];
+
+  return (
+    <div className="group relative rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden">
+      {/* Header */}
+      <div className={`${a.bg} px-6 py-5 border-b ${a.line}`}>
+        <h3 className="text-xl font-bold text-slate-900">{workflow.title}</h3>
+        <p className="text-sm text-slate-600 mt-1">{workflow.subtitle}</p>
+      </div>
+
+      {/* Steps - horizontal pipeline */}
+      <div className="p-6">
+        <div className="flex items-center justify-between gap-0">
+          {workflow.steps.map((step, idx) => {
+            const StepIcon = step.icon;
+            return (
+              <div key={idx} className="flex flex-col items-center relative" style={{ flex: 1, minWidth: 0 }}>
+                {/* Connector line */}
+                {idx < workflow.steps.length - 1 && (
+                  <div className={`absolute top-5 left-[55%] right-[-45%] h-0.5 ${a.line} z-0`} />
+                )}
+                {/* Step circle */}
+                <div className={`relative z-10 w-10 h-10 rounded-full ${a.iconBg} ${a.iconText} flex items-center justify-center shadow-lg ${a.glow} ring-4 ${a.ring}`}>
+                  <StepIcon className="w-5 h-5" />
+                </div>
+                {/* Step number */}
+                <span className={`mt-2 text-xs font-bold text-slate-400`}>Step {idx + 1}</span>
+                {/* Label */}
+                <span className="mt-1 text-sm font-semibold text-slate-900 text-center leading-tight">{step.label}</span>
+                {/* Description */}
+                <span className="mt-0.5 text-xs text-slate-500 text-center leading-snug">{step.desc}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ───────────────────── Page Component ───────────────────── */
@@ -222,7 +331,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Logo */}
             <Link href="/landing" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/25">
                 <FiGrid className="w-5 h-5 text-white" />
               </div>
               <span className="text-lg sm:text-xl font-bold text-slate-900">
@@ -247,7 +356,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-3">
               <Link
                 href="/register"
-                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105 transition-all"
+                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
               >
                 Start Free Trial
                 <FiArrowRight className="w-4 h-4" />
@@ -280,7 +389,7 @@ export default function LandingPage() {
               <Link
                 href="/register"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 rounded-lg text-center mt-3"
+                className="block px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg text-center mt-3"
               >
                 Start Free Trial
               </Link>
@@ -292,16 +401,17 @@ export default function LandingPage() {
       {/* ─── Hero Section ─── */}
       <section className="relative pt-24 sm:pt-32 lg:pt-40 pb-16 sm:pb-24 overflow-hidden">
         {/* Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/80 via-violet-50/40 to-white" />
-        <div className="absolute top-20 left-1/4 w-72 h-72 bg-indigo-400/10 rounded-full blur-3xl" />
-        <div className="absolute top-40 right-1/4 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-green-50/80 via-emerald-50/40 to-white" />
+        <div className="absolute top-20 left-1/4 w-72 h-72 bg-green-400/10 rounded-full blur-3xl" />
+        <div className="absolute top-40 right-1/4 w-96 h-96 bg-emerald-400/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/2 w-[600px] h-[300px] bg-teal-300/8 rounded-full blur-3xl" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 mb-8">
-              <FiZap className="w-4 h-4 text-indigo-600" />
-              <span className="text-sm font-medium text-indigo-700">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-50 border border-green-100 mb-8">
+              <FiZap className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">
                 AI-Powered Human Resource Management
               </span>
             </div>
@@ -322,16 +432,16 @@ export default function LandingPage() {
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-base font-semibold shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105 transition-all"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-base font-semibold shadow-xl shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
               >
                 Start Your 15-Day Free Trial
                 <FiArrowRight className="w-5 h-5" />
               </Link>
               <a
-                href="#features"
+                href="#workflows"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-slate-700 text-base font-semibold border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
               >
-                <FiPlay className="w-5 h-5 text-indigo-600" />
+                <FiPlay className="w-5 h-5 text-green-600" />
                 See How It Works
               </a>
             </div>
@@ -363,7 +473,7 @@ export default function LandingPage() {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="text-center p-4 sm:p-6 rounded-2xl bg-white border border-slate-100 shadow-sm"
+                className="text-center p-4 sm:p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-green-200 transition-all"
               >
                 <div className="text-2xl sm:text-3xl font-bold gradient-text">
                   <AnimatedCounter target={stat.value} suffix={stat.suffix} />
@@ -380,9 +490,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 mb-4">
-              <FiStar className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-100 mb-4">
+              <FiStar className="w-3.5 h-3.5 text-green-600" />
+              <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">
                 Key Features
               </span>
             </div>
@@ -402,7 +512,7 @@ export default function LandingPage() {
               return (
                 <div
                   key={idx}
-                  className="group relative p-6 sm:p-8 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-lg hover:border-slate-200 transition-all duration-300"
+                  className="group relative p-6 sm:p-8 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-lg hover:border-green-200 transition-all duration-300"
                 >
                   {/* Icon */}
                   <div
@@ -425,14 +535,65 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Workflow Infographic Section ─── */}
+      <section id="workflows" className="py-16 sm:py-24 bg-gradient-to-b from-green-50/50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-4">
+              <FiZap className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                Smart Workflows
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">
+              Visualize Your HR Workflows
+            </h2>
+            <p className="mt-4 text-lg text-slate-600">
+              Every HR process is mapped, automated, and trackable. See how 3Boxes HRMS transforms
+              manual chaos into streamlined pipelines.
+            </p>
+          </div>
+
+          {/* Workflow Diagrams */}
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
+            {workflows.map((wf, idx) => (
+              <WorkflowDiagram key={idx} workflow={wf} />
+            ))}
+          </div>
+
+          {/* Workflow Stats Bar */}
+          <div className="mt-10 sm:mt-14 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { icon: FiZap, label: 'Automated Steps', value: '85%', desc: 'of HR tasks run on auto-pilot' },
+              { icon: FiClock, label: 'Time Saved', value: '60%', desc: 'reduction in manual processing' },
+              { icon: FiCheck, label: 'Error Rate', value: '< 1%', desc: 'with built-in compliance checks' },
+              { icon: FiTrendingUp, label: 'Adoption', value: '94%', desc: 'employee self-service usage' },
+            ].map((stat, idx) => {
+              const StatIcon = stat.icon;
+              return (
+                <div key={idx} className="p-4 rounded-xl bg-white border border-green-100 shadow-sm text-center hover:shadow-md transition-shadow">
+                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 mb-2">
+                    <StatIcon className="w-4 h-4" />
+                  </div>
+                  <div className="text-2xl font-bold gradient-text">{stat.value}</div>
+                  <div className="text-sm font-semibold text-slate-900 mt-1">{stat.label}</div>
+                  <div className="text-xs text-slate-500">{stat.desc}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ─── Modules Grid Section ─── */}
       <section id="modules" className="py-16 sm:py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 border border-violet-100 mb-4">
-              <FiGrid className="w-3.5 h-3.5 text-violet-600" />
-              <span className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-4">
+              <FiGrid className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
                 Modules
               </span>
             </div>
@@ -451,9 +612,9 @@ export default function LandingPage() {
               return (
                 <div
                   key={idx}
-                  className="group p-4 sm:p-5 rounded-xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200 text-center"
+                  className="group p-4 sm:p-5 rounded-xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-green-200 transition-all duration-200 text-center"
                 >
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 mb-3 group-hover:bg-indigo-100 transition-colors">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-green-50 text-green-600 mb-3 group-hover:bg-green-100 transition-colors">
                     <Icon className="w-5 h-5" />
                   </div>
                   <h4 className="text-sm font-semibold text-slate-900 mb-1">{mod.name}</h4>
@@ -468,24 +629,24 @@ export default function LandingPage() {
       {/* ─── Trial Section ─── */}
       <section id="trial" className="py-16 sm:py-24 bg-slate-900 relative overflow-hidden">
         {/* Background decoration */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 via-slate-900 to-violet-900/30" />
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-green-900/50 via-slate-900 to-emerald-900/30" />
+        <div className="absolute top-0 left-1/3 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 mb-6">
-                <FiZap className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-semibold text-indigo-300">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-400/30 mb-6">
+                <FiZap className="w-4 h-4 text-green-400" />
+                <span className="text-sm font-semibold text-green-300">
                   Free Trial
                 </span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
                 Try 3Boxes HRMS{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-400">
                   Risk-Free
                 </span>
               </h2>
@@ -510,7 +671,7 @@ export default function LandingPage() {
 
               <Link
                 href="/register"
-                className="mt-10 inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-base font-semibold shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105 transition-all"
+                className="mt-10 inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-base font-semibold shadow-xl shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
               >
                 Start Your 15-Day Free Trial
                 <FiArrowRight className="w-5 h-5" />
@@ -533,8 +694,8 @@ export default function LandingPage() {
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-500/30 flex items-center justify-center">
-                      <FiUsers className="w-4 h-4 text-indigo-400" />
+                    <div className="w-8 h-8 rounded-lg bg-green-500/30 flex items-center justify-center">
+                      <FiUsers className="w-4 h-4 text-green-400" />
                     </div>
                     <div>
                       <div className="text-sm font-medium text-white">Employee Management</div>
@@ -543,18 +704,18 @@ export default function LandingPage() {
                     <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400" />
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/30 flex items-center justify-center">
-                      <FiDollarSign className="w-4 h-4 text-amber-400" />
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/30 flex items-center justify-center">
+                      <FiDollarSign className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div>
                       <div className="text-sm font-medium text-white">Payroll Processing</div>
                       <div className="text-xs text-slate-400">March 2026 &mdash; In Progress</div>
                     </div>
-                    <div className="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-violet-500/30 flex items-center justify-center">
-                      <FiCpu className="w-4 h-4 text-violet-400" />
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/30 flex items-center justify-center">
+                      <FiCpu className="w-4 h-4 text-teal-400" />
                     </div>
                     <div>
                       <div className="text-sm font-medium text-white">AI Assistant</div>
@@ -563,8 +724,8 @@ export default function LandingPage() {
                     <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400" />
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-pink-500/30 flex items-center justify-center">
-                      <FiBriefcase className="w-4 h-4 text-pink-400" />
+                    <div className="w-8 h-8 rounded-lg bg-green-500/30 flex items-center justify-center">
+                      <FiBriefcase className="w-4 h-4 text-green-400" />
                     </div>
                     <div>
                       <div className="text-sm font-medium text-white">Recruitment Pipeline</div>
@@ -613,7 +774,7 @@ export default function LandingPage() {
                 key={idx}
                 className={`relative rounded-2xl p-6 sm:p-8 transition-all duration-300 ${
                   plan.highlighted
-                    ? 'bg-gradient-to-b from-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-500/25 scale-[1.02] lg:scale-105'
+                    ? 'bg-gradient-to-b from-green-600 to-emerald-600 text-white shadow-2xl shadow-green-500/25 scale-[1.02] lg:scale-105'
                     : plan.name === 'Enterprise'
                     ? 'bg-slate-900 text-white border border-slate-800'
                     : 'bg-white border border-slate-200 shadow-sm hover:shadow-lg'
@@ -652,7 +813,7 @@ export default function LandingPage() {
                   {plan.period && (
                     <span
                       className={`text-sm ${
-                        plan.highlighted ? 'text-indigo-200' : 'text-slate-500'
+                        plan.highlighted ? 'text-green-200' : 'text-slate-500'
                       }`}
                     >
                       {plan.period}
@@ -662,7 +823,7 @@ export default function LandingPage() {
 
                 <p
                   className={`mt-3 text-sm leading-relaxed ${
-                    plan.highlighted ? 'text-indigo-200' : plan.name === 'Enterprise' ? 'text-slate-400' : 'text-slate-500'
+                    plan.highlighted ? 'text-green-200' : plan.name === 'Enterprise' ? 'text-slate-400' : 'text-slate-500'
                   }`}
                 >
                   {plan.description}
@@ -673,12 +834,12 @@ export default function LandingPage() {
                     <div key={fIdx} className="flex items-start gap-2.5">
                       <FiCheck
                         className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                          plan.highlighted ? 'text-indigo-200' : plan.name === 'Enterprise' ? 'text-slate-500' : 'text-emerald-500'
+                          plan.highlighted ? 'text-green-200' : plan.name === 'Enterprise' ? 'text-slate-500' : 'text-emerald-500'
                         }`}
                       />
                       <span
                         className={`text-sm ${
-                          plan.highlighted ? 'text-indigo-100' : plan.name === 'Enterprise' ? 'text-slate-300' : 'text-slate-600'
+                          plan.highlighted ? 'text-green-100' : plan.name === 'Enterprise' ? 'text-slate-300' : 'text-slate-600'
                         }`}
                       >
                         {feature}
@@ -691,7 +852,7 @@ export default function LandingPage() {
                   href={plan.name === 'Enterprise' ? '/landing' : '/register'}
                   className={`mt-8 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-all ${
                     plan.highlighted
-                      ? 'bg-white text-indigo-600 hover:bg-indigo-50 shadow-lg'
+                      ? 'bg-white text-green-600 hover:bg-green-50 shadow-lg'
                       : plan.name === 'Enterprise'
                       ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
                       : 'bg-slate-900 text-white hover:bg-slate-800'
@@ -707,28 +868,28 @@ export default function LandingPage() {
       </section>
 
       {/* ─── CTA Section ─── */}
-      <section className="py-16 sm:py-24 bg-gradient-to-r from-indigo-600 to-violet-600 relative overflow-hidden">
+      <section className="py-16 sm:py-24 bg-gradient-to-r from-green-600 to-emerald-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
             Ready to Transform<br className="hidden sm:block" /> Your HR Operations?
           </h2>
-          <p className="mt-6 text-lg sm:text-xl text-indigo-200 max-w-2xl mx-auto">
+          <p className="mt-6 text-lg sm:text-xl text-green-200 max-w-2xl mx-auto">
             Join hundreds of companies that trust 3Boxes HRMS to manage their workforce.
             Start your free trial today — no credit card required.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-indigo-600 text-base font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-green-600 text-base font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
             >
               Start Free Trial
               <FiArrowRight className="w-5 h-5" />
             </Link>
             <a
               href="#pricing"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-indigo-500/30 text-white text-base font-semibold border border-indigo-400/40 hover:bg-indigo-500/40 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-green-500/30 text-white text-base font-semibold border border-green-400/40 hover:bg-green-500/40 transition-all"
             >
               View Pricing
             </a>
@@ -743,11 +904,11 @@ export default function LandingPage() {
             {/* Brand */}
             <div className="sm:col-span-2 lg:col-span-1">
               <Link href="/landing" className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center">
                   <FiGrid className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-lg font-bold text-white">
-                  3Boxes <span className="text-indigo-400">HRMS</span>
+                  3Boxes <span className="text-green-400">HRMS</span>
                 </span>
               </Link>
               <p className="mt-4 text-sm leading-relaxed">
@@ -761,7 +922,7 @@ export default function LandingPage() {
                 Product
               </h4>
               <ul className="space-y-2.5">
-                {['Features', 'Modules', 'Pricing', 'AI Capabilities'].map((item) => (
+                {['Features', 'Workflows', 'Modules', 'Pricing', 'AI Capabilities'].map((item) => (
                   <li key={item}>
                     <a
                       href={`#${item.toLowerCase().replace(' ', '-')}`}

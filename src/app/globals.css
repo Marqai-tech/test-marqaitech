@@ -2,15 +2,15 @@
 
 :root {
   /* 3Boxes HRMS Brand Colors */
-  --thb-primary: #3B82F6;
-  --thb-primary-dark: #1D4ED8;
-  --thb-primary-light: #60A5FA;
-  --thb-accent: #8B5CF6;
-  --thb-accent-light: #A78BFA;
+  --thb-primary: #10B981;
+  --thb-primary-dark: #059669;
+  --thb-primary-light: #34D399;
+  --thb-accent: #22C55E;
+  --thb-accent-light: #4ADE80;
   --thb-background: #F8FAFC;
   --thb-sidebar-bg: #0F172A;
   --thb-sidebar-text: #94A3B8;
-  --thb-sidebar-active: #3B82F6;
+  --thb-sidebar-active: #10B981;
   --thb-sidebar-hover: #1E293B;
   --thb-card-bg: #FFFFFF;
   --thb-border: #E2E8F0;
@@ -20,7 +20,7 @@
   --thb-success: #10B981;
   --thb-warning: #F59E0B;
   --thb-error: #EF4444;
-  --thb-info: #3B82F6;
+  --thb-info: #10B981;
 
   /* Default background/foreground */
   --background: #F8FAFC;
