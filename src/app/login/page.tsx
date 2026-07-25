@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight,
   FiChevronDown, FiChevronUp, FiSmartphone, FiDownload,
@@ -336,7 +337,8 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <ThreeBoxesLogo size="lg" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-12 h-12 rounded-xl object-contain bg-white/10 p-1.5" />
                   <div>
                     <h1 className="text-2xl font-extrabold text-white tracking-tight">
                       3Boxes <span className="text-green-400">HRMS</span>
@@ -460,7 +462,8 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <ThreeBoxesLogo size="md" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-9 h-9 rounded-lg object-contain bg-slate-100 p-1" />
                   <h1 className="text-2xl font-extrabold tracking-tight">
                     <span className="gradient-text">3Boxes</span>
                     <span className="text-green-500 ml-1 text-lg font-extrabold">HRMS</span>

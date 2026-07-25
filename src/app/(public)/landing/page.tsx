@@ -2,237 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
-  FiUsers,
-  FiClock,
-  FiDollarSign,
-  FiTarget,
-  FiBriefcase,
-  FiCpu,
-  FiShield,
   FiCheck,
   FiArrowRight,
   FiZap,
-  FiGrid,
-  FiMenu,
-  FiX,
   FiPlay,
   FiStar,
-  FiGlobe,
-  FiLock,
-  FiAward,
-  FiBarChart2,
-  FiFileText,
-  FiHeart,
-  FiCoffee,
-  FiSmile,
-  FiClipboard,
-  FiPhoneCall,
-  FiPackage,
+  FiGrid,
+  FiUsers,
+  FiClock,
+  FiDollarSign,
+  FiCpu,
   FiLayers,
-  FiSearch,
-  FiUserPlus,
-  FiCalendar,
-  FiFile,
-  FiSend,
-  FiTrendingUp,
+  FiGlobe,
 } from 'react-icons/fi';
 
-/* ───────────────────── Data ───────────────────── */
-
-const features = [
-  {
-    icon: FiLayers,
-    title: 'Multi-Company Management',
-    description: 'Manage multiple group companies, branches, and entities from a single dashboard with unified control and reporting.',
-    color: 'from-green-500 to-emerald-600',
-  },
-  {
-    icon: FiUsers,
-    title: 'Employee Lifecycle',
-    description: 'Complete hire-to-retire management — onboarding, transfers, promotions, resignations, and alumni tracking.',
-    color: 'from-emerald-500 to-teal-500',
-  },
-  {
-    icon: FiClock,
-    title: 'Attendance & Leave',
-    description: 'Biometric, GPS, and shift-based attendance with geofencing, overtime, WFH snapshots, and smart leave workflows.',
-    color: 'from-teal-500 to-green-500',
-  },
-  {
-    icon: FiDollarSign,
-    title: 'Payroll & Compliance',
-    description: 'Flexible salary structures, statutory compliance, bank files, payslips, and multi-country payroll processing.',
-    color: 'from-green-600 to-emerald-500',
-  },
-  {
-    icon: FiBriefcase,
-    title: 'Recruitment ATS',
-    description: 'Post jobs, track candidates through a visual pipeline, AI resume screening, interview scheduling, and offer management.',
-    color: 'from-emerald-600 to-teal-400',
-  },
-  {
-    icon: FiTarget,
-    title: 'Performance Management',
-    description: '360° reviews, goal setting, OKRs, continuous feedback, calibration, and performance analytics dashboards.',
-    color: 'from-green-500 to-lime-500',
-  },
-  {
-    icon: FiCpu,
-    title: 'AI-Powered',
-    description: 'AI chatbot for HR queries, resume screening, predictive analytics, burnout detection, and anomaly insights.',
-    color: 'from-teal-600 to-emerald-400',
-  },
-];
-
-const modules = [
-  { icon: FiUsers, name: 'Employee Management', desc: 'Profiles, documents & lifecycle' },
-  { icon: FiClock, name: 'Attendance', desc: 'Biometric, GPS & shifts' },
-  { icon: FiCoffee, name: 'Leave Management', desc: 'Types, balances & approvals' },
-  { icon: FiDollarSign, name: 'Payroll', desc: 'Salary, runs & payslips' },
-  { icon: FiBriefcase, name: 'Recruitment (ATS)', desc: 'Jobs, pipeline & offers' },
-  { icon: FiSmile, name: 'Onboarding', desc: 'Tasks & welcome flows' },
-  { icon: FiTarget, name: 'Performance', desc: 'Reviews, goals & OKRs' },
-  { icon: FiBarChart2, name: 'Analytics', desc: 'Dashboards & reports' },
-  { icon: FiShield, name: 'Compliance', desc: 'Statutory & audit' },
-  { icon: FiGlobe, name: 'Travel & Expense', desc: 'Requests & claims' },
-  { icon: FiClipboard, name: 'Helpdesk', desc: 'Tickets & SLA tracking' },
-  { icon: FiAward, name: 'Learning & Training', desc: 'Courses & enrollments' },
-  { icon: FiCpu, name: 'AI Chatbot', desc: 'HR assistant & analytics' },
-  { icon: FiHeart, name: 'Engagement', desc: 'Surveys & sentiment' },
-  { icon: FiFileText, name: 'Documents', desc: 'DMS & e-signatures' },
-  { icon: FiPhoneCall, name: 'AI Interview', desc: 'Proctoring & scoring' },
-  { icon: FiZap, name: 'Workflows', desc: 'Automation engine' },
-  { icon: FiPackage, name: 'Assets', desc: 'Tracking & assignments' },
-  { icon: FiLayers, name: 'Company Management', desc: 'Multi-company & groups' },
-  { icon: FiLock, name: 'Role-Based Access', desc: 'Permissions & RBAC' },
-];
-
-const trialBenefits = [
-  '15-day free trial, no credit card required',
-  'Create your own subdomain (companyname.3boxeshrms.com)',
-  'Full access to all features during trial',
-  'After 15 days, choose a subscription plan to continue',
-];
-
-const pricingPlans = [
-  {
-    name: 'Starter',
-    price: '₹4,999',
-    period: '/month',
-    description: 'Perfect for small teams getting started with HR automation.',
-    features: [
-      'Up to 50 employees',
-      'Core HR & Employee Management',
-      'Attendance & Leave',
-      'Basic Payroll',
-      'Recruitment ATS',
-      'Email Support',
-    ],
-    cta: 'Start Free Trial',
-    highlighted: false,
-  },
-  {
-    name: 'Professional',
-    price: '₹12,999',
-    period: '/month',
-    description: 'For growing companies that need advanced HR capabilities.',
-    features: [
-      'Up to 250 employees',
-      'Everything in Starter',
-      'Performance & OKRs',
-      'Advanced Payroll & Compliance',
-      'AI Chatbot & Analytics',
-      'Multi-Company Support',
-      'Custom Workflows',
-      'Priority Support',
-    ],
-    cta: 'Start Free Trial',
-    highlighted: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Coming Soon',
-    period: '',
-    description: 'For large organizations with complex HR needs.',
-    features: [
-      'Unlimited employees',
-      'Everything in Professional',
-      'AI-Powered Insights',
-      'Custom Integrations',
-      'Dedicated Account Manager',
-      'SLA Guarantee',
-      'On-Premise Option',
-      'Custom Training',
-    ],
-    cta: 'Contact Us',
-    highlighted: false,
-  },
-];
-
-const navLinks = [
-  { label: 'Features', href: '#features' },
-  { label: 'Workflows', href: '#workflows' },
-  { label: 'Modules', href: '#modules' },
-  { label: 'Trial', href: '#trial' },
-  { label: 'Pricing', href: '#pricing' },
-];
-
-/* ── Workflow Infographic Data ── */
-
-const workflows = [
-  {
-    title: 'Employee Onboarding',
-    subtitle: 'From hire to productive team member in days, not weeks',
-    steps: [
-      { icon: FiUserPlus, label: 'Create Employee', desc: 'Add new hire with personal & job details' },
-      { icon: FiFile, label: 'Document Collection', desc: 'Auto-request ID proofs, certificates & bank info' },
-      { icon: FiClipboard, label: 'Task Assignment', desc: 'Assign onboarding checklist to stakeholders' },
-      { icon: FiCpu, label: 'AI Welcome Bot', desc: 'Automated introductions, policies & FAQ answers' },
-      { icon: FiCheck, label: 'Go Live', desc: 'Employee activated with access to all modules' },
-    ],
-    accent: 'emerald',
-  },
-  {
-    title: 'Recruitment Pipeline',
-    subtitle: 'End-to-end hiring — from job posting to sealed offer letter',
-    steps: [
-      { icon: FiSearch, label: 'Post Job', desc: 'Publish requisitions across portals & social' },
-      { icon: FiCpu, label: 'AI Screening', desc: 'Auto-rank resumes, flag top-fit candidates' },
-      { icon: FiCalendar, label: 'Interview Schedule', desc: 'Panel scheduling, AI proctored assessments' },
-      { icon: FiStar, label: 'Evaluate & Score', desc: 'Structured feedback, scorecards & calibration' },
-      { icon: FiSend, label: 'Offer & Hire', desc: 'Generate offer letter, track acceptance & onboard' },
-    ],
-    accent: 'teal',
-  },
-  {
-    title: 'Payroll Processing',
-    subtitle: 'Accurate, compliant salary runs every month — automatically',
-    steps: [
-      { icon: FiUsers, label: 'Attendance Sync', desc: 'Pull leave, OT & shift data into payroll' },
-      { icon: FiDollarSign, label: 'Salary Compute', desc: 'Auto-calculate tax, PF, ESI & deductions' },
-      { icon: FiShield, label: 'Compliance Check', desc: 'Statutory validation & audit trail logging' },
-      { icon: FiFileText, label: 'Payslip & Bank File', desc: 'Generate payslips & bank upload formats' },
-      { icon: FiTrendingUp, label: 'Analytics', desc: 'Cost breakdown reports & payroll dashboards' },
-    ],
-    accent: 'green',
-  },
-  {
-    title: 'Leave Management',
-    subtitle: 'Smart leave workflows with policy-driven auto-balances',
-    steps: [
-      { icon: FiCalendar, label: 'Apply Leave', desc: 'Employee submits request via app or chatbot' },
-      { icon: FiTarget, label: 'Policy Check', desc: 'Auto-validate against balance & blackout rules' },
-      { icon: FiUsers, label: 'Approval Chain', desc: 'Multi-level manager routing & delegation' },
-      { icon: FiClock, label: 'Balance Update', desc: 'Real-time accrual & deduction tracking' },
-      { icon: FiBarChart2, label: 'Team Calendar', desc: 'Visibility of team availability & conflicts' },
-    ],
-    accent: 'lime',
-  },
-];
-
-/* ───────────────────── Animated Counter ───────────────────── */
-
+/* ─── Animated Counter ─── */
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0);
 
@@ -256,150 +42,11 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
   return <span>{count.toLocaleString()}{suffix}</span>;
 }
 
-/* ───────────────────── Workflow Diagram ───────────────────── */
-
-function WorkflowDiagram({ workflow }: { workflow: typeof workflows[number] }) {
-  const accentMap: Record<string, { bg: string; iconBg: string; iconText: string; ring: string; line: string; glow: string }> = {
-    emerald: { bg: 'bg-emerald-50', iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600', iconText: 'text-white', ring: 'ring-emerald-200', line: 'border-emerald-300', glow: 'shadow-emerald-500/20' },
-    teal:    { bg: 'bg-teal-50', iconBg: 'bg-gradient-to-br from-teal-500 to-emerald-600', iconText: 'text-white', ring: 'ring-teal-200', line: 'border-teal-300', glow: 'shadow-teal-500/20' },
-    green:   { bg: 'bg-green-50', iconBg: 'bg-gradient-to-br from-green-500 to-emerald-600', iconText: 'text-white', ring: 'ring-green-200', line: 'border-green-300', glow: 'shadow-green-500/20' },
-    lime:    { bg: 'bg-lime-50', iconBg: 'bg-gradient-to-br from-lime-500 to-green-600', iconText: 'text-white', ring: 'ring-lime-200', line: 'border-lime-300', glow: 'shadow-lime-500/20' },
-  };
-  const a = accentMap[workflow.accent];
-
+export default function LandingHomePage() {
   return (
-    <div className="group relative rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-      {/* Header */}
-      <div className={`${a.bg} px-6 py-5 border-b ${a.line}`}>
-        <h3 className="text-xl font-bold text-slate-900">{workflow.title}</h3>
-        <p className="text-sm text-slate-600 mt-1">{workflow.subtitle}</p>
-      </div>
-
-      {/* Steps - horizontal pipeline */}
-      <div className="p-6">
-        <div className="flex items-center justify-between gap-0">
-          {workflow.steps.map((step, idx) => {
-            const StepIcon = step.icon;
-            return (
-              <div key={idx} className="flex flex-col items-center relative" style={{ flex: 1, minWidth: 0 }}>
-                {/* Connector line */}
-                {idx < workflow.steps.length - 1 && (
-                  <div className={`absolute top-5 left-[55%] right-[-45%] h-0.5 ${a.line} z-0`} />
-                )}
-                {/* Step circle */}
-                <div className={`relative z-10 w-10 h-10 rounded-full ${a.iconBg} ${a.iconText} flex items-center justify-center shadow-lg ${a.glow} ring-4 ${a.ring}`}>
-                  <StepIcon className="w-5 h-5" />
-                </div>
-                {/* Step number */}
-                <span className={`mt-2 text-xs font-bold text-slate-400`}>Step {idx + 1}</span>
-                {/* Label */}
-                <span className="mt-1 text-sm font-semibold text-slate-900 text-center leading-tight">{step.label}</span>
-                {/* Description */}
-                <span className="mt-0.5 text-xs text-slate-500 text-center leading-snug">{step.desc}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────── Page Component ───────────────────── */
-
-export default function LandingPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-white">
-      {/* ─── Fixed Header ─── */}
-      <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? 'bg-white/90 backdrop-blur-lg shadow-sm border-b border-slate-100'
-            : 'bg-transparent'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
-            {/* Logo */}
-            <Link href="/landing" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/25">
-                <FiGrid className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-lg sm:text-xl font-bold text-slate-900">
-                3Boxes <span className="gradient-text">HRMS</span>
-              </span>
-            </Link>
-
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-8">
-              {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </nav>
-
-            {/* CTA + Mobile Toggle */}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/register"
-                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
-              >
-                Start Free Trial
-                <FiArrowRight className="w-4 h-4" />
-              </Link>
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
-                aria-label="Toggle menu"
-              >
-                {mobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-slate-100 shadow-lg animate-slide-in-down">
-            <div className="px-4 py-4 space-y-1">
-              {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                  {link.label}
-                </a>
-              ))}
-              <Link
-                href="/register"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg text-center mt-3"
-              >
-                Start Free Trial
-              </Link>
-            </div>
-          </div>
-        )}
-      </header>
-
+    <div>
       {/* ─── Hero Section ─── */}
-      <section className="relative pt-24 sm:pt-32 lg:pt-40 pb-16 sm:pb-24 overflow-hidden">
+      <section className="relative pt-12 sm:pt-20 lg:pt-28 pb-16 sm:pb-24 overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-green-50/80 via-emerald-50/40 to-white" />
         <div className="absolute top-20 left-1/4 w-72 h-72 bg-green-400/10 rounded-full blur-3xl" />
@@ -431,19 +78,19 @@ export default function LandingPage() {
             {/* CTAs */}
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/register"
+                href="/landing/trial"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-base font-semibold shadow-xl shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
               >
                 Start Your 15-Day Free Trial
                 <FiArrowRight className="w-5 h-5" />
               </Link>
-              <a
-                href="#workflows"
+              <Link
+                href="/landing/workflows"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-slate-700 text-base font-semibold border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
               >
                 <FiPlay className="w-5 h-5 text-green-600" />
                 See How It Works
-              </a>
+              </Link>
             </div>
 
             {/* Trust Badges */}
@@ -459,6 +106,46 @@ export default function LandingPage() {
               <div className="flex items-center gap-2">
                 <FiCheck className="w-4 h-4 text-emerald-500" />
                 Cancel anytime
+              </div>
+            </div>
+          </div>
+
+          {/* Software Screenshots */}
+          <div className="mt-16 sm:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden shadow-xl shadow-green-500/10 border border-green-100 hover:shadow-2xl hover:shadow-green-500/20 transition-all group">
+              <Image
+                src="/images/hr-dashboard.png"
+                alt="HR Dashboard - 3Boxes HRMS"
+                width={400}
+                height={300}
+                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-900/60 to-transparent p-4">
+                <span className="text-white text-sm font-semibold">HR Dashboard</span>
+              </div>
+            </div>
+            <div className="relative rounded-2xl overflow-hidden shadow-xl shadow-emerald-500/10 border border-emerald-100 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all group">
+              <Image
+                src="/images/hr-team.png"
+                alt="Team Management - 3Boxes HRMS"
+                width={400}
+                height={300}
+                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-900/60 to-transparent p-4">
+                <span className="text-white text-sm font-semibold">Team Management</span>
+              </div>
+            </div>
+            <div className="relative rounded-2xl overflow-hidden shadow-xl shadow-teal-500/10 border border-teal-100 hover:shadow-2xl hover:shadow-teal-500/20 transition-all group">
+              <Image
+                src="/images/recruitment-ui.png"
+                alt="Recruitment UI - 3Boxes HRMS"
+                width={400}
+                height={300}
+                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-teal-900/60 to-transparent p-4">
+                <span className="text-white text-sm font-semibold">Recruitment Pipeline</span>
               </div>
             </div>
           </div>
@@ -485,389 +172,189 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Features Section ─── */}
-      <section id="features" className="py-16 sm:py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-100 mb-4">
-              <FiStar className="w-3.5 h-3.5 text-green-600" />
-              <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">
-                Key Features
-              </span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-              Everything You Need to Manage HR
-            </h2>
-            <p className="mt-4 text-lg text-slate-600">
-              From attendance tracking to AI-powered analytics, 3Boxes HRMS covers every aspect of
-              modern human resource management.
-            </p>
-          </div>
-
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {features.map((feature, idx) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={idx}
-                  className="group relative p-6 sm:p-8 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-lg hover:border-green-200 transition-all duration-300"
-                >
-                  {/* Icon */}
-                  <div
-                    className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} text-white shadow-lg mb-5`}
-                  >
-                    <Icon className="w-6 h-6" />
-                  </div>
-
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">{feature.title}</h3>
-                  <p className="text-slate-600 leading-relaxed">{feature.description}</p>
-
-                  {/* Hover gradient */}
-                  <div
-                    className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-300`}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Workflow Infographic Section ─── */}
-      <section id="workflows" className="py-16 sm:py-24 bg-gradient-to-b from-green-50/50 to-white">
+      {/* ─── "See How It Works" Section ─── */}
+      <section className="py-16 sm:py-24 bg-gradient-to-b from-white to-green-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-4">
-              <FiZap className="w-3.5 h-3.5 text-emerald-600" />
+              <FiPlay className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
-                Smart Workflows
+                See How It Works
               </span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-              Visualize Your HR Workflows
+              Visualize the Power of 3Boxes HRMS
             </h2>
             <p className="mt-4 text-lg text-slate-600">
-              Every HR process is mapped, automated, and trackable. See how 3Boxes HRMS transforms
-              manual chaos into streamlined pipelines.
+              Explore the screens that make HR management effortless — from onboarding to payroll.
             </p>
           </div>
 
-          {/* Workflow Diagrams */}
-          <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
-            {workflows.map((wf, idx) => (
-              <WorkflowDiagram key={idx} workflow={wf} />
-            ))}
-          </div>
-
-          {/* Workflow Stats Bar */}
-          <div className="mt-10 sm:mt-14 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { icon: FiZap, label: 'Automated Steps', value: '85%', desc: 'of HR tasks run on auto-pilot' },
-              { icon: FiClock, label: 'Time Saved', value: '60%', desc: 'reduction in manual processing' },
-              { icon: FiCheck, label: 'Error Rate', value: '< 1%', desc: 'with built-in compliance checks' },
-              { icon: FiTrendingUp, label: 'Adoption', value: '94%', desc: 'employee self-service usage' },
-            ].map((stat, idx) => {
-              const StatIcon = stat.icon;
-              return (
-                <div key={idx} className="p-4 rounded-xl bg-white border border-green-100 shadow-sm text-center hover:shadow-md transition-shadow">
-                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 mb-2">
-                    <StatIcon className="w-4 h-4" />
-                  </div>
-                  <div className="text-2xl font-bold gradient-text">{stat.value}</div>
-                  <div className="text-sm font-semibold text-slate-900 mt-1">{stat.label}</div>
-                  <div className="text-xs text-slate-500">{stat.desc}</div>
+          {/* Screenshot Cards */}
+          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
+            <div className="group relative rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-green-200 transition-all duration-300">
+              <Image
+                src="/images/onboarding-ui.png"
+                alt="Onboarding UI - 3Boxes HRMS"
+                width={500}
+                height={350}
+                className="w-full h-auto object-cover"
+              />
+              <div className="p-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg mb-3">
+                  <FiUsers className="w-5 h-5" />
                 </div>
-              );
-            })}
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Employee Onboarding</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Automate welcome flows, document collection, and task assignment for new hires.
+                </p>
+                <Link href="/landing/workflows" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+                  View Workflow <FiArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="group relative rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all duration-300">
+              <Image
+                src="/images/payroll-ui.png"
+                alt="Payroll UI - 3Boxes HRMS"
+                width={500}
+                height={350}
+                className="w-full h-auto object-cover"
+              />
+              <div className="p-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg mb-3">
+                  <FiDollarSign className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Payroll Processing</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Accurate, compliant salary runs with auto tax, PF, ESI calculations and bank files.
+                </p>
+                <Link href="/landing/workflows" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+                  View Workflow <FiArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="group relative rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-teal-200 transition-all duration-300">
+              <Image
+                src="/images/attendance-ui.png"
+                alt="Attendance UI - 3Boxes HRMS"
+                width={500}
+                height={350}
+                className="w-full h-auto object-cover"
+              />
+              <div className="p-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-green-500 text-white shadow-lg mb-3">
+                  <FiClock className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Attendance & Leave</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Biometric, GPS, shift-based attendance with geofencing, overtime, and smart leave workflows.
+                </p>
+                <Link href="/landing/features" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+                  View Features <FiArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── Modules Grid Section ─── */}
-      <section id="modules" className="py-16 sm:py-24 bg-slate-50">
+      {/* ─── "What is 3Boxes HRMS?" Section ─── */}
+      <section className="py-16 sm:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-4">
-              <FiGrid className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
-                Modules
-              </span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-              20+ HR Modules at Your Fingertips
-            </h2>
-            <p className="mt-4 text-lg text-slate-600">
-              A comprehensive suite covering every HR function, designed to work together seamlessly.
-            </p>
-          </div>
-
-          {/* Modules Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-            {modules.map((mod, idx) => {
-              const Icon = mod.icon;
-              return (
-                <div
-                  key={idx}
-                  className="group p-4 sm:p-5 rounded-xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-green-200 transition-all duration-200 text-center"
-                >
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-green-50 text-green-600 mb-3 group-hover:bg-green-100 transition-colors">
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <h4 className="text-sm font-semibold text-slate-900 mb-1">{mod.name}</h4>
-                  <p className="text-xs text-slate-500 leading-snug">{mod.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Trial Section ─── */}
-      <section id="trial" className="py-16 sm:py-24 bg-slate-900 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 bg-gradient-to-br from-green-900/50 via-slate-900 to-emerald-900/30" />
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-400/30 mb-6">
-                <FiZap className="w-4 h-4 text-green-400" />
-                <span className="text-sm font-semibold text-green-300">
-                  Free Trial
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-100 mb-4">
+                <FiGlobe className="w-3.5 h-3.5 text-green-600" />
+                <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">
+                  About 3Boxes HRMS
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
-                Try 3Boxes HRMS{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-400">
-                  Risk-Free
-                </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">
+                What is <span className="gradient-text">3Boxes HRMS</span>?
               </h2>
 
-              <p className="mt-6 text-lg text-slate-300 leading-relaxed">
-                Get full access to every feature for 15 days. No credit card needed, no strings
-                attached. Set up your own subdomain and experience the power of modern HR
-                management.
+              <p className="mt-6 text-lg text-slate-600 leading-relaxed">
+                3Boxes HRMS is a comprehensive, AI-powered Human Resource Management System
+                designed for modern organizations. It covers every aspect of HR — from hiring
+                to retiring — with 20+ integrated modules that work together seamlessly.
               </p>
 
-              {/* Benefits */}
-              <div className="mt-8 space-y-4">
-                {trialBenefits.map((benefit, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center mt-0.5">
-                      <FiCheck className="w-4 h-4 text-emerald-400" />
-                    </div>
-                    <span className="text-slate-200">{benefit}</span>
-                  </div>
-                ))}
+              <div className="mt-8 grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                  <FiLayers className="w-5 h-5 text-green-600 mb-2" />
+                  <h4 className="text-sm font-bold text-slate-900">Multi-Company</h4>
+                  <p className="text-xs text-slate-500 mt-1">Manage group entities from one dashboard</p>
+                </div>
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                  <FiCpu className="w-5 h-5 text-emerald-600 mb-2" />
+                  <h4 className="text-sm font-bold text-slate-900">AI-Powered</h4>
+                  <p className="text-xs text-slate-500 mt-1">Chatbot, screening & predictive analytics</p>
+                </div>
+                <div className="p-4 rounded-xl bg-teal-50 border border-teal-100">
+                  <FiStar className="w-5 h-5 text-teal-600 mb-2" />
+                  <h4 className="text-sm font-bold text-slate-900">20+ Modules</h4>
+                  <p className="text-xs text-slate-500 mt-1">Covering every HR function end-to-end</p>
+                </div>
+                <div className="p-4 rounded-xl bg-lime-50 border border-lime-100">
+                  <FiGrid className="w-5 h-5 text-lime-600 mb-2" />
+                  <h4 className="text-sm font-bold text-slate-900">Custom Workflows</h4>
+                  <p className="text-xs text-slate-500 mt-1">85% automation, {'<1%'} error rate</p>
+                </div>
               </div>
 
-              <Link
-                href="/register"
-                className="mt-10 inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-base font-semibold shadow-xl shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
-              >
-                Start Your 15-Day Free Trial
-                <FiArrowRight className="w-5 h-5" />
-              </Link>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Link
+                  href="/landing/features"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
+                >
+                  Explore Features <FiArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/landing/modules"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-slate-700 text-sm font-semibold border border-slate-200 hover:border-green-300 hover:text-green-700 shadow-sm hover:shadow-md transition-all"
+                >
+                  View All Modules <FiArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
 
-            {/* Right: Subdomain Visual */}
+            {/* Right: Feature Highlights */}
             <div className="relative">
-              <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl">
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
-                  <div className="ml-4 flex-1 h-8 bg-slate-700 rounded-lg flex items-center px-4">
-                    <FiGlobe className="w-3.5 h-3.5 text-slate-400 mr-2" />
-                    <span className="text-sm text-slate-300 font-mono">
-                      acme.3boxeshrms.com
-                    </span>
-                  </div>
-                </div>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-8 border border-green-100">
+                <h3 className="text-lg font-bold text-slate-900 mb-6">Why 3Boxes HRMS?</h3>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-green-500/30 flex items-center justify-center">
-                      <FiUsers className="w-4 h-4 text-green-400" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">Employee Management</div>
-                      <div className="text-xs text-slate-400">Active &mdash; 142 employees</div>
-                    </div>
-                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400" />
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/30 flex items-center justify-center">
-                      <FiDollarSign className="w-4 h-4 text-emerald-400" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">Payroll Processing</div>
-                      <div className="text-xs text-slate-400">March 2026 &mdash; In Progress</div>
-                    </div>
-                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-teal-500/30 flex items-center justify-center">
-                      <FiCpu className="w-4 h-4 text-teal-400" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">AI Assistant</div>
-                      <div className="text-xs text-slate-400">3 queries answered today</div>
-                    </div>
-                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400" />
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50">
-                    <div className="w-8 h-8 rounded-lg bg-green-500/30 flex items-center justify-center">
-                      <FiBriefcase className="w-4 h-4 text-green-400" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">Recruitment Pipeline</div>
-                      <div className="text-xs text-slate-400">4 open positions &mdash; 23 candidates</div>
-                    </div>
-                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400" />
-                  </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-700">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Your subdomain is ready</span>
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <FiCheck className="w-3 h-3" /> Connected
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Pricing Section ─── */}
-      <section id="pricing" className="py-16 sm:py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 mb-4">
-              <FiDollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
-                Pricing
-              </span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="mt-4 text-lg text-slate-600">
-              Start with a 15-day free trial, then choose the plan that fits your organization.
-            </p>
-          </div>
-
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
-            {pricingPlans.map((plan, idx) => (
-              <div
-                key={idx}
-                className={`relative rounded-2xl p-6 sm:p-8 transition-all duration-300 ${
-                  plan.highlighted
-                    ? 'bg-gradient-to-b from-green-600 to-emerald-600 text-white shadow-2xl shadow-green-500/25 scale-[1.02] lg:scale-105'
-                    : plan.name === 'Enterprise'
-                    ? 'bg-slate-900 text-white border border-slate-800'
-                    : 'bg-white border border-slate-200 shadow-sm hover:shadow-lg'
-                }`}
-              >
-                {/* Popular Badge */}
-                {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-amber-400 text-slate-900 text-xs font-bold shadow-lg">
-                    Most Popular
-                  </div>
-                )}
-
-                {/* Enterprise Badge */}
-                {plan.name === 'Enterprise' && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-slate-700 text-slate-300 text-xs font-bold">
-                    Coming Soon
-                  </div>
-                )}
-
-                <h3
-                  className={`text-xl font-bold ${
-                    plan.highlighted ? 'text-white' : plan.name === 'Enterprise' ? 'text-white' : 'text-slate-900'
-                  }`}
-                >
-                  {plan.name}
-                </h3>
-
-                <div className="mt-4">
-                  <span
-                    className={`text-4xl sm:text-5xl font-extrabold ${
-                      plan.highlighted ? 'text-white' : plan.name === 'Enterprise' ? 'text-white' : 'text-slate-900'
-                    }`}
-                  >
-                    {plan.price}
-                  </span>
-                  {plan.period && (
-                    <span
-                      className={`text-sm ${
-                        plan.highlighted ? 'text-green-200' : 'text-slate-500'
-                      }`}
-                    >
-                      {plan.period}
-                    </span>
-                  )}
-                </div>
-
-                <p
-                  className={`mt-3 text-sm leading-relaxed ${
-                    plan.highlighted ? 'text-green-200' : plan.name === 'Enterprise' ? 'text-slate-400' : 'text-slate-500'
-                  }`}
-                >
-                  {plan.description}
-                </p>
-
-                <div className="mt-6 space-y-3">
-                  {plan.features.map((feature, fIdx) => (
-                    <div key={fIdx} className="flex items-start gap-2.5">
-                      <FiCheck
-                        className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                          plan.highlighted ? 'text-green-200' : plan.name === 'Enterprise' ? 'text-slate-500' : 'text-emerald-500'
-                        }`}
-                      />
-                      <span
-                        className={`text-sm ${
-                          plan.highlighted ? 'text-green-100' : plan.name === 'Enterprise' ? 'text-slate-300' : 'text-slate-600'
-                        }`}
-                      >
-                        {feature}
-                      </span>
+                  {[
+                    'End-to-end HR coverage: hire to retire in one platform',
+                    'AI-powered automation reduces 60% of manual HR tasks',
+                    'Multi-company, multi-branch, multi-country support',
+                    'Real-time dashboards and predictive analytics',
+                    'Compliance-ready: PF, ESI, TDS, GST built-in',
+                    'Custom workflows with 85% automation rate',
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                        <FiCheck className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-slate-700 text-sm">{item}</span>
                     </div>
                   ))}
                 </div>
-
-                <Link
-                  href={plan.name === 'Enterprise' ? '/landing' : '/register'}
-                  className={`mt-8 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-all ${
-                    plan.highlighted
-                      ? 'bg-white text-green-600 hover:bg-green-50 shadow-lg'
-                      : plan.name === 'Enterprise'
-                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-                      : 'bg-slate-900 text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {plan.cta}
-                  <FiArrowRight className="w-4 h-4" />
-                </Link>
               </div>
-            ))}
+              {/* Decorative dots */}
+              <div className="absolute -top-4 -right-4 w-24 h-24 bg-green-400/10 rounded-full blur-2xl" />
+              <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl" />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── CTA Section ─── */}
+      {/* ─── Explore More Section ─── */}
       <section className="py-16 sm:py-24 bg-gradient-to-r from-green-600 to-emerald-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
 
@@ -881,111 +368,21 @@ export default function LandingPage() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/register"
+              href="/landing/trial"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-green-600 text-base font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
             >
               Start Free Trial
               <FiArrowRight className="w-5 h-5" />
             </Link>
-            <a
-              href="#pricing"
+            <Link
+              href="/landing/pricing"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-green-500/30 text-white text-base font-semibold border border-green-400/40 hover:bg-green-500/40 transition-all"
             >
               View Pricing
-            </a>
+            </Link>
           </div>
         </div>
       </section>
-
-      {/* ─── Footer ─── */}
-      <footer className="bg-slate-900 text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-            {/* Brand */}
-            <div className="sm:col-span-2 lg:col-span-1">
-              <Link href="/landing" className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center">
-                  <FiGrid className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-lg font-bold text-white">
-                  3Boxes <span className="text-green-400">HRMS</span>
-                </span>
-              </Link>
-              <p className="mt-4 text-sm leading-relaxed">
-                The complete AI-powered Human Resource Management System for modern organizations.
-              </p>
-            </div>
-
-            {/* Product */}
-            <div>
-              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
-                Product
-              </h4>
-              <ul className="space-y-2.5">
-                {['Features', 'Workflows', 'Modules', 'Pricing', 'AI Capabilities'].map((item) => (
-                  <li key={item}>
-                    <a
-                      href={`#${item.toLowerCase().replace(' ', '-')}`}
-                      className="text-sm hover:text-white transition-colors"
-                    >
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Company */}
-            <div>
-              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
-                Company
-              </h4>
-              <ul className="space-y-2.5">
-                {['About Us', 'Careers', 'Blog', 'Contact'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-sm hover:text-white transition-colors">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
-                Legal
-              </h4>
-              <ul className="space-y-2.5">
-                {['Privacy Policy', 'Terms of Service', 'GDPR', 'Security'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-sm hover:text-white transition-colors">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm">
-              &copy; {new Date().getFullYear()} 3Boxes HRMS. All rights reserved.
-            </p>
-            <div className="flex items-center gap-6">
-              <a href="#" className="text-sm hover:text-white transition-colors">
-                Privacy
-              </a>
-              <a href="#" className="text-sm hover:text-white transition-colors">
-                Terms
-              </a>
-              <a href="#" className="text-sm hover:text-white transition-colors">
-                Cookies
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

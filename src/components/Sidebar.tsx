@@ -303,7 +303,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           <div className="px-3 pb-2 pt-1 text-center">
             <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={user?.tenant?.logo || '/marq-ai-logo.png'} alt="Marq AI" className="w-3.5 h-3.5 rounded object-contain" />
+              <img src={user?.tenant?.logo || '/images/logo-3boxes-hrms.png'} alt="Marq AI" className="w-3.5 h-3.5 rounded object-contain" />
               <span className="text-[8px] text-thb-sidebar-text whitespace-nowrap">A Proud Product of Marq AI Tech Pvt Ltd</span>
             </div>
           </div>

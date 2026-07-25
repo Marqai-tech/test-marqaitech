@@ -2,47 +2,18 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading, token, fetchUser } = useAuthStore();
 
   useEffect(() => {
-    const hostname = window.location.hostname;
-
-    // If visiting the marketing domain, redirect to the landing page
-    if (
-      hostname === '3boxeshrms.com' ||
-      hostname === 'www.3boxeshrms.com'
-    ) {
-      router.replace('/landing');
-      return;
-    }
-
-    // Otherwise, existing auth-based redirect logic
-    const savedToken = localStorage.getItem('tb_token');
-
-    if (savedToken && !isAuthenticated) {
-      fetchUser().then(() => {
-        const { isAuthenticated: nowAuthed } = useAuthStore.getState();
-        if (nowAuthed) {
-          router.replace('/dashboards/payroll');
-        } else {
-          router.replace('/login');
-        }
-      });
-    } else if (isAuthenticated) {
-      router.replace('/dashboards/payroll');
-    } else if (!isLoading) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, isLoading, token, fetchUser, router]);
+    router.replace('/landing');
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-thb-background">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 mb-4 shadow-lg shadow-blue-500/25 animate-pulse-subtle">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 mb-4 shadow-lg shadow-green-500/25 animate-pulse-subtle">
           <svg
             className="animate-spin h-6 w-6 text-white"
             xmlns="http://www.w3.org/2000/svg"
