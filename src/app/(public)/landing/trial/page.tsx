@@ -33,7 +33,7 @@ import {
   FiPhone,
   FiMail,
   FiMapPin,
-  FiBuilding,
+  FiHome,
   FiUser,
   FiHelpCircle,
   FiChevronRight,
@@ -207,7 +207,7 @@ export default function TrialPage() {
 
   // Step labels
   const stepLabels = [
-    { num: 1, label: 'Company Details', icon: FiBuilding },
+    { num: 1, label: 'Company Details', icon: FiHome },
     { num: 2, label: 'Location & Coverage', icon: FiMapPin },
     { num: 3, label: 'Trial Setup', icon: FiZap },
     { num: 4, label: 'Launch Instance', icon: FiGlobe },
@@ -300,7 +300,7 @@ export default function TrialPage() {
               {/* Section Header */}
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
-                  <FiBuilding className="w-6 h-6 text-white" />
+                  <FiHome className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-extrabold text-slate-900">Company Details</h2>
@@ -360,7 +360,7 @@ export default function TrialPage() {
                     Company Name <span className="text-red-400">*</span>
                   </label>
                   <div className="flex items-center bg-slate-50 rounded-xl border border-slate-200 overflow-hidden focus-within:border-green-400 focus-within:ring-2 focus-within:ring-green-400/20 transition-all">
-                    <FiBuilding className="w-4 h-4 text-slate-400 ml-3" />
+                    <FiHome className="w-4 h-4 text-slate-400 ml-3" />
                     <input
                       type="text"
                       placeholder="e.g. Acme Technologies"
@@ -919,7 +919,7 @@ export default function TrialPage() {
                 <h3 className="text-sm font-semibold text-white mb-4">Trial Summary</h3>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <FiBuilding className="w-4 h-4 text-green-400" />
+                    <FiHome className="w-4 h-4 text-green-400" />
                     <span className="text-sm text-slate-300">Company:</span>
                     <span className="text-sm font-semibold text-white">{companyName}</span>
                     {companyLogo && (
